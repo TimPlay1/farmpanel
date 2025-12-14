@@ -14,7 +14,7 @@
 local PanelSync = {}
 
 -- Configuration
-local PANEL_API_URL = "https://your-app.vercel.app/api/sync" -- CHANGE THIS to your deployed URL
+local PANEL_API_URL = "https://farmpanel.vercel.app/api/sync" -- Your Vercel URL
 local SYNC_INTERVAL = 10 -- Seconds between syncs
 local KEY_FILE = "farm_key.txt"
 
