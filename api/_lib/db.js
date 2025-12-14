@@ -8,15 +8,22 @@ async function connectToDatabase() {
         return { client: cachedClient, db: cachedDb };
     }
 
-    const uri = process.env.MONGODB_URI;
+    let uri = process.env.MONGODB_URI;
     if (!uri) {
         throw new Error('MONGODB_URI environment variable is not set');
     }
 
+    // Ensure proper connection string parameters
+    if (!uri.includes('retryWrites')) {
+        uri += (uri.includes('?') ? '&' : '?') + 'retryWrites=true&w=majority';
+    }
+
     const client = new MongoClient(uri, {
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 5000,
+        serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
+        tls: true,
+        tlsAllowInvalidCertificates: false,
     });
     
     await client.connect();
