@@ -13,7 +13,12 @@ async function connectToDatabase() {
         throw new Error('MONGODB_URI environment variable is not set');
     }
 
-    const client = new MongoClient(uri);
+    const client = new MongoClient(uri, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+    });
+    
     await client.connect();
     
     const db = client.db('farmerpanel');
