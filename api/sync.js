@@ -11,6 +11,12 @@ module.exports = async (req, res) => {
     }
 
     try {
+        // Check if MONGODB_URI is set
+        if (!process.env.MONGODB_URI) {
+            console.error('MONGODB_URI not configured');
+            return res.status(500).json({ error: 'Database not configured' });
+        }
+
         const { db } = await connectToDatabase();
         const farmersCollection = db.collection('farmers');
 
@@ -84,7 +90,7 @@ module.exports = async (req, res) => {
 
         return res.status(405).json({ error: 'Method not allowed' });
     } catch (error) {
-        console.error('Sync error:', error);
-        return res.status(500).json({ error: 'Internal server error' });
+        console.error('Sync error:', error.message, error.stack);
+        return res.status(500).json({ error: 'Internal server error', details: error.message });
     }
 };
