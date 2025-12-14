@@ -25,9 +25,9 @@ A web panel to monitor your Brainrot Farm accounts in real-time.
 ### 2. Configure the Lua Script
 
 1. Open `scripts/panel_sync.lua`
-2. Change `PANEL_API_URL` to your deployed Vercel URL:
+2. The URL is already configured:
    ```lua
-   local PANEL_API_URL = "https://your-app.vercel.app/api/sync"
+   local PANEL_API_URL = "https://farmpanel.vercel.app/api/sync"
    ```
 
 ### 3. Add to Your Farm Script

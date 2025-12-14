@@ -13,7 +13,7 @@ local PanelSync = loadfile("panel_sync.lua")()
 -- local PanelSync = loadstring(game:HttpGet("https://raw.githubusercontent.com/YOUR_USERNAME/farmerpanel/main/scripts/panel_sync.lua"))()
 
 -- Initialize with your deployed Vercel URL
-local farmKey = PanelSync.init("https://your-app.vercel.app/api/sync")
+local farmKey = PanelSync.init("https://farmpanel.vercel.app/api/sync")
 
 print("Your farm key is: " .. farmKey)
 print("Enter this key in the web panel to view your farmers")
