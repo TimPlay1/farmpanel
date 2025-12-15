@@ -1,4 +1,6 @@
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 
 // Кэш для цен (хранится в памяти)
 const priceCache = new Map();
@@ -7,56 +9,140 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 минут
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
 
+// Загружаем mapping брейнротов -> ID из Eldorado
+let BRAINROT_ID_MAP = new Map();
+let BRAINROT_MIN_PRICES = new Map();
+try {
+    const dataPath = path.join(__dirname, '../data/eldorado-brainrot-ids.json');
+    const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+    data.forEach(item => {
+        BRAINROT_ID_MAP.set(item.name.toLowerCase(), { id: item.id, name: item.name });
+        BRAINROT_MIN_PRICES.set(item.name.toLowerCase(), item.price);
+    });
+    console.log('Loaded', BRAINROT_ID_MAP.size, 'Eldorado brainrot IDs');
+} catch (e) {
+    console.error('Failed to load eldorado-brainrot-ids.json:', e.message);
+}
+
+// Загружаем предзаготовленные диапазоны цен
+let PRICE_RANGES = {};
+try {
+    PRICE_RANGES = require('../data/price-ranges.js');
+    console.log('Loaded price ranges for', Object.keys(PRICE_RANGES).length, 'brainrots');
+} catch (e) {
+    console.error('Failed to load price-ranges.js:', e.message);
+}
+
+/**
+ * Определяет диапазон M/s по income (диапазоны Eldorado)
+ */
+function getMsRangeForIncome(income) {
+    if (income >= 1000) return '1+ B/s';      // 1000+ M/s = 1+ B/s
+    if (income >= 750) return '750-999 M/s';
+    if (income >= 500) return '500-749 M/s';   // 645 попадает сюда!
+    if (income >= 250) return '250-499 M/s';
+    if (income >= 100) return '100-249 M/s';
+    if (income >= 50) return '50-99 M/s';
+    if (income >= 25) return '25-49 M/s';
+    if (income > 0) return '0-24 M/s';
+    return '0';
+}
+
+/**
+ * Находит брейнрота в Eldorado mapping (case-insensitive)
+ */
+function findEldoradoBrainrot(name) {
+    const nameLower = name.toLowerCase();
+    
+    // Точное совпадение
+    if (BRAINROT_ID_MAP.has(nameLower)) {
+        return BRAINROT_ID_MAP.get(nameLower);
+    }
+    
+    // Поиск по частичному совпадению (все слова)
+    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+    for (const [key, value] of BRAINROT_ID_MAP) {
+        if (words.every(w => key.includes(w))) {
+            return value;
+        }
+    }
+    
+    return null;
+}
+
 /**
  * Парсит доходность из title оффера
+ * Примеры: "37.5M/s", "37 M/S", "46,8M/S", "37.5 m/s"
  */
 function parseIncomeFromTitle(title) {
     if (!title) return null;
     
+    // Паттерны от более специфичных к общим
     const patterns = [
-        /([\d.,]+)\s*M\/s/i,
-        /([\d.,]+)\s*m\/sec/i,
-        /([\d.,]+)\s*mil\/s/i,
+        /(\d+[.,]?\d*)\s*M\/s/i,      // 37.5M/s, 37 M/S
+        /(\d+[.,]?\d*)\s*m\/sec/i,    // 37m/sec
+        /(\d+[.,]?\d*)\s*mil\/s/i,    // 37mil/s
+        /(\d+[.,]?\d*)\s*M\s/i,       // 37M (с пробелом после)
+        /(\d+[.,]?\d*)\s*M$/i,        // 37M (в конце строки)
+        /(\d+[.,]?\d*)M/i,            // 37.5M (без пробела)
     ];
 
     for (const pattern of patterns) {
         const match = title.match(pattern);
         if (match) {
-            return parseFloat(match[1].replace(',', '.'));
+            const value = parseFloat(match[1].replace(',', '.'));
+            // Проверяем что это разумное значение M/s (не цена и не ID)
+            if (value >= 1 && value <= 9999) {
+                return value;
+            }
         }
     }
     return null;
 }
 
 /**
- * Получить ключ кэша
+ * Парсит среднее значение из M/s диапазона
+ * "25-49 M/s" -> 37, "500+ M/s" -> 500, "0-24 M/s" -> 12
  */
-function getCacheKey(brainrotName, income) {
-    const normalizedName = brainrotName.toLowerCase().replace(/\s+/g, '-');
-    return `${normalizedName}_${Math.floor(income / 50) * 50}`;
+function parseIncomeFromMsRange(msRange) {
+    if (!msRange) return null;
+    
+    const rangeMatch = msRange.match(/(\d+)-(\d+)/);
+    if (rangeMatch) {
+        const min = parseInt(rangeMatch[1]);
+        const max = parseInt(rangeMatch[2]);
+        return Math.floor((min + max) / 2); // Среднее значение диапазона
+    }
+    
+    const plusMatch = msRange.match(/(\d+)\+/);
+    if (plusMatch) {
+        return parseInt(plusMatch[1]); // Для 500+ возвращаем 500
+    }
+    
+    return null;
 }
 
 /**
- * Загружает офферы с Eldorado API
+ * Выполняет fetch запрос к Eldorado API с поиском по брейнроту
+ * Использует te_v0=Brainrot для указания типа + searchQuery для имени
+ * Сортировка по цене (Price ascending) для нахождения самых дешёвых офферов
  */
-function fetchOffers(pageIndex = 1, pageSize = 50) {
+function fetchEldorado(searchQuery = '', pageIndex = 1) {
     return new Promise((resolve) => {
-        const queryParams = new URLSearchParams({
-            gameId: ELDORADO_GAME_ID,
-            category: 'CustomItem',
-            pageSize: pageSize.toString(),
-            pageIndex: pageIndex.toString(),
-            offerSortingCriterion: 'Price',
-            isAscending: 'true'
-        });
+        // API с сортировкой по цене (ascending) для получения самых дешёвых первыми
+        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=50&pageIndex=${pageIndex}&offerSortingCriterion=Price&isAscending=true`;
+        
+        if (searchQuery) {
+            queryPath += `&searchQuery=${encodeURIComponent(searchQuery)}`;
+        }
 
         const options = {
             hostname: 'www.eldorado.gg',
-            path: `/api/flexibleOffers?${queryParams.toString()}`,
+            path: queryPath,
             method: 'GET',
             headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9'
             }
         };
 
@@ -67,76 +153,208 @@ function fetchOffers(pageIndex = 1, pageSize = 50) {
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed.code && parsed.code !== 200) {
-                        resolve({ results: [], error: parsed.messages });
-                    } else {
-                        resolve(parsed);
+                        resolve({ error: parsed.messages, results: [] });
+                        return;
                     }
+                    // С te_v0=Brainrot API возвращает results вместо flexibleOffers
+                    resolve({
+                        results: parsed.results || parsed.flexibleOffers || [],
+                        totalCount: parsed.recordCount || parsed.totalCount || 0,
+                        totalPages: parsed.totalPages || 0
+                    });
                 } catch (e) {
-                    resolve({ results: [], error: e.message });
+                    resolve({ error: e.message, results: [] });
                 }
             });
         });
 
-        req.on('error', (e) => resolve({ results: [], error: e.message }));
-        req.setTimeout(10000, () => { req.destroy(); resolve({ results: [], error: 'timeout' }); });
+        req.on('error', (e) => resolve({ error: e.message, results: [] }));
+        req.setTimeout(10000, () => {
+            req.destroy();
+            resolve({ error: 'timeout', results: [] });
+        });
         req.end();
     });
 }
 
 /**
- * Ищет офферы по имени брейнрота, загружая несколько страниц
+ * Определяет диапазон M/s для income (диапазоны Eldorado)
  */
-async function searchOffersByName(brainrotName) {
-    const nameLower = brainrotName.toLowerCase();
-    const nameWords = nameLower.split(/\s+/).filter(w => w.length > 2);
+function getMsRange(income) {
+    if (income >= 1000) return '1+ B/s';      // 1000+ M/s = 1+ B/s
+    if (income >= 750) return '750-999 M/s';
+    if (income >= 500) return '500-749 M/s';   // 645 попадает сюда!
+    if (income >= 250) return '250-499 M/s';
+    if (income >= 100) return '100-249 M/s';
+    if (income >= 50) return '50-99 M/s';
+    if (income >= 25) return '25-49 M/s';
+    if (income > 0) return '0-24 M/s';
+    return '0';
+}
+
+/**
+ * Генерирует варианты поискового запроса для брейнрота
+ * Например "Tictac Sahur" -> ["Tictac Sahur", "Tic tac Sahur", "tictac sahur"]
+ */
+function generateSearchVariants(name) {
+    const variants = new Set();
+    variants.add(name);
+    variants.add(name.toLowerCase());
     
-    if (nameWords.length === 0) {
-        return [];
+    // Разбиваем CamelCase/слитные слова
+    // "Tictac" -> "Tic tac"
+    const withSpaces = name.replace(/([a-z])([A-Z])/g, '$1 $2')
+                          .replace(/([A-Za-z])(\d)/g, '$1 $2');
+    variants.add(withSpaces);
+    variants.add(withSpaces.toLowerCase());
+    
+    // Добавляем вариант с пробелами между всеми "словами"
+    // "Tictac" можно разбить на "Tic tac"
+    const parts = name.split(/\s+/);
+    for (const part of parts) {
+        // Пробуем разбить длинные слова
+        if (part.length > 5) {
+            // Ищем позицию где можно разбить (между согласной и гласной)
+            for (let i = 2; i < part.length - 2; i++) {
+                const split = part.slice(0, i) + ' ' + part.slice(i);
+                const newName = name.replace(part, split);
+                variants.add(newName);
+                variants.add(newName.toLowerCase());
+            }
+        }
     }
     
-    const matching = [];
-    const pagesToCheck = 20; // Проверяем 20 страниц (1000 офферов)
+    return [...variants].slice(0, 6); // Максимум 6 вариантов
+}
+
+/**
+ * Ищет офферы конкретного брейнрота через searchQuery API
+ * @param {string} brainrotName - имя брейнрота
+ * @param {number} targetIncome - целевой income для фильтрации по M/s range
+ * @param {number} maxPages - максимум страниц для поиска
+ * @returns {Object} - офферы и статистика
+ */
+async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 60) {
+    const eldoradoInfo = findEldoradoBrainrot(brainrotName);
+    const nameLower = brainrotName.toLowerCase();
+    const targetMsRange = getMsRange(targetIncome);
     
-    // Загружаем страницы последовательно с паузами для избежания rate limiting
-    for (let page = 1; page <= pagesToCheck; page++) {
-        const response = await fetchOffers(page, 50);
+    // Проверяем есть ли брейнрот в списке Eldorado
+    const isInEldoradoList = !!eldoradoInfo;
+    
+    // Генерируем варианты поиска
+    const searchTerms = generateSearchVariants(eldoradoInfo?.name || brainrotName);
+    console.log('Searching:', brainrotName, '| In Eldorado list:', isInEldoradoList, '| Variants:', searchTerms.length, '| Target M/s:', targetMsRange, '| Target income:', targetIncome);
+    
+    const relevantOffers = [];
+    const matchingRangeOffers = []; // Офферы с совпадающим M/s range
+    const seenIds = new Set();
+    
+    // Ищем только по первому варианту (основному имени) но на большем кол-ве страниц
+    // Офферы с высоким M/s дороже и находятся на поздних страницах при сортировке по цене
+    const mainSearchTerm = searchTerms[0];
+    const minMatchingOffers = 10; // Минимум офферов в нужном M/s range
+    let pagesWithoutMatch = 0; // Счётчик страниц без находок в нужном диапазоне
+    let foundUpperOffer = false; // Нашли ли оффер с income >= targetIncome
+    
+    for (let page = 1; page <= maxPages; page++) {
+        const response = await fetchEldorado(mainSearchTerm, page);
         
-        if (response.error) {
-            console.log(`Page ${page} error:`, response.error);
-            // Если rate limited - выходим
-            if (response.error.includes && response.error.includes('1015')) {
-                break;
-            }
-            continue;
+        if (response.error || !response.results?.length) break;
+        
+        // Небольшая задержка между страницами чтобы не перегружать API
+        if (page > 1) {
+            await new Promise(r => setTimeout(r, 100));
         }
         
-        if (!response.results || response.results.length === 0) {
+        // Фильтруем результаты
+        for (const item of response.results) {
+            const offer = item.offer || item;
+            const brainrotEnv = offer.tradeEnvironmentValues?.find(e => e.name === 'Brainrot');
+            const envValue = brainrotEnv?.value?.toLowerCase() || '';
+            const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+            const offerTitle = (offer.offerTitle || '').toLowerCase();
+            
+            let matches = false;
+            
+            if (isInEldoradoList) {
+                // Брейнрот есть в списке Eldorado - ищем точное совпадение по tradeEnvironmentValues
+                matches = envValue === nameLower || 
+                          (eldoradoInfo && envValue === eldoradoInfo.name.toLowerCase());
+            } else {
+                // Брейнрот НЕТ в списке Eldorado (категория "Other")
+                // Ищем по названию в title оффера + проверяем что это "Other" категория
+                const isOtherCategory = envValue === 'other' || envValue === '';
+                const titleContainsName = offerTitle.includes(nameLower) || 
+                                          searchTerms.some(term => offerTitle.includes(term.toLowerCase()));
+                matches = titleContainsName && (isOtherCategory || !isInEldoradoList);
+            }
+        
+            if (matches) {
+                const offerId = offer.id;
+                if (!seenIds.has(offerId)) {
+                    seenIds.add(offerId);
+                    relevantOffers.push(item);
+                    
+                    // Отдельно собираем офферы с совпадающим M/s range
+                    if (msAttr?.value === targetMsRange) {
+                        matchingRangeOffers.push(item);
+                        pagesWithoutMatch = 0; // Сброс счётчика
+                        
+                        // Проверяем нашли ли upper оффер (income >= targetIncome)
+                        const title = offer.offerTitle || '';
+                        const parsedIncome = parseIncomeFromTitle(title);
+                        if (parsedIncome && parsedIncome >= targetIncome) {
+                            foundUpperOffer = true;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Логика остановки поиска:
+        // 1. Если нашли upper оффер (income >= наш) И достаточно офферов - стоп
+        // 2. Если не нашли upper оффер - продолжаем искать до maxPages
+        // 3. Если прошло много страниц без находок - стоп
+        
+        if (foundUpperOffer && matchingRangeOffers.length >= minMatchingOffers) {
+            console.log('Found upper offer and enough samples, stopping search at page', page);
             break;
         }
         
-        // Ищем совпадения
-        for (const item of response.results) {
-            const title = (item.offer?.offerTitle || '').toLowerCase();
-            const hasMatch = nameWords.some(word => title.includes(word));
-            if (hasMatch) {
-                matching.push(item);
+        // Если уже нашли много офферов но нет upper - всё равно продолжаем немного
+        if (matchingRangeOffers.length >= minMatchingOffers * 2 && !foundUpperOffer) {
+            // Даём ещё 10 страниц чтобы найти upper
+            if (pagesWithoutMatch >= 10) {
+                console.log('Many offers found but no upper, stopping after 10 empty pages at page', page);
+                break;
             }
         }
         
-        // Пауза между запросами для избежания rate limiting
-        if (page < pagesToCheck) {
-            await new Promise(r => setTimeout(r, 500));
+        // Если прошло 15 страниц без ЛЮБЫХ находок в нужном диапазоне - стоп
+        if (matchingRangeOffers.length > 0 && pagesWithoutMatch >= 15) {
+            console.log('No more offers found in target range for 15 pages, stopping at page', page);
+            break;
         }
+        pagesWithoutMatch++;
     }
     
-    return matching;
+    console.log('Found', relevantOffers.length, 'offers for', brainrotName, '| In target range:', matchingRangeOffers.length, '| Upper found:', foundUpperOffer);
+    
+    return {
+        allOffers: relevantOffers,
+        matchingRangeOffers: matchingRangeOffers,
+        targetMsRange: targetMsRange
+    };
 }
 
 /**
  * Рассчитывает оптимальную цену для брейнрота
  */
 async function calculateOptimalPrice(brainrotName, ourIncome) {
-    const cacheKey = getCacheKey(brainrotName, ourIncome);
+    // Кэш по M/s диапазону + точному income (округлённому до 5)
+    const targetMsRange = getMsRangeForIncome(ourIncome);
+    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(ourIncome / 5) * 5}`;
     
     // Проверяем кэш
     const cached = priceCache.get(cacheKey);
@@ -145,114 +363,211 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
     }
 
     try {
-        const matchingOffers = await searchOffersByName(brainrotName);
+        // Сначала проверяем предзаготовленные данные о ценах
+        const brainrotPriceRanges = PRICE_RANGES[brainrotName];
         
-        if (!matchingOffers || matchingOffers.length === 0) {
-            const result = { 
-                error: 'No offers found', 
-                suggestedPrice: null,
-                marketPrice: null,
-                brainrotName 
+        if (brainrotPriceRanges && brainrotPriceRanges[targetMsRange]) {
+            const rangeData = brainrotPriceRanges[targetMsRange];
+            // Рекомендуем чуть ниже средней для быстрой продажи
+            const suggestedPrice = Math.round((rangeData.avgPrice - 1) * 100) / 100;
+            
+            const result = {
+                suggestedPrice: Math.max(suggestedPrice, rangeData.minPrice),
+                marketPrice: rangeData.minPrice,
+                avgPrice: rangeData.avgPrice,
+                maxPrice: rangeData.maxPrice,
+                offersFound: rangeData.sampleCount,
+                targetMsRange,
+                priceSource: 'pre-collected data',
+                brainrotName
             };
             priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
             return result;
         }
-
-        // Обрабатываем результаты
-        const offersWithPrice = [];
         
-        for (const item of matchingOffers) {
-            const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            const income = parseIncomeFromTitle(title);
-            const price = offer.pricePerUnitInUSD?.amount || 0;
-            
-            if (price > 0) {
-                offersWithPrice.push({
-                    title,
-                    income: income || 0,
-                    price
-                });
-            }
-        }
-
-        // Сортируем по цене
-        offersWithPrice.sort((a, b) => a.price - b.price);
-
-        if (offersWithPrice.length === 0) {
-            const result = { 
-                error: 'No priced offers', 
-                suggestedPrice: null,
-                marketPrice: null,
+        // Если нет предзаготовленных данных - ищем офферы брейнрота
+        const searchResult = await searchBrainrotOffers(brainrotName, ourIncome);
+        const { allOffers, matchingRangeOffers } = searchResult;
+        
+        if (!allOffers || allOffers.length === 0) {
+            // Если офферов нет - берём минимальную цену из mapping
+            const minPrice = BRAINROT_MIN_PRICES.get(brainrotName.toLowerCase());
+            const result = {
+                suggestedPrice: minPrice ? Math.round(minPrice * 100) / 100 : null,
+                marketPrice: minPrice,
+                offersFound: 0,
+                source: 'cached_min',
                 brainrotName
             };
             priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
             return result;
         }
 
-        // Офферы с данными о доходности
-        const offersWithIncome = offersWithPrice.filter(o => o.income > 0);
+        // Парсим офферы из нужного M/s диапазона
+        const offersToProcess = matchingRangeOffers.length > 0 ? matchingRangeOffers : allOffers;
+        const parsedOffers = [];
         
-        let suggestedPrice = null;
-        let minPrice = null;
-        let maxPrice = null;
-
-        if (offersWithIncome.length > 0 && ourIncome > 0) {
-            const lowerOffers = offersWithIncome.filter(o => o.income <= ourIncome);
-            const higherOffers = offersWithIncome.filter(o => o.income > ourIncome);
-
-            if (lowerOffers.length > 0) {
-                minPrice = lowerOffers[lowerOffers.length - 1].price;
+        for (const item of offersToProcess) {
+            const offer = item.offer || item;
+            const title = offer.offerTitle || '';
+            let income = parseIncomeFromTitle(title);
+            const price = offer.pricePerUnitInUSD?.amount || 0;
+            const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+            
+            // Если income не указан в title, используем среднее значение из M/s атрибута
+            if (!income && msAttr?.value) {
+                income = parseIncomeFromMsRange(msAttr.value);
             }
-
-            if (higherOffers.length > 0) {
-                maxPrice = higherOffers[0].price;
-            }
-
-            if (minPrice && maxPrice) {
-                suggestedPrice = (minPrice + maxPrice) / 2 * 0.95;
-            } else if (minPrice) {
-                suggestedPrice = minPrice * 1.03;
-            } else if (maxPrice) {
-                suggestedPrice = maxPrice * 0.95;
+            
+            if (price > 0) {
+                parsedOffers.push({
+                    title,
+                    income: income || 0, // 0 если не указано
+                    price,
+                    msRange: msAttr?.value
+                });
             }
         }
 
-        // Средняя рыночная цена
-        const marketPrice = offersWithPrice.reduce((sum, o) => sum + o.price, 0) / offersWithPrice.length;
+        parsedOffers.sort((a, b) => a.price - b.price);
 
-        if (!suggestedPrice && offersWithPrice.length > 0) {
-            suggestedPrice = offersWithPrice[0].price;
+        if (parsedOffers.length === 0) {
+            const result = { 
+                error: 'No offers with price', 
+                suggestedPrice: null,
+                brainrotName 
+            };
+            priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
+            return result;
+        }
+
+        // ЛОГИКА РАСЧЁТА ЦЕНЫ:
+        // 1. Ищем "верхний" оффер - первый с income >= наш (минимальная цена среди них)
+        // 2. Ищем "нижний" оффер - оффер с income < наш, но с МАКСИМАЛЬНОЙ ценой
+        //    (это показывает "потолок" цен для брейнротов хуже нашего)
+        // 3. Если разница цен (верхний - нижний) >= $1 → ставим верхний.price - $1
+        // 4. Если разница < $1 или нижнего нет → ставим верхний.price - $0.50
+        
+        const offersWithIncome = parsedOffers.filter(o => o.income > 0);
+        const upperOffers = offersWithIncome.filter(o => o.income >= ourIncome);
+        const lowerOffers = offersWithIncome.filter(o => o.income < ourIncome);
+        
+        let suggestedPrice;
+        let priceSource;
+        let competitorPrice = null;
+        let competitorIncome = null;
+        let lowerPrice = null;
+        let lowerIncome = null;
+
+        if (upperOffers.length > 0) {
+            // Нашли офферы с доходностью >= нашей
+            // Берём минимальную цену среди них (уже отсортировано по цене)
+            const upperOffer = upperOffers[0];
+            competitorPrice = upperOffer.price;
+            competitorIncome = upperOffer.income;
+            
+            // Ищем нижний оффер:
+            // - income < наш (хуже по доходности)
+            // - price < upper.price (дешевле чем upper)
+            // Среди таких берём с МАКСИМАЛЬНЫМ income (ближайший к нашему по доходности)
+            if (lowerOffers.length > 0) {
+                // Фильтруем только те что дешевле upper
+                const validLower = lowerOffers.filter(o => o.price < competitorPrice);
+                
+                if (validLower.length > 0) {
+                    // Сортируем по income desc, при одинаковом income - по price desc
+                    // Нам нужен оффер с максимальным income, а среди таких - с максимальной ценой
+                    // (ближайший к upper по цене)
+                    const sortedLower = [...validLower].sort((a, b) => {
+                        if (b.income !== a.income) return b.income - a.income;
+                        return b.price - a.price; // при одинаковом income - максимальная цена
+                    });
+                    const lowerOffer = sortedLower[0];
+                    lowerPrice = lowerOffer.price;
+                    lowerIncome = lowerOffer.income;
+                }
+                
+                const priceDiff = lowerPrice ? (competitorPrice - lowerPrice) : null;
+                
+                if (priceDiff !== null && priceDiff >= 1) {
+                    // Разница >= $1, есть запас - ставим на $1 меньше верхнего
+                    suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
+                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
+                } else if (priceDiff !== null) {
+                    // Разница < $1 - ставим на $0.50 меньше верхнего
+                    suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
+                } else {
+                    // Нет valid lower (все lower дороже upper) - ставим -$0.50
+                    suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no valid lower (all lower >= upper price) → -$0.50`;
+                }
+            } else {
+                // Нижнего оффера нет - ставим на $0.50 меньше верхнего
+                suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower offer → -$0.50`;
+            }
+        } else if (offersWithIncome.length > 0) {
+            // Нет офферов с income >= нашему
+            // Наш income выше всех на рынке - берём максимальную цену и добавляем немного
+            // Сортируем по цене desc чтобы найти максимальную цену на рынке
+            const sortedByPrice = [...offersWithIncome].sort((a, b) => b.price - a.price);
+            const maxPriceOffer = sortedByPrice[0];
+            
+            // Также находим оффер с максимальным income для сравнения
+            const maxIncomeOffer = offersWithIncome.reduce((max, o) => o.income > max.income ? o : max);
+            
+            competitorPrice = maxPriceOffer.price;
+            competitorIncome = maxIncomeOffer.income;
+            
+            // Наш income выше рынка - ставим на $1-2 выше максимальной цены на рынке
+            // Не завышаем пропорционально, просто немного выше
+            const incomeDiff = ourIncome - maxIncomeOffer.income;
+            const extraPrice = Math.min(incomeDiff * 0.01, 5); // Максимум +$5
+            suggestedPrice = Math.round((maxPriceOffer.price + 1 + extraPrice) * 100) / 100;
+            priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)}, max income: ${competitorIncome}M/s)`;
+        } else {
+            // Никто не указывает income - берём минимальную цену - $0.50
+            const minPrice = parsedOffers[0].price;
+            suggestedPrice = Math.round((minPrice - 0.5) * 100) / 100;
+            priceSource = 'min price - $0.50 (no income data in offers)';
         }
 
         const result = {
+            suggestedPrice,
+            marketPrice: parsedOffers[0].price,
+            offersFound: parsedOffers.length,
+            matchingRangeCount: matchingRangeOffers.length,
+            targetMsRange,
+            priceSource,
             brainrotName,
-            ourIncome,
-            suggestedPrice: suggestedPrice ? Math.round(suggestedPrice * 100) / 100 : null,
-            marketPrice: marketPrice ? Math.round(marketPrice * 100) / 100 : null,
-            priceRange: {
-                min: minPrice ? Math.round(minPrice * 100) / 100 : null,
-                max: maxPrice ? Math.round(maxPrice * 100) / 100 : null
-            },
-            totalOffersAnalyzed: offersWithPrice.length,
-            lowestPrice: offersWithPrice[0]?.price ? Math.round(offersWithPrice[0].price * 100) / 100 : null
+            competitorPrice,
+            competitorIncome,
+            samples: parsedOffers.slice(0, 5).map(o => ({
+                income: o.income,
+                price: o.price,
+                title: o.title
+            }))
         };
 
         priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
         return result;
-    } catch (error) {
-        console.error('Error calculating price:', error);
+
+    } catch (err) {
+        console.error('calculateOptimalPrice error:', err.message);
         return { 
-            error: error.message, 
+            error: err.message, 
             suggestedPrice: null,
-            marketPrice: null,
-            brainrotName
+            brainrotName 
         };
     }
 }
 
-// Vercel serverless function handler
+/**
+ * Vercel serverless handler
+ */
 module.exports = async (req, res) => {
+    // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -261,27 +576,22 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
+    const brainrotName = req.query.name || req.query.brainrot;
+    const income = parseFloat(req.query.income) || 0;
+
+    if (!brainrotName) {
+        return res.status(400).json({ error: 'Missing brainrot name' });
+    }
+
     try {
-        if (req.method === 'GET') {
-            const { brainrotName, pitName, income } = req.query;
-            const name = brainrotName || pitName;
-            
-            if (!name || !income) {
-                return res.status(400).json({ 
-                    error: 'brainrotName and income are required' 
-                });
-            }
-            
-            const result = await calculateOptimalPrice(name, parseFloat(income));
-            return res.status(200).json(result);
-        }
-        
-        return res.status(405).json({ error: 'Method not allowed' });
-    } catch (error) {
-        console.error('Eldorado price error:', error);
-        return res.status(500).json({ 
-            error: 'Internal server error', 
-            details: error.message 
-        });
+        const result = await calculateOptimalPrice(brainrotName, income);
+        return res.status(200).json(result);
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
     }
 };
+
+// Экспорт для тестирования
+module.exports.calculateOptimalPrice = calculateOptimalPrice;
+module.exports.searchBrainrotOffers = searchBrainrotOffers;
+module.exports.findEldoradoBrainrot = findEldoradoBrainrot;

@@ -23,3 +23,10 @@ npm-debug.log*
 
 # Local files
 server.js
+test.json
+
+# Test scripts
+scripts/
+
+# Extra data files
+data/eldorado-brainrots.json
