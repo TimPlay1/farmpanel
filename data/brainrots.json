@@ -531,13 +531,8 @@
       "hasImage": true
     },
     {
-      "name": "Festive",
-      "image": "Festive_67.png",
-      "hasImage": true
-    },
-    {
       "name": "Festive 67",
-      "image": "Festive_67_1.png",
+      "image": "Festive_67.png",
       "hasImage": true
     },
     {
@@ -706,7 +701,7 @@
       "hasImage": true
     },
     {
-      "name": "Guest",
+      "name": "Guest 666",
       "image": "Guest_666.png",
       "hasImage": true
     },
@@ -926,8 +921,13 @@
       "hasImage": true
     },
     {
-      "name": "Los",
+      "name": "Los 25",
       "image": "Los_25.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los 67",
+      "image": "Los_67.png",
       "hasImage": true
     },
     {
@@ -1086,6 +1086,16 @@
       "hasImage": true
     },
     {
+      "name": "Luck Variants 3",
+      "image": "Luck_Variants_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 4",
+      "image": "Luck_Variants_4.png",
+      "hasImage": true
+    },
+    {
       "name": "Lucky Blocks",
       "image": "Lucky_Blocks.png",
       "hasImage": true
@@ -1163,6 +1173,41 @@
     {
       "name": "Mutations",
       "image": "Mutations.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 3",
+      "image": "Mutations_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 4",
+      "image": "Mutations_4.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 5",
+      "image": "Mutations_5.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 6",
+      "image": "Mutations_6.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 7",
+      "image": "Mutations_7.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 8",
+      "image": "Mutations_8.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 9",
+      "image": "Mutations_9.png",
       "hasImage": true
     },
     {
@@ -1711,8 +1756,13 @@
       "hasImage": true
     },
     {
-      "name": "Trenostruzzo Turbo",
+      "name": "Trenostruzzo Turbo 3000",
       "image": "Trenostruzzo_Turbo_3000.png",
+      "hasImage": true
+    },
+    {
+      "name": "Trenostruzzo Turbo 4000",
+      "image": "Trenostruzzo_Turbo_4000.png",
       "hasImage": true
     },
     {
@@ -1763,6 +1813,41 @@
     {
       "name": "Upcoming Features Brainrots",
       "image": "Upcoming_Features_Brainrots.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 3",
+      "image": "Upcoming_Features_Brainrots_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 4",
+      "image": "Upcoming_Features_Brainrots_4.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 5",
+      "image": "Upcoming_Features_Brainrots_5.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 6",
+      "image": "Upcoming_Features_Brainrots_6.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 7",
+      "image": "Upcoming_Features_Brainrots_7.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 8",
+      "image": "Upcoming_Features_Brainrots_8.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 9",
+      "image": "Upcoming_Features_Brainrots_9.png",
       "hasImage": true
     },
     {
