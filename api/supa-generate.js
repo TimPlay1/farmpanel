@@ -15,51 +15,64 @@ const TEMPLATE_OBJECTS = {
 
 // Upload image to Supa
 async function uploadImageToSupa(imageUrl) {
-    try {
-        console.log('Downloading image from:', imageUrl);
-        
-        const imageResponse = await fetch(imageUrl);
-        if (!imageResponse.ok) {
-            throw new Error(`Failed to download image: ${imageResponse.status}`);
+    console.log('=== uploadImageToSupa START ===');
+    console.log('Downloading image from:', imageUrl);
+    
+    const imageResponse = await fetch(imageUrl, {
+        headers: {
+            'User-Agent': 'FarmerPanel/1.0'
         }
+    });
+    
+    console.log('Image response status:', imageResponse.status);
+    console.log('Image response headers:', JSON.stringify(Object.fromEntries(imageResponse.headers.entries())));
+    
+    if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
+    }
 
-        const imageBuffer = await imageResponse.buffer();
-        const contentType = imageResponse.headers.get('content-type') || 'image/png';
-        
-        let extension = 'png';
-        if (contentType.includes('jpeg') || contentType.includes('jpg')) {
-            extension = 'jpg';
-        } else if (contentType.includes('webp')) {
-            extension = 'webp';
-        }
+    const imageBuffer = await imageResponse.buffer();
+    console.log('Image buffer size:', imageBuffer.length);
+    
+    if (imageBuffer.length === 0) {
+        throw new Error('Downloaded image is empty');
+    }
+    
+    const contentType = imageResponse.headers.get('content-type') || 'image/png';
+    console.log('Content-Type:', contentType);
+    
+    let extension = 'png';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+        extension = 'jpg';
+    } else if (contentType.includes('webp')) {
+        extension = 'webp';
+    }
 
-        const formData = new FormData();
-        formData.append('file', imageBuffer, {
-            filename: `brainrot.${extension}`,
-            contentType: contentType
-        });
+    const formData = new FormData();
+    formData.append('file', imageBuffer, {
+        filename: `brainrot.${extension}`,
+        contentType: contentType
+    });
 
-        console.log('Uploading to Supa...');
-        
-        const uploadResponse = await fetch(`${SUPA_API_BASE}/upload`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${SUPA_API_KEY}`
-            },
-            body: formData
-        });
+    console.log('Uploading to Supa API...');
+    
+    const uploadResponse = await fetch(`${SUPA_API_BASE}/upload`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPA_API_KEY}`
+        },
+        body: formData
+    });
 
-        const uploadResult = await uploadResponse.json();
-        console.log('Upload result:', uploadResult);
+    const uploadResult = await uploadResponse.json();
+    console.log('Upload response status:', uploadResponse.status);
+    console.log('Upload result:', JSON.stringify(uploadResult));
 
-        if (uploadResult.result === 'success' && uploadResult.url) {
-            return uploadResult.url;
-        } else {
-            throw new Error(uploadResult.reason || 'Upload failed');
-        }
-    } catch (error) {
-        console.error('Error uploading image to Supa:', error);
-        throw error;
+    if (uploadResult.result === 'success' && uploadResult.url) {
+        console.log('=== uploadImageToSupa SUCCESS ===');
+        return uploadResult.url;
+    } else {
+        throw new Error(uploadResult.reason || uploadResult.error || 'Upload failed - unknown reason');
     }
 }
 
@@ -190,13 +203,19 @@ module.exports = async (req, res) => {
 
         // Upload image to Supa
         let supaImageUrl = null;
+        let imageUploadError = null;
+        
         if (imageUrl && imageUrl.startsWith('http')) {
             try {
                 supaImageUrl = await uploadImageToSupa(imageUrl);
                 console.log('Supa image URL:', supaImageUrl);
             } catch (uploadError) {
-                console.warn('Failed to upload image:', uploadError.message);
+                imageUploadError = uploadError.message;
+                console.error('Failed to upload image:', uploadError.message);
+                console.error('Stack:', uploadError.stack);
             }
+        } else {
+            console.log('No valid imageUrl provided:', imageUrl);
         }
 
         // Request render
@@ -206,6 +225,8 @@ module.exports = async (req, res) => {
             supaImageUrl,
             borderColor
         });
+
+        console.log('Render requested with supaImageUrl:', supaImageUrl);
 
         if (!renderResult.task_id) {
             throw new Error('No task_id received');
@@ -226,7 +247,9 @@ module.exports = async (req, res) => {
                 statusUrl: `/api/supa-status?taskId=${renderResult.task_id}`,
                 brainrotName: name,
                 accountId,
-                accountName
+                accountName,
+                imageUploaded: !!supaImageUrl,
+                imageUploadError: imageUploadError || null
             });
         }
 
@@ -237,7 +260,9 @@ module.exports = async (req, res) => {
             state: finalResult.state,
             brainrotName: name,
             accountId,
-            accountName
+            accountName,
+            imageUploaded: !!supaImageUrl,
+            imageUploadError: imageUploadError || null
         });
 
     } catch (error) {
