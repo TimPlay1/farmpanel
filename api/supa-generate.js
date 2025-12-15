@@ -25,7 +25,6 @@ async function uploadImageToSupa(imageUrl) {
     });
     
     console.log('Image response status:', imageResponse.status);
-    console.log('Image response headers:', JSON.stringify(Object.fromEntries(imageResponse.headers.entries())));
     
     if (!imageResponse.ok) {
         throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
@@ -41,20 +40,27 @@ async function uploadImageToSupa(imageUrl) {
     const contentType = imageResponse.headers.get('content-type') || 'image/png';
     console.log('Content-Type:', contentType);
     
+    // Supa API может не поддерживать webp - принудительно ставим png
+    // и надеемся что Supa сам определит формат по magic bytes
     let extension = 'png';
+    let uploadContentType = 'image/png';
+    
     if (contentType.includes('jpeg') || contentType.includes('jpg')) {
         extension = 'jpg';
-    } else if (contentType.includes('webp')) {
-        extension = 'webp';
+        uploadContentType = 'image/jpeg';
+    } else if (contentType.includes('gif')) {
+        extension = 'gif';
+        uploadContentType = 'image/gif';
     }
+    // webp оставляем как png - Supa должен обработать
 
     const formData = new FormData();
     formData.append('file', imageBuffer, {
         filename: `brainrot.${extension}`,
-        contentType: contentType
+        contentType: uploadContentType
     });
 
-    console.log('Uploading to Supa API...');
+    console.log('Uploading to Supa API with filename:', `brainrot.${extension}`, 'contentType:', uploadContentType);
     
     const uploadResponse = await fetch(`${SUPA_API_BASE}/upload`, {
         method: 'POST',
@@ -64,15 +70,22 @@ async function uploadImageToSupa(imageUrl) {
         body: formData
     });
 
-    const uploadResult = await uploadResponse.json();
+    const responseText = await uploadResponse.text();
     console.log('Upload response status:', uploadResponse.status);
-    console.log('Upload result:', JSON.stringify(uploadResult));
+    console.log('Upload response body:', responseText);
+    
+    let uploadResult;
+    try {
+        uploadResult = JSON.parse(responseText);
+    } catch (e) {
+        throw new Error(`Invalid JSON response: ${responseText.substring(0, 200)}`);
+    }
 
     if (uploadResult.result === 'success' && uploadResult.url) {
         console.log('=== uploadImageToSupa SUCCESS ===');
         return uploadResult.url;
     } else {
-        throw new Error(uploadResult.reason || uploadResult.error || 'Upload failed - unknown reason');
+        throw new Error(uploadResult.reason || uploadResult.error || uploadResult.message || `Upload failed: ${responseText.substring(0, 200)}`);
     }
 }
 
