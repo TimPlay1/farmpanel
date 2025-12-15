@@ -1289,6 +1289,32 @@ body {
     font-size: 0.8rem;
 }
 
+/* Price change indicators */
+.price-change-up {
+    color: #4ade80;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.2rem;
+}
+
+.price-change-down {
+    color: #f87171;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 0.2rem;
+}
+
+/* Total value in stats */
+.total-value {
+    color: var(--accent-green);
+    font-weight: 600;
+}
+
+/* Account value stat */
+.account-stat.account-value .account-stat-value {
+    color: var(--accent-green);
+}
+
 .brainrot-account {
     display: flex;
     align-items: center;

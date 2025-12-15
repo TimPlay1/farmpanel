@@ -13,12 +13,56 @@ let state = {
     farmersData: {},
     brainrotImages: {},
     eldoradoPrices: {}, // Кэш цен Eldorado по ключу (name_income)
-    brainrotPrices: {} // Кэш цен по имени брейнрота для отображения
+    brainrotPrices: {}, // Кэш цен по имени брейнрота для отображения
+    previousPrices: {}, // Предыдущие цены для расчёта % изменения
+    avatarCache: {} // Кэш аватаров по userId
 };
 
 // Кэш цен Eldorado (время жизни 5 минут)
 const PRICE_CACHE_TTL = 5 * 60 * 1000;
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
+const AVATAR_STORAGE_KEY = 'avatarCache';
+
+/**
+ * Загрузить кэш аватаров из localStorage
+ */
+function loadAvatarCache() {
+    try {
+        const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
+        if (stored) {
+            state.avatarCache = JSON.parse(stored);
+            console.log(`Loaded ${Object.keys(state.avatarCache).length} avatars from cache`);
+        }
+    } catch (e) {
+        console.warn('Failed to load avatar cache:', e);
+    }
+}
+
+/**
+ * Сохранить аватар в кэш
+ */
+function saveAvatarToCache(userId, avatarUrl) {
+    state.avatarCache[userId] = {
+        url: avatarUrl,
+        timestamp: Date.now()
+    };
+    try {
+        localStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(state.avatarCache));
+    } catch (e) {
+        console.warn('Failed to save avatar cache:', e);
+    }
+}
+
+/**
+ * Получить аватар из кэша (действителен 24 часа)
+ */
+function getCachedAvatar(userId) {
+    const cached = state.avatarCache[userId];
+    if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+        return cached.url;
+    }
+    return null;
+}
 
 /**
  * Загрузить кэш цен из localStorage
@@ -77,6 +121,65 @@ function savePriceCacheToStorage() {
 function isPriceStale(priceData) {
     if (!priceData || !priceData._timestamp) return true;
     return Date.now() - priceData._timestamp > PRICE_CACHE_TTL;
+}
+
+/**
+ * Рассчитать общую стоимость всех брейнротов
+ */
+function calculateTotalValue(brainrots) {
+    let total = 0;
+    for (const b of brainrots) {
+        const income = normalizeIncomeForApi(b.income, b.incomeText);
+        const cacheKey = getPriceCacheKey(b.name, income);
+        const priceData = state.brainrotPrices[cacheKey];
+        if (priceData && priceData.suggestedPrice) {
+            total += priceData.suggestedPrice;
+        }
+    }
+    return total;
+}
+
+/**
+ * Рассчитать стоимость брейнротов для аккаунта
+ */
+function calculateAccountValue(account) {
+    if (!account.brainrots) return 0;
+    return calculateTotalValue(account.brainrots.map(b => ({
+        ...b,
+        income: b.income,
+        incomeText: b.incomeText
+    })));
+}
+
+/**
+ * Сохранить предыдущие цены перед обновлением
+ */
+function savePreviousPrices() {
+    for (const [key, data] of Object.entries(state.brainrotPrices)) {
+        if (data && data.suggestedPrice) {
+            state.previousPrices[key] = data.suggestedPrice;
+        }
+    }
+}
+
+/**
+ * Получить % изменения цены
+ */
+function getPriceChangePercent(cacheKey, newPrice) {
+    const oldPrice = state.previousPrices[cacheKey];
+    if (!oldPrice || oldPrice === newPrice) return null;
+    const change = ((newPrice - oldPrice) / oldPrice) * 100;
+    return change;
+}
+
+/**
+ * Форматировать % изменения
+ */
+function formatPriceChange(percent) {
+    if (percent === null || percent === undefined || isNaN(percent)) return '';
+    const sign = percent >= 0 ? '+' : '';
+    const colorClass = percent >= 0 ? 'price-change-up' : 'price-change-down';
+    return `<span class="${colorClass}">${sign}${percent.toFixed(1)}%</span>`;
 }
 
 // Load brainrot images mapping
@@ -330,6 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadBrainrotMapping();
     loadState();
     loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
+    loadAvatarCache(); // Загружаем кэш аватаров
     setupEventListeners();
     
     if (state.currentKey && state.savedKeys.length > 0) {
@@ -714,15 +818,17 @@ async function renderAccountsGrid(accounts) {
     // Pre-fetch avatars (use cache)
     const avatarPromises = accounts.map(async (account) => {
         if (account.userId) {
-            if (avatarCache[account.userId]) {
-                account.avatarUrl = avatarCache[account.userId];
+            // Проверяем кэш
+            const cachedAvatar = getCachedAvatar(account.userId);
+            if (cachedAvatar) {
+                account.avatarUrl = cachedAvatar;
             } else {
                 try {
                     const response = await fetch(`${API_BASE}/avatar?userId=${account.userId}`);
                     if (response.ok) {
                         const data = await response.json();
                         if (data.imageUrl) {
-                            avatarCache[account.userId] = data.imageUrl;
+                            saveAvatarToCache(account.userId, data.imageUrl);
                             account.avatarUrl = data.imageUrl;
                         }
                     }
@@ -783,6 +889,7 @@ async function renderAccountsGrid(accounts) {
         const actionText = isOnline ? (account.action || account.status || '') : '';
         
         const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
+        const accountValue = calculateAccountValue(account);
         
         return `
             <div class="account-card" id="${getAccountCardId(account)}" data-player="${account.playerName}">
@@ -810,6 +917,12 @@ async function renderAccountsGrid(accounts) {
                         <div class="account-stat-value">${account.totalBrainrots || 0}</div>
                         <div class="account-stat-label">Brainrots</div>
                     </div>
+                    ${accountValue > 0 ? `
+                    <div class="account-stat account-value">
+                        <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
+                        <div class="account-stat-label">Value</div>
+                    </div>
+                    ` : ''}
                 </div>
                 ${account.brainrots && account.brainrots.length > 0 ? `
                     <div class="account-brainrots">
@@ -844,7 +957,7 @@ function renderAccountsList(accounts) {
     }
     
     accountsListEl.innerHTML = accounts.map(account => {
-        const avatarSrc = account.avatarUrl || avatarCache[account.userId] || getDefaultAvatar(account.playerName);
+        const avatarSrc = account.avatarUrl || getCachedAvatar(account.userId) || getDefaultAvatar(account.playerName);
         const isOnline = account._isOnline;
         const statusClass = isOnline ? 'online' : 'offline';
         const actionText = isOnline ? (account.action || account.status || 'Idle') : 'Offline';
@@ -1310,8 +1423,13 @@ async function renderCollection() {
     // Update stats
     if (collectionStatsEl) {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
+        const totalValue = calculateTotalValue(collectionState.allBrainrots);
+        
         let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' total</span>';
         statsHtml += '<span><i class="fas fa-fingerprint"></i> ' + uniqueNames.size + ' unique</span>';
+        if (totalValue > 0) {
+            statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + '</span>';
+        }
         if (collectionState.searchQuery || collectionState.accountFilter !== 'all') {
             statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
         }
@@ -1343,10 +1461,13 @@ async function renderCollection() {
             const competitorInfo = cachedPrice.competitorPrice 
                 ? `~$${cachedPrice.competitorPrice.toFixed(2)}` 
                 : '';
+            const priceChange = getPriceChangePercent(cacheKey, cachedPrice.suggestedPrice);
+            const changeHtml = formatPriceChange(priceChange);
             priceHtml = `
                 <div class="brainrot-price" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
+                    ${changeHtml}
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
                 </div>`;
         } else if (cachedPrice && cachedPrice.error) {
@@ -1514,9 +1635,12 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         const competitorInfo = priceData.competitorPrice 
             ? `~$${priceData.competitorPrice.toFixed(2)}` 
             : '';
+        const priceChange = getPriceChangePercent(cacheKey, priceData.suggestedPrice);
+        const changeHtml = formatPriceChange(priceChange);
         priceEl.innerHTML = `
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
+            ${changeHtml}
             ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
         `;
         priceEl.title = priceData.priceSource || `Suggested: ${formatPrice(priceData.suggestedPrice)}`;
@@ -1532,6 +1656,9 @@ function updatePriceInDOM(brainrotName, income, priceData) {
  * Очистить кэш цен и перезагрузить
  */
 function clearPriceCache() {
+    // Сохраняем текущие цены как предыдущие для отображения % изменения
+    savePreviousPrices();
+    
     state.brainrotPrices = {};
     state.eldoradoPrices = {};
     localStorage.removeItem(PRICE_STORAGE_KEY);

@@ -1,15 +1,5 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/**/*.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "public/**",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
       "src": "/api/(.*)",
@@ -20,7 +10,11 @@
       "dest": "/public/brainrots/$1"
     },
     {
-      "src": "/(.*)",
+      "src": "/brainrots-mapping.json",
+      "dest": "/public/brainrots-mapping.json"
+    },
+    {
+      "src": "/((?!api/).*)",
       "dest": "/public/$1"
     }
   ]
