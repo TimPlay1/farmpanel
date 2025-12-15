@@ -1988,7 +1988,13 @@ async function renderCollection() {
         const allGenerated = notGeneratedCount === 0;
         const partialGenerated = generatedCount > 0 && notGeneratedCount > 0;
         
-        // Собираем accountNames для tooltip
+        // Собираем детальную информацию по аккаунтам для tooltip
+        const accountsDetails = group.items.map(item => {
+            const isGen = isGenerated(item.accountId, item.name, income);
+            const statusIcon = isGen ? '✅' : '⏳';
+            return `${statusIcon} ${item.accountName}`;
+        }).join('\n');
+        
         const accountsList = group.items.map(i => i.accountName).join(', ');
         
         return `
@@ -2001,7 +2007,7 @@ async function renderCollection() {
                 <i class="fas fa-${allGenerated ? 'check' : 'plus'}"></i>
             </div>
             ${group.quantity > 1 ? `
-            <div class="brainrot-quantity-badge" title="${group.quantity} шт: ${accountsList}">
+            <div class="brainrot-quantity-badge" data-tooltip="Фермеры:\n${accountsDetails}">
                 x${group.quantity}
             </div>
             ` : ''}

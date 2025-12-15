@@ -1439,6 +1439,52 @@ body {
     border-radius: 6px;
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
     z-index: 6;
+    cursor: help;
+}
+
+/* Custom tooltip for quantity badge */
+.brainrot-quantity-badge::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.95);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 400;
+    border-radius: 8px;
+    white-space: pre-line;
+    min-width: 150px;
+    max-width: 250px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
+    line-height: 1.4;
+}
+
+.brainrot-quantity-badge:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Account info styling in cards */
+.brainrot-account {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    cursor: help;
+}
+
+.brainrot-account i {
+    font-size: 0.55rem;
 }
 
 /* Generated card styling */
