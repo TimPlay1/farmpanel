@@ -1,5 +1,68 @@
 const { connectToDatabase, generateAvatar, generateUsername } = require('./_lib/db');
 
+// Кэш аватаров в памяти (для serverless может не работать долго, но база - главный источник)
+const avatarCache = new Map();
+const AVATAR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 часа
+
+/**
+ * Загрузить аватар с Roblox API
+ */
+async function fetchRobloxAvatar(userId) {
+    try {
+        const response = await fetch(
+            `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
+        );
+        const data = await response.json();
+        if (data.data && data.data[0] && data.data[0].imageUrl) {
+            return data.data[0].imageUrl;
+        }
+    } catch (e) {
+        console.warn('Failed to fetch avatar for userId', userId, e.message);
+    }
+    return null;
+}
+
+/**
+ * Загрузить аватары для списка аккаунтов
+ */
+async function fetchAvatarsForAccounts(accounts, existingAvatars = {}) {
+    const avatars = { ...existingAvatars };
+    const toFetch = [];
+    
+    for (const account of accounts) {
+        if (!account.userId) continue;
+        const key = String(account.userId);
+        
+        // Проверяем есть ли уже в базе и не устарел ли
+        if (avatars[key] && avatars[key].timestamp) {
+            const age = Date.now() - avatars[key].timestamp;
+            if (age < AVATAR_CACHE_TTL) {
+                continue; // Аватар актуален
+            }
+        }
+        
+        toFetch.push(account.userId);
+    }
+    
+    // Загружаем недостающие аватары параллельно (макс 10 за раз)
+    const batchSize = 10;
+    for (let i = 0; i < toFetch.length; i += batchSize) {
+        const batch = toFetch.slice(i, i + batchSize);
+        const results = await Promise.all(batch.map(userId => fetchRobloxAvatar(userId)));
+        
+        results.forEach((url, idx) => {
+            if (url) {
+                avatars[String(batch[idx])] = {
+                    url: url,
+                    timestamp: Date.now()
+                };
+            }
+        });
+    }
+    
+    return avatars;
+}
+
 module.exports = async (req, res) => {
     // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -41,13 +104,30 @@ module.exports = async (req, res) => {
                     username: generateUsername(),
                     avatar: generateAvatar(existingAvatars),
                     accounts: [],
+                    accountAvatars: {}, // Хранилище аватаров аккаунтов
                     createdAt: new Date(),
                     lastUpdate: new Date()
                 };
             }
 
+            // Загружаем аватары для аккаунтов (в фоне, не блокируя ответ)
+            const existingAccountAvatars = farmer.accountAvatars || {};
+            
+            // Синхронно загружаем только если аватаров мало или их нет
+            const needsAvatars = accounts.some(a => {
+                if (!a.userId) return false;
+                const cached = existingAccountAvatars[String(a.userId)];
+                return !cached || !cached.url;
+            });
+            
+            let accountAvatars = existingAccountAvatars;
+            if (needsAvatars) {
+                accountAvatars = await fetchAvatarsForAccounts(accounts, existingAccountAvatars);
+            }
+
             // Update farmer data
             farmer.accounts = accounts;
+            farmer.accountAvatars = accountAvatars;
             farmer.lastUpdate = new Date();
             farmer.lastTimestamp = timestamp;
 
@@ -84,6 +164,7 @@ module.exports = async (req, res) => {
                 username: farmer.username,
                 avatar: farmer.avatar,
                 accounts: farmer.accounts || [],
+                accountAvatars: farmer.accountAvatars || {}, // Возвращаем аватары аккаунтов
                 lastUpdate: farmer.lastUpdate,
                 totalValue: farmer.totalValue || 0,
                 valueUpdatedAt: farmer.valueUpdatedAt || null

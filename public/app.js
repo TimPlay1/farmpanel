@@ -986,32 +986,27 @@ async function renderAccountsGrid(accounts) {
         return;
     }
     
-    // Pre-fetch avatars (use cache)
-    const avatarPromises = accounts.map(async (account) => {
+    // Получаем аватары из данных сервера
+    const data = state.farmersData[state.currentKey];
+    const serverAvatars = data?.accountAvatars || {};
+    
+    // Применяем серверные аватары к аккаунтам
+    accounts.forEach(account => {
         if (account.userId) {
-            // Проверяем кэш
-            const cachedAvatar = getCachedAvatar(account.userId);
-            if (cachedAvatar) {
-                account.avatarUrl = cachedAvatar;
+            const avatarData = serverAvatars[String(account.userId)];
+            if (avatarData && avatarData.url) {
+                account.avatarUrl = avatarData.url;
+                // Также сохраняем в локальный кэш для быстрого доступа
+                saveAvatarToCache(account.userId, avatarData.url);
             } else {
-                try {
-                    const response = await fetch(`${API_BASE}/avatar?userId=${account.userId}`);
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data.imageUrl) {
-                            saveAvatarToCache(account.userId, data.imageUrl);
-                            account.avatarUrl = data.imageUrl;
-                        }
-                    }
-                } catch (err) {
-                    // ignore
+                // Fallback на локальный кэш
+                const cachedAvatar = getCachedAvatar(account.userId);
+                if (cachedAvatar) {
+                    account.avatarUrl = cachedAvatar;
                 }
             }
         }
-        return account;
     });
-    
-    await Promise.all(avatarPromises);
     
     // Check if we can do smart update (same accounts exist)
     const existingCards = accountsGridEl.querySelectorAll('.account-card');
@@ -1127,8 +1122,25 @@ function renderAccountsList(accounts) {
         return;
     }
     
+    // Получаем аватары из данных сервера
+    const data = state.farmersData[state.currentKey];
+    const serverAvatars = data?.accountAvatars || {};
+    
     accountsListEl.innerHTML = accounts.map(account => {
-        const avatarSrc = account.avatarUrl || getCachedAvatar(account.userId) || getDefaultAvatar(account.playerName);
+        // Получаем аватар из серверных данных
+        let avatarSrc = getDefaultAvatar(account.playerName);
+        if (account.userId) {
+            const avatarData = serverAvatars[String(account.userId)];
+            if (avatarData && avatarData.url) {
+                avatarSrc = avatarData.url;
+            } else if (account.avatarUrl) {
+                avatarSrc = account.avatarUrl;
+            } else {
+                const cached = getCachedAvatar(account.userId);
+                if (cached) avatarSrc = cached;
+            }
+        }
+        
         const isOnline = account._isOnline;
         const statusClass = isOnline ? 'online' : 'offline';
         const actionText = isOnline ? (account.action || account.status || 'Idle') : 'Offline';
