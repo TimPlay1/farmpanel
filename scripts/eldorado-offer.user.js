@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      3.5
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -248,7 +248,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         });
     }
 
-    // Выбрать опцию в ng-select (улучшенная версия v3.4)
+    // Выбрать опцию в ng-select - простой последовательный подход v3.5
     async function selectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
         
@@ -257,44 +257,32 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // Закрываем все открытые dropdown'ы
             closeAllDropdowns();
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 300));
             
-            // Находим контейнер
-            const container = ngSelect.querySelector('.ng-select-container');
-            if (!container) {
-                log('Container not found', 'warn');
-                return false;
-            }
-            
-            // Открываем dropdown - несколько методов
-            // Метод 1: focus + click
-            ngSelect.focus();
-            await new Promise(r => setTimeout(r, 50));
-            
-            // Метод 2: mousedown без view
-            container.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-            await new Promise(r => setTimeout(r, 100));
-            
-            // Метод 3: click
-            container.click();
-            await new Promise(r => setTimeout(r, 400));
+            // Кликаем по ng-select чтобы открыть
+            ngSelect.click();
+            await new Promise(r => setTimeout(r, 500));
             
             // Ждём появления панели
-            let panel = document.querySelector('ng-dropdown-panel');
-            let attempts = 0;
-            while (!panel && attempts < 10) {
-                await new Promise(r => setTimeout(r, 200));
+            let panel = null;
+            for (let i = 0; i < 15; i++) {
                 panel = document.querySelector('ng-dropdown-panel');
-                attempts++;
-                
-                // Пробуем ещё раз кликнуть
-                if (!panel && attempts === 3) {
+                if (panel) break;
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            if (!panel) {
+                // Пробуем ещё раз - клик по контейнеру
+                const container = ngSelect.querySelector('.ng-select-container');
+                if (container) {
                     container.click();
+                    await new Promise(r => setTimeout(r, 500));
+                    panel = document.querySelector('ng-dropdown-panel');
                 }
             }
             
             if (!panel) {
-                log(`Dropdown not opened for: ${optionText}`, 'warn');
+                log(`Dropdown panel not found for: ${optionText}`, 'warn');
                 return false;
             }
             
@@ -305,22 +293,14 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             for (const opt of options) {
                 const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
                 if (label.toLowerCase().includes(optionText.toLowerCase())) {
-                    opt.scrollIntoView({ block: 'nearest' });
-                    await new Promise(r => setTimeout(r, 100));
-                    
-                    // Клик по опции
-                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
-                    await new Promise(r => setTimeout(r, 50));
                     opt.click();
-                    
                     log(`Selected: ${label}`, 'success');
-                    await new Promise(r => setTimeout(r, 300));
-                    closeAllDropdowns();
+                    await new Promise(r => setTimeout(r, 500));
                     return true;
                 }
             }
             
-            log(`Option "${optionText}" not found in ${options.length} options`, 'warn');
+            log(`Option "${optionText}" not found`, 'warn');
             closeAllDropdowns();
             return false;
             
@@ -329,6 +309,30 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             closeAllDropdowns();
             return false;
         }
+    }
+    
+    // Найти ng-select по placeholder тексту
+    function findNgSelectByPlaceholder(text) {
+        const selects = document.querySelectorAll('ng-select');
+        for (const s of selects) {
+            const placeholder = s.querySelector('.ng-placeholder')?.textContent?.toLowerCase() || '';
+            const value = s.querySelector('.ng-value-label')?.textContent?.toLowerCase() || '';
+            if (placeholder.includes(text.toLowerCase()) || value.includes(text.toLowerCase())) {
+                return s;
+            }
+        }
+        return null;
+    }
+    
+    // Ждать появления ng-select с определённым placeholder
+    async function waitForNgSelect(placeholderText, timeout = 5000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+            const sel = findNgSelectByPlaceholder(placeholderText);
+            if (sel) return sel;
+            await new Promise(r => setTimeout(r, 300));
+        }
+        return null;
     }
 
     // Загрузить изображение
@@ -363,7 +367,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
     }
 
-    // Основная функция заполнения
+    // Основная функция заполнения v3.5
     async function fillForm() {
         if (!offerData) return;
 
@@ -371,61 +375,77 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         const offerId = generateOfferId();
 
         updateStatus('🔄 Заполняем форму...', 'working');
-        log('Starting auto-fill v3.4...');
+        log('Starting auto-fill v3.5...');
 
         try {
-            // Ждём загрузки
+            // Ждём загрузки страницы
             await waitForPage();
             await new Promise(r => setTimeout(r, 2000));
 
-            // === DROPDOWNS - по одному с ожиданием ===
             const getSelects = () => [...document.querySelectorAll('ng-select')];
             
-            // 1. Income range
+            // === 1. Income range (первый dropdown) ===
             log('Step 1: Income range');
             let selects = getSelects();
             if (selects[0]) {
                 await selectNgOption(selects[0], getIncomeRange(income));
-                await new Promise(r => setTimeout(r, 800));
+                await new Promise(r => setTimeout(r, 600));
             }
             
-            // 2. Mutations - None
+            // === 2. Mutations - None (второй dropdown) ===
             log('Step 2: Mutations');
             selects = getSelects();
             if (selects[1]) {
                 await selectNgOption(selects[1], 'None');
-                await new Promise(r => setTimeout(r, 800));
+                await new Promise(r => setTimeout(r, 600));
             }
             
-            // 3. Item type - Brainrot
-            log('Step 3: Item type');
-            selects = getSelects();
-            if (selects[2]) {
-                await selectNgOption(selects[2], 'Brainrot');
-                await new Promise(r => setTimeout(r, 1000));
+            // === 3. Item type - выбираем Brainrot ===
+            log('Step 3: Item type -> Brainrot');
+            let itemTypeSelect = findNgSelectByPlaceholder('item type');
+            if (!itemTypeSelect) {
+                selects = getSelects();
+                itemTypeSelect = selects[2];
+            }
+            if (itemTypeSelect) {
+                await selectNgOption(itemTypeSelect, 'Brainrot');
+                await new Promise(r => setTimeout(r, 1000)); // Ждём появления Rarity
             }
             
-            // 4. Rarity (появляется после выбора Brainrot)
-            log('Step 4: Rarity');
-            selects = getSelects();
-            if (selects.length > 3) {
-                const rarityVal = rarity || 'Secret';
-                await selectNgOption(selects[3], rarityVal);
-                await new Promise(r => setTimeout(r, 1000));
-            }
-            
-            // 5. Brainrot name (появляется после выбора Rarity)
-            log('Step 5: Brainrot name');
-            selects = getSelects();
-            if (selects.length > 4) {
-                const selected = await selectNgOption(selects[4], name);
-                if (!selected) {
-                    await selectNgOption(selects[4], 'Other');
+            // === 4. Rarity - выбираем Secret (или указанный) ===
+            log('Step 4: Rarity -> ' + (rarity || 'Secret'));
+            let raritySelect = await waitForNgSelect('rarity', 3000);
+            if (!raritySelect) {
+                // Пробуем найти по индексу - он должен появиться после Item type
+                selects = getSelects();
+                if (selects.length > 3) {
+                    raritySelect = selects[3];
                 }
-                await new Promise(r => setTimeout(r, 800));
+            }
+            if (raritySelect) {
+                await selectNgOption(raritySelect, rarity || 'Secret');
+                await new Promise(r => setTimeout(r, 1000)); // Ждём появления Brainrot select
+            }
+            
+            // === 5. Brainrot name - выбираем название или Other ===
+            log('Step 5: Brainrot -> ' + name);
+            let brainrotSelect = await waitForNgSelect('brainrot', 3000);
+            if (!brainrotSelect) {
+                selects = getSelects();
+                if (selects.length > 4) {
+                    brainrotSelect = selects[4];
+                }
+            }
+            if (brainrotSelect) {
+                const selected = await selectNgOption(brainrotSelect, name);
+                if (!selected) {
+                    log('Brainrot not found, selecting Other');
+                    await selectNgOption(brainrotSelect, 'Other');
+                }
+                await new Promise(r => setTimeout(r, 600));
             }
 
-            // === TITLE (maxlength=160) ===
+            // === 6. Title (maxlength=160) ===
             log('Step 6: Title');
             const titleInput = document.querySelector('textarea[maxlength="160"]');
             if (titleInput) {
@@ -434,14 +454,14 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             await new Promise(r => setTimeout(r, 300));
 
-            // === IMAGE ===
+            // === 7. Image ===
             log('Step 7: Image');
             if (generatedImageUrl) {
                 await uploadImage(generatedImageUrl);
             }
             await new Promise(r => setTimeout(r, 500));
 
-            // === DESCRIPTION (maxlength=2000) ===
+            // === 8. Description (maxlength=2000) ===
             log('Step 8: Description');
             const descInput = document.querySelector('textarea[maxlength="2000"]');
             if (descInput) {
@@ -450,98 +470,51 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             await new Promise(r => setTimeout(r, 300));
 
-            // === DELIVERY TIME ===
+            // === 9. Delivery time ===
             log('Step 9: Delivery time');
-            selects = getSelects();
-            for (let i = selects.length - 1; i >= 5; i--) {
-                const s = selects[i];
-                const parent = s.closest('section, div');
-                if (parent?.textContent?.toLowerCase().includes('delivery')) {
-                    await selectNgOption(s, '20 min');
-                    break;
-                }
+            const deliverySelect = findNgSelectByPlaceholder('delivery');
+            if (deliverySelect) {
+                await selectNgOption(deliverySelect, '20 min');
             }
             await new Promise(r => setTimeout(r, 300));
 
-            // === PRICE - ищем input с формконтролом для цены ===
+            // === 10. Price ===
             log('Step 10: Price');
             const price = maxPrice || minPrice || 10;
-            
-            // Ищем все input'ы
-            const allInputs = document.querySelectorAll('input');
-            let priceInput = null;
-            
-            // Метод 1: ищем по formcontrolname
-            priceInput = document.querySelector('input[formcontrolname="price"]');
-            
-            // Метод 2: ищем по placeholder
-            if (!priceInput) {
-                for (const inp of allInputs) {
-                    if (inp.placeholder?.toLowerCase().includes('price')) {
-                        priceInput = inp;
-                        break;
-                    }
-                }
-            }
-            
-            // Метод 3: ищем по контексту - секция с "Price" но без "Minimum"
-            if (!priceInput) {
-                for (const inp of allInputs) {
-                    const section = inp.closest('section');
-                    const label = section?.querySelector('label');
-                    if (label && label.textContent.toLowerCase().includes('price') && 
-                        !label.textContent.toLowerCase().includes('minimum')) {
-                        priceInput = inp;
-                        break;
-                    }
-                }
-            }
-            
-            // Метод 4: ищем number input в контексте price
-            if (!priceInput) {
-                for (const inp of allInputs) {
-                    if (inp.type === 'number' || inp.type === 'text') {
-                        const parent = inp.closest('.form-group, .field, section, div[class*="price"]');
-                        const text = parent?.textContent?.toLowerCase() || '';
-                        if (text.includes('price') && !text.includes('minimum price')) {
-                            priceInput = inp;
-                            break;
-                        }
-                    }
-                }
-            }
-            
+            const priceInput = document.querySelector('input[formcontrolname="price"]') ||
+                              document.querySelector('input[placeholder*="rice"]');
             if (priceInput) {
                 setInputValue(priceInput, String(price));
                 log(`Price set to ${price}`, 'success');
             } else {
-                log('Price input not found!', 'warn');
-            }
-            await new Promise(r => setTimeout(r, 300));
-
-            // === QUANTITY ===
-            log('Step 11: Quantity');
-            if (quantity && quantity > 1) {
-                let qtyInput = document.querySelector('input[formcontrolname="quantity"]');
-                
-                if (!qtyInput) {
-                    for (const inp of allInputs) {
-                        const parent = inp.closest('.form-group, .field, section');
-                        const text = parent?.textContent?.toLowerCase() || '';
-                        if (text.includes('quantity') || text.includes('amount')) {
-                            qtyInput = inp;
+                // Ищем по контексту
+                const allInputs = document.querySelectorAll('input');
+                for (const inp of allInputs) {
+                    const parent = inp.closest('section, .form-group');
+                    if (parent) {
+                        const label = parent.querySelector('label');
+                        if (label?.textContent?.toLowerCase().includes('price') && 
+                            !label.textContent.toLowerCase().includes('minimum')) {
+                            setInputValue(inp, String(price));
+                            log(`Price set to ${price}`, 'success');
                             break;
                         }
                     }
                 }
-                
+            }
+            await new Promise(r => setTimeout(r, 300));
+
+            // === 11. Quantity ===
+            log('Step 11: Quantity');
+            if (quantity && quantity > 1) {
+                const qtyInput = document.querySelector('input[formcontrolname="quantity"]');
                 if (qtyInput) {
                     setInputValue(qtyInput, String(quantity));
                     log(`Quantity set to ${quantity}`, 'success');
                 }
             }
 
-            // === CHECKBOXES ===
+            // === 12. Checkboxes ===
             log('Step 12: Checkboxes');
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
                 if (!cb.checked) {
