@@ -1,21 +1,13 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      4.0
+// @version      4.1
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
 // @match        https://eldorado.gg/sell/offer/*
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_deleteValue
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
-// @connect      farmerpanel.vercel.app
-// @connect      api.supa.ru
-// @connect      storage.supa.ru
-// @connect      supa-temp.storage.yandexcloud.net
-// @connect      localhost
 // @connect      *
 // @run-at       document-idle
 // ==/UserScript==
@@ -25,112 +17,32 @@
 
     // Минимальные стили
     GM_addStyle(`
-        .glitched-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 12px 20px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 10px;
-            font-family: 'Segoe UI', sans-serif;
-            font-size: 13px;
-            z-index: 999999;
-            box-shadow: 0 8px 30px rgba(102, 126, 234, 0.4);
-            animation: glitched-slide-in 0.2s ease;
-            max-width: 300px;
-        }
-        .glitched-notification.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-        .glitched-notification.error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
-        @keyframes glitched-slide-in {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        .glitched-mini {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 260px;
-            background: #1a1a2e;
-            border-radius: 12px;
-            padding: 12px;
-            z-index: 999998;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
-            font-family: 'Segoe UI', sans-serif;
-            color: white;
-        }
-        .glitched-mini .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-        .glitched-mini .title {
-            font-size: 13px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        .glitched-mini .close {
-            cursor: pointer;
-            opacity: 0.6;
-            font-size: 16px;
-        }
-        .glitched-mini .close:hover { opacity: 1; }
-        .glitched-mini .info {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            background: #2a2a4a;
-            border-radius: 8px;
-            padding: 8px;
-            margin-bottom: 8px;
-        }
-        .glitched-mini .info img {
-            width: 45px;
-            height: 45px;
-            border-radius: 6px;
-            object-fit: cover;
-        }
-        .glitched-mini .info .name {
-            font-weight: 600;
-            font-size: 12px;
-        }
-        .glitched-mini .info .details {
-            font-size: 11px;
-            color: #888;
-        }
-        .glitched-mini .info .details span { margin-right: 8px; }
-        .glitched-mini .info .income { 
-            color: #1BFF00; 
-            background: #000; 
-            border: 1px solid #27C902; 
-            padding: 2px 6px; 
-            border-radius: 4px; 
-        }
-        .glitched-mini .info .price { color: #ffc950; }
-        .glitched-mini .status {
-            font-size: 11px;
-            padding: 6px 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 6px;
-            color: #888;
-            text-align: center;
-        }
-        .glitched-mini .status.working { color: #ffc950; background: rgba(255, 201, 80, 0.1); }
-        .glitched-mini .status.ready { color: #38ef7d; background: rgba(56, 239, 125, 0.1); }
-        .glitched-mini .status.error { color: #f45c43; background: rgba(244, 92, 67, 0.1); }
+        .glitched-notification{position:fixed;top:20px;right:20px;padding:12px 20px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:10px;font-family:'Segoe UI',sans-serif;font-size:13px;z-index:999999;box-shadow:0 8px 30px rgba(102,126,234,.4);animation:gs-slide .2s}
+        .glitched-notification.success{background:linear-gradient(135deg,#11998e,#38ef7d)}
+        .glitched-notification.error{background:linear-gradient(135deg,#eb3349,#f45c43)}
+        @keyframes gs-slide{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+        .glitched-mini{position:fixed;top:80px;right:20px;width:260px;background:#1a1a2e;border-radius:12px;padding:12px;z-index:999998;box-shadow:0 15px 40px rgba(0,0,0,.5);font-family:'Segoe UI',sans-serif;color:#fff}
+        .glitched-mini .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+        .glitched-mini .title{font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px}
+        .glitched-mini .close{cursor:pointer;opacity:.6;font-size:16px}
+        .glitched-mini .close:hover{opacity:1}
+        .glitched-mini .info{display:flex;gap:10px;align-items:center;background:#2a2a4a;border-radius:8px;padding:8px;margin-bottom:8px}
+        .glitched-mini .info img{width:45px;height:45px;border-radius:6px;object-fit:cover}
+        .glitched-mini .info .name{font-weight:600;font-size:12px}
+        .glitched-mini .info .details{font-size:11px;color:#888}
+        .glitched-mini .info .details span{margin-right:8px}
+        .glitched-mini .info .income{color:#1BFF00;background:#000;border:1px solid #27C902;padding:2px 6px;border-radius:4px}
+        .glitched-mini .info .price{color:#ffc950}
+        .glitched-mini .status{font-size:11px;padding:6px 8px;background:rgba(255,255,255,.05);border-radius:6px;color:#888;text-align:center}
+        .glitched-mini .status.working{color:#ffc950;background:rgba(255,201,80,.1)}
+        .glitched-mini .status.ready{color:#38ef7d;background:rgba(56,239,125,.1)}
+        .glitched-mini .status.error{color:#f45c43;background:rgba(244,92,67,.1)}
     `);
 
     let offerData = null;
     let statusEl = null;
-
-    // Логирование
-    function log(message, type = 'info') {
-        const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warn' ? '⚠️' : 'ℹ️';
-        console.log(`[Glitched ${prefix}] ${message}`);
-    }
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    const log = (msg, type = 'info') => console.log(`[GS ${type === 'error' ? '❌' : type === 'success' ? '✅' : 'ℹ️'}] ${msg}`);
 
     function updateStatus(message, className = '') {
         if (statusEl) {
@@ -139,45 +51,24 @@
         }
     }
 
-    // Получаем данные из URL параметров
     function getOfferDataFromURL() {
-        const params = new URLSearchParams(window.location.search);
-        const dataParam = params.get('glitched_data');
-        if (dataParam) {
-            try {
-                return JSON.parse(decodeURIComponent(dataParam));
-            } catch (e) {
-                console.error('Failed to parse offer data:', e);
-            }
-        }
+        const p = new URLSearchParams(location.search).get('glitched_data');
+        if (p) try { return JSON.parse(decodeURIComponent(p)); } catch {}
         return null;
     }
 
-    // Показать уведомление
     function showNotification(message, type = 'info') {
-        const existing = document.querySelector('.glitched-notification');
-        if (existing) existing.remove();
-
-        const notif = document.createElement('div');
-        notif.className = `glitched-notification ${type}`;
-        notif.textContent = message;
-        document.body.appendChild(notif);
-        setTimeout(() => notif.remove(), 4000);
+        document.querySelector('.glitched-notification')?.remove();
+        const n = document.createElement('div');
+        n.className = `glitched-notification ${type}`;
+        n.textContent = message;
+        document.body.appendChild(n);
+        setTimeout(() => n.remove(), 3000);
     }
 
-    // Генерация ID оффера
-    function generateOfferId() {
-        return `GS-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`.toUpperCase();
-    }
-
-    // Генерация названия (макс 160) - income передаётся как есть
-    function generateOfferTitle(brainrotName, income) {
-        return `🔥${brainrotName} l ${income || '0/s'}🔥 Fast Delivery🚚 👾Glitched Store👾`.substring(0, 160);
-    }
-
-    // Генерация описания (макс 2000)
-    function generateOfferDescription(offerId) {
-        return `📦 How We Delivery
+    const generateOfferId = () => `GS-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,5)}`.toUpperCase();
+    const generateTitle = (name, income) => `🔥${name} l ${income || '0/s'}🔥 Fast Delivery🚚 👾Glitched Store👾`.slice(0, 160);
+    const generateDescription = id => `📦 How We Delivery
 1️⃣ After purchase, send your Roblox username in live chat.
 2️⃣ I will send you a private sever's link to join or direct add if cant join by link.
 3️⃣ Once join sever I will give you Brainrot you purchased.
@@ -194,218 +85,97 @@ NOTE: please read before buy
 
 Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
-#${offerId}`;
-    }
+#${id}`;
 
-    // Определить диапазон M/s
     function getIncomeRange(income) {
         if (!income) return '0-24 M/s';
-        const match = income.match(/[\d.]+/);
-        if (!match) return '0-24 M/s';
-        const value = parseFloat(match[0]);
-        
-        if (value < 25) return '0-24 M/s';
-        if (value < 50) return '25-49 M/s';
-        if (value < 100) return '50-99 M/s';
-        if (value < 250) return '100-249 M/s';
-        if (value < 500) return '250-499 M/s';
-        if (value < 750) return '500-749 M/s';
-        if (value < 1000) return '750-999 M/s';
+        const v = parseFloat(income.match(/[\d.]+/)?.[0] || 0);
+        if (v < 25) return '0-24 M/s';
+        if (v < 50) return '25-49 M/s';
+        if (v < 100) return '50-99 M/s';
+        if (v < 250) return '100-249 M/s';
+        if (v < 500) return '250-499 M/s';
+        if (v < 750) return '500-749 M/s';
+        if (v < 1000) return '750-999 M/s';
         return '1+ B/s';
     }
 
-    // Ждем загрузки страницы
-    async function waitForPage(timeout = 30000) {
-        const start = Date.now();
-        while (Date.now() - start < timeout) {
-            const ngSelects = document.querySelectorAll('ng-select');
-            if (ngSelects.length >= 3) return true;
-            await new Promise(r => setTimeout(r, 500));
+    function setInputValue(input, value) {
+        if (!input) return false;
+        input.focus();
+        const proto = input.tagName === 'TEXTAREA' ? HTMLTextAreaElement : HTMLInputElement;
+        Object.getOwnPropertyDescriptor(proto.prototype, 'value')?.set?.call(input, value);
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+    }
+
+    // Найти ng-select по aria-label
+    function findSelect(label) {
+        for (const inp of document.querySelectorAll('.hidden.md\\:block input[aria-label]')) {
+            if (inp.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
+                return inp.closest('ng-select');
+            }
+        }
+        return null;
+    }
+
+    // Выбрать опцию в ng-select (оптимизировано)
+    async function selectOption(ngSelect, optionText) {
+        if (!ngSelect) return false;
+        
+        const input = ngSelect.querySelector('input[role="combobox"]');
+        if (!input) return false;
+        
+        // Закрываем все панели
+        document.querySelectorAll('ng-dropdown-panel').forEach(p => p.remove());
+        
+        // Открываем dropdown
+        input.focus();
+        input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+        input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        
+        // Ждём панель (макс 1.5 сек)
+        let panel = null;
+        for (let i = 0; i < 15; i++) {
+            panel = document.querySelector('ng-dropdown-panel');
+            if (panel) break;
+            await delay(100);
+        }
+        if (!panel) return false;
+        
+        // Ищем опцию
+        const search = optionText.toLowerCase();
+        for (const opt of panel.querySelectorAll('.ng-option')) {
+            const label = opt.textContent.trim().toLowerCase();
+            if (label === search || label.includes(search)) {
+                opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                log(`Selected: ${opt.textContent.trim()}`, 'success');
+                await delay(200);
+                return true;
+            }
         }
         return false;
     }
 
-    // Установить значение в input для Angular
-    function setInputValue(input, value) {
-        if (!input) return false;
-        
-        input.focus();
-        const setter = Object.getOwnPropertyDescriptor(
-            input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype,
-            'value'
-        )?.set;
-        
-        if (setter) setter.call(input, value);
-        else input.value = value;
-        
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-        input.dispatchEvent(new Event('blur', { bubbles: true }));
-        return true;
-    }
-
-    // Закрыть все открытые dropdown'ы
-    function closeAllDropdowns() {
-        const panels = document.querySelectorAll('ng-dropdown-panel');
-        panels.forEach(p => p.remove());
-        document.querySelectorAll('ng-select.ng-select-opened').forEach(s => {
-            s.classList.remove('ng-select-opened');
-        });
-    }
-
-    // Выбрать опцию в ng-select v3.8 - улучшенный поиск
-    async function selectNgOption(ngSelect, optionText) {
-        if (!ngSelect) return false;
-        
-        try {
-            log(`Selecting "${optionText}"...`);
-            
-            // Закрываем все открытые dropdown'ы
-            closeAllDropdowns();
-            await new Promise(r => setTimeout(r, 300));
-            
-            // Находим input внутри ng-select
-            const input = ngSelect.querySelector('input[role="combobox"]');
-            if (!input) {
-                log('Input not found in ng-select', 'warn');
-                return false;
-            }
-            
-            // Открываем dropdown через focus на input
-            input.focus();
-            await new Promise(r => setTimeout(r, 100));
-            
-            // Отправляем событие клика
-            input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 100));
-            input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 400));
-            
-            // Проверяем открылся ли (aria-expanded="true")
-            let isOpen = input.getAttribute('aria-expanded') === 'true';
-            
-            // Если не открылся - пробуем keydown
-            if (!isOpen) {
-                input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-                await new Promise(r => setTimeout(r, 400));
-            }
-            
-            // Ждём появления панели
-            let panel = null;
-            for (let i = 0; i < 20; i++) {
-                panel = document.querySelector('ng-dropdown-panel');
-                if (panel) break;
-                await new Promise(r => setTimeout(r, 150));
-            }
-            
-            if (!panel) {
-                log(`Dropdown panel not found for: ${optionText}`, 'warn');
-                return false;
-            }
-            
-            // Ищем опции
-            const options = panel.querySelectorAll('.ng-option');
-            const allLabels = [];
-            
-            for (const opt of options) {
-                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
-                allLabels.push(label);
-            }
-            
-            log(`Found ${options.length} options: [${allLabels.join(', ')}]`);
-            
-            // Ищем точное совпадение сначала
-            const searchText = optionText.toLowerCase();
-            for (const opt of options) {
-                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
-                if (label.toLowerCase() === searchText) {
-                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                    await new Promise(r => setTimeout(r, 50));
-                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                    log(`Selected (exact): ${label}`, 'success');
-                    await new Promise(r => setTimeout(r, 500));
-                    return true;
-                }
-            }
-            
-            // Ищем частичное совпадение
-            for (const opt of options) {
-                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
-                if (label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
-                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-                    await new Promise(r => setTimeout(r, 50));
-                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                    log(`Selected (partial): ${label}`, 'success');
-                    await new Promise(r => setTimeout(r, 500));
-                    return true;
-                }
-            }
-            
-            log(`Option "${optionText}" not found in [${allLabels.join(', ')}]`, 'warn');
-            closeAllDropdowns();
-            return false;
-            
-        } catch (e) {
-            log(`Error selecting: ${e.message}`, 'error');
-            closeAllDropdowns();
-            return false;
-        }
-    }
-    
-    // Найти ng-select по aria-label (более надёжный способ)
-    function findNgSelectByAriaLabel(label) {
-        // Ищем input с нужным aria-label внутри десктопной версии (hidden md:block)
-        const inputs = document.querySelectorAll('.hidden.md\\:block input[aria-label]');
-        for (const input of inputs) {
-            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
-                return input.closest('ng-select');
-            }
-        }
-        // Fallback - ищем во всех ng-select
-        const allInputs = document.querySelectorAll('ng-select input[aria-label]');
-        for (const input of allInputs) {
-            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
-                return input.closest('ng-select');
-            }
-        }
-        return null;
-    }
-    
-    // Найти ng-select по placeholder тексту
-    function findNgSelectByPlaceholder(text) {
-        const selects = document.querySelectorAll('ng-select');
-        for (const s of selects) {
-            const placeholder = s.querySelector('.ng-placeholder')?.textContent?.toLowerCase() || '';
-            const value = s.querySelector('.ng-value-label')?.textContent?.toLowerCase() || '';
-            if (placeholder.includes(text.toLowerCase()) || value.includes(text.toLowerCase())) {
-                return s;
-            }
-        }
-        return null;
-    }
-    
-    // Ждать появления ng-select с определённым placeholder
-    async function waitForNgSelect(placeholderText, timeout = 5000) {
+    // Ждать появления dropdown по label
+    async function waitForSelect(label, timeout = 2000) {
         const start = Date.now();
         while (Date.now() - start < timeout) {
-            const sel = findNgSelectByPlaceholder(placeholderText);
+            const sel = findSelect(label);
             if (sel) return sel;
-            await new Promise(r => setTimeout(r, 300));
+            await delay(150);
         }
         return null;
     }
 
-    // Загрузить изображение
     async function uploadImage(imageUrl) {
         try {
-            updateStatus('📥 Загрузка изображения...', 'working');
-            
             const blob = await new Promise((resolve, reject) => {
                 GM_xmlhttpRequest({
-                    method: 'GET',
-                    url: imageUrl,
-                    responseType: 'blob',
-                    onload: r => r.status === 200 ? resolve(r.response) : reject(new Error(`${r.status}`)),
+                    method: 'GET', url: imageUrl, responseType: 'blob',
+                    onload: r => r.status === 200 ? resolve(r.response) : reject(),
                     onerror: reject
                 });
             });
@@ -413,198 +183,96 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             const fileInput = document.querySelector('input[type="file"]');
             if (!fileInput) return false;
             
-            const file = new File([blob], 'brainrot.png', { type: 'image/png' });
             const dt = new DataTransfer();
-            dt.items.add(file);
+            dt.items.add(new File([blob], 'brainrot.png', { type: 'image/png' }));
             fileInput.files = dt.files;
             fileInput.dispatchEvent(new Event('change', { bubbles: true }));
-            
-            log('Image uploaded', 'success');
             return true;
-        } catch (e) {
-            log('Image upload failed: ' + e.message, 'error');
-            return false;
-        }
+        } catch { return false; }
     }
 
-    // Основная функция заполнения v3.9 - используем aria-label для точного выбора
     async function fillForm() {
         if (!offerData) return;
-
         const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity } = offerData;
         const offerId = generateOfferId();
 
-        updateStatus('🔄 Заполняем форму...', 'working');
-        log('Starting auto-fill v3.9...');
+        updateStatus('🔄 Заполняем...', 'working');
+        log('Starting v4.1...');
 
         try {
-            // Ждём загрузки страницы
-            await waitForPage();
-            await new Promise(r => setTimeout(r, 2000));
+            // Ждём загрузки (макс 5 сек)
+            for (let i = 0; i < 25 && document.querySelectorAll('ng-select').length < 3; i++) await delay(200);
+            await delay(500);
 
-            // === 1. Income range (первый dropdown - M/s) ===
-            log('Step 1: Income range -> ' + getIncomeRange(income));
-            // Пробуем разные варианты поиска M/s dropdown
-            let incomeSelect = findNgSelectByAriaLabel('M/s') || 
-                               findNgSelectByAriaLabel('Income') || 
-                               findNgSelectByPlaceholder('m/s') ||
-                               findNgSelectByPlaceholder('income');
-            
-            // Если не нашли - ищем первый ng-select в десктопной версии
-            if (!incomeSelect) {
-                const firstDesktopSelect = document.querySelector('.hidden.md\\:block ng-select');
-                if (firstDesktopSelect) incomeSelect = firstDesktopSelect;
+            // 1. M/s range
+            const msSelect = findSelect('M/s') || document.querySelector('.hidden.md\\:block ng-select');
+            if (msSelect) await selectOption(msSelect, getIncomeRange(income));
+
+            // 2. Mutations
+            const mutSelect = findSelect('Mutations');
+            if (mutSelect) await selectOption(mutSelect, 'None');
+
+            // 3. Item type -> Brainrot
+            const itemSelect = findSelect('Item type');
+            if (itemSelect) {
+                await selectOption(itemSelect, 'Brainrot');
+                await delay(300);
             }
-            
-            if (incomeSelect) {
-                log('Found M/s dropdown');
-                await selectNgOption(incomeSelect, getIncomeRange(income));
-                await new Promise(r => setTimeout(r, 600));
-            } else {
-                log('M/s dropdown not found!', 'warn');
-            }
-            
-            // === 2. Mutations - None ===
-            log('Step 2: Mutations -> None');
-            const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
-            if (mutationSelect) {
-                await selectNgOption(mutationSelect, 'None');
-                await new Promise(r => setTimeout(r, 600));
-            }
-            
-            // === 3. Item type - выбираем Brainrot ===
-            log('Step 3: Item type -> Brainrot');
-            const itemTypeSelect = findNgSelectByAriaLabel('Item type');
-            if (itemTypeSelect) {
-                await selectNgOption(itemTypeSelect, 'Brainrot');
-                await new Promise(r => setTimeout(r, 1000)); // Ждём появления Rarity
-            }
-            
-            // === 4. Rarity - выбираем Secret (или указанный) ===
-            log('Step 4: Rarity -> ' + (rarity || 'Secret'));
-            // Ждём появления Rarity dropdown
-            let raritySelect = null;
-            for (let i = 0; i < 10; i++) {
-                raritySelect = findNgSelectByAriaLabel('Rarity');
-                if (raritySelect) break;
-                await new Promise(r => setTimeout(r, 300));
-            }
+
+            // 4. Rarity
+            const raritySelect = await waitForSelect('Rarity');
             if (raritySelect) {
-                await selectNgOption(raritySelect, rarity || 'Secret');
-                await new Promise(r => setTimeout(r, 1000)); // Ждём появления Brainrot select
+                await selectOption(raritySelect, rarity || 'Secret');
+                await delay(300);
             }
-            
-            // === 5. Brainrot name - выбираем название или Other ===
-            log('Step 5: Brainrot -> ' + name);
-            // Ждём появления Brainrot dropdown
-            let brainrotSelect = null;
-            for (let i = 0; i < 10; i++) {
-                brainrotSelect = findNgSelectByAriaLabel('Brainrot');
-                if (brainrotSelect) break;
-                await new Promise(r => setTimeout(r, 300));
-            }
+
+            // 5. Brainrot name
+            const brainrotSelect = await waitForSelect('Brainrot');
             if (brainrotSelect) {
-                const selected = await selectNgOption(brainrotSelect, name);
-                if (!selected) {
-                    log('Brainrot not found, selecting Other');
-                    await selectNgOption(brainrotSelect, 'Other');
-                }
-                await new Promise(r => setTimeout(r, 600));
+                const ok = await selectOption(brainrotSelect, name);
+                if (!ok) await selectOption(brainrotSelect, 'Other');
             }
 
-            // === 6. Title (maxlength=160) ===
-            log('Step 6: Title');
-            const titleInput = document.querySelector('textarea[maxlength="160"]');
-            if (titleInput) {
-                setInputValue(titleInput, generateOfferTitle(name, income));
-                log('Title filled', 'success');
-            }
-            await new Promise(r => setTimeout(r, 300));
+            // 6-8. Текстовые поля (параллельно)
+            setInputValue(document.querySelector('textarea[maxlength="160"]'), generateTitle(name, income));
+            setInputValue(document.querySelector('textarea[maxlength="2000"]'), generateDescription(offerId));
+            
+            // 9. Image
+            if (generatedImageUrl) await uploadImage(generatedImageUrl);
 
-            // === 7. Image ===
-            log('Step 7: Image');
-            if (generatedImageUrl) {
-                await uploadImage(generatedImageUrl);
-            }
-            await new Promise(r => setTimeout(r, 500));
+            // 10. Delivery
+            const deliverySelect = [...document.querySelectorAll('ng-select')].find(s => 
+                s.querySelector('.ng-placeholder')?.textContent?.toLowerCase().includes('delivery')
+            );
+            if (deliverySelect) await selectOption(deliverySelect, '20 min');
 
-            // === 8. Description (maxlength=2000) ===
-            log('Step 8: Description');
-            const descInput = document.querySelector('textarea[maxlength="2000"]');
-            if (descInput) {
-                setInputValue(descInput, generateOfferDescription(offerId));
-                log('Description filled', 'success');
-            }
-            await new Promise(r => setTimeout(r, 300));
-
-            // === 9. Delivery time ===
-            log('Step 9: Delivery time');
-            const deliverySelect = findNgSelectByPlaceholder('delivery');
-            if (deliverySelect) {
-                await selectNgOption(deliverySelect, '20 min');
-            }
-            await new Promise(r => setTimeout(r, 300));
-
-            // === 10. Price ===
-            log('Step 10: Price');
+            // 11. Price
             const price = maxPrice || minPrice || 10;
             const priceInput = document.querySelector('input[formcontrolname="price"]') ||
-                              document.querySelector('input[placeholder*="rice"]');
-            if (priceInput) {
-                setInputValue(priceInput, String(price));
-                log(`Price set to ${price}`, 'success');
-            } else {
-                // Ищем по контексту
-                const allInputs = document.querySelectorAll('input');
-                for (const inp of allInputs) {
-                    const parent = inp.closest('section, .form-group');
-                    if (parent) {
-                        const label = parent.querySelector('label');
-                        if (label?.textContent?.toLowerCase().includes('price') && 
-                            !label.textContent.toLowerCase().includes('minimum')) {
-                            setInputValue(inp, String(price));
-                            log(`Price set to ${price}`, 'success');
-                            break;
-                        }
-                    }
-                }
-            }
-            await new Promise(r => setTimeout(r, 300));
+                [...document.querySelectorAll('input')].find(i => i.closest('section')?.textContent?.includes('Price'));
+            setInputValue(priceInput, String(price));
 
-            // === 11. Quantity ===
-            log('Step 11: Quantity');
-            if (quantity && quantity > 1) {
-                const qtyInput = document.querySelector('input[formcontrolname="quantity"]');
-                if (qtyInput) {
-                    setInputValue(qtyInput, String(quantity));
-                    log(`Quantity set to ${quantity}`, 'success');
-                }
+            // 12. Quantity
+            if (quantity > 1) {
+                setInputValue(document.querySelector('input[formcontrolname="quantity"]'), String(quantity));
             }
 
-            // === 12. Checkboxes ===
-            log('Step 12: Checkboxes');
-            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked) {
-                    const label = cb.closest('label') || cb.parentElement?.querySelector('label');
-                    (label || cb).click();
-                }
+            // 13. Checkboxes
+            document.querySelectorAll('input[type="checkbox"]:not(:checked)').forEach(cb => {
+                (cb.closest('label') || cb).click();
             });
 
-            updateStatus('✅ Готово! Проверьте и нажмите Place offer', 'ready');
+            updateStatus('✅ Готово!', 'ready');
             showNotification('✅ Форма заполнена!', 'success');
 
         } catch (e) {
             log('Error: ' + e.message, 'error');
-            updateStatus('❌ Ошибка: ' + e.message, 'error');
-            showNotification('Ошибка заполнения', 'error');
+            updateStatus('❌ Ошибка', 'error');
         }
     }
 
-    // Создаём минимальную панель
     function createPanel() {
-        const existing = document.querySelector('.glitched-mini');
-        if (existing) existing.remove();
-
+        document.querySelector('.glitched-mini')?.remove();
         if (!offerData) return;
 
         const price = offerData.maxPrice || offerData.minPrice || 0;
@@ -627,41 +295,31 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     </div>
                 </div>
             </div>
-            <div class="status" id="g-status">⏳ Авто-заполнение через 3 сек...</div>
+            <div class="status" id="g-status">⏳ Заполняем...</div>
         `;
-
         document.body.appendChild(panel);
         statusEl = document.getElementById('g-status');
         document.getElementById('g-close').onclick = () => panel.remove();
     }
 
-    // Инициализация
     async function init() {
-        console.log('🎮 Glitched Store v4.0 loaded');
-
+        console.log('🎮 Glitched Store v4.1');
         offerData = getOfferDataFromURL();
         
         if (offerData) {
-            console.log('✅ Offer data:', offerData);
-            
             // Очищаем URL
-            const url = new URL(window.location.href);
+            const url = new URL(location.href);
             url.searchParams.delete('glitched_data');
-            window.history.replaceState({}, '', url.toString());
+            history.replaceState({}, '', url);
             
-            await new Promise(r => setTimeout(r, 2000));
+            await delay(1500);
             createPanel();
-            
-            // Авто-заполнение через 3 секунды
-            await new Promise(r => setTimeout(r, 3000));
+            await delay(500);
             await fillForm();
         }
     }
 
-    // Запуск
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        setTimeout(init, 1000);
-    }
+    document.readyState === 'loading' 
+        ? document.addEventListener('DOMContentLoaded', init) 
+        : setTimeout(init, 500);
 })();
