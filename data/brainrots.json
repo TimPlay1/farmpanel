@@ -21,8 +21,23 @@
       "hasImage": true
     },
     {
+      "name": "3 Paths",
+      "image": "3_Paths.webp",
+      "hasImage": true
+    },
+    {
       "name": "67",
       "image": "67.png",
+      "hasImage": true
+    },
+    {
+      "name": "Admin Machine",
+      "image": "Admin_Machine.png",
+      "hasImage": true
+    },
+    {
+      "name": "Advent Calendar",
+      "image": "Advent_Calendar.png",
       "hasImage": true
     },
     {
@@ -76,11 +91,6 @@
       "hasImage": true
     },
     {
-      "name": "BRAZILIAN SPYDER",
-      "image": "BRAZILIAN_SPYDER.png",
-      "hasImage": true
-    },
-    {
       "name": "Ballerina Cappuccina",
       "image": "Ballerina_Cappuccina.png",
       "hasImage": true
@@ -128,6 +138,11 @@
     {
       "name": "Belula Beluga",
       "image": "Belula_Beluga.png",
+      "hasImage": true
+    },
+    {
+      "name": "Bisonte Giuppitere",
+      "image": "Bisonte_Giuppitere.jpg",
       "hasImage": true
     },
     {
@@ -181,6 +196,11 @@
       "hasImage": true
     },
     {
+      "name": "BRAZILIAN SPYDER",
+      "image": "BRAZILIAN_SPYDER.png",
+      "hasImage": true
+    },
+    {
       "name": "Brr Brr Patapim",
       "image": "Brr_Brr_Patapim.png",
       "hasImage": true
@@ -198,6 +218,11 @@
     {
       "name": "Brutto Gialutto",
       "image": "Brutto_Gialutto.png",
+      "hasImage": true
+    },
+    {
+      "name": "Buho de Fuego",
+      "image": "Buho_de_Fuego.jpg",
       "hasImage": true
     },
     {
@@ -341,6 +366,11 @@
       "hasImage": true
     },
     {
+      "name": "Chimpanzini Bananini",
+      "image": "Chimpanzini_Bananini.png",
+      "hasImage": true
+    },
+    {
       "name": "Chimpanzini Spiderini",
       "image": "Chimpanzini_Spiderini.png",
       "hasImage": true
@@ -358,6 +388,11 @@
     {
       "name": "Chrismasmamat",
       "image": "Chrismasmamat.png",
+      "hasImage": true
+    },
+    {
+      "name": "Christmas",
+      "image": "Christmas.png",
       "hasImage": true
     },
     {
@@ -383,6 +418,11 @@
     {
       "name": "Cocosini Mama",
       "image": "Cocosini_Mama.png",
+      "hasImage": true
+    },
+    {
+      "name": "Coffin Tung Tung Tung Sahur",
+      "image": "Coffin_Tung_Tung_Tung_Sahur.png",
       "hasImage": true
     },
     {
@@ -423,6 +463,11 @@
     {
       "name": "Developini Braziliaspidini",
       "image": "Developini_Braziliaspidini.png",
+      "hasImage": true
+    },
+    {
+      "name": "do small",
+      "image": "do_small.webp",
       "hasImage": true
     },
     {
@@ -486,13 +531,18 @@
       "hasImage": true
     },
     {
-      "name": "Globini and Sbtini",
-      "image": "Globini_and_Sbtini.png",
+      "name": "Festive",
+      "image": "Festive_67.png",
       "hasImage": true
     },
     {
       "name": "Festive 67",
-      "image": "Festive_67.png",
+      "image": "Festive_67_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Festive67-Model",
+      "image": "Festive67-Model.png",
       "hasImage": true
     },
     {
@@ -551,6 +601,11 @@
       "hasImage": true
     },
     {
+      "name": "Fuse Machine",
+      "image": "Fuse_Machine.png",
+      "hasImage": true
+    },
+    {
       "name": "Galaxy Event",
       "image": "Galaxy_Event.png",
       "hasImage": true
@@ -573,6 +628,11 @@
     {
       "name": "Gattatino Neonino",
       "image": "Gattatino_Neonino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Gattatino Nyanino",
+      "image": "Gattatino_Nyanino.png",
       "hasImage": true
     },
     {
@@ -603,6 +663,11 @@
     {
       "name": "Girafa Celestre",
       "image": "Girafa_Celestre.png",
+      "hasImage": true
+    },
+    {
+      "name": "Globini and Sbtini",
+      "image": "Globini_and_Sbtini.png",
       "hasImage": true
     },
     {
@@ -641,7 +706,7 @@
       "hasImage": true
     },
     {
-      "name": "Guest 666",
+      "name": "Guest",
       "image": "Guest_666.png",
       "hasImage": true
     },
@@ -861,13 +926,8 @@
       "hasImage": true
     },
     {
-      "name": "Los 25",
+      "name": "Los",
       "image": "Los_25.png",
-      "hasImage": true
-    },
-    {
-      "name": "Los 67",
-      "image": "Los_67.png",
       "hasImage": true
     },
     {
@@ -908,6 +968,11 @@
     {
       "name": "Los Crocodillitos",
       "image": "Los_Crocodillitos.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Cucarachas",
+      "image": "Los_Cucarachas.png",
       "hasImage": true
     },
     {
@@ -1016,6 +1081,11 @@
       "hasImage": true
     },
     {
+      "name": "Luck Variants",
+      "image": "Luck_Variants.png",
+      "hasImage": true
+    },
+    {
       "name": "Lucky Blocks",
       "image": "Lucky_Blocks.png",
       "hasImage": true
@@ -1091,6 +1161,11 @@
       "hasImage": true
     },
     {
+      "name": "Mutations",
+      "image": "Mutations.png",
+      "hasImage": true
+    },
+    {
       "name": "Naughty Naughty",
       "image": "Naughty_Naughty.png",
       "hasImage": true
@@ -1106,13 +1181,13 @@
       "hasImage": true
     },
     {
-      "name": "Noo my Present",
-      "image": "Noo_my_Present.png",
+      "name": "Noo my examine",
+      "image": "Noo_my_examine.png",
       "hasImage": true
     },
     {
-      "name": "Noo my examine",
-      "image": "Noo_my_examine.png",
+      "name": "Noo my Present",
+      "image": "Noo_my_Present.png",
       "hasImage": true
     },
     {
@@ -1123,6 +1198,11 @@
     {
       "name": "Noobini Santanini",
       "image": "Noobini_Santanini.png",
+      "hasImage": true
+    },
+    {
+      "name": "North Pole Event",
+      "image": "North_Pole_Event.webp",
       "hasImage": true
     },
     {
@@ -1173,6 +1253,11 @@
     {
       "name": "Pandanini Frostini",
       "image": "Pandanini_Frostini.png",
+      "hasImage": true
+    },
+    {
+      "name": "Panjat Pinang",
+      "image": "Panjat_Pinang.png",
       "hasImage": true
     },
     {
@@ -1351,6 +1436,11 @@
       "hasImage": true
     },
     {
+      "name": "Santa's Fuse",
+      "image": "Santa's_Fuse.png",
+      "hasImage": true
+    },
+    {
       "name": "Santteo",
       "image": "Santteo.png",
       "hasImage": true
@@ -1391,6 +1481,11 @@
       "hasImage": true
     },
     {
+      "name": "Slitta Sprinta",
+      "image": "Slitta_Sprinta.png",
+      "hasImage": true
+    },
+    {
       "name": "Smurf Cat",
       "image": "Smurf_Cat.png",
       "hasImage": true
@@ -1416,6 +1511,11 @@
       "hasImage": true
     },
     {
+      "name": "SpyderSammy",
+      "image": "SpyderSammy.jpg",
+      "hasImage": true
+    },
+    {
       "name": "Squalanana",
       "image": "Squalanana.png",
       "hasImage": true
@@ -1423,6 +1523,11 @@
     {
       "name": "Statutino Libertino",
       "image": "Statutino_Libertino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Steal A Brainrot",
+      "image": "Steal_A_Brainrot.webp",
       "hasImage": true
     },
     {
@@ -1478,6 +1583,11 @@
     {
       "name": "Tamaluk un Meass",
       "image": "Tamaluk_un_Meass.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tang Tang Keletang",
+      "image": "Tang_Tang_Keletang.png",
       "hasImage": true
     },
     {
@@ -1601,13 +1711,8 @@
       "hasImage": true
     },
     {
-      "name": "Trenostruzzo Turbo 3000",
+      "name": "Trenostruzzo Turbo",
       "image": "Trenostruzzo_Turbo_3000.png",
-      "hasImage": true
-    },
-    {
-      "name": "Trenostruzzo Turbo 4000",
-      "image": "Trenostruzzo_Turbo_4000.png",
       "hasImage": true
     },
     {
@@ -1656,8 +1761,8 @@
       "hasImage": true
     },
     {
-      "name": "Slitta Sprinta",
-      "image": "Slitta_Sprinta.png",
+      "name": "Upcoming Features Brainrots",
+      "image": "Upcoming_Features_Brainrots.png",
       "hasImage": true
     },
     {
@@ -1686,6 +1791,11 @@
       "hasImage": true
     },
     {
+      "name": "Witch Fuse",
+      "image": "Witch_Fuse.png",
+      "hasImage": true
+    },
+    {
       "name": "Witching Event",
       "image": "Witching_Event.webp",
       "hasImage": true
@@ -1706,13 +1816,13 @@
       "hasImage": true
     },
     {
-      "name": "Yin-Yang Event",
-      "image": "Yin-Yang_Event.png",
+      "name": "Yin Yang Spin",
+      "image": "Yin_Yang_Spin.png",
       "hasImage": true
     },
     {
-      "name": "Yin Yang Spin",
-      "image": "Yin_Yang_Spin.png",
+      "name": "Yin-Yang Event",
+      "image": "Yin-Yang_Event.png",
       "hasImage": true
     },
     {
