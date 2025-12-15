@@ -54,8 +54,11 @@ module.exports = async (req, res) => {
             }
 
             // Уникальный ключ: accountId_name_income
-            const normalizedIncome = income || '0';
-            const brainrotKey = `${accountId}_${brainrotName.toLowerCase().trim()}_${normalizedIncome}`;
+            // ВАЖНО: Заменяем точки на подчёркивания (MongoDB не позволяет точки в ключах)
+            const normalizedIncome = String(income || '0').replace(/\./g, '_');
+            const brainrotKey = `${accountId}_${brainrotName.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
+            
+            console.log('Saving generation with key:', brainrotKey);
             
             // Get current count for this specific brainrot
             const existing = await collection.findOne({ farmKey });
@@ -64,7 +67,7 @@ module.exports = async (req, res) => {
             const generation = {
                 name: brainrotName,
                 accountId: accountId,
-                income: normalizedIncome,
+                income: income || '0', // Храним оригинальное значение
                 resultUrl: resultUrl || null,
                 generatedAt: timestamp || new Date().toISOString(),
                 count: currentCount + 1
@@ -82,7 +85,7 @@ module.exports = async (req, res) => {
                 { upsert: true }
             );
 
-            return res.json({ success: true, generation });
+            return res.json({ success: true, generation, key: brainrotKey });
         }
 
         // DELETE - remove a generation

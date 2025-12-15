@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.1
+// @version      3.2
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -550,72 +550,82 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             // === 1. OFFER DETAILS - выбираем значения в dropdown'ах ===
             log('Filling Offer Details...');
+            
+            // Функция для получения актуального списка ng-select
+            const getNgSelects = () => document.querySelectorAll('ng-select');
+            
+            let ngSelects = getNgSelects();
+            log(`Found ${ngSelects.length} ng-selects initially`);
 
-            const allNgSelects = document.querySelectorAll('ng-select');
-            log(`Found ${allNgSelects.length} ng-selects`);
-
-            // M/s диапазон (первый dropdown)
+            // 1. M/s диапазон (первый dropdown)
             const incomeRange = getIncomeRange(income);
             log(`Income range: ${incomeRange}`);
-            if (allNgSelects.length > 0) {
-                await selectNgSelectOption(allNgSelects[0], incomeRange);
-                await new Promise(r => setTimeout(r, 600));
+            if (ngSelects.length > 0) {
+                await selectNgSelectOption(ngSelects[0], incomeRange);
+                await new Promise(r => setTimeout(r, 800));
             }
 
-            // Mutations - выбираем None (второй dropdown)
-            if (allNgSelects.length > 1) {
-                await selectNgSelectOption(allNgSelects[1], 'None');
-                await new Promise(r => setTimeout(r, 600));
+            // 2. Mutations - выбираем None (второй dropdown)
+            ngSelects = getNgSelects();
+            if (ngSelects.length > 1) {
+                await selectNgSelectOption(ngSelects[1], 'None');
+                await new Promise(r => setTimeout(r, 800));
             }
 
-            // Item type - выбираем Brainrot (третий dropdown)
-            if (allNgSelects.length > 2) {
-                await selectNgSelectOption(allNgSelects[2], 'Brainrot');
-                await new Promise(r => setTimeout(r, 600));
+            // 3. Item type - выбираем Brainrot (третий dropdown)
+            ngSelects = getNgSelects();
+            if (ngSelects.length > 2) {
+                await selectNgSelectOption(ngSelects[2], 'Brainrot');
+                await new Promise(r => setTimeout(r, 1000)); // Дольше ждём - появляется новый dropdown
             }
 
-            // Rarity - четвёртый dropdown (если есть rarity в данных)
-            if (allNgSelects.length > 3 && rarity) {
-                await selectNgSelectOption(allNgSelects[3], rarity);
-                await new Promise(r => setTimeout(r, 600));
+            // 4. Rarity - ВАЖНО: выбираем Secret (или другую rarity)
+            // После выбора Brainrot появляется dropdown Rarity
+            ngSelects = getNgSelects();
+            log(`After Item type, found ${ngSelects.length} ng-selects`);
+            if (ngSelects.length > 3) {
+                // Rarity: Secret, Mythical, Legendary, etc.
+                const rarityToSelect = rarity || 'Secret';
+                log(`Selecting Rarity: ${rarityToSelect}`);
+                await selectNgSelectOption(ngSelects[3], rarityToSelect);
+                await new Promise(r => setTimeout(r, 1000)); // Ждём появления dropdown с названиями
             }
 
-            // Brainrot name - пятый dropdown
-            if (allNgSelects.length > 4) {
-                await selectNgSelectOption(allNgSelects[4], name);
+            // 5. Brainrot name - появляется после выбора Rarity
+            ngSelects = getNgSelects();
+            log(`After Rarity, found ${ngSelects.length} ng-selects`);
+            if (ngSelects.length > 4) {
+                // Пробуем найти наш brainrot, если нет - выбираем "Other"
+                log(`Trying to select brainrot: ${name}`);
+                const selected = await selectNgSelectOption(ngSelects[4], name);
+                if (!selected) {
+                    log('Brainrot not found, selecting Other');
+                    await selectNgSelectOption(ngSelects[4], 'Other');
+                }
                 await new Promise(r => setTimeout(r, 600));
             }
 
             // === 2. OFFER TITLE ===
             log('Filling Offer Title...');
-            // Ищем input для title по разным признакам
-            let titleInput = document.querySelector('input[formcontrolname="title"]') ||
-                            document.querySelector('input[formcontrolname="name"]') ||
-                            document.querySelector('input[placeholder*="Type here"]') ||
-                            document.querySelector('input[placeholder*="title"]');
+            // Ищем textarea для title с maxlength="160" (НЕ 2000 - это description)
+            let titleInput = document.querySelector('textarea[maxlength="160"]');
             
-            // Fallback - ищем input в секции с title
+            // Fallback - ищем в секции title-body или description-body с 160 лимитом
             if (!titleInput) {
-                const sections = document.querySelectorAll('section, .form-group, .form-section, [class*="title"]');
-                for (const section of sections) {
-                    const sectionText = section.textContent.toLowerCase();
-                    if (sectionText.includes('offer title') || sectionText.includes('title')) {
-                        titleInput = section.querySelector('input[type="text"], input:not([type])');
+                const titleSections = document.querySelectorAll('.description-body, [class*="title"]');
+                for (const section of titleSections) {
+                    const lengthSpan = section.querySelector('.length');
+                    if (lengthSpan && lengthSpan.textContent.includes('/160')) {
+                        titleInput = section.querySelector('textarea');
                         if (titleInput) break;
                     }
                 }
             }
             
-            // Fallback 2 - просто первый текстовый input после ng-selects
+            // Fallback 2 - ищем по formcontrolname
             if (!titleInput) {
-                const allInputs = document.querySelectorAll('input[type="text"], input:not([type="checkbox"]):not([type="file"]):not([type="hidden"]):not([type="number"])');
-                for (const input of allInputs) {
-                    // Пропускаем inputs внутри ng-select
-                    if (!input.closest('ng-select')) {
-                        titleInput = input;
-                        break;
-                    }
-                }
+                titleInput = document.querySelector('textarea[formcontrolname="title"]') ||
+                            document.querySelector('input[formcontrolname="title"]');
             }
             
             if (titleInput) {
@@ -638,27 +648,29 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             // === 4. DESCRIPTION ===
             log('Filling Description...');
-            // Ищем textarea для описания по разным признакам
-            let descTextarea = document.querySelector('textarea[formcontrolname="description"]') ||
-                              document.querySelector('textarea[formcontrolname="content"]') ||
-                              document.querySelector('textarea[placeholder*="Type here"]') ||
-                              document.querySelector('textarea[placeholder*="description"]');
+            // ВАЖНО: Description textarea имеет maxlength="2000", НЕ 160!
+            let descTextarea = document.querySelector('textarea[maxlength="2000"]');
             
-            // Fallback - ищем textarea в секции description
+            // Fallback - ищем по data-testid содержащему "description"
             if (!descTextarea) {
-                const sections = document.querySelectorAll('section, .form-group, .form-section, [class*="description"]');
+                descTextarea = document.querySelector('textarea[data-testid*="description"]');
+            }
+            
+            // Fallback 2 - ищем в секции где span показывает /2000
+            if (!descTextarea) {
+                const sections = document.querySelectorAll('.section-body, [class*="description"]');
                 for (const section of sections) {
-                    const sectionText = section.textContent.toLowerCase();
-                    if (sectionText.includes('description') || sectionText.includes('offer description')) {
+                    const lengthSpan = section.querySelector('.length');
+                    if (lengthSpan && lengthSpan.textContent.includes('/2000')) {
                         descTextarea = section.querySelector('textarea');
                         if (descTextarea) break;
                     }
                 }
             }
             
-            // Fallback 2 - просто первая textarea на странице
+            // Fallback 3 - formcontrolname
             if (!descTextarea) {
-                descTextarea = document.querySelector('textarea');
+                descTextarea = document.querySelector('textarea[formcontrolname="description"]');
             }
             
             if (descTextarea) {
@@ -666,7 +678,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 setInputValue(descTextarea, description);
                 log('Description filled ✓', 'success');
             } else {
-                log('Description textarea not found', 'error');
+                log('Description textarea not found (looking for maxlength=2000)', 'error');
             }
 
             await new Promise(r => setTimeout(r, 1000));

@@ -1594,15 +1594,16 @@ async function saveGeneration(brainrotName, accountId, resultUrl, income) {
 }
 
 // Генерация уникального ключа для брейнрота
+// ВАЖНО: Заменяем точки на подчёркивания (MongoDB не позволяет точки в ключах)
 function getGenerationKey(accountId, name, income) {
-    const normalizedIncome = normalizeIncomeForApi(income, '');
-    return `${accountId}_${name.toLowerCase().trim()}_${normalizedIncome}`;
+    const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
+    return `${accountId}_${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
 }
 
 // Генерация ключа для группы одинаковых брейнротов (name + income)
 function getGroupKey(name, income) {
-    const normalizedIncome = normalizeIncomeForApi(income, '');
-    return `${name.toLowerCase().trim()}_${normalizedIncome}`;
+    const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
+    return `${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
 }
 
 // Check if specific brainrot was generated (by accountId + name + income)

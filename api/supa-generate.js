@@ -1,6 +1,16 @@
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 
+// Sharp для конвертации webp в png
+let sharp;
+try {
+    sharp = require('sharp');
+    console.log('Sharp loaded successfully');
+} catch (e) {
+    console.log('Sharp not available, will try without conversion');
+    sharp = null;
+}
+
 // Supa API Configuration
 const SUPA_API_KEY = process.env.SUPA_API_KEY || 'dZddxo0zt0u1MHC8YXoUgzBu5tW5JuiM';
 const SUPA_API_BASE = 'https://api.supa.ru/public/v2';
@@ -58,7 +68,7 @@ async function uploadImageToSupa(imageUrl) {
         throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
     }
 
-    const imageBuffer = await imageResponse.buffer();
+    let imageBuffer = await imageResponse.buffer();
     console.log('Image buffer size:', imageBuffer.length);
     
     if (imageBuffer.length === 0) {
@@ -72,14 +82,32 @@ async function uploadImageToSupa(imageUrl) {
     const headerContentType = imageResponse.headers.get('content-type') || 'image/png';
     console.log('Header Content-Type:', headerContentType);
     
-    // Supa API supports: png, jpeg, gif, webp
-    // If webp detected, send as webp (Supa should support it)
-    let extension = detected.extension;
-    let uploadContentType = detected.contentType;
+    let extension = 'png';
+    let uploadContentType = 'image/png';
     
-    // IMPORTANT: Send the actual format detected from magic bytes
-    // This ensures Supa receives the correct content-type for the binary data
-    console.log(`Using format: extension=${extension}, contentType=${uploadContentType}`);
+    // Если это webp и sharp доступен - конвертируем в png
+    if (detected.format === 'webp' && sharp) {
+        console.log('Converting WebP to PNG using sharp...');
+        try {
+            imageBuffer = await sharp(imageBuffer)
+                .png()
+                .toBuffer();
+            console.log('Converted to PNG, new size:', imageBuffer.length);
+            extension = 'png';
+            uploadContentType = 'image/png';
+        } catch (convertError) {
+            console.error('Failed to convert WebP:', convertError.message);
+            // Попробуем отправить как есть
+        }
+    } else if (detected.format === 'jpeg' || detected.extension === 'jpg') {
+        extension = 'jpg';
+        uploadContentType = 'image/jpeg';
+    } else if (detected.format === 'gif') {
+        extension = 'gif';
+        uploadContentType = 'image/gif';
+    }
+    
+    console.log(`Using format: extension=${extension}, contentType=${uploadContentType} (original: ${detected.format})`);
 
     const formData = new FormData();
     formData.append('file', imageBuffer, {
