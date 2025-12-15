@@ -1596,12 +1596,14 @@ async function saveGeneration(brainrotName, accountId, resultUrl, income) {
 // Генерация уникального ключа для брейнрота
 // ВАЖНО: Заменяем точки на подчёркивания (MongoDB не позволяет точки в ключах)
 function getGenerationKey(accountId, name, income) {
+    if (!name) return null;
     const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
     return `${accountId}_${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
 }
 
 // Генерация ключа для группы одинаковых брейнротов (name + income)
 function getGroupKey(name, income) {
+    if (!name) return null;
     const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
     return `${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
 }
@@ -1609,12 +1611,14 @@ function getGroupKey(name, income) {
 // Check if specific brainrot was generated (by accountId + name + income)
 function isGenerated(accountId, name, income) {
     const key = getGenerationKey(accountId, name, income);
+    if (!key) return false;
     return !!collectionState.generations[key];
 }
 
 // Check if ANY brainrot in group was generated (for grouped cards)
 function isGroupGenerated(name, income) {
     const groupKey = getGroupKey(name, income);
+    if (!groupKey) return false;
     for (const [key, gen] of Object.entries(collectionState.generations)) {
         if (key.endsWith('_' + groupKey)) {
             return true;
@@ -1632,6 +1636,7 @@ function getGenerationInfo(accountId, name, income) {
 // Get all generation infos for a group (returns array)
 function getGroupGenerationInfos(name, income) {
     const groupKey = getGroupKey(name, income);
+    if (!groupKey) return [];
     const infos = [];
     for (const [key, gen] of Object.entries(collectionState.generations)) {
         if (key.endsWith('_' + groupKey)) {
@@ -1990,7 +1995,7 @@ async function renderCollection() {
         
         // Собираем детальную информацию по аккаунтам для tooltip
         const accountsDetails = group.items.map(item => {
-            const isGen = isGenerated(item.accountId, item.name, income);
+            const isGen = isGenerated(item.accountId, group.name, income);
             const statusIcon = isGen ? '✅' : '⏳';
             return `${statusIcon} ${item.accountName}`;
         }).join('\n');

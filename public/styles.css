@@ -1208,11 +1208,11 @@ body {
     transform: translateY(-2px);
 }
 
-/* Generate Button - Top Right Corner */
+/* Generate Button - Top Left Corner */
 .brainrot-generate-btn {
     position: absolute;
     top: 0.5rem;
-    right: 0.5rem;
+    left: 0.5rem;
     width: 28px;
     height: 28px;
     background: var(--accent-primary);
