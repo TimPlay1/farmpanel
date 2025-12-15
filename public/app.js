@@ -22,6 +22,7 @@ let state = {
 // Кэш цен Eldorado (время жизни 5 минут)
 const PRICE_CACHE_TTL = 5 * 60 * 1000;
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
+const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 
 /**
@@ -69,18 +70,20 @@ function getCachedAvatar(userId) {
  * Загрузить кэш цен из MongoDB
  */
 async function loadPricesFromServer() {
-    if (!state.currentKey) return;
-    
+    // Глобальный кэш - не привязан к farmKey
     try {
-        const response = await fetch(`${API_BASE}/prices?farmKey=${encodeURIComponent(state.currentKey)}`);
+        const response = await fetch(`${API_BASE}/prices`);
         if (response.ok) {
             const data = await response.json();
-            if (data.prices && Object.keys(data.prices).length > 0 && !data.expired) {
+            if (data.prices && Object.keys(data.prices).length > 0) {
+                // Сохраняем текущие цены как предыдущие перед загрузкой новых
+                savePreviousPrices();
+                
                 // Загружаем цены в state
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = priceData;
                 }
-                console.log(`Loaded ${Object.keys(data.prices).length} prices from server`);
+                console.log(`Loaded ${Object.keys(data.prices).length} prices from global server cache`);
                 return true;
             }
         }
@@ -159,6 +162,13 @@ function loadPriceCacheFromStorage() {
             
             console.log(`Loaded ${Object.keys(state.brainrotPrices).length} prices from localStorage`);
         }
+        
+        // Загружаем предыдущие цены для отображения % изменения
+        const prevStored = localStorage.getItem(PREVIOUS_PRICES_KEY);
+        if (prevStored) {
+            state.previousPrices = JSON.parse(prevStored);
+            console.log(`Loaded ${Object.keys(state.previousPrices).length} previous prices`);
+        }
     } catch (e) {
         console.warn('Failed to load price cache from storage:', e);
     }
@@ -233,6 +243,12 @@ function savePreviousPrices() {
         if (data && data.suggestedPrice) {
             state.previousPrices[key] = data.suggestedPrice;
         }
+    }
+    // Сохраняем в localStorage
+    try {
+        localStorage.setItem(PREVIOUS_PRICES_KEY, JSON.stringify(state.previousPrices));
+    } catch (e) {
+        console.warn('Failed to save previous prices:', e);
     }
 }
 
@@ -1831,6 +1847,9 @@ async function loadBrainrotPrices(brainrots) {
     if (toLoad.length === 0) {
         return;
     }
+    
+    // Сохраняем текущие цены как предыдущие ПЕРЕД загрузкой новых
+    savePreviousPrices();
     
     console.log('Loading prices for', toLoad.length, 'brainrots (stale or missing)');
     collectionState.pricesLoading = true;
