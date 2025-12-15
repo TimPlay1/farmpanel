@@ -1074,7 +1074,14 @@ body {
     gap: 0.75rem;
 }
 
-.filter-select {
+/* Custom Dropdown */
+.custom-dropdown {
+    position: relative;
+    min-width: 180px;
+}
+
+.dropdown-toggle {
+    width: 100%;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 10px;
@@ -1082,18 +1089,82 @@ body {
     font-size: 0.85rem;
     color: var(--text-primary);
     cursor: pointer;
-    min-width: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
     transition: all 0.2s;
 }
 
-.filter-select:focus {
-    outline: none;
+.dropdown-toggle:hover {
     border-color: var(--accent-primary);
 }
 
-.filter-select option {
-    background: var(--bg-secondary);
+.dropdown-toggle.open {
+    border-color: var(--accent-primary);
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.dropdown-toggle i {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    transition: transform 0.2s;
+}
+
+.dropdown-toggle.open i {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    z-index: 100;
+    display: none;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.dropdown-menu::-webkit-scrollbar {
+    width: 6px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: var(--bg-tertiary);
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 3px;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    padding: 0.7rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-hover);
     color: var(--text-primary);
+}
+
+.dropdown-item.active {
+    background: var(--accent-primary);
+    color: white;
 }
 
 .collection-stats {
