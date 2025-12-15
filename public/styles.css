@@ -1860,3 +1860,188 @@ body {
         max-height: 95vh;
     }
 }
+
+/* ==========================================
+   SUPA GENERATOR MODAL STYLES
+   ========================================== */
+
+.supa-modal-content {
+    max-width: 800px;
+    width: 95%;
+}
+
+.supa-modal-body {
+    display: flex;
+    gap: 2rem;
+    padding: 1.5rem;
+}
+
+.supa-preview-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.supa-preview-frame {
+    width: 100%;
+    aspect-ratio: 1;
+    background: var(--bg-tertiary);
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.supa-preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-muted);
+}
+
+.supa-preview-placeholder i {
+    font-size: 3rem;
+}
+
+.supa-preview-image,
+.supa-result-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.supa-download-section {
+    display: flex;
+    justify-content: center;
+}
+
+.supa-download-btn {
+    background: var(--accent-green);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+}
+
+.supa-download-btn:hover {
+    background: #22c55e;
+    transform: translateY(-1px);
+}
+
+.supa-download-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.supa-form-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.supa-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.supa-form-group label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.supa-form-group input {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.supa-form-group input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.supa-generate-btn {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    color: white;
+    border: none;
+    padding: 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+    margin-top: 0.5rem;
+}
+
+.supa-generate-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+}
+
+.supa-generate-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.supa-status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    color: var(--text-secondary);
+}
+
+.supa-spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-top-color: var(--accent-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.supa-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 8px;
+    color: var(--accent-red);
+}
+
+@media (max-width: 768px) {
+    .supa-modal-body {
+        flex-direction: column;
+    }
+}
