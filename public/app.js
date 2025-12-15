@@ -1453,7 +1453,7 @@ let collectionState = {
     pricesLoading: false,
     pricesLoaded: new Set(), // Кэш загруженных цен по имени
     generations: {},  // Stores which brainrots have been generated
-    accountColors: {} // Stores unique colors per account
+    panelColor: null  // Unique color for this panel (based on farmKey)
 };
 
 // Custom Dropdown functionality
@@ -1540,23 +1540,23 @@ async function loadGenerationsData() {
     }
 }
 
-// Load account colors
-async function loadAccountColors() {
+// Load panel color (single color for entire panel based on farmKey)
+async function loadPanelColor() {
     try {
-        const data = state.farmersData[state.currentKey];
-        if (!data || !data.accounts) {
-            collectionState.accountColors = {};
+        const farmKey = state.currentKey;
+        if (!farmKey) {
+            collectionState.panelColor = '#4ade80';
             return;
         }
         
-        const accountIds = data.accounts.map(a => a.userId).join(',');
-        const response = await fetch(`/api/account-colors?accountIds=${accountIds}`);
+        const response = await fetch(`/api/account-colors?accountIds=${encodeURIComponent(farmKey)}`);
         const result = await response.json();
-        collectionState.accountColors = result.colors || {};
-        console.log('Loaded account colors:', collectionState.accountColors);
+        // Use the color generated for farmKey
+        collectionState.panelColor = result.colors?.[farmKey] || '#4ade80';
+        console.log('Panel color:', collectionState.panelColor);
     } catch (err) {
-        console.error('Error loading account colors:', err);
-        collectionState.accountColors = {};
+        console.error('Error loading panel color:', err);
+        collectionState.panelColor = '#4ade80';
     }
 }
 
@@ -1868,7 +1868,6 @@ async function renderCollection() {
         const cachedPrice = state.brainrotPrices[cacheKey];
         const generated = isGenerated(b.name);
         const genInfo = getGenerationInfo(b.name);
-        const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
         let priceHtml;
         
         if (cachedPrice && cachedPrice.suggestedPrice) {
@@ -1920,7 +1919,7 @@ async function renderCollection() {
                 <div class="brainrot-income">${b.incomeText || formatIncome(b.income)}</div>
                 ${priceHtml}
                 <div class="brainrot-account">
-                    <span class="account-color-dot" style="background: ${accountColor};"></span>
+                    <i class="fas fa-user"></i>
                     ${b.accountName}
                 </div>
             </div>
@@ -2113,10 +2112,10 @@ function clearPriceCache() {
 
 // Update collection when data changes
 async function updateCollection() {
-    // Load generations and colors
+    // Load generations and panel color
     await Promise.all([
         loadGenerationsData(),
-        loadAccountColors()
+        loadPanelColor()
     ]);
     
     // НЕ сбрасываем кэш цен - они загружаются отдельно
@@ -2152,7 +2151,8 @@ function openSupaGenerator(brainrotData) {
     document.getElementById('supaIncome').value = brainrotData.incomeText || formatIncome(brainrotData.income);
     document.getElementById('supaImageUrl').value = brainrotData.imageUrl || '';
     
-    const accountColor = collectionState.accountColors[brainrotData.accountId] || '#4ade80';
+    // Используем единый цвет панели для границы
+    const panelColor = collectionState.panelColor || '#4ade80';
     const accountInfoEl = document.getElementById('supaAccountInfo');
     if (accountInfoEl) {
         accountInfoEl.innerHTML = `
@@ -2288,7 +2288,8 @@ async function generateSupaImage() {
     
     const accountId = currentSupaBrainrot?.accountId;
     const accountName = currentSupaBrainrot?.accountName;
-    const borderColor = collectionState.accountColors[accountId] || '#4ade80';
+    // Используем единый цвет панели
+    const borderColor = collectionState.panelColor || '#4ade80';
     
     const generateBtn = document.getElementById('supaGenerateBtn');
     const statusEl = document.getElementById('supaStatus');
