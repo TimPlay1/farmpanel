@@ -13,6 +13,34 @@ const TEMPLATE_OBJECTS = {
     INCOME: 'brainrot_income'
 };
 
+// Detect image format by magic bytes
+function detectImageFormat(buffer) {
+    if (buffer.length < 12) return { extension: 'bin', contentType: 'application/octet-stream' };
+    
+    // PNG: 89 50 4E 47
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+        return { extension: 'png', contentType: 'image/png', format: 'png' };
+    }
+    
+    // JPEG: FF D8 FF
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+        return { extension: 'jpg', contentType: 'image/jpeg', format: 'jpeg' };
+    }
+    
+    // GIF: 47 49 46 38
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x38) {
+        return { extension: 'gif', contentType: 'image/gif', format: 'gif' };
+    }
+    
+    // WebP: 52 49 46 46 ... 57 45 42 50 (RIFF....WEBP)
+    if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+        buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+        return { extension: 'webp', contentType: 'image/webp', format: 'webp' };
+    }
+    
+    return { extension: 'png', contentType: 'image/png', format: 'unknown' };
+}
+
 // Upload image to Supa
 async function uploadImageToSupa(imageUrl) {
     console.log('=== uploadImageToSupa START ===');
@@ -37,22 +65,21 @@ async function uploadImageToSupa(imageUrl) {
         throw new Error('Downloaded image is empty');
     }
     
-    const contentType = imageResponse.headers.get('content-type') || 'image/png';
-    console.log('Content-Type:', contentType);
+    // Detect actual format by magic bytes (more reliable than content-type)
+    const detected = detectImageFormat(imageBuffer);
+    console.log('Detected format by magic bytes:', detected);
     
-    // Supa API может не поддерживать webp - принудительно ставим png
-    // и надеемся что Supa сам определит формат по magic bytes
-    let extension = 'png';
-    let uploadContentType = 'image/png';
+    const headerContentType = imageResponse.headers.get('content-type') || 'image/png';
+    console.log('Header Content-Type:', headerContentType);
     
-    if (contentType.includes('jpeg') || contentType.includes('jpg')) {
-        extension = 'jpg';
-        uploadContentType = 'image/jpeg';
-    } else if (contentType.includes('gif')) {
-        extension = 'gif';
-        uploadContentType = 'image/gif';
-    }
-    // webp оставляем как png - Supa должен обработать
+    // Supa API supports: png, jpeg, gif, webp
+    // If webp detected, send as webp (Supa should support it)
+    let extension = detected.extension;
+    let uploadContentType = detected.contentType;
+    
+    // IMPORTANT: Send the actual format detected from magic bytes
+    // This ensures Supa receives the correct content-type for the binary data
+    console.log(`Using format: extension=${extension}, contentType=${uploadContentType}`);
 
     const formData = new FormData();
     formData.append('file', imageBuffer, {
@@ -83,6 +110,7 @@ async function uploadImageToSupa(imageUrl) {
 
     if (uploadResult.result === 'success' && uploadResult.url) {
         console.log('=== uploadImageToSupa SUCCESS ===');
+        console.log('Uploaded image URL:', uploadResult.url);
         return uploadResult.url;
     } else {
         throw new Error(uploadResult.reason || uploadResult.error || uploadResult.message || `Upload failed: ${responseText.substring(0, 200)}`);

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.0
+// @version      3.1
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -356,21 +356,67 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         try {
             // Закрываем любой открытый dropdown
-            document.body.click();
-            await new Promise(r => setTimeout(r, 200));
+            const openDropdown = document.querySelector('ng-dropdown-panel');
+            if (openDropdown) {
+                document.body.click();
+                await new Promise(r => setTimeout(r, 300));
+            }
 
-            // Кликаем на ng-select чтобы открыть dropdown
-            const container = ngSelect.querySelector('.ng-select-container') || ngSelect;
-            container.click();
+            // Находим input внутри ng-select для Angular
+            const inputEl = ngSelect.querySelector('input.ng-input input') || 
+                           ngSelect.querySelector('.ng-input input') || 
+                           ngSelect.querySelector('input[type="text"]') ||
+                           ngSelect.querySelector('input');
+            
+            const container = ngSelect.querySelector('.ng-select-container');
+            const valueContainer = ngSelect.querySelector('.ng-value-container');
+            
+            // Пробуем несколько способов открыть dropdown
+            log(`Trying to open dropdown for: ${optionText}`);
+            
+            // Способ 1: клик по контейнеру и dispatch событий
+            if (container) {
+                container.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                await new Promise(r => setTimeout(r, 100));
+                container.click();
+            }
+            
             await new Promise(r => setTimeout(r, 400));
-
-            // Ждем появления dropdown панели
+            
+            // Проверяем что dropdown открылся
             let dropdownPanel = document.querySelector('ng-dropdown-panel');
             
             if (!dropdownPanel) {
-                // Попробуем еще раз
+                // Способ 2: focus + клик на input
+                if (inputEl) {
+                    inputEl.focus();
+                    inputEl.click();
+                    await new Promise(r => setTimeout(r, 400));
+                    dropdownPanel = document.querySelector('ng-dropdown-panel');
+                }
+            }
+            
+            if (!dropdownPanel) {
+                // Способ 3: клик на value-container
+                if (valueContainer) {
+                    valueContainer.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+                    valueContainer.click();
+                    await new Promise(r => setTimeout(r, 400));
+                    dropdownPanel = document.querySelector('ng-dropdown-panel');
+                }
+            }
+            
+            if (!dropdownPanel) {
+                // Способ 4: клик на сам ng-select
+                ngSelect.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
                 ngSelect.click();
                 await new Promise(r => setTimeout(r, 500));
+                dropdownPanel = document.querySelector('ng-dropdown-panel');
+            }
+
+            // Проверяем класс ng-select-opened
+            if (!dropdownPanel && ngSelect.classList.contains('ng-select-opened')) {
+                await new Promise(r => setTimeout(r, 300));
                 dropdownPanel = document.querySelector('ng-dropdown-panel');
             }
 
@@ -379,8 +425,11 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 return false;
             }
 
+            log(`Dropdown opened, searching for: ${optionText}`);
+
             // Ищем все опции
-            const options = dropdownPanel.querySelectorAll('.ng-option');
+            const options = dropdownPanel.querySelectorAll('.ng-option:not(.ng-option-disabled)');
+            log(`Found ${options.length} options`);
             
             for (const option of options) {
                 const text = option.textContent.trim();
@@ -389,16 +438,25 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     text.toLowerCase().includes(optionText.toLowerCase());
                 
                 if (matches) {
+                    // Прокручиваем к опции если нужно
+                    option.scrollIntoView({ block: 'nearest' });
+                    await new Promise(r => setTimeout(r, 100));
+                    
+                    // Симулируем hover и клик
+                    option.dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+                    option.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
                     option.click();
+                    
                     log(`Selected: ${text}`, 'success');
                     await new Promise(r => setTimeout(r, 300));
                     return true;
                 }
             }
 
-            // Если не нашли, закрываем dropdown
+            // Если не нашли, выводим доступные опции и закрываем
+            const availableOptions = [...options].map(o => o.textContent.trim()).slice(0, 5);
+            log(`Option "${optionText}" not found. Available: ${availableOptions.join(', ')}...`, 'warn');
             document.body.click();
-            log(`Option not found: ${optionText}`, 'warn');
             return false;
 
         } catch (error) {
@@ -530,7 +588,36 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             // === 2. OFFER TITLE ===
             log('Filling Offer Title...');
-            const titleInput = document.querySelector('input[placeholder*="Type here"]');
+            // Ищем input для title по разным признакам
+            let titleInput = document.querySelector('input[formcontrolname="title"]') ||
+                            document.querySelector('input[formcontrolname="name"]') ||
+                            document.querySelector('input[placeholder*="Type here"]') ||
+                            document.querySelector('input[placeholder*="title"]');
+            
+            // Fallback - ищем input в секции с title
+            if (!titleInput) {
+                const sections = document.querySelectorAll('section, .form-group, .form-section, [class*="title"]');
+                for (const section of sections) {
+                    const sectionText = section.textContent.toLowerCase();
+                    if (sectionText.includes('offer title') || sectionText.includes('title')) {
+                        titleInput = section.querySelector('input[type="text"], input:not([type])');
+                        if (titleInput) break;
+                    }
+                }
+            }
+            
+            // Fallback 2 - просто первый текстовый input после ng-selects
+            if (!titleInput) {
+                const allInputs = document.querySelectorAll('input[type="text"], input:not([type="checkbox"]):not([type="file"]):not([type="hidden"]):not([type="number"])');
+                for (const input of allInputs) {
+                    // Пропускаем inputs внутри ng-select
+                    if (!input.closest('ng-select')) {
+                        titleInput = input;
+                        break;
+                    }
+                }
+            }
+            
             if (titleInput) {
                 const title = generateOfferTitle(name, income);
                 setInputValue(titleInput, title);
@@ -551,7 +638,29 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             // === 4. DESCRIPTION ===
             log('Filling Description...');
-            const descTextarea = document.querySelector('textarea[placeholder*="Type here"]');
+            // Ищем textarea для описания по разным признакам
+            let descTextarea = document.querySelector('textarea[formcontrolname="description"]') ||
+                              document.querySelector('textarea[formcontrolname="content"]') ||
+                              document.querySelector('textarea[placeholder*="Type here"]') ||
+                              document.querySelector('textarea[placeholder*="description"]');
+            
+            // Fallback - ищем textarea в секции description
+            if (!descTextarea) {
+                const sections = document.querySelectorAll('section, .form-group, .form-section, [class*="description"]');
+                for (const section of sections) {
+                    const sectionText = section.textContent.toLowerCase();
+                    if (sectionText.includes('description') || sectionText.includes('offer description')) {
+                        descTextarea = section.querySelector('textarea');
+                        if (descTextarea) break;
+                    }
+                }
+            }
+            
+            // Fallback 2 - просто первая textarea на странице
+            if (!descTextarea) {
+                descTextarea = document.querySelector('textarea');
+            }
+            
             if (descTextarea) {
                 const description = generateOfferDescription(offerId);
                 setInputValue(descTextarea, description);
