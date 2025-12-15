@@ -175,13 +175,16 @@ async function requestRender(brainrotData) {
         text: name || 'Unknown Brainrot'
     };
 
-    // Income - передаём просто текст, шаблон сам применит substyle стили
+    // Income - передаём с substyle для стилизации (чёрный фон, зелёный текст и контур)
     let cleanIncome = income || '0/s';
     if (cleanIncome.startsWith('$')) {
         cleanIncome = cleanIncome.substring(1);
     }
+    // Формат substyle: <substyle bold="weight" color="text" background="bg" underline>text</substyle>
+    // underline используется как контур/обводка с цветом #27C902
+    const styledIncome = `<substyle bold="400" color="#1BFF00" background="#000000" underline>${cleanIncome}</substyle>`;
     objectsOverrides[TEMPLATE_OBJECTS.INCOME] = {
-        text: cleanIncome
+        text: styledIncome
     };
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));
