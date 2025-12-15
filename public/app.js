@@ -585,6 +585,15 @@ function setupEventListeners() {
     // Format key input
     farmKeyInput.addEventListener('input', formatKeyInput);
     newKeyInput.addEventListener('input', formatKeyInput);
+    
+    // Horizontal scroll with mouse wheel for brainrots-scroll elements
+    document.addEventListener('wheel', (e) => {
+        const scrollContainer = e.target.closest('.brainrots-scroll');
+        if (scrollContainer) {
+            e.preventDefault();
+            scrollContainer.scrollLeft += e.deltaY;
+        }
+    }, { passive: false });
 }
 
 function formatKeyInput(e) {
