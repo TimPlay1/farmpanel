@@ -67,6 +67,53 @@ function getCachedAvatar(userId) {
 }
 
 /**
+ * Загрузить аватар напрямую с Roblox API (fallback)
+ */
+async function fetchRobloxAvatar(userId) {
+    try {
+        const response = await fetch(
+            `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
+        );
+        const data = await response.json();
+        if (data.data?.[0]?.imageUrl) {
+            const url = data.data[0].imageUrl;
+            saveAvatarToCache(userId, url);
+            return url;
+        }
+    } catch (e) {
+        console.warn('Failed to fetch Roblox avatar for', userId, e);
+    }
+    return null;
+}
+
+/**
+ * Получить аватар: сначала из сервера/кэша, затем с Roblox
+ */
+async function getAccountAvatar(userId, serverAvatars) {
+    if (!userId) return null;
+    
+    const key = String(userId);
+    
+    // 1. Проверяем серверные данные (base64)
+    const serverAvatar = serverAvatars?.[key];
+    if (serverAvatar?.base64) {
+        return serverAvatar.base64;
+    }
+    if (serverAvatar?.url) {
+        return serverAvatar.url;
+    }
+    
+    // 2. Проверяем локальный кэш
+    const cached = getCachedAvatar(userId);
+    if (cached) {
+        return cached;
+    }
+    
+    // 3. Загружаем с Roblox (в фоне)
+    return fetchRobloxAvatar(userId);
+}
+
+/**
  * Загрузить кэш цен из MongoDB
  */
 async function loadPricesFromServer() {
@@ -1005,6 +1052,19 @@ async function renderAccountsGrid(accounts) {
                 const cachedAvatar = getCachedAvatar(account.userId);
                 if (cachedAvatar) {
                     account.avatarUrl = cachedAvatar;
+                } else if (account.userId) {
+                    // Загружаем с Roblox в фоне
+                    fetchRobloxAvatar(account.userId).then(url => {
+                        if (url) {
+                            // Обновляем изображение в DOM если карточка существует
+                            const cardId = getAccountCardId(account);
+                            const cardEl = document.getElementById(cardId);
+                            if (cardEl) {
+                                const img = cardEl.querySelector('.account-avatar img');
+                                if (img) img.src = url;
+                            }
+                        }
+                    });
                 }
             }
         }
