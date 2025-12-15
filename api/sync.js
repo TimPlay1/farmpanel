@@ -169,16 +169,37 @@ module.exports = async (req, res) => {
             // Загружаем аватары для аккаунтов
             const existingAccountAvatars = farmer.accountAvatars || {};
             
-            // Проверяем нужно ли загружать аватары (проверяем наличие base64)
+            // Проверяем для каких аккаунтов нужно загрузить аватары
+            // Сначала проверяем отдельную коллекцию
+            for (const account of accounts) {
+                if (!account.userId) continue;
+                const key = String(account.userId);
+                
+                // Если нет base64 - проверяем отдельную коллекцию
+                if (!existingAccountAvatars[key] || !existingAccountAvatars[key].base64) {
+                    const stored = await avatarsCollection.findOne({ userId: key });
+                    if (stored && stored.base64) {
+                        existingAccountAvatars[key] = {
+                            url: stored.base64,
+                            base64: stored.base64,
+                            timestamp: stored.fetchedAt
+                        };
+                    }
+                }
+            }
+            
+            // Проверяем нужно ли загружать новые аватары с Roblox
             const needsAvatars = accounts.some(a => {
                 if (!a.userId) return false;
                 const cached = existingAccountAvatars[String(a.userId)];
-                // Нужно загрузить если нет base64 или только URL (старый формат)
+                // Нужно загрузить если нет base64
                 return !cached || !cached.base64;
             });
             
             let accountAvatars = existingAccountAvatars;
             if (needsAvatars) {
+                // Загружаем аватары асинхронно, не блокируя ответ
+                // Но для первого раза загрузим синхронно
                 accountAvatars = await fetchAvatarsForAccounts(accounts, existingAccountAvatars, avatarsCollection);
             }
 
@@ -215,13 +236,36 @@ module.exports = async (req, res) => {
                 return res.status(404).json({ error: 'Farm key not found' });
             }
 
+            // Собираем аватары из farmer.accountAvatars и из отдельной коллекции accountAvatars
+            const avatarsCollection = db.collection('accountAvatars');
+            let accountAvatars = farmer.accountAvatars || {};
+            
+            // Для каждого аккаунта проверяем есть ли аватар в отдельной коллекции
+            const accounts = farmer.accounts || [];
+            for (const account of accounts) {
+                if (!account.userId) continue;
+                const key = String(account.userId);
+                
+                // Если нет аватара или нет base64 - проверяем отдельную коллекцию
+                if (!accountAvatars[key] || !accountAvatars[key].base64) {
+                    const stored = await avatarsCollection.findOne({ userId: key });
+                    if (stored && stored.base64) {
+                        accountAvatars[key] = {
+                            url: stored.base64,
+                            base64: stored.base64,
+                            timestamp: stored.fetchedAt
+                        };
+                    }
+                }
+            }
+
             return res.status(200).json({
                 success: true,
                 farmKey: farmer.farmKey,
                 username: farmer.username,
                 avatar: farmer.avatar,
                 accounts: farmer.accounts || [],
-                accountAvatars: farmer.accountAvatars || {}, // Возвращаем аватары аккаунтов
+                accountAvatars: accountAvatars, // Возвращаем аватары из обоих источников
                 lastUpdate: farmer.lastUpdate,
                 totalValue: farmer.totalValue || 0,
                 valueUpdatedAt: farmer.valueUpdatedAt || null
