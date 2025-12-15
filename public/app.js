@@ -1,4 +1,4 @@
-// API Base URL - auto-detect for local dev or production
+﻿// API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? 'http://localhost:3001/api' 
     : '/api';
@@ -11,8 +11,12 @@ let state = {
     currentKey: null,
     savedKeys: [],
     farmersData: {},
-    brainrotImages: {}
+    brainrotImages: {},
+    eldoradoPrices: {} // Кэш цен Eldorado
 };
+
+// Кэш цен Eldorado (время жизни 5 минут)
+const PRICE_CACHE_TTL = 5 * 60 * 1000;
 
 // Load brainrot images mapping
 async function loadBrainrotMapping() {
@@ -35,6 +39,166 @@ function getBrainrotImageUrl(name) {
                   state.brainrotImages[normalized.replace(/\s+/g, '_')] ||
                   state.brainrotImages[normalized.replace(/\s+/g, '')];
     return image ? `${BRAINROT_IMAGES_BASE}/${image}` : null;
+}
+
+// ===============================================
+// ELDORADO PRICE SERVICE
+// ===============================================
+
+/**
+ * Извлекает название пита из имени брейнрота
+ * @param {string} name - полное имя брейнрота
+ * @returns {string} - название пита
+ */
+function extractPitName(name) {
+    if (!name) return 'other';
+    
+    // Известные питы (можно расширять)
+    const knownPits = [
+        'pot hotspot', 'lucky fountain', 'mythic aurora', 'atlantean',
+        'crystal cavern', 'tech terrace', 'cosmic corner', 'nature nook',
+        'fire pit', 'ice pit', 'void pit', 'rainbow pit'
+    ];
+    
+    const lowerName = name.toLowerCase();
+    
+    for (const pit of knownPits) {
+        if (lowerName.includes(pit)) {
+            return pit;
+        }
+    }
+    
+    return 'other';
+}
+
+/**
+ * Парсит доходность из incomeText
+ * @param {string} incomeText - например "$112.5M/s"
+ * @returns {number} - доходность в M/s
+ */
+function parseIncomeValue(incomeText) {
+    if (!incomeText) return 0;
+    
+    // Убираем пробелы и приводим к нижнему регистру
+    const clean = incomeText.replace(/\s+/g, '').toLowerCase();
+    
+    // Паттерны: $112.5m/s, 112.5m/s, $112.5 m/s
+    const match = clean.match(/\$?([\d.]+)m/);
+    if (match) {
+        return parseFloat(match[1]);
+    }
+    
+    return 0;
+}
+
+/**
+ * Получить ключ кэша для цены
+ */
+function getPriceCacheKey(pitName, income) {
+    return `${pitName.toLowerCase()}_${Math.floor(income / 10) * 10}`;
+}
+
+/**
+ * Получить цену с Eldorado для брейнрота
+ * @param {string} pitName - название пита
+ * @param {number} income - доходность M/s
+ * @returns {Promise<object>} - данные о цене
+ */
+async function fetchEldoradoPrice(pitName, income) {
+    const cacheKey = getPriceCacheKey(pitName, income);
+    
+    // Проверяем кэш
+    const cached = state.eldoradoPrices[cacheKey];
+    if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
+        return cached.data;
+    }
+    
+    try {
+        const params = new URLSearchParams({
+            pitName: pitName,
+            income: income.toString()
+        });
+        
+        const response = await fetch(`${API_BASE}/eldorado-price?${params}`);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch price');
+        }
+        
+        const data = await response.json();
+        
+        // Сохраняем в кэш
+        state.eldoradoPrices[cacheKey] = {
+            data: data,
+            timestamp: Date.now()
+        };
+        
+        return data;
+    } catch (error) {
+        console.warn('Error fetching Eldorado price:', error);
+        return null;
+    }
+}
+
+/**
+ * Получить цены для списка брейнротов
+ * @param {Array} brainrots - [{name, income}]
+ * @returns {Promise<Map>} - Map с ценами по ключу name
+ */
+async function fetchBulkEldoradoPrices(brainrots) {
+    const pricesMap = new Map();
+    
+    // Группируем по уникальным питам и диапазонам доходности
+    const uniqueRequests = new Map();
+    
+    for (const b of brainrots) {
+        const pitName = extractPitName(b.name);
+        const income = b.income || parseIncomeValue(b.incomeText);
+        const cacheKey = getPriceCacheKey(pitName, income);
+        
+        if (!uniqueRequests.has(cacheKey)) {
+            uniqueRequests.set(cacheKey, { pitName, income, brainrots: [] });
+        }
+        uniqueRequests.get(cacheKey).brainrots.push(b.name);
+    }
+    
+    // Получаем цены для уникальных запросов
+    const requests = Array.from(uniqueRequests.values());
+    
+    // Ограничиваем параллельные запросы
+    const batchSize = 5;
+    for (let i = 0; i < requests.length; i += batchSize) {
+        const batch = requests.slice(i, i + batchSize);
+        
+        const results = await Promise.all(
+            batch.map(req => fetchEldoradoPrice(req.pitName, req.income))
+        );
+        
+        // Связываем результаты с брейнротами
+        results.forEach((result, idx) => {
+            const req = batch[idx];
+            if (result) {
+                for (const brainrotName of req.brainrots) {
+                    pricesMap.set(brainrotName, result);
+                }
+            }
+        });
+        
+        // Небольшая задержка между батчами
+        if (i + batchSize < requests.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+        }
+    }
+    
+    return pricesMap;
+}
+
+/**
+ * Форматировать цену для отображения
+ */
+function formatPrice(price) {
+    if (!price || price <= 0) return '—';
+    return '$' + price.toFixed(2);
 }
 
 // DOM Elements
@@ -1044,7 +1208,7 @@ function filterAndRenderCollection() {
 }
 
 // Render collection
-function renderCollection() {
+async function renderCollection() {
     if (!brainrotsGridEl) return;
 
     const brainrots = collectionState.filteredBrainrots;
@@ -1073,8 +1237,9 @@ function renderCollection() {
         return;
     }
 
+    // Первичный рендер без цен (быстрый)
     brainrotsGridEl.innerHTML = brainrots.map(b => `
-        <div class="brainrot-card">
+        <div class="brainrot-card" data-brainrot-name="${b.name}">
             <div class="brainrot-image">
                 ${b.imageUrl 
                     ? `<img src="${b.imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
@@ -1084,6 +1249,10 @@ function renderCollection() {
             <div class="brainrot-details">
                 <div class="brainrot-name" title="${b.name}">${b.name}</div>
                 <div class="brainrot-income">${b.incomeText || formatIncome(b.income)}</div>
+                <div class="brainrot-price" data-price-loading="true">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <span class="price-text">Loading...</span>
+                </div>
                 <div class="brainrot-account">
                     <i class="fas fa-user"></i>
                     ${b.accountName}
@@ -1091,6 +1260,67 @@ function renderCollection() {
             </div>
         </div>
     `).join('');
+    
+    // Асинхронно загружаем цены
+    loadBrainrotPrices(brainrots);
+}
+
+/**
+ * Загрузить и отобразить цены для брейнротов
+ */
+async function loadBrainrotPrices(brainrots) {
+    try {
+        const pricesMap = await fetchBulkEldoradoPrices(brainrots);
+        
+        // Обновляем DOM с ценами
+        for (const b of brainrots) {
+            const priceData = pricesMap.get(b.name);
+            const card = brainrotsGridEl.querySelector(`[data-brainrot-name="${CSS.escape(b.name)}"]`);
+            
+            if (!card) continue;
+            
+            const priceEl = card.querySelector('.brainrot-price');
+            if (!priceEl) continue;
+            
+            priceEl.removeAttribute('data-price-loading');
+            
+            if (priceData && priceData.suggestedPrice) {
+                const rangeText = priceData.priceRange?.min && priceData.priceRange?.max
+                    ? `Range: ${formatPrice(priceData.priceRange.min)} - ${formatPrice(priceData.priceRange.max)}`
+                    : '';
+                
+                priceEl.innerHTML = `
+                    <i class="fas fa-tag"></i>
+                    <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
+                    ${priceData.marketPrice ? `<span class="price-market" title="${rangeText}">~${formatPrice(priceData.marketPrice)}</span>` : ''}
+                `;
+                priceEl.title = `Suggested: ${formatPrice(priceData.suggestedPrice)}\n${rangeText}\nBased on ${priceData.totalOffersAnalyzed || 0} offers`;
+            } else if (priceData && priceData.marketPrice) {
+                priceEl.innerHTML = `
+                    <i class="fas fa-tag"></i>
+                    <span class="price-text">~${formatPrice(priceData.marketPrice)}</span>
+                `;
+            } else {
+                priceEl.innerHTML = `
+                    <i class="fas fa-tag" style="opacity: 0.5"></i>
+                    <span class="price-text" style="opacity: 0.5">No data</span>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading brainrot prices:', error);
+        
+        // Показываем ошибку в карточках
+        const priceEls = brainrotsGridEl.querySelectorAll('.brainrot-price[data-price-loading]');
+        priceEls.forEach(el => {
+            el.removeAttribute('data-price-loading');
+            el.innerHTML = `
+                <i class="fas fa-exclamation-triangle" style="opacity: 0.5"></i>
+                <span class="price-text" style="opacity: 0.5">Error</span>
+            `;
+        });
+    }
+}
 }
 
 // Update collection when data changes
@@ -1101,3 +1331,4 @@ function updateCollection() {
 
 // Initialize collection listeners on DOM ready
 setupCollectionListeners();
+

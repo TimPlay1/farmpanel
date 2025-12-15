@@ -1,4 +1,4 @@
-* {
+﻿* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -1251,7 +1251,42 @@ body {
     font-size: 1.1rem;
     font-weight: 700;
     color: var(--accent-green);
+    margin-bottom: 0.3rem;
+}
+
+.brainrot-price {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: var(--accent-blue);
     margin-bottom: 0.5rem;
+}
+
+.brainrot-price[data-price-loading] {
+    color: var(--text-muted);
+}
+
+.brainrot-price[data-price-loading] .fa-spinner {
+    font-size: 0.8rem;
+}
+
+.brainrot-price .price-text {
+    font-weight: 600;
+}
+
+.brainrot-price .price-text.suggested {
+    color: var(--accent-green);
+}
+
+.brainrot-price .price-market {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 400;
+}
+
+.brainrot-price i {
+    font-size: 0.8rem;
 }
 
 .brainrot-account {
@@ -1288,3 +1323,4 @@ body {
         grid-template-columns: 1fr;
     }
 }
+
