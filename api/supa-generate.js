@@ -175,15 +175,13 @@ async function requestRender(brainrotData) {
         text: name || 'Unknown Brainrot'
     };
 
-    // Income должен быть в substyle формате как в шаблоне
+    // Income - передаём просто текст, шаблон сам применит substyle стили
     let cleanIncome = income || '0/s';
     if (cleanIncome.startsWith('$')) {
         cleanIncome = cleanIncome.substring(1);
     }
-    // Оборачиваем в substyle тег с оригинальными стилями из шаблона
-    const incomeStyled = `<substyle bold="400" color="#1bff00" background="#000000" underline>${cleanIncome}</substyle>`;
     objectsOverrides[TEMPLATE_OBJECTS.INCOME] = {
-        text: incomeStyled
+        text: cleanIncome
     };
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));
