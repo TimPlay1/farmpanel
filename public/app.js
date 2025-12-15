@@ -289,6 +289,43 @@ async function fetchFarmerData() {
     }
 }
 
+// Check if account is online based on lastUpdate timestamp
+function isAccountOnline(account) {
+    if (!account) return false;
+    if (!account.lastUpdate) return account.isOnline || false;
+    
+    try {
+        const isoString = account.lastUpdate.replace(' ', 'T');
+        const lastUpdateTime = new Date(isoString).getTime();
+        const now = Date.now();
+        const diffSeconds = (now - lastUpdateTime) / 1000;
+        
+        // If updated within last 60 seconds, consider online
+        return diffSeconds < 60;
+    } catch (e) {
+        return account.isOnline || false;
+    }
+}
+
+// Format time ago for display
+function formatTimeAgo(lastUpdate) {
+    if (!lastUpdate) return 'Never';
+    
+    try {
+        const isoString = lastUpdate.replace(' ', 'T');
+        const lastUpdateTime = new Date(isoString).getTime();
+        const now = Date.now();
+        const diffSeconds = Math.floor((now - lastUpdateTime) / 1000);
+        
+        if (diffSeconds < 60) return 'Just now';
+        if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + 'm ago';
+        if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + 'h ago';
+        return Math.floor(diffSeconds / 86400) + 'd ago';
+    } catch (e) {
+        return lastUpdate;
+    }
+}
+
 // UI Updates
 function updateUI() {
     const data = state.farmersData[state.currentKey];
@@ -296,8 +333,8 @@ function updateUI() {
     
     const accounts = data.accounts || [];
     
-    // Update stats
-    const online = accounts.filter(a => a.isOnline).length;
+    // Update stats (use calculated online status)
+    const online = accounts.filter(a => a._isOnline).length;
     const totalIncome = accounts.reduce((sum, a) => sum + (a.totalIncome || 0), 0);
     const totalBrainrots = accounts.reduce((sum, a) => sum + (a.totalBrainrots || 0), 0);
     
@@ -382,9 +419,10 @@ async function renderAccountsGrid(accounts) {
             `;
         }).join('');
         
-        const statusClass = account.isOnline ? 'online' : 'offline';
-        const statusText = account.isOnline ? 'Online' : 'Offline';
-        const actionText = account.action || account.status || '';
+        const isOnline = account._isOnline;
+        const statusClass = isOnline ? 'online' : 'offline';
+        const statusText = isOnline ? 'Online' : 'Offline';
+        const actionText = isOnline ? (account.action || account.status || '') : '';
         
         const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
         
@@ -401,7 +439,7 @@ async function renderAccountsGrid(accounts) {
                                 <i class="fas fa-circle"></i>
                                 ${statusText}
                             </span>
-                            ${account.isOnline && actionText ? `<span class="account-action">${actionText}</span>` : ''}
+                            ${isOnline && actionText ? `<span class="account-action">${actionText}</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -428,7 +466,7 @@ async function renderAccountsGrid(accounts) {
                 ` : ''}
                 <div class="account-footer">
                     <i class="fas fa-clock"></i>
-                    Updated: ${account.lastUpdate || 'Never'}
+                    ${formatTimeAgo(account.lastUpdate)}
                 </div>
             </div>
         `;
@@ -462,7 +500,7 @@ function renderAccountsList(accounts) {
                 </div>
                 <span class="status-badge ${statusClass}">
                     <i class="fas fa-circle"></i>
-                    ${account.isOnline ? 'Online' : 'Offline'}
+                    ${isOnline ? 'Online' : 'Offline'}
                 </span>
                 <div class="account-list-income">
                     <div class="value">${account.totalIncomeFormatted || formatIncome(account.totalIncome || 0)}</div>
