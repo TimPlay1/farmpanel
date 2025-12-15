@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.5
+// @version      3.6
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -164,10 +164,9 @@
         return `GS-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 5)}`.toUpperCase();
     }
 
-    // Генерация названия (макс 160)
+    // Генерация названия (макс 160) - income передаётся как есть
     function generateOfferTitle(brainrotName, income) {
-        const inc = (income || '0/s').replace('$', '');
-        return `🔥${brainrotName} l ${inc}🔥 Fast Delivery🚚 👾Glitched Store👾`.substring(0, 160);
+        return `🔥${brainrotName} l ${income || '0/s'}🔥 Fast Delivery🚚 👾Glitched Store👾`.substring(0, 160);
     }
 
     // Генерация описания (макс 2000)
@@ -248,7 +247,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         });
     }
 
-    // Выбрать опцию в ng-select - простой последовательный подход v3.5
+    // Выбрать опцию в ng-select v3.6
     async function selectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
         
@@ -257,27 +256,50 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // Закрываем все открытые dropdown'ы
             closeAllDropdowns();
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 200));
             
-            // Кликаем по ng-select чтобы открыть
-            ngSelect.click();
-            await new Promise(r => setTimeout(r, 500));
+            // Находим input внутри ng-select и фокусируемся
+            const input = ngSelect.querySelector('input');
+            const container = ngSelect.querySelector('.ng-select-container');
+            const arrow = ngSelect.querySelector('.ng-arrow-wrapper');
             
-            // Ждём появления панели
-            let panel = null;
-            for (let i = 0; i < 15; i++) {
-                panel = document.querySelector('ng-dropdown-panel');
-                if (panel) break;
-                await new Promise(r => setTimeout(r, 200));
+            // Метод 1: клик по стрелке
+            if (arrow) {
+                arrow.click();
+                await new Promise(r => setTimeout(r, 400));
             }
             
+            // Проверяем открылся ли dropdown
+            let panel = document.querySelector('ng-dropdown-panel');
+            
+            // Метод 2: клик по контейнеру
+            if (!panel && container) {
+                container.click();
+                await new Promise(r => setTimeout(r, 400));
+                panel = document.querySelector('ng-dropdown-panel');
+            }
+            
+            // Метод 3: фокус на input
+            if (!panel && input) {
+                input.focus();
+                input.click();
+                await new Promise(r => setTimeout(r, 400));
+                panel = document.querySelector('ng-dropdown-panel');
+            }
+            
+            // Метод 4: просто клик по ng-select
             if (!panel) {
-                // Пробуем ещё раз - клик по контейнеру
-                const container = ngSelect.querySelector('.ng-select-container');
-                if (container) {
-                    container.click();
-                    await new Promise(r => setTimeout(r, 500));
+                ngSelect.click();
+                await new Promise(r => setTimeout(r, 400));
+                panel = document.querySelector('ng-dropdown-panel');
+            }
+            
+            // Ждём ещё немного
+            if (!panel) {
+                for (let i = 0; i < 10; i++) {
+                    await new Promise(r => setTimeout(r, 200));
                     panel = document.querySelector('ng-dropdown-panel');
+                    if (panel) break;
                 }
             }
             
@@ -295,7 +317,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 if (label.toLowerCase().includes(optionText.toLowerCase())) {
                     opt.click();
                     log(`Selected: ${label}`, 'success');
-                    await new Promise(r => setTimeout(r, 500));
+                    await new Promise(r => setTimeout(r, 400));
                     return true;
                 }
             }
@@ -385,7 +407,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             const getSelects = () => [...document.querySelectorAll('ng-select')];
             
             // === 1. Income range (первый dropdown) ===
-            log('Step 1: Income range');
+            log('Step 1: Income range -> ' + getIncomeRange(income));
             let selects = getSelects();
             if (selects[0]) {
                 await selectNgOption(selects[0], getIncomeRange(income));
@@ -393,7 +415,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             
             // === 2. Mutations - None (второй dropdown) ===
-            log('Step 2: Mutations');
+            log('Step 2: Mutations -> None');
             selects = getSelects();
             if (selects[1]) {
                 await selectNgOption(selects[1], 'None');
@@ -402,45 +424,28 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // === 3. Item type - выбираем Brainrot ===
             log('Step 3: Item type -> Brainrot');
-            let itemTypeSelect = findNgSelectByPlaceholder('item type');
-            if (!itemTypeSelect) {
-                selects = getSelects();
-                itemTypeSelect = selects[2];
-            }
-            if (itemTypeSelect) {
-                await selectNgOption(itemTypeSelect, 'Brainrot');
+            selects = getSelects();
+            if (selects[2]) {
+                await selectNgOption(selects[2], 'Brainrot');
                 await new Promise(r => setTimeout(r, 1000)); // Ждём появления Rarity
             }
             
             // === 4. Rarity - выбираем Secret (или указанный) ===
             log('Step 4: Rarity -> ' + (rarity || 'Secret'));
-            let raritySelect = await waitForNgSelect('rarity', 3000);
-            if (!raritySelect) {
-                // Пробуем найти по индексу - он должен появиться после Item type
-                selects = getSelects();
-                if (selects.length > 3) {
-                    raritySelect = selects[3];
-                }
-            }
-            if (raritySelect) {
-                await selectNgOption(raritySelect, rarity || 'Secret');
+            selects = getSelects();
+            if (selects.length > 3) {
+                await selectNgOption(selects[3], rarity || 'Secret');
                 await new Promise(r => setTimeout(r, 1000)); // Ждём появления Brainrot select
             }
             
             // === 5. Brainrot name - выбираем название или Other ===
             log('Step 5: Brainrot -> ' + name);
-            let brainrotSelect = await waitForNgSelect('brainrot', 3000);
-            if (!brainrotSelect) {
-                selects = getSelects();
-                if (selects.length > 4) {
-                    brainrotSelect = selects[4];
-                }
-            }
-            if (brainrotSelect) {
-                const selected = await selectNgOption(brainrotSelect, name);
+            selects = getSelects();
+            if (selects.length > 4) {
+                const selected = await selectNgOption(selects[4], name);
                 if (!selected) {
                     log('Brainrot not found, selecting Other');
-                    await selectNgOption(brainrotSelect, 'Other');
+                    await selectNgOption(selects[4], 'Other');
                 }
                 await new Promise(r => setTimeout(r, 600));
             }
