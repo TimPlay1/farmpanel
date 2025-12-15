@@ -709,8 +709,9 @@ function getDefaultAvatar(name) {
 
 // Additional DOM Elements for Collection
 const brainrotSearchEl = document.getElementById('brainrotSearch');
-const sortFilterEl = document.getElementById('sortFilter');
-const accountFilterEl = document.getElementById('accountFilter');
+const sortDropdown = document.getElementById('sortDropdown');
+const accountDropdown = document.getElementById('accountDropdown');
+const accountDropdownMenu = document.getElementById('accountDropdownMenu');
 const brainrotsGridEl = document.getElementById('brainrotsGrid');
 const collectionStatsEl = document.getElementById('collectionStats');
 
@@ -723,28 +724,88 @@ let collectionState = {
     accountFilter: 'all'
 };
 
+// Custom Dropdown functionality
+function initDropdown(dropdown, onChange) {
+    if (!dropdown) return;
+    
+    const toggle = dropdown.querySelector('.dropdown-toggle');
+    const menu = dropdown.querySelector('.dropdown-menu');
+    
+    if (!toggle || !menu) return;
+    
+    toggle.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Close other dropdowns
+        document.querySelectorAll('.custom-dropdown').forEach(function(d) {
+            if (d !== dropdown) {
+                const t = d.querySelector('.dropdown-toggle');
+                const m = d.querySelector('.dropdown-menu');
+                if (t) t.classList.remove('open');
+                if (m) m.classList.remove('show');
+            }
+        });
+        
+        toggle.classList.toggle('open');
+        menu.classList.toggle('show');
+    });
+    
+    menu.addEventListener('click', function(e) {
+        const item = e.target.closest('.dropdown-item');
+        if (!item) return;
+        
+        const value = item.dataset.value;
+        const text = item.textContent;
+        
+        // Update active state
+        menu.querySelectorAll('.dropdown-item').forEach(function(i) {
+            i.classList.remove('active');
+        });
+        item.classList.add('active');
+        
+        // Update toggle text
+        toggle.querySelector('span').textContent = text;
+        
+        // Close dropdown
+        toggle.classList.remove('open');
+        menu.classList.remove('show');
+        
+        // Callback
+        if (onChange) onChange(value);
+    });
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.custom-dropdown')) {
+        document.querySelectorAll('.custom-dropdown').forEach(function(d) {
+            const t = d.querySelector('.dropdown-toggle');
+            const m = d.querySelector('.dropdown-menu');
+            if (t) t.classList.remove('open');
+            if (m) m.classList.remove('show');
+        });
+    }
+});
+
 // Setup Collection event listeners
 function setupCollectionListeners() {
     if (brainrotSearchEl) {
-        brainrotSearchEl.addEventListener('input', (e) => {
+        brainrotSearchEl.addEventListener('input', function(e) {
             collectionState.searchQuery = e.target.value.toLowerCase().trim();
             filterAndRenderCollection();
         });
     }
 
-    if (sortFilterEl) {
-        sortFilterEl.addEventListener('change', (e) => {
-            collectionState.sortBy = e.target.value;
-            filterAndRenderCollection();
-        });
-    }
+    initDropdown(sortDropdown, function(value) {
+        collectionState.sortBy = value;
+        filterAndRenderCollection();
+    });
 
-    if (accountFilterEl) {
-        accountFilterEl.addEventListener('change', (e) => {
-            collectionState.accountFilter = e.target.value;
-            filterAndRenderCollection();
-        });
-    }
+    initDropdown(accountDropdown, function(value) {
+        collectionState.accountFilter = value;
+        filterAndRenderCollection();
+    });
 }
 
 // Collect all brainrots from all accounts
@@ -774,30 +835,23 @@ function collectAllBrainrots() {
     }
 
     collectionState.allBrainrots = brainrots;
-    updateAccountFilter(accounts);
+    updateAccountDropdown(accounts);
 }
 
 // Update account filter dropdown
-function updateAccountFilter(accounts) {
-    if (!accountFilterEl) return;
+function updateAccountDropdown(accounts) {
+    if (!accountDropdownMenu) return;
 
-    const currentValue = accountFilterEl.value;
-    
-    accountFilterEl.innerHTML = '<option value="all">All Accounts</option>';
-    
+    const currentValue = collectionState.accountFilter;
     const uniqueAccounts = [...new Set(accounts.map(a => a.playerName))].sort();
     
+    let html = '<div class="dropdown-item' + (currentValue === 'all' ? ' active' : '') + '" data-value="all">All Accounts</div>';
+    
     for (const name of uniqueAccounts) {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name;
-        accountFilterEl.appendChild(option);
+        html += '<div class="dropdown-item' + (currentValue === name ? ' active' : '') + '" data-value="' + name + '">' + name + '</div>';
     }
-
-    // Restore previous selection if still valid
-    if (uniqueAccounts.includes(currentValue) || currentValue === 'all') {
-        accountFilterEl.value = currentValue;
-    }
+    
+    accountDropdownMenu.innerHTML = html;
 }
 
 // Filter and sort brainrots
@@ -850,13 +904,12 @@ function renderCollection() {
     // Update stats
     if (collectionStatsEl) {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
-        collectionStatsEl.innerHTML = `
-            <span><i class="fas fa-layer-group"></i> ${collectionState.allBrainrots.length} total</span>
-            <span><i class="fas fa-fingerprint"></i> ${uniqueNames.size} unique</span>
-            ${collectionState.searchQuery || collectionState.accountFilter !== 'all' 
-                ? `<span><i class="fas fa-filter"></i> ${brainrots.length} shown</span>` 
-                : ''}
-        `;
+        let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' total</span>';
+        statsHtml += '<span><i class="fas fa-fingerprint"></i> ' + uniqueNames.size + ' unique</span>';
+        if (collectionState.searchQuery || collectionState.accountFilter !== 'all') {
+            statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
+        }
+        collectionStatsEl.innerHTML = statsHtml;
     }
 
     if (brainrots.length === 0) {
@@ -898,5 +951,5 @@ function updateCollection() {
     filterAndRenderCollection();
 }
 
-// Initialize collection listeners
+// Initialize collection listeners on DOM ready
 setupCollectionListeners();
