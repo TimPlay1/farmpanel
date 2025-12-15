@@ -2157,7 +2157,7 @@ function openSupaGenerator(brainrotData) {
     if (accountInfoEl) {
         accountInfoEl.innerHTML = `
             <span style="display: inline-flex; align-items: center; gap: 6px;">
-                <span style="width: 12px; height: 12px; border-radius: 3px; background: ${accountColor};"></span>
+                <span style="width: 12px; height: 12px; border-radius: 3px; background: ${panelColor};"></span>
                 ${brainrotData.accountName}
             </span>
         `;
