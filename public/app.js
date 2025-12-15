@@ -100,12 +100,12 @@ function getPriceCacheKey(pitName, income) {
 
 /**
  * Получить цену с Eldorado для брейнрота
- * @param {string} pitName - название пита
+ * @param {string} brainrotName - имя брейнрота
  * @param {number} income - доходность M/s
  * @returns {Promise<object>} - данные о цене
  */
-async function fetchEldoradoPrice(pitName, income) {
-    const cacheKey = getPriceCacheKey(pitName, income);
+async function fetchEldoradoPrice(brainrotName, income) {
+    const cacheKey = getPriceCacheKey(brainrotName, income);
     
     // Проверяем кэш
     const cached = state.eldoradoPrices[cacheKey];
@@ -115,7 +115,7 @@ async function fetchEldoradoPrice(pitName, income) {
     
     try {
         const params = new URLSearchParams({
-            pitName: pitName,
+            brainrotName: brainrotName,
             income: income.toString()
         });
         
@@ -148,16 +148,17 @@ async function fetchEldoradoPrice(pitName, income) {
 async function fetchBulkEldoradoPrices(brainrots) {
     const pricesMap = new Map();
     
-    // Группируем по уникальным питам и диапазонам доходности
+    // Группируем по уникальным названиям брейнротов
     const uniqueRequests = new Map();
     
     for (const b of brainrots) {
-        const pitName = extractPitName(b.name);
+        // Используем полное имя брейнрота для поиска на Eldorado
+        const brainrotName = b.name;
         const income = b.income || parseIncomeValue(b.incomeText);
-        const cacheKey = getPriceCacheKey(pitName, income);
+        const cacheKey = getPriceCacheKey(brainrotName, income);
         
         if (!uniqueRequests.has(cacheKey)) {
-            uniqueRequests.set(cacheKey, { pitName, income, brainrots: [] });
+            uniqueRequests.set(cacheKey, { brainrotName, income, brainrots: [] });
         }
         uniqueRequests.get(cacheKey).brainrots.push(b.name);
     }
@@ -171,15 +172,15 @@ async function fetchBulkEldoradoPrices(brainrots) {
         const batch = requests.slice(i, i + batchSize);
         
         const results = await Promise.all(
-            batch.map(req => fetchEldoradoPrice(req.pitName, req.income))
+            batch.map(req => fetchEldoradoPrice(req.brainrotName, req.income))
         );
         
         // Связываем результаты с брейнротами
         results.forEach((result, idx) => {
             const req = batch[idx];
             if (result) {
-                for (const brainrotName of req.brainrots) {
-                    pricesMap.set(brainrotName, result);
+                for (const brainrotFullName of req.brainrots) {
+                    pricesMap.set(brainrotFullName, result);
                 }
             }
         });
@@ -1249,10 +1250,6 @@ async function renderCollection() {
             <div class="brainrot-details">
                 <div class="brainrot-name" title="${b.name}">${b.name}</div>
                 <div class="brainrot-income">${b.incomeText || formatIncome(b.income)}</div>
-                <div class="brainrot-price" data-price-loading="true">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span class="price-text">Loading...</span>
-                </div>
                 <div class="brainrot-account">
                     <i class="fas fa-user"></i>
                     ${b.accountName}
@@ -1261,8 +1258,8 @@ async function renderCollection() {
         </div>
     `).join('');
     
-    // Асинхронно загружаем цены
-    loadBrainrotPrices(brainrots);
+    // Цены временно отключены из-за rate limiting на Eldorado API
+    // loadBrainrotPrices(brainrots);
 }
 
 /**
@@ -1321,6 +1318,7 @@ async function loadBrainrotPrices(brainrots) {
         });
     }
 }
+}
 
 // Update collection when data changes
 function updateCollection() {
@@ -1330,5 +1328,4 @@ function updateCollection() {
 
 // Initialize collection listeners on DOM ready
 setupCollectionListeners();
-
 

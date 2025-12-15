@@ -2,43 +2,28 @@ const https = require('https');
 
 // Кэш для цен (хранится в памяти)
 const priceCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 минут
+const CACHE_TTL = 15 * 60 * 1000; // 15 минут
+
+// Steal a Brainrot gameId на Eldorado
+const ELDORADO_GAME_ID = '259';
 
 /**
  * Парсит доходность из title оффера
- * @param {string} title - например "Pot Hotspot | $112.5 M/s | Taco Trait 🌮"
- * @returns {number|null} - доходность в M/s или null
  */
 function parseIncomeFromTitle(title) {
     if (!title) return null;
     
-    // Паттерны для парсинга доходности
     const patterns = [
-        /\$?([\d.]+)\s*M\/s/i,              // $112.5 M/s
-        /([\d.]+)\s*mil\/s/i,               // 112.5 mil/s
-        /([\d.]+)\s*million\/s/i,           // 112.5 million/s
+        /([\d.,]+)\s*M\/s/i,
+        /([\d.,]+)\s*m\/sec/i,
+        /([\d.,]+)\s*mil\/s/i,
     ];
 
     for (const pattern of patterns) {
         const match = title.match(pattern);
         if (match) {
-            return parseFloat(match[1]);
+            return parseFloat(match[1].replace(',', '.'));
         }
-    }
-    return null;
-}
-
-/**
- * Парсит диапазон доходности из фильтра (например "100-249 M/s")
- */
-function parseIncomeRange(rangeStr) {
-    if (!rangeStr) return null;
-    const match = rangeStr.match(/([\d.]+)\s*-\s*([\d.]+)/);
-    if (match) {
-        return {
-            min: parseFloat(match[1]),
-            max: parseFloat(match[2])
-        };
     }
     return null;
 }
@@ -46,29 +31,24 @@ function parseIncomeRange(rangeStr) {
 /**
  * Получить ключ кэша
  */
-function getCacheKey(pitName, income) {
-    return `${pitName.toLowerCase()}_${Math.floor(income / 10) * 10}`;
+function getCacheKey(brainrotName, income) {
+    const normalizedName = brainrotName.toLowerCase().replace(/\s+/g, '-');
+    return `${normalizedName}_${Math.floor(income / 50) * 50}`;
 }
 
 /**
- * Поиск офферов на Eldorado
+ * Загружает офферы с Eldorado API
  */
-async function searchEldoradoOffers(searchQuery, pitAttribute = null) {
-    return new Promise((resolve, reject) => {
+function fetchOffers(pageIndex = 1, pageSize = 50) {
+    return new Promise((resolve) => {
         const queryParams = new URLSearchParams({
-            gameId: 'pet-simulator-99',
-            category: 'Account',
-            searchQuery: searchQuery,
-            pageSize: '50',
-            pageIndex: '1',
+            gameId: ELDORADO_GAME_ID,
+            category: 'CustomItem',
+            pageSize: pageSize.toString(),
+            pageIndex: pageIndex.toString(),
             offerSortingCriterion: 'Price',
             isAscending: 'true'
         });
-
-        // Если есть атрибут пита
-        if (pitAttribute) {
-            queryParams.append('offerAttributeIdsCsv', pitAttribute);
-        }
 
         const options = {
             hostname: 'www.eldorado.gg',
@@ -76,8 +56,7 @@ async function searchEldoradoOffers(searchQuery, pitAttribute = null) {
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'User-Agent': 'FarmerPanel/1.0',
-                'swagger': 'Swager request'
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             }
         };
 
@@ -87,33 +66,77 @@ async function searchEldoradoOffers(searchQuery, pitAttribute = null) {
             res.on('end', () => {
                 try {
                     const parsed = JSON.parse(data);
-                    resolve(parsed);
+                    if (parsed.code && parsed.code !== 200) {
+                        resolve({ results: [], error: parsed.messages });
+                    } else {
+                        resolve(parsed);
+                    }
                 } catch (e) {
-                    console.error('Failed to parse Eldorado response:', e.message);
-                    resolve({ results: [] });
+                    resolve({ results: [], error: e.message });
                 }
             });
         });
 
-        req.on('error', (e) => {
-            console.error('Eldorado request error:', e.message);
-            resolve({ results: [] });
-        });
-        
-        req.setTimeout(10000, () => {
-            req.destroy();
-            resolve({ results: [] });
-        });
-
+        req.on('error', (e) => resolve({ results: [], error: e.message }));
+        req.setTimeout(10000, () => { req.destroy(); resolve({ results: [], error: 'timeout' }); });
         req.end();
     });
 }
 
 /**
- * Рассчитывает оптимальную цену
+ * Ищет офферы по имени брейнрота, загружая несколько страниц
  */
-async function calculateOptimalPrice(pitName, ourIncome) {
-    const cacheKey = getCacheKey(pitName, ourIncome);
+async function searchOffersByName(brainrotName) {
+    const nameLower = brainrotName.toLowerCase();
+    const nameWords = nameLower.split(/\s+/).filter(w => w.length > 2);
+    
+    if (nameWords.length === 0) {
+        return [];
+    }
+    
+    const matching = [];
+    const pagesToCheck = 20; // Проверяем 20 страниц (1000 офферов)
+    
+    // Загружаем страницы последовательно с паузами для избежания rate limiting
+    for (let page = 1; page <= pagesToCheck; page++) {
+        const response = await fetchOffers(page, 50);
+        
+        if (response.error) {
+            console.log(`Page ${page} error:`, response.error);
+            // Если rate limited - выходим
+            if (response.error.includes && response.error.includes('1015')) {
+                break;
+            }
+            continue;
+        }
+        
+        if (!response.results || response.results.length === 0) {
+            break;
+        }
+        
+        // Ищем совпадения
+        for (const item of response.results) {
+            const title = (item.offer?.offerTitle || '').toLowerCase();
+            const hasMatch = nameWords.some(word => title.includes(word));
+            if (hasMatch) {
+                matching.push(item);
+            }
+        }
+        
+        // Пауза между запросами для избежания rate limiting
+        if (page < pagesToCheck) {
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    
+    return matching;
+}
+
+/**
+ * Рассчитывает оптимальную цену для брейнрота
+ */
+async function calculateOptimalPrice(brainrotName, ourIncome) {
+    const cacheKey = getCacheKey(brainrotName, ourIncome);
     
     // Проверяем кэш
     const cached = priceCache.get(cacheKey);
@@ -122,167 +145,114 @@ async function calculateOptimalPrice(pitName, ourIncome) {
     }
 
     try {
-        // Формируем поисковый запрос
-        const searchQuery = `brainrot ${pitName}`;
+        const matchingOffers = await searchOffersByName(brainrotName);
         
-        const response = await searchEldoradoOffers(searchQuery);
-        
-        if (!response.results || response.results.length === 0) {
+        if (!matchingOffers || matchingOffers.length === 0) {
             const result = { 
                 error: 'No offers found', 
                 suggestedPrice: null,
-                marketPrice: null 
+                marketPrice: null,
+                brainrotName 
             };
             priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
             return result;
         }
 
         // Обрабатываем результаты
-        const offersWithIncome = [];
+        const offersWithPrice = [];
         
-        for (const item of response.results) {
+        for (const item of matchingOffers) {
             const offer = item.offer || item;
             const title = offer.offerTitle || '';
             const income = parseIncomeFromTitle(title);
-            const price = offer.pricePerUnit?.amount || 0;
+            const price = offer.pricePerUnitInUSD?.amount || 0;
             
-            if (income && price > 0) {
-                offersWithIncome.push({
+            if (price > 0) {
+                offersWithPrice.push({
                     title,
-                    income,
-                    price,
-                    userId: offer.userId,
-                    deliveryTime: offer.guaranteedDeliveryTime
+                    income: income || 0,
+                    price
                 });
             }
         }
 
-        // Сортируем по цене (низкая к высокой)
-        offersWithIncome.sort((a, b) => a.price - b.price);
+        // Сортируем по цене
+        offersWithPrice.sort((a, b) => a.price - b.price);
 
-        if (offersWithIncome.length === 0) {
+        if (offersWithPrice.length === 0) {
             const result = { 
-                error: 'No offers with income info', 
+                error: 'No priced offers', 
                 suggestedPrice: null,
-                marketPrice: null 
+                marketPrice: null,
+                brainrotName
             };
             priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
             return result;
         }
 
-        // Находим границы цен
-        // Нижняя граница: офферы с доходностью <= нашей
-        const lowerOffers = offersWithIncome.filter(o => o.income <= ourIncome);
-        // Верхняя граница: офферы с доходностью > нашей
-        const higherOffers = offersWithIncome.filter(o => o.income > ourIncome);
-
+        // Офферы с данными о доходности
+        const offersWithIncome = offersWithPrice.filter(o => o.income > 0);
+        
         let suggestedPrice = null;
         let minPrice = null;
         let maxPrice = null;
-        let minOffer = null;
-        let maxOffer = null;
 
-        // Берём последний (самый дорогой) из нижних офферов
-        if (lowerOffers.length > 0) {
-            minOffer = lowerOffers[lowerOffers.length - 1];
-            minPrice = minOffer.price;
-        }
+        if (offersWithIncome.length > 0 && ourIncome > 0) {
+            const lowerOffers = offersWithIncome.filter(o => o.income <= ourIncome);
+            const higherOffers = offersWithIncome.filter(o => o.income > ourIncome);
 
-        // Берём первый (самый дешёвый) из верхних офферов
-        if (higherOffers.length > 0) {
-            maxOffer = higherOffers[0];
-            maxPrice = maxOffer.price;
-        }
-
-        // Рассчитываем оптимальную цену
-        if (minPrice && maxPrice) {
-            // Есть обе границы - ставим на 3% ниже верхней
-            suggestedPrice = maxPrice * 0.97;
-            // Но не ниже минимальной
-            if (suggestedPrice < minPrice) {
-                suggestedPrice = (minPrice + maxPrice) / 2;
+            if (lowerOffers.length > 0) {
+                minPrice = lowerOffers[lowerOffers.length - 1].price;
             }
-        } else if (minPrice) {
-            // Только нижняя граница - ставим на 5% выше
-            suggestedPrice = minPrice * 1.05;
-        } else if (maxPrice) {
-            // Только верхняя граница - ставим на 5% ниже
-            suggestedPrice = maxPrice * 0.95;
-        } else {
-            // Берём среднюю цену всех офферов
-            const avgPrice = offersWithIncome.reduce((sum, o) => sum + o.price, 0) / offersWithIncome.length;
-            suggestedPrice = avgPrice;
+
+            if (higherOffers.length > 0) {
+                maxPrice = higherOffers[0].price;
+            }
+
+            if (minPrice && maxPrice) {
+                suggestedPrice = (minPrice + maxPrice) / 2 * 0.95;
+            } else if (minPrice) {
+                suggestedPrice = minPrice * 1.03;
+            } else if (maxPrice) {
+                suggestedPrice = maxPrice * 0.95;
+            }
         }
 
-        // Средняя рыночная цена для отображения
-        const marketPrice = offersWithIncome.length > 0 
-            ? offersWithIncome.reduce((sum, o) => sum + o.price, 0) / offersWithIncome.length
-            : null;
+        // Средняя рыночная цена
+        const marketPrice = offersWithPrice.reduce((sum, o) => sum + o.price, 0) / offersWithPrice.length;
+
+        if (!suggestedPrice && offersWithPrice.length > 0) {
+            suggestedPrice = offersWithPrice[0].price;
+        }
 
         const result = {
-            pitName,
+            brainrotName,
             ourIncome,
             suggestedPrice: suggestedPrice ? Math.round(suggestedPrice * 100) / 100 : null,
             marketPrice: marketPrice ? Math.round(marketPrice * 100) / 100 : null,
             priceRange: {
-                min: minPrice,
-                max: maxPrice
+                min: minPrice ? Math.round(minPrice * 100) / 100 : null,
+                max: maxPrice ? Math.round(maxPrice * 100) / 100 : null
             },
-            minOffer: minOffer ? {
-                title: minOffer.title,
-                price: minOffer.price,
-                income: minOffer.income
-            } : null,
-            maxOffer: maxOffer ? {
-                title: maxOffer.title,
-                price: maxOffer.price,
-                income: maxOffer.income
-            } : null,
-            totalOffersAnalyzed: offersWithIncome.length,
-            lowestPrice: offersWithIncome[0]?.price || null,
-            highestPrice: offersWithIncome[offersWithIncome.length - 1]?.price || null
+            totalOffersAnalyzed: offersWithPrice.length,
+            lowestPrice: offersWithPrice[0]?.price ? Math.round(offersWithPrice[0].price * 100) / 100 : null
         };
 
-        // Сохраняем в кэш
         priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
-        
         return result;
     } catch (error) {
         console.error('Error calculating price:', error);
         return { 
             error: error.message, 
             suggestedPrice: null,
-            marketPrice: null 
+            marketPrice: null,
+            brainrotName
         };
     }
 }
 
-/**
- * Получить цены для нескольких брейнротов
- */
-async function getBulkPrices(brainrots) {
-    const results = [];
-    
-    for (const brainrot of brainrots) {
-        const result = await calculateOptimalPrice(
-            brainrot.pitName, 
-            brainrot.income
-        );
-        results.push({
-            ...brainrot,
-            pricing: result
-        });
-        
-        // Задержка между запросами
-        await new Promise(resolve => setTimeout(resolve, 300));
-    }
-    
-    return results;
-}
-
 // Vercel serverless function handler
 module.exports = async (req, res) => {
-    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -292,39 +262,18 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // GET - получить цену для одного брейнрота
         if (req.method === 'GET') {
-            const { pitName, income } = req.query;
+            const { brainrotName, pitName, income } = req.query;
+            const name = brainrotName || pitName;
             
-            if (!pitName || !income) {
+            if (!name || !income) {
                 return res.status(400).json({ 
-                    error: 'pitName and income are required' 
+                    error: 'brainrotName and income are required' 
                 });
             }
             
-            const result = await calculateOptimalPrice(
-                pitName, 
-                parseFloat(income)
-            );
-            
+            const result = await calculateOptimalPrice(name, parseFloat(income));
             return res.status(200).json(result);
-        }
-        
-        // POST - получить цены для нескольких брейнротов
-        if (req.method === 'POST') {
-            const { brainrots } = req.body;
-            
-            if (!Array.isArray(brainrots) || brainrots.length === 0) {
-                return res.status(400).json({ 
-                    error: 'brainrots array is required' 
-                });
-            }
-            
-            // Ограничиваем до 20 запросов за раз
-            const limitedBrainrots = brainrots.slice(0, 20);
-            const results = await getBulkPrices(limitedBrainrots);
-            
-            return res.status(200).json({ results });
         }
         
         return res.status(405).json({ error: 'Method not allowed' });
