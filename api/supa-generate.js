@@ -139,8 +139,8 @@ async function checkRenderStatus(taskId) {
     return response.json();
 }
 
-// Wait for render to complete
-async function waitForRender(taskId, maxAttempts = 30) {
+// Wait for render to complete (optimized for Vercel 10s limit)
+async function waitForRender(taskId, maxAttempts = 4) {
     for (let i = 0; i < maxAttempts; i++) {
         const status = await checkRenderStatus(taskId);
         console.log(`Render status (attempt ${i + 1}):`, status.state);
@@ -153,10 +153,12 @@ async function waitForRender(taskId, maxAttempts = 30) {
             throw new Error('Render failed');
         }
 
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        // Wait 1.5 seconds between checks (total ~6s max for polling)
+        await new Promise(resolve => setTimeout(resolve, 1500));
     }
 
-    throw new Error('Render timeout');
+    // Return pending status instead of error - client will poll
+    return { state: 'pending', task_id: taskId };
 }
 
 module.exports = async (req, res) => {
@@ -213,7 +215,20 @@ module.exports = async (req, res) => {
         console.log('Waiting for render to complete...');
         const finalResult = await waitForRender(renderResult.task_id);
 
-        console.log('Render complete!', finalResult);
+        console.log('Render result:', finalResult);
+
+        // If still pending, return task_id for client polling
+        if (finalResult.state === 'pending') {
+            return res.json({
+                success: true,
+                pending: true,
+                taskId: renderResult.task_id,
+                statusUrl: `/api/supa-status?taskId=${renderResult.task_id}`,
+                brainrotName: name,
+                accountId,
+                accountName
+            });
+        }
 
         res.json({
             success: true,

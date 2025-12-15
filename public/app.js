@@ -2276,6 +2276,36 @@ function updateSupaImagePreview(url) {
 
 let currentSupaResult = null;
 
+// Poll for render status (client-side polling to avoid Vercel timeout)
+async function pollForResult(taskId, statusText, maxAttempts = 30) {
+    for (let i = 0; i < maxAttempts; i++) {
+        try {
+            statusText.textContent = `Рендеринг... (${i + 1}/${maxAttempts})`;
+            
+            const response = await fetch(`/api/supa-status?taskId=${taskId}`);
+            const status = await response.json();
+            
+            console.log(`Poll attempt ${i + 1}:`, status.state);
+            
+            if (status.state === 'done' && status.resultUrl) {
+                return status;
+            }
+            
+            if (status.state === 'error') {
+                throw new Error('Render failed on server');
+            }
+            
+            // Wait 2 seconds before next poll
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (err) {
+            console.error('Poll error:', err);
+            // Continue polling on network errors
+        }
+    }
+    
+    return null; // Timeout
+}
+
 async function generateSupaImage() {
     const name = document.getElementById('supaName').value.trim();
     const income = document.getElementById('supaIncome').value.trim();
@@ -2328,7 +2358,26 @@ async function generateSupaImage() {
         
         statusText.textContent = 'Рендеринг...';
         
-        if (result.success && result.resultUrl) {
+        // If pending, poll for status
+        if (result.pending && result.taskId) {
+            const finalResult = await pollForResult(result.taskId, statusText);
+            if (finalResult && finalResult.resultUrl) {
+                currentSupaResult = { ...result, resultUrl: finalResult.resultUrl };
+                
+                resultImg.onload = async () => {
+                    resultImg.classList.remove('hidden');
+                    previewImg.classList.add('hidden');
+                    placeholder.classList.add('hidden');
+                    downloadSection.classList.remove('hidden');
+                    statusEl.classList.add('hidden');
+                    
+                    await saveGeneration(name, accountId, finalResult.resultUrl);
+                };
+                resultImg.src = finalResult.resultUrl;
+            } else {
+                throw new Error('Render failed or timeout');
+            }
+        } else if (result.success && result.resultUrl) {
             currentSupaResult = result;
             
             resultImg.onload = async () => {
