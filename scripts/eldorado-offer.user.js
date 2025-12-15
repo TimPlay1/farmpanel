@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.6
+// @version      3.7
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -247,7 +247,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         });
     }
 
-    // Выбрать опцию в ng-select v3.6
+    // Выбрать опцию в ng-select v3.7 - работаем через input
     async function selectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
         
@@ -256,57 +256,49 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // Закрываем все открытые dropdown'ы
             closeAllDropdowns();
-            await new Promise(r => setTimeout(r, 200));
+            await new Promise(r => setTimeout(r, 300));
             
-            // Находим input внутри ng-select и фокусируемся
-            const input = ngSelect.querySelector('input');
-            const container = ngSelect.querySelector('.ng-select-container');
-            const arrow = ngSelect.querySelector('.ng-arrow-wrapper');
-            
-            // Метод 1: клик по стрелке
-            if (arrow) {
-                arrow.click();
-                await new Promise(r => setTimeout(r, 400));
+            // Находим input внутри ng-select
+            const input = ngSelect.querySelector('input[role="combobox"]');
+            if (!input) {
+                log('Input not found in ng-select', 'warn');
+                return false;
             }
             
-            // Проверяем открылся ли dropdown
-            let panel = document.querySelector('ng-dropdown-panel');
+            // Открываем dropdown через focus на input
+            input.focus();
+            await new Promise(r => setTimeout(r, 100));
             
-            // Метод 2: клик по контейнеру
-            if (!panel && container) {
-                container.click();
-                await new Promise(r => setTimeout(r, 400));
+            // Отправляем событие клика
+            input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 100));
+            input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 300));
+            
+            // Проверяем открылся ли (aria-expanded="true")
+            let isOpen = input.getAttribute('aria-expanded') === 'true';
+            
+            // Если не открылся - пробуем keydown
+            if (!isOpen) {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await new Promise(r => setTimeout(r, 300));
+                isOpen = input.getAttribute('aria-expanded') === 'true';
+            }
+            
+            // Ждём появления панели
+            let panel = null;
+            for (let i = 0; i < 15; i++) {
                 panel = document.querySelector('ng-dropdown-panel');
-            }
-            
-            // Метод 3: фокус на input
-            if (!panel && input) {
-                input.focus();
-                input.click();
-                await new Promise(r => setTimeout(r, 400));
-                panel = document.querySelector('ng-dropdown-panel');
-            }
-            
-            // Метод 4: просто клик по ng-select
-            if (!panel) {
-                ngSelect.click();
-                await new Promise(r => setTimeout(r, 400));
-                panel = document.querySelector('ng-dropdown-panel');
-            }
-            
-            // Ждём ещё немного
-            if (!panel) {
-                for (let i = 0; i < 10; i++) {
-                    await new Promise(r => setTimeout(r, 200));
-                    panel = document.querySelector('ng-dropdown-panel');
-                    if (panel) break;
-                }
+                if (panel) break;
+                await new Promise(r => setTimeout(r, 150));
             }
             
             if (!panel) {
                 log(`Dropdown panel not found for: ${optionText}`, 'warn');
                 return false;
             }
+            
+            log(`Panel opened, searching for "${optionText}"...`);
             
             // Ищем опцию
             const options = panel.querySelectorAll('.ng-option');
@@ -315,9 +307,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             for (const opt of options) {
                 const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
                 if (label.toLowerCase().includes(optionText.toLowerCase())) {
-                    opt.click();
+                    // Кликаем по опции
+                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 50));
+                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
                     log(`Selected: ${label}`, 'success');
-                    await new Promise(r => setTimeout(r, 400));
+                    await new Promise(r => setTimeout(r, 500));
                     return true;
                 }
             }
@@ -397,7 +392,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         const offerId = generateOfferId();
 
         updateStatus('🔄 Заполняем форму...', 'working');
-        log('Starting auto-fill v3.5...');
+        log('Starting auto-fill v3.7...');
 
         try {
             // Ждём загрузки страницы
@@ -575,7 +570,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
     // Инициализация
     async function init() {
-        console.log('🎮 Glitched Store v3.3 loaded');
+        console.log('🎮 Glitched Store v3.7 loaded');
 
         offerData = getOfferDataFromURL();
         
