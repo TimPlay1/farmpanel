@@ -1365,21 +1365,437 @@ body {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-    .collection-controls {
-        flex-direction: column;
-    }
-
-    .filter-group {
-        width: 100%;
-    }
-
-    .filter-select {
-        flex: 1;
-    }
-
-    .brainrots-grid {
-        grid-template-columns: 1fr;
+@media (max-width: 1200px) {
+    .accounts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     }
 }
 
+@media (max-width: 992px) {
+    .header-left .logo-text {
+        display: none;
+    }
+    
+    .nav-tab span {
+        display: none;
+    }
+    
+    .nav-tab {
+        padding: 0.5rem 0.75rem;
+    }
+    
+    .current-farmer .farmer-info {
+        display: none;
+    }
+    
+    .farm-key-card {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .farm-key-left, .farm-key-right {
+        width: 100%;
+    }
+    
+    .farm-key-right {
+        justify-content: space-between;
+    }
+}
+
+@media (max-width: 768px) {
+    /* Header mobile */
+    .app-header {
+        padding: 0.75rem 1rem;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+    }
+    
+    .header-left {
+        order: 1;
+    }
+    
+    .header-center {
+        order: 3;
+        flex-basis: 100%;
+        justify-content: center;
+    }
+    
+    .header-right {
+        order: 2;
+        margin-left: auto;
+    }
+    
+    .nav-tabs {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-tab {
+        flex: 1;
+        justify-content: center;
+        padding: 0.6rem;
+    }
+    
+    .nav-tab i {
+        font-size: 1.1rem;
+    }
+    
+    /* Main content mobile */
+    .main-content {
+        padding: 1rem;
+    }
+    
+    /* Stats grid mobile */
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1rem;
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+    
+    .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    /* Accounts grid mobile */
+    .accounts-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .account-card {
+        padding: 1rem;
+    }
+    
+    .account-stats {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+    
+    .account-stat {
+        flex: 1;
+        min-width: 60px;
+    }
+    
+    /* Collection controls mobile */
+    .collection-controls {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .search-box {
+        width: 100%;
+    }
+    
+    .search-box input {
+        width: 100%;
+    }
+    
+    .filter-group {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+    
+    .custom-dropdown {
+        flex: 1;
+        min-width: 120px;
+    }
+    
+    .dropdown-toggle {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .dropdown-menu {
+        width: 100%;
+    }
+    
+    /* Brainrots grid mobile */
+    .brainrots-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .brainrot-card {
+        padding: 0.75rem;
+    }
+    
+    .brainrot-image {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .brainrot-name {
+        font-size: 0.8rem;
+    }
+    
+    .brainrot-income {
+        font-size: 0.75rem;
+    }
+    
+    .brainrot-price {
+        font-size: 0.8rem;
+    }
+    
+    /* Farm keys mobile */
+    .farm-keys-list {
+        gap: 0.75rem;
+    }
+    
+    .farm-key-card {
+        padding: 1rem;
+    }
+    
+    .farm-key-info {
+        max-width: none;
+    }
+    
+    .farm-key-code {
+        font-size: 0.65rem;
+        word-break: break-all;
+    }
+    
+    /* Accounts list mobile */
+    .account-list-item {
+        grid-template-columns: auto 1fr;
+        grid-template-rows: auto auto;
+        gap: 0.75rem;
+    }
+    
+    .account-list-avatar {
+        grid-row: span 2;
+    }
+    
+    .account-list-info {
+        grid-column: 2;
+    }
+    
+    .status-badge {
+        justify-self: start;
+    }
+    
+    .account-list-income,
+    .account-list-brainrots,
+    .account-list-value {
+        display: none;
+    }
+    
+    /* Section header mobile */
+    .section-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .add-key-btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    /* Modal mobile */
+    .modal-content {
+        margin: 0.5rem;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-footer {
+        padding: 1rem;
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Extra small screens */
+    .login-container {
+        padding: 1.5rem;
+        border-radius: 12px;
+    }
+    
+    .login-icon {
+        font-size: 2.5rem;
+    }
+    
+    .login-header h1 {
+        font-size: 1.5rem;
+    }
+    
+    /* Stats grid - single column on very small screens */
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-card {
+        flex-direction: row;
+        text-align: left;
+    }
+    
+    /* Brainrots grid - single column */
+    .brainrots-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .brainrot-card {
+        flex-direction: row;
+        gap: 1rem;
+    }
+    
+    .brainrot-image {
+        width: 70px;
+        height: 70px;
+        flex-shrink: 0;
+    }
+    
+    .brainrot-details {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    /* Header minimal */
+    .header-left i {
+        font-size: 1.25rem;
+    }
+    
+    .logout-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .farmer-avatar {
+        width: 28px;
+        height: 28px;
+    }
+    
+    /* Farm key cards */
+    .farm-key-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+    
+    .farm-key-username {
+        font-size: 0.9rem;
+    }
+    
+    .farm-key-accounts {
+        font-size: 1rem;
+    }
+    
+    .select-key-btn {
+        padding: 0.4rem 0.75rem;
+        font-size: 0.8rem;
+    }
+    
+    .delete-key-btn {
+        width: 32px;
+        height: 32px;
+    }
+    
+    /* Account cards */
+    .account-avatar {
+        width: 40px;
+        height: 40px;
+    }
+    
+    .account-name {
+        font-size: 0.9rem;
+    }
+    
+    .account-stat-value {
+        font-size: 0.95rem;
+    }
+    
+    .brainrot-mini {
+        width: 60px;
+    }
+    
+    .brainrot-mini-img {
+        width: 48px;
+        height: 48px;
+    }
+    
+    /* Refresh prices button */
+    .btn-sm {
+        padding: 0.4rem 0.6rem;
+        font-size: 0.75rem;
+    }
+    
+    .btn-sm i {
+        margin-right: 0.25rem;
+    }
+}
+
+/* Touch-friendly adjustments */
+@media (hover: none) and (pointer: coarse) {
+    .nav-tab,
+    .select-key-btn,
+    .delete-key-btn,
+    .logout-btn,
+    .dropdown-toggle,
+    .dropdown-item,
+    .add-key-btn,
+    .login-btn,
+    .btn {
+        min-height: 44px;
+    }
+    
+    .dropdown-item {
+        padding: 0.75rem 1rem;
+    }
+    
+    .brainrots-scroll {
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x mandatory;
+    }
+    
+    .brainrot-mini {
+        scroll-snap-align: start;
+    }
+}
+
+/* Landscape phone */
+@media (max-width: 812px) and (orientation: landscape) {
+    .login-screen {
+        padding: 0.5rem;
+    }
+    
+    .login-container {
+        max-width: 500px;
+        padding: 1.5rem;
+    }
+    
+    .login-header {
+        margin-bottom: 1rem;
+    }
+    
+    .login-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal-content {
+        max-height: 95vh;
+    }
+}
