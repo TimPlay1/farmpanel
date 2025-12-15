@@ -1606,6 +1606,7 @@ async function loadBrainrotPrices(brainrots) {
 function updatePriceInDOM(brainrotName, income, priceData) {
     // Округляем income для поиска (так же как при рендере)
     const roundedIncome = Math.floor(income / 10) * 10;
+    const cacheKey = getPriceCacheKey(brainrotName, income);
     
     // Ищем карточку по имени и income
     const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
