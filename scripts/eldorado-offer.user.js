@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.9
+// @version      4.0
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -102,7 +102,13 @@
             color: #888;
         }
         .glitched-mini .info .details span { margin-right: 8px; }
-        .glitched-mini .info .income { color: #38ef7d; }
+        .glitched-mini .info .income { 
+            color: #1BFF00; 
+            background: #000; 
+            border: 1px solid #27C902; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+        }
         .glitched-mini .info .price { color: #ffc950; }
         .glitched-mini .status {
             font-size: 11px;
@@ -436,12 +442,26 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             await waitForPage();
             await new Promise(r => setTimeout(r, 2000));
 
-            // === 1. Income range (первый dropdown - Income) ===
+            // === 1. Income range (первый dropdown - M/s) ===
             log('Step 1: Income range -> ' + getIncomeRange(income));
-            const incomeSelect = findNgSelectByAriaLabel('Income') || findNgSelectByPlaceholder('income');
+            // Пробуем разные варианты поиска M/s dropdown
+            let incomeSelect = findNgSelectByAriaLabel('M/s') || 
+                               findNgSelectByAriaLabel('Income') || 
+                               findNgSelectByPlaceholder('m/s') ||
+                               findNgSelectByPlaceholder('income');
+            
+            // Если не нашли - ищем первый ng-select в десктопной версии
+            if (!incomeSelect) {
+                const firstDesktopSelect = document.querySelector('.hidden.md\\:block ng-select');
+                if (firstDesktopSelect) incomeSelect = firstDesktopSelect;
+            }
+            
             if (incomeSelect) {
+                log('Found M/s dropdown');
                 await selectNgOption(incomeSelect, getIncomeRange(income));
                 await new Promise(r => setTimeout(r, 600));
+            } else {
+                log('M/s dropdown not found!', 'warn');
             }
             
             // === 2. Mutations - None ===
@@ -617,7 +637,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
     // Инициализация
     async function init() {
-        console.log('🎮 Glitched Store v3.7 loaded');
+        console.log('🎮 Glitched Store v4.0 loaded');
 
         offerData = getOfferDataFromURL();
         
