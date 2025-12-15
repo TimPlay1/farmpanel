@@ -1561,10 +1561,12 @@ async function loadPanelColor() {
 }
 
 // Save generation record
-async function saveGeneration(brainrotName, accountId, resultUrl) {
+async function saveGeneration(brainrotName, accountId, resultUrl, income) {
     try {
         const farmKey = state.currentKey;
         if (!farmKey) return;
+        
+        const normalizedIncome = normalizeIncomeForApi(income, '');
         
         const response = await fetch('/api/generations', {
             method: 'POST',
@@ -1573,6 +1575,7 @@ async function saveGeneration(brainrotName, accountId, resultUrl) {
                 farmKey,
                 brainrotName,
                 accountId,
+                income: normalizedIncome,
                 resultUrl,
                 timestamp: new Date().toISOString()
             })
@@ -1580,8 +1583,9 @@ async function saveGeneration(brainrotName, accountId, resultUrl) {
         
         const data = await response.json();
         if (data.success) {
-            const brainrotKey = brainrotName.toLowerCase().trim();
-            collectionState.generations[brainrotKey] = data.generation;
+            // Используем уникальный ключ accountId + name + income
+            const genKey = getGenerationKey(accountId, brainrotName, normalizedIncome);
+            collectionState.generations[genKey] = data.generation;
             renderCollection();
         }
     } catch (err) {
@@ -1589,16 +1593,51 @@ async function saveGeneration(brainrotName, accountId, resultUrl) {
     }
 }
 
-// Check if brainrot was generated
-function isGenerated(brainrotName) {
-    const key = brainrotName.toLowerCase().trim();
+// Генерация уникального ключа для брейнрота
+function getGenerationKey(accountId, name, income) {
+    const normalizedIncome = normalizeIncomeForApi(income, '');
+    return `${accountId}_${name.toLowerCase().trim()}_${normalizedIncome}`;
+}
+
+// Генерация ключа для группы одинаковых брейнротов (name + income)
+function getGroupKey(name, income) {
+    const normalizedIncome = normalizeIncomeForApi(income, '');
+    return `${name.toLowerCase().trim()}_${normalizedIncome}`;
+}
+
+// Check if specific brainrot was generated (by accountId + name + income)
+function isGenerated(accountId, name, income) {
+    const key = getGenerationKey(accountId, name, income);
     return !!collectionState.generations[key];
 }
 
-// Get generation info
-function getGenerationInfo(brainrotName) {
-    const key = brainrotName.toLowerCase().trim();
+// Check if ANY brainrot in group was generated (for grouped cards)
+function isGroupGenerated(name, income) {
+    const groupKey = getGroupKey(name, income);
+    for (const [key, gen] of Object.entries(collectionState.generations)) {
+        if (key.endsWith('_' + groupKey)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Get generation info for specific brainrot
+function getGenerationInfo(accountId, name, income) {
+    const key = getGenerationKey(accountId, name, income);
     return collectionState.generations[key] || null;
+}
+
+// Get all generation infos for a group (returns array)
+function getGroupGenerationInfos(name, income) {
+    const groupKey = getGroupKey(name, income);
+    const infos = [];
+    for (const [key, gen] of Object.entries(collectionState.generations)) {
+        if (key.endsWith('_' + groupKey)) {
+            infos.push(gen);
+        }
+    }
+    return infos;
 }
 
 // Current brainrot data for generation
@@ -1634,6 +1673,7 @@ function collectAllBrainrots() {
     const data = state.farmersData[state.currentKey];
     if (!data || !data.accounts) {
         collectionState.allBrainrots = [];
+        collectionState.groupedBrainrots = [];
         return;
     }
 
@@ -1650,13 +1690,48 @@ function collectAllBrainrots() {
                 incomeText: b.incomeText || '',
                 imageUrl: b.imageUrl || getBrainrotImageUrl(b.name),
                 accountName: account.playerName || 'Unknown',
-                accountId: account.userId
+                accountId: account.visibleUsername || account.userId
             });
         }
     }
 
     collectionState.allBrainrots = brainrots;
+    
+    // Группируем одинаковые брейнроты (по имени + income)
+    collectionState.groupedBrainrots = groupBrainrots(brainrots);
+    
     updateAccountDropdown(accounts);
+}
+
+// Группировка одинаковых брейнротов по имени и доходу
+function groupBrainrots(brainrots) {
+    const groups = new Map();
+    
+    for (const b of brainrots) {
+        const income = normalizeIncomeForApi(b.income, b.incomeText);
+        const groupKey = getGroupKey(b.name, income);
+        
+        if (!groups.has(groupKey)) {
+            groups.set(groupKey, {
+                name: b.name,
+                income: b.income,
+                incomeText: b.incomeText,
+                imageUrl: b.imageUrl,
+                items: [],
+                quantity: 0
+            });
+        }
+        
+        const group = groups.get(groupKey);
+        group.items.push({
+            accountId: b.accountId,
+            accountName: b.accountName,
+            imageUrl: b.imageUrl
+        });
+        group.quantity++;
+    }
+    
+    return Array.from(groups.values());
 }
 
 // Update account filter dropdown
@@ -1861,17 +1936,27 @@ async function renderCollection() {
         return;
     }
 
-    // Рендер карточек - используем кэшированные цены если есть
-    brainrotsGridEl.innerHTML = brainrots.map((b, index) => {
-        const income = normalizeIncomeForApi(b.income, b.incomeText);
-        const cacheKey = getPriceCacheKey(b.name, income);
+    // Группируем отфильтрованные брейнроты для отображения
+    const groupedFiltered = groupBrainrots(brainrots);
+    
+    // Рендер карточек с группировкой
+    brainrotsGridEl.innerHTML = groupedFiltered.map((group, index) => {
+        const income = normalizeIncomeForApi(group.income, group.incomeText);
+        const cacheKey = getPriceCacheKey(group.name, income);
         const cachedPrice = state.brainrotPrices[cacheKey];
-        const generated = isGenerated(b.name);
-        const genInfo = getGenerationInfo(b.name);
+        
+        // Проверяем генерацию для всей группы
+        const groupGenerated = isGroupGenerated(group.name, income);
+        const generatedCount = getGroupGenerationInfos(group.name, income).length;
+        
+        // Сколько в группе НЕ сгенерировано
+        const notGeneratedCount = group.items.filter(item => 
+            !isGenerated(item.accountId, group.name, income)
+        ).length;
+        
         let priceHtml;
         
         if (cachedPrice && cachedPrice.suggestedPrice) {
-            // competitorPrice это цена upper оффера (ближайший конкурент с income >= наш)
             const competitorInfo = cachedPrice.competitorPrice 
                 ? `~$${cachedPrice.competitorPrice.toFixed(2)}` 
                 : '';
@@ -1898,33 +1983,53 @@ async function renderCollection() {
                 </div>`;
         }
         
+        // Определяем статус генерации: все сгенерированы, частично, или ни одного
+        const allGenerated = notGeneratedCount === 0;
+        const partialGenerated = generatedCount > 0 && notGeneratedCount > 0;
+        
+        // Собираем accountNames для tooltip
+        const accountsList = group.items.map(i => i.accountName).join(', ');
+        
         return `
-        <div class="brainrot-card ${generated ? 'brainrot-generated' : ''}" data-brainrot-name="${b.name}" data-brainrot-income="${income}" data-brainrot-index="${index}">
-            <div class="brainrot-generate-btn" onclick="handleGenerateClick(${index})" title="Генерировать изображение">
-                <i class="fas fa-${generated ? 'check' : 'plus'}"></i>
+        <div class="brainrot-card ${allGenerated ? 'brainrot-generated' : ''} ${partialGenerated ? 'brainrot-partial' : ''}" 
+             data-brainrot-name="${group.name}" 
+             data-brainrot-income="${income}" 
+             data-brainrot-index="${index}"
+             data-quantity="${group.quantity}">
+            <div class="brainrot-generate-btn" onclick="handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}">
+                <i class="fas fa-${allGenerated ? 'check' : 'plus'}"></i>
             </div>
-            ${generated ? `
-            <div class="brainrot-generated-badge" title="Сгенерировано${genInfo?.count > 1 ? ' (' + genInfo.count + 'x)' : ''}">
+            ${group.quantity > 1 ? `
+            <div class="brainrot-quantity-badge" title="${group.quantity} шт: ${accountsList}">
+                x${group.quantity}
+            </div>
+            ` : ''}
+            ${groupGenerated ? `
+            <div class="brainrot-generated-badge" title="Сгенерировано: ${generatedCount}/${group.quantity}">
                 <i class="fas fa-check-circle"></i>
+                ${partialGenerated ? `<span class="gen-count">${generatedCount}/${group.quantity}</span>` : ''}
             </div>
             ` : ''}
             <div class="brainrot-image">
-                ${b.imageUrl 
-                    ? `<img src="${b.imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                ${group.imageUrl 
+                    ? `<img src="${group.imageUrl}" alt="${group.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
                     : '<i class="fas fa-brain"></i>'
                 }
             </div>
             <div class="brainrot-details">
-                <div class="brainrot-name" title="${b.name}">${b.name}</div>
-                <div class="brainrot-income">${b.incomeText || formatIncome(b.income)}</div>
+                <div class="brainrot-name" title="${group.name}">${group.name}</div>
+                <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
                 ${priceHtml}
-                <div class="brainrot-account">
-                    <i class="fas fa-user"></i>
-                    ${b.accountName}
+                <div class="brainrot-account" title="${accountsList}">
+                    <i class="fas fa-user${group.quantity > 1 ? 's' : ''}"></i>
+                    ${group.quantity > 1 ? group.quantity + ' accounts' : group.items[0]?.accountName || 'Unknown'}
                 </div>
             </div>
         </div>`;
     }).join('');
+    
+    // Сохраняем сгруппированные данные для обработчиков
+    collectionState.displayedGroups = groupedFiltered;
     
     // Загружаем цены только для тех у кого ещё нет
     loadBrainrotPrices(brainrots);
@@ -2123,12 +2228,41 @@ async function updateCollection() {
     filterAndRenderCollection();
 }
 
-// Handle generate button click
+// Handle generate button click (for individual brainrots - deprecated, use handleGroupGenerateClick)
 function handleGenerateClick(index) {
     const brainrot = collectionState.filteredBrainrots[index];
     if (brainrot) {
         openSupaGenerator(brainrot);
     }
+}
+
+// Handle generate button click for grouped brainrots
+function handleGroupGenerateClick(index) {
+    const group = collectionState.displayedGroups?.[index];
+    if (!group) return;
+    
+    const income = normalizeIncomeForApi(group.income, group.incomeText);
+    
+    // Находим первый не сгенерированный брейнрот в группе
+    const notGeneratedItem = group.items.find(item => 
+        !isGenerated(item.accountId, group.name, income)
+    );
+    
+    // Если все сгенерированы - берём первый
+    const itemToGenerate = notGeneratedItem || group.items[0];
+    
+    const brainrotData = {
+        name: group.name,
+        income: group.income,
+        incomeText: group.incomeText,
+        imageUrl: group.imageUrl,
+        accountName: itemToGenerate.accountName,
+        accountId: itemToGenerate.accountId,
+        quantity: group.quantity, // Передаём количество для Eldorado
+        groupItems: group.items // Все элементы группы
+    };
+    
+    openSupaGenerator(brainrotData);
 }
 
 // ==========================================
@@ -2155,11 +2289,18 @@ function openSupaGenerator(brainrotData) {
     const panelColor = collectionState.panelColor || '#4ade80';
     const accountInfoEl = document.getElementById('supaAccountInfo');
     if (accountInfoEl) {
+        // Показываем информацию о количестве если > 1
+        const quantity = brainrotData.quantity || 1;
+        const accountsInfo = quantity > 1 
+            ? `${quantity} шт (${brainrotData.groupItems?.map(i => i.accountName).join(', ')})`
+            : brainrotData.accountName;
+        
         accountInfoEl.innerHTML = `
             <span style="display: inline-flex; align-items: center; gap: 6px;">
                 <span style="width: 12px; height: 12px; border-radius: 3px; background: ${panelColor};"></span>
-                ${brainrotData.accountName}
+                ${accountsInfo}
             </span>
+            ${quantity > 1 ? `<span class="quantity-badge" style="background: #f59e0b; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-left: 8px;">x${quantity}</span>` : ''}
         `;
     }
     
@@ -2375,7 +2516,7 @@ async function generateSupaImage() {
                     downloadSection.classList.remove('hidden');
                     statusEl.classList.add('hidden');
                     
-                    await saveGeneration(name, accountId, finalResult.resultUrl);
+                    await saveGeneration(name, accountId, finalResult.resultUrl, income);
                 };
                 resultImg.src = finalResult.resultUrl;
             } else {
@@ -2391,7 +2532,7 @@ async function generateSupaImage() {
                 downloadSection.classList.remove('hidden');
                 statusEl.classList.add('hidden');
                 
-                await saveGeneration(name, accountId, result.resultUrl);
+                await saveGeneration(name, accountId, result.resultUrl, income);
             };
             resultImg.src = result.resultUrl;
         } else {
@@ -2465,19 +2606,18 @@ function postToEldorado() {
     let minPrice = 0;
     let maxPrice = 0;
     
-    if (currentSupaBrainrot) {
-        const brainrotName = currentSupaBrainrot.name;
-        // Пытаемся получить цену из eldoradoPrices
-        if (collectionState.eldoradoPrices && collectionState.eldoradoPrices[brainrotName]) {
-            const price = collectionState.eldoradoPrices[brainrotName];
-            minPrice = Math.floor(price * 0.9); // -10% для минимальной
-            maxPrice = Math.ceil(price * 1.1);  // +10% для максимальной
-        } else if (collectionState.brainrotPrices && collectionState.brainrotPrices[brainrotName]) {
-            const price = collectionState.brainrotPrices[brainrotName];
-            minPrice = Math.floor(price * 0.9);
-            maxPrice = Math.ceil(price * 1.1);
-        }
+    // Получаем цену по ключу name + income
+    const normalizedIncome = normalizeIncomeForApi(currentSupaBrainrot?.income, income);
+    const priceKey = getPriceCacheKey(name, normalizedIncome);
+    const priceData = state.brainrotPrices[priceKey];
+    
+    if (priceData && priceData.suggestedPrice) {
+        maxPrice = priceData.suggestedPrice;
+        minPrice = Math.floor(maxPrice * 0.9);
     }
+    
+    // Количество одинаковых брейнротов (для Eldorado Quantity)
+    const quantity = currentSupaBrainrot?.quantity || 1;
     
     // Формируем данные для Tampermonkey скрипта
     const offerData = {
@@ -2487,6 +2627,7 @@ function postToEldorado() {
         generatedImageUrl: currentSupaResult.resultUrl,
         minPrice: minPrice,
         maxPrice: maxPrice,
+        quantity: quantity, // Количество для Eldorado Total Quantity
         rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
         accountId: currentSupaBrainrot?.accountId,
         accountName: currentSupaBrainrot?.accountName,

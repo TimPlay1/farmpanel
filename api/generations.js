@@ -47,21 +47,24 @@ module.exports = async (req, res) => {
 
         // POST - save a generation
         if (req.method === 'POST') {
-            const { farmKey, brainrotName, accountId, resultUrl, timestamp } = req.body;
+            const { farmKey, brainrotName, accountId, income, resultUrl, timestamp } = req.body;
 
-            if (!farmKey || !brainrotName) {
-                return res.status(400).json({ error: 'farmKey and brainrotName are required' });
+            if (!farmKey || !brainrotName || !accountId) {
+                return res.status(400).json({ error: 'farmKey, brainrotName, and accountId are required' });
             }
 
-            const brainrotKey = brainrotName.toLowerCase().trim();
+            // Уникальный ключ: accountId_name_income
+            const normalizedIncome = income || '0';
+            const brainrotKey = `${accountId}_${brainrotName.toLowerCase().trim()}_${normalizedIncome}`;
             
-            // Get current count
+            // Get current count for this specific brainrot
             const existing = await collection.findOne({ farmKey });
             const currentCount = existing?.generations?.[brainrotKey]?.count || 0;
 
             const generation = {
                 name: brainrotName,
-                accountId: accountId || null,
+                accountId: accountId,
+                income: normalizedIncome,
                 resultUrl: resultUrl || null,
                 generatedAt: timestamp || new Date().toISOString(),
                 count: currentCount + 1

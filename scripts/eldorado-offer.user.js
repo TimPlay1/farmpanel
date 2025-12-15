@@ -474,7 +474,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             return;
         }
 
-        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity } = offerData;
+        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity } = offerData;
         const offerId = generateOfferId();
         offerData.offerId = offerId;
 
@@ -622,7 +622,37 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             await new Promise(r => setTimeout(r, 1000));
 
-            // === 7. CHECKBOXES - Terms of Service и Seller Rules ===
+            // === 7. QUANTITY (Total Quantity available) ===
+            if (quantity && quantity > 1) {
+                log(`Setting Quantity: ${quantity}...`);
+                const quantityInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+                let quantitySet = false;
+                
+                for (const input of quantityInputs) {
+                    const parent = input.closest('section, div');
+                    const parentText = parent ? parent.textContent.toLowerCase() : '';
+                    const placeholder = (input.placeholder || '').toLowerCase();
+                    
+                    if (parentText.includes('quantity') || 
+                        placeholder.includes('quantity') ||
+                        input.getAttribute('formcontrolname') === 'quantity' ||
+                        input.getAttribute('formcontrolname') === 'totalQuantity') {
+                        
+                        setInputValue(input, quantity.toString());
+                        log(`Quantity set: ${quantity}`, 'success');
+                        quantitySet = true;
+                        break;
+                    }
+                }
+                
+                if (!quantitySet) {
+                    log('Quantity input not found', 'warn');
+                }
+                
+                await new Promise(r => setTimeout(r, 500));
+            }
+
+            // === 8. CHECKBOXES - Terms of Service и Seller Rules ===
             log('Checking agreements...');
             const checkboxes = document.querySelectorAll('input[type="checkbox"]');
             let checkedCount = 0;
@@ -756,6 +786,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         const hasData = offerData !== null;
         const price = offerData?.maxPrice || offerData?.minPrice || 0;
+        const quantity = offerData?.quantity || 1;
 
         panel.innerHTML = `
             <h3>👾 Glitched Store v3.0</h3>
@@ -767,9 +798,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     <div class="details">
                         ${offerData.generatedImageUrl ? `<img src="${offerData.generatedImageUrl}" alt="${offerData.name}">` : ''}
                         <div>
-                            <div class="name">${offerData.name || 'Unknown'}</div>
+                            <div class="name">${offerData.name || 'Unknown'}${quantity > 1 ? ` <span style="color:#f59e0b;font-weight:600;">x${quantity}</span>` : ''}</div>
                             <div class="income">💰 ${offerData.income || '0/s'}</div>
-                            ${price > 0 ? `<div class="price">💵 $${price.toFixed(2)}</div>` : ''}
+                            ${price > 0 ? `<div class="price">💵 $${price.toFixed(2)}${quantity > 1 ? ` (total: $${(price * quantity).toFixed(2)})` : ''}</div>` : ''}
                             ${offerData.rarity ? `<div class="rarity">⭐ ${offerData.rarity}</div>` : ''}
                         </div>
                     </div>
