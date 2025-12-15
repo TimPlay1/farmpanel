@@ -84,7 +84,9 @@ module.exports = async (req, res) => {
                 username: farmer.username,
                 avatar: farmer.avatar,
                 accounts: farmer.accounts || [],
-                lastUpdate: farmer.lastUpdate
+                lastUpdate: farmer.lastUpdate,
+                totalValue: farmer.totalValue || 0,
+                valueUpdatedAt: farmer.valueUpdatedAt || null
             });
         }
 

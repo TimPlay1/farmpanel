@@ -110,16 +110,28 @@ async function savePricesToServer() {
             }
         }
         
+        // Рассчитываем общую стоимость для синхронизации
+        const data = state.farmersData[state.currentKey];
+        let totalValue = 0;
+        if (data && data.accounts) {
+            data.accounts.forEach(account => {
+                if (account.brainrots) {
+                    totalValue += calculateAccountValue(account);
+                }
+            });
+        }
+        
         if (Object.keys(pricesToSave).length > 0) {
             await fetch(`${API_BASE}/prices`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     farmKey: state.currentKey,
-                    prices: pricesToSave
+                    prices: pricesToSave,
+                    totalValue: totalValue
                 })
             });
-            console.log(`Saved ${Object.keys(pricesToSave).length} prices to server`);
+            console.log(`Saved ${Object.keys(pricesToSave).length} prices and totalValue $${totalValue.toFixed(2)} to server`);
         }
     } catch (e) {
         console.warn('Failed to save prices to server:', e);
@@ -511,6 +523,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderFarmKeys();
             }
         });
+        // Загружаем данные всех фермеров для отображения в Farm Keys
+        fetchAllFarmersData();
         startPolling();
     } else {
         showLoginScreen();
@@ -670,6 +684,11 @@ function switchView(viewName) {
     views.forEach(view => {
         view.classList.toggle('active', view.id === `${viewName}View`);
     });
+    
+    // При переключении на Farm Keys - обновляем данные всех фермеров
+    if (viewName === 'farmKeys') {
+        fetchAllFarmersData();
+    }
 }
 
 // Polling
@@ -714,6 +733,36 @@ async function fetchFarmerData() {
     } catch (error) {
         console.error('Fetch error:', error);
     }
+}
+
+/**
+ * Загрузить данные всех сохранённых фермеров для отображения в Farm Keys
+ */
+async function fetchAllFarmersData() {
+    const promises = state.savedKeys.map(async (key) => {
+        // Пропускаем текущий ключ - он уже загружен
+        if (key.farmKey === state.currentKey && state.farmersData[key.farmKey]) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(key.farmKey)}`);
+            if (response.ok) {
+                const data = await response.json();
+                state.farmersData[key.farmKey] = data;
+                
+                // Обновляем savedKey
+                key.username = data.username;
+                key.avatar = data.avatar;
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch data for ${key.farmKey}:`, e);
+        }
+    });
+    
+    await Promise.all(promises);
+    saveState();
+    renderFarmKeys();
 }
 
 // Check if account is online based on lastUpdate timestamp
@@ -1111,13 +1160,17 @@ function renderFarmKeys() {
         const accounts = data?.accounts || [];
         const accountCount = accounts.length;
         
-        // Рассчитываем общую стоимость всех брейнротов фермера
-        let farmerValue = 0;
-        accounts.forEach(account => {
-            if (account.brainrots) {
-                farmerValue += calculateAccountValue(account);
-            }
-        });
+        // Используем totalValue из данных сервера, или рассчитываем локально
+        let farmerValue = data?.totalValue || 0;
+        
+        // Если нет серверного значения и есть локальные цены, рассчитываем
+        if (farmerValue === 0 && accounts.length > 0) {
+            accounts.forEach(account => {
+                if (account.brainrots) {
+                    farmerValue += calculateAccountValue(account);
+                }
+            });
+        }
         
         return `
             <div class="farm-key-card ${isActive ? 'active' : ''}" data-key="${key.farmKey}">

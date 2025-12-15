@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
 
         // POST - Save prices cache
         if (req.method === 'POST') {
-            const { farmKey, prices } = req.body;
+            const { farmKey, prices, totalValue } = req.body;
             
             if (!farmKey || !prices) {
                 return res.status(400).json({ error: 'Missing farmKey or prices' });
@@ -38,6 +38,20 @@ module.exports = async (req, res) => {
                 },
                 { upsert: true }
             );
+
+            // Если передан totalValue, обновляем его в документе фермера
+            if (typeof totalValue === 'number' && totalValue >= 0) {
+                const farmersCollection = db.collection('farmers');
+                await farmersCollection.updateOne(
+                    { farmKey },
+                    { 
+                        $set: { 
+                            totalValue: totalValue,
+                            valueUpdatedAt: new Date()
+                        }
+                    }
+                );
+            }
 
             return res.status(200).json({ success: true });
         }
