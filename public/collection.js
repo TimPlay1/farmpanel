@@ -2,8 +2,8 @@
 // COLLECTION VIEW - All Brainrots from all accounts
 // ==========================================
 
-// Supa Generator Configuration
-const SUPA_GENERATOR_URL = 'http://localhost:3002';
+// Supa Generator - use relative URL for Vercel
+const SUPA_GENERATOR_URL = '';
 
 // Additional DOM Elements for Collection
 const brainrotSearchEl = document.getElementById('brainrotSearch');
@@ -33,7 +33,7 @@ async function loadGenerationsData() {
         const farmKey = state.currentKey;
         if (!farmKey) return;
         
-        const response = await fetch(`/api/generations/${encodeURIComponent(farmKey)}`);
+        const response = await fetch(`/api/generations?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
         collectionState.generations = data.generations || {};
         console.log('Loaded generations:', Object.keys(collectionState.generations).length);
@@ -46,9 +46,17 @@ async function loadGenerationsData() {
 // Load account colors
 async function loadAccountColors() {
     try {
-        const response = await fetch('/api/account-colors');
-        const data = await response.json();
-        collectionState.accountColors = data.colors || {};
+        // Get account IDs from current data
+        const data = state.farmersData[state.currentKey];
+        if (!data || !data.accounts) {
+            collectionState.accountColors = {};
+            return;
+        }
+        
+        const accountIds = data.accounts.map(a => a.userId).join(',');
+        const response = await fetch(`/api/account-colors?accountIds=${accountIds}`);
+        const result = await response.json();
+        collectionState.accountColors = result.colors || {};
         console.log('Loaded account colors:', collectionState.accountColors);
     } catch (err) {
         console.error('Error loading account colors:', err);
@@ -294,7 +302,7 @@ async function generateSupaImage() {
     statusText.textContent = 'Загрузка изображения...';
     
     try {
-        const response = await fetch(`${SUPA_GENERATOR_URL}/api/generate`, {
+        const response = await fetch(`/api/supa-generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -358,9 +366,9 @@ async function downloadSupaImage() {
         downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Скачивание...';
         
         const filename = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
-        const downloadUrl = `${SUPA_GENERATOR_URL}/api/download?url=${encodeURIComponent(currentSupaResult.resultUrl)}&filename=${encodeURIComponent(filename)}`;
         
-        const response = await fetch(downloadUrl);
+        // Direct download from Supa URL
+        const response = await fetch(currentSupaResult.resultUrl);
         const blob = await response.blob();
         
         const url = window.URL.createObjectURL(blob);
@@ -377,7 +385,7 @@ async function downloadSupaImage() {
         showSupaError('Ошибка скачивания: ' + error.message);
     } finally {
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать (1920x1920)';
+        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать (800x800)';
     }
 }
 

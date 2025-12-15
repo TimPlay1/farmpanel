@@ -1364,6 +1364,67 @@ body {
     font-size: 0.7rem;
 }
 
+/* Account Color Dot */
+.account-color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* Generated Brainrot Badge */
+.brainrot-generated-badge {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(74, 222, 128, 0.4);
+    z-index: 5;
+}
+
+.brainrot-generated-badge i {
+    color: white;
+    font-size: 0.65rem;
+}
+
+/* Generated card styling */
+.brainrot-card.brainrot-generated {
+    border-color: rgba(74, 222, 128, 0.3);
+}
+
+.brainrot-card.brainrot-generated:hover {
+    border-color: rgba(74, 222, 128, 0.5);
+}
+
+/* Generate button changes for generated cards */
+.brainrot-card.brainrot-generated .brainrot-generate-btn {
+    background: var(--accent-green);
+}
+
+.brainrot-card.brainrot-generated .brainrot-generate-btn:hover {
+    background: #22c55e;
+}
+
+/* Supa Account Info in Modal */
+.supa-account-group {
+    margin-bottom: 0.5rem;
+}
+
+.supa-account-info {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+    padding: 0.6rem 0.9rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
     .accounts-grid {

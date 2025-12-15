@@ -1,0 +1,229 @@
+const fetch = require('node-fetch');
+const FormData = require('form-data');
+
+// Supa API Configuration
+const SUPA_API_KEY = process.env.SUPA_API_KEY || 'dZddxo0zt0u1MHC8YXoUgzBu5tW5JuiM';
+const SUPA_API_BASE = 'https://api.supa.ru/public/v2';
+const TEMPLATE_ID = 21157229;
+
+// Template object names
+const TEMPLATE_OBJECTS = {
+    IMAGE: 'brainrot_image',
+    NAME: 'brainrot_name',
+    INCOME: 'brainrot_income'
+};
+
+// Upload image to Supa
+async function uploadImageToSupa(imageUrl) {
+    try {
+        console.log('Downloading image from:', imageUrl);
+        
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+            throw new Error(`Failed to download image: ${imageResponse.status}`);
+        }
+
+        const imageBuffer = await imageResponse.buffer();
+        const contentType = imageResponse.headers.get('content-type') || 'image/png';
+        
+        let extension = 'png';
+        if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+            extension = 'jpg';
+        } else if (contentType.includes('webp')) {
+            extension = 'webp';
+        }
+
+        const formData = new FormData();
+        formData.append('file', imageBuffer, {
+            filename: `brainrot.${extension}`,
+            contentType: contentType
+        });
+
+        console.log('Uploading to Supa...');
+        
+        const uploadResponse = await fetch(`${SUPA_API_BASE}/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${SUPA_API_KEY}`
+            },
+            body: formData
+        });
+
+        const uploadResult = await uploadResponse.json();
+        console.log('Upload result:', uploadResult);
+
+        if (uploadResult.result === 'success' && uploadResult.url) {
+            return uploadResult.url;
+        } else {
+            throw new Error(uploadResult.reason || 'Upload failed');
+        }
+    } catch (error) {
+        console.error('Error uploading image to Supa:', error);
+        throw error;
+    }
+}
+
+// Request render
+async function requestRender(brainrotData) {
+    const { name, income, supaImageUrl, borderColor } = brainrotData;
+
+    const objectsOverrides = {};
+
+    if (supaImageUrl) {
+        const imageOverride = {
+            background: {
+                type: 'image',
+                path: supaImageUrl
+            }
+        };
+        
+        if (borderColor) {
+            imageOverride.border = {
+                color: borderColor
+            };
+        }
+        
+        objectsOverrides[TEMPLATE_OBJECTS.IMAGE] = imageOverride;
+    }
+
+    objectsOverrides[TEMPLATE_OBJECTS.NAME] = {
+        text: name || 'Unknown Brainrot'
+    };
+
+    let cleanIncome = income || '0/s';
+    if (cleanIncome.startsWith('$')) {
+        cleanIncome = cleanIncome.substring(1);
+    }
+    objectsOverrides[TEMPLATE_OBJECTS.INCOME] = {
+        text: cleanIncome
+    };
+
+    console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));
+
+    const renderRequest = {
+        design_id: TEMPLATE_ID,
+        format: 'png',
+        objects_overrides: objectsOverrides
+    };
+
+    const response = await fetch(`${SUPA_API_BASE}/render`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${SUPA_API_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(renderRequest)
+    });
+
+    const result = await response.json();
+    console.log('Render request result:', result);
+
+    if (result.error) {
+        throw new Error(`Render error: ${result.error} - ${result.description}`);
+    }
+
+    return result;
+}
+
+// Check render status
+async function checkRenderStatus(taskId) {
+    const response = await fetch(`${SUPA_API_BASE}/tasks/${taskId}`, {
+        headers: {
+            'Authorization': `Bearer ${SUPA_API_KEY}`
+        }
+    });
+
+    return response.json();
+}
+
+// Wait for render to complete
+async function waitForRender(taskId, maxAttempts = 30) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const status = await checkRenderStatus(taskId);
+        console.log(`Render status (attempt ${i + 1}):`, status.state);
+
+        if (status.state === 'done') {
+            return status;
+        }
+
+        if (status.state === 'error') {
+            throw new Error('Render failed');
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+
+    throw new Error('Render timeout');
+}
+
+module.exports = async (req, res) => {
+    // CORS
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
+    if (req.method !== 'POST') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
+    try {
+        const { name, income, imageUrl, borderColor, accountId, accountName } = req.body;
+
+        if (!name) {
+            return res.status(400).json({ error: 'name is required' });
+        }
+
+        console.log('=== Generate Request ===');
+        console.log('Name:', name);
+        console.log('Income:', income);
+        console.log('Image URL:', imageUrl);
+        console.log('Border Color:', borderColor);
+
+        // Upload image to Supa
+        let supaImageUrl = null;
+        if (imageUrl && imageUrl.startsWith('http')) {
+            try {
+                supaImageUrl = await uploadImageToSupa(imageUrl);
+                console.log('Supa image URL:', supaImageUrl);
+            } catch (uploadError) {
+                console.warn('Failed to upload image:', uploadError.message);
+            }
+        }
+
+        // Request render
+        const renderResult = await requestRender({
+            name,
+            income,
+            supaImageUrl,
+            borderColor
+        });
+
+        if (!renderResult.task_id) {
+            throw new Error('No task_id received');
+        }
+
+        // Wait for render
+        console.log('Waiting for render to complete...');
+        const finalResult = await waitForRender(renderResult.task_id);
+
+        console.log('Render complete!', finalResult);
+
+        res.json({
+            success: true,
+            taskId: renderResult.task_id,
+            resultUrl: finalResult.result_url,
+            state: finalResult.state,
+            brainrotName: name,
+            accountId,
+            accountName
+        });
+
+    } catch (error) {
+        console.error('Generate error:', error);
+        res.status(500).json({ error: error.message });
+    }
+};
