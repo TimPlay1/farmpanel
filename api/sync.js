@@ -2,20 +2,36 @@ const { connectToDatabase, generateAvatar, generateUsername } = require('./_lib/
 
 // Кэш аватаров в памяти (для serverless может не работать долго, но база - главный источник)
 const avatarCache = new Map();
-const AVATAR_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 часа
+const AVATAR_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 дней
 
 /**
- * Загрузить аватар с Roblox API
+ * Загрузить аватар с Roblox API и конвертировать в base64
  */
-async function fetchRobloxAvatar(userId) {
+async function fetchRobloxAvatarBase64(userId) {
     try {
-        const response = await fetch(
+        // Получаем URL аватара
+        const apiResponse = await fetch(
             `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
         );
-        const data = await response.json();
-        if (data.data && data.data[0] && data.data[0].imageUrl) {
-            return data.data[0].imageUrl;
+        const apiData = await apiResponse.json();
+        
+        if (!apiData.data?.[0]?.imageUrl) {
+            return null;
         }
+        
+        const imageUrl = apiData.data[0].imageUrl;
+        
+        // Загружаем изображение и конвертируем в base64
+        const imageResponse = await fetch(imageUrl);
+        if (!imageResponse.ok) {
+            return null;
+        }
+        
+        const arrayBuffer = await imageResponse.arrayBuffer();
+        const base64 = Buffer.from(arrayBuffer).toString('base64');
+        const contentType = imageResponse.headers.get('content-type') || 'image/png';
+        
+        return `data:${contentType};base64,${base64}`;
     } catch (e) {
         console.warn('Failed to fetch avatar for userId', userId, e.message);
     }
@@ -23,9 +39,9 @@ async function fetchRobloxAvatar(userId) {
 }
 
 /**
- * Загрузить аватары для списка аккаунтов
+ * Загрузить аватары для списка аккаунтов (с base64)
  */
-async function fetchAvatarsForAccounts(accounts, existingAvatars = {}) {
+async function fetchAvatarsForAccounts(accounts, existingAvatars = {}, avatarsCollection = null) {
     const avatars = { ...existingAvatars };
     const toFetch = [];
     
@@ -33,31 +49,68 @@ async function fetchAvatarsForAccounts(accounts, existingAvatars = {}) {
         if (!account.userId) continue;
         const key = String(account.userId);
         
-        // Проверяем есть ли уже в базе и не устарел ли
-        if (avatars[key] && avatars[key].timestamp) {
+        // Проверяем есть ли уже и не устарел ли (base64 аватары хранятся дольше)
+        if (avatars[key] && avatars[key].timestamp && avatars[key].base64) {
             const age = Date.now() - avatars[key].timestamp;
             if (age < AVATAR_CACHE_TTL) {
                 continue; // Аватар актуален
             }
         }
         
+        // Проверяем в отдельной коллекции аватаров
+        if (avatarsCollection) {
+            const cached = await avatarsCollection.findOne({ userId: key });
+            if (cached && cached.base64 && cached.fetchedAt) {
+                const age = Date.now() - cached.fetchedAt;
+                if (age < AVATAR_CACHE_TTL) {
+                    avatars[key] = {
+                        url: cached.base64,
+                        base64: cached.base64,
+                        timestamp: cached.fetchedAt
+                    };
+                    continue;
+                }
+            }
+        }
+        
         toFetch.push(account.userId);
     }
     
-    // Загружаем недостающие аватары параллельно (макс 10 за раз)
-    const batchSize = 10;
+    // Загружаем недостающие аватары параллельно (макс 5 за раз чтобы не перегружать)
+    const batchSize = 5;
     for (let i = 0; i < toFetch.length; i += batchSize) {
         const batch = toFetch.slice(i, i + batchSize);
-        const results = await Promise.all(batch.map(userId => fetchRobloxAvatar(userId)));
+        const results = await Promise.all(batch.map(userId => fetchRobloxAvatarBase64(userId)));
         
-        results.forEach((url, idx) => {
-            if (url) {
-                avatars[String(batch[idx])] = {
-                    url: url,
+        for (let j = 0; j < batch.length; j++) {
+            const userId = batch[j];
+            const base64 = results[j];
+            
+            if (base64) {
+                const key = String(userId);
+                avatars[key] = {
+                    url: base64,
+                    base64: base64,
                     timestamp: Date.now()
                 };
+                
+                // Сохраняем в отдельную коллекцию для постоянного хранения
+                if (avatarsCollection) {
+                    await avatarsCollection.updateOne(
+                        { userId: key },
+                        { 
+                            $set: {
+                                userId: key,
+                                base64: base64,
+                                fetchedAt: Date.now(),
+                                updatedAt: new Date()
+                            }
+                        },
+                        { upsert: true }
+                    );
+                }
             }
-        });
+        }
     }
     
     return avatars;
@@ -104,25 +157,29 @@ module.exports = async (req, res) => {
                     username: generateUsername(),
                     avatar: generateAvatar(existingAvatars),
                     accounts: [],
-                    accountAvatars: {}, // Хранилище аватаров аккаунтов
+                    accountAvatars: {}, // Хранилище аватаров аккаунтов (теперь с base64)
                     createdAt: new Date(),
                     lastUpdate: new Date()
                 };
             }
 
-            // Загружаем аватары для аккаунтов (в фоне, не блокируя ответ)
+            // Коллекция для постоянного хранения аватаров
+            const avatarsCollection = db.collection('accountAvatars');
+            
+            // Загружаем аватары для аккаунтов
             const existingAccountAvatars = farmer.accountAvatars || {};
             
-            // Синхронно загружаем только если аватаров мало или их нет
+            // Проверяем нужно ли загружать аватары (проверяем наличие base64)
             const needsAvatars = accounts.some(a => {
                 if (!a.userId) return false;
                 const cached = existingAccountAvatars[String(a.userId)];
-                return !cached || !cached.url;
+                // Нужно загрузить если нет base64 или только URL (старый формат)
+                return !cached || !cached.base64;
             });
             
             let accountAvatars = existingAccountAvatars;
             if (needsAvatars) {
-                accountAvatars = await fetchAvatarsForAccounts(accounts, existingAccountAvatars);
+                accountAvatars = await fetchAvatarsForAccounts(accounts, existingAccountAvatars, avatarsCollection);
             }
 
             // Update farmer data

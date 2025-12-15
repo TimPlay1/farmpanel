@@ -986,7 +986,7 @@ async function renderAccountsGrid(accounts) {
         return;
     }
     
-    // Получаем аватары из данных сервера
+    // Получаем аватары из данных сервера (теперь base64)
     const data = state.farmersData[state.currentKey];
     const serverAvatars = data?.accountAvatars || {};
     
@@ -994,10 +994,12 @@ async function renderAccountsGrid(accounts) {
     accounts.forEach(account => {
         if (account.userId) {
             const avatarData = serverAvatars[String(account.userId)];
-            if (avatarData && avatarData.url) {
-                account.avatarUrl = avatarData.url;
+            // Предпочитаем base64 (новый формат), fallback на url (старый формат)
+            const avatarUrl = avatarData?.base64 || avatarData?.url;
+            if (avatarUrl) {
+                account.avatarUrl = avatarUrl;
                 // Также сохраняем в локальный кэш для быстрого доступа
-                saveAvatarToCache(account.userId, avatarData.url);
+                saveAvatarToCache(account.userId, avatarUrl);
             } else {
                 // Fallback на локальный кэш
                 const cachedAvatar = getCachedAvatar(account.userId);
@@ -1127,12 +1129,14 @@ function renderAccountsList(accounts) {
     const serverAvatars = data?.accountAvatars || {};
     
     accountsListEl.innerHTML = accounts.map(account => {
-        // Получаем аватар из серверных данных
+        // Получаем аватар из серверных данных (предпочитаем base64)
         let avatarSrc = getDefaultAvatar(account.playerName);
         if (account.userId) {
             const avatarData = serverAvatars[String(account.userId)];
-            if (avatarData && avatarData.url) {
-                avatarSrc = avatarData.url;
+            // Предпочитаем base64, затем url
+            const serverAvatar = avatarData?.base64 || avatarData?.url;
+            if (serverAvatar) {
+                avatarSrc = serverAvatar;
             } else if (account.avatarUrl) {
                 avatarSrc = account.avatarUrl;
             } else {
