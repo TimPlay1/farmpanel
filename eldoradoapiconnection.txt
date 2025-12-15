@@ -1,0 +1,223 @@
+
+24/7 Live Support
+
+English
+|
+USD - $
+Account settings
+Seller API
+API
+Refer to the Swagger UI to view the list of endpoints for the API
+
+Authentication
+Please note that if you would like to set up a bot, you can contact our development team at api@eldorado.gg so that we can assign IDs and authorize them. We have a separate public Cognito app for seller bot authentication. To use it, one can use amplify libraries (Email + Password login method is required for this).
+
+Below are some sign-in examples.
+
+Required properties:
+
+_pool_id = 'us-east-2_MlnzCFgHk'
+_client_id = '1956req5ro9drdtbf5i6kis4la'
+_cognito_hostname = 'https://login.eldorado.gg'
+_eldorado_hostname = 'eldorado.gg'
+Getting Token
+JavaScript
+
+The easiest way to get the required token is to use the AWS Amplify package See other available integrations: https://docs.amplify.aws/start/
+
+Amplify v6
+
+const { Amplify } = require('aws-amplify');
+const { Auth } = require('aws-amplify/auth')
+
+Amplify.configure(awsConfig);
+const awsConfig = {
+  Auth: {
+    Cognito: {
+      userPoolId: _pool_id,
+      userPoolClientId: _client_id,
+      loginWith: {
+        oauth: {
+          domain: _cognito_hostname,
+          redirectSignIn: `https://${_eldorado_hostname}/account/auth-callback`,
+          responseType: "code",
+        },
+      },
+    },
+  },
+};
+
+(async () => {
+    Amplify.configure(awsAmplifyConfig);
+    // Pass valid username and password
+    await Auth.signIn({ username: "some.real.email@gmail.com", password: "RealPassword" })
+    await Auth.fetchAuthSession().then(session => console.log(`Id token: ${session.tokens.idToken}`));
+})();
+
+Amplify v5
+
+const { Amplify, Auth } = require('aws-amplify');
+
+const awsConfig = {
+    aws_cognito_region: "us-east-2",
+    aws_user_pools_id: _pool_id,
+    aws_user_pools_web_client_id: _client_id,
+    oauth: {
+        domain: _cognito_hostname,
+        redirectSignIn: `https://${_eldorado_hostname}/account/auth-callback`,
+        responseType: 'code'
+    }
+}
+
+async function signIn(username, password) {
+    try {
+        const user = await Auth.signIn(username, password);
+
+        return user.signInUserSession.idToken.jwtToken;
+    } catch (error) {
+        console.log('error signing in', error);
+    }
+}
+
+(async () => {
+    Amplify.configure(awsConfig);
+    // Pass valid username and password
+    var idToken = await signIn('some.real.email@gmail.com', 'RealPassword1');
+    console.log(idToken);
+})();
+
+Python (boto3)
+
+import boto3
+from pycognito import AWSSRP
+from botocore.exceptions import ClientError
+
+cognito = boto3.client('cognito-idp')
+
+
+def authenticate(user_email, user_password):
+    try:
+        aws_srp = AWSSRP(
+            username=user_email,
+            password=user_password,
+            pool_id=_pool_id,
+            _client_id=_client_id,
+            client=cognito
+        )
+        auth_params = aws_srp.get_auth_params()
+        response = cognito.initiate_auth(
+            AuthFlow='USER_SRP_AUTH',
+            AuthParameters=auth_params,
+            ClientId=_client_id
+        )
+
+        assert response["ChallengeName"] == "PASSWORD_VERIFIER"
+        challenge_response = aws_srp.process_challenge(response["ChallengeParameters"], auth_params)
+
+        response = cognito.respond_to_auth_challenge(
+            ClientId=_client_id,
+            ChallengeName="PASSWORD_VERIFIER",
+            ChallengeResponses=challenge_response
+        )
+        return response['AuthenticationResult']['IdToken']
+    except ClientError as e:
+        print(f"An error occurred: {e.response['Error']['Code']} - {e.response['Error']['Message']}")
+        raise
+
+# Pass valid username and password
+id_token = authenticate('some.real.email@gmail.com', 'RealPassword1')
+print(id_token)
+
+Request examples
+Public endpoint
+
+function getInstantFortniteAccounts() {
+    return new Promise((resolve, reject) => {
+        var queryData = querystring.stringify({
+            offerType: 'Account',
+            itemTreeId: '16-1-0',
+            isInstantDelivery: 'true'
+        });
+
+        var path = '/api/flexibleOffers?' + queryData.toString();
+
+        const options = {
+            hostname: _eldorado_hostname,
+            path: path,
+            accept: 'application/json'
+        }
+
+        https.get(options, (res) => {
+            var body = '';
+            res.on('data', (chunk) => {
+                body += chunk;
+            });
+            res.on('end', () => {
+                resolve(JSON.parse(body));
+            });
+        }).on('error', (e) => {
+            reject(e);
+        });
+    });
+}
+
+Private endpoint
+
+function GetMyOrders(idToken) {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: _eldorado_hostname,
+            path: '/api/orders/me',
+            accept: 'application/json',
+            headers: {
+                'Cookie': `__Host-EldoradoIdToken=${idToken}`
+            }
+        }
+        https.get(options, (res) => {
+            var body = '';
+            res.on('data', (chunk) => {
+                body += chunk;
+            });
+            res.on('end', () => {
+                resolve(JSON.parse(body));
+            });
+        }).on('error', (e) => {
+            reject(e);
+        });
+    });
+}
+
+Webhooks
+At the moment, no webhook registration is available.
+
+Visa
+Mastercard
+AMEX
+Discover
+Bitcoin
+Google Pay
+Apple Pay
++15 more
+English
+|
+USD - $
+Join us today to level up your gaming experience!
+Help Center
+Contact us
+Bug Bounty
+Blog
+Become a Partner
+Account Warranty
+TradeShield (Buying)
+TradeShield (Selling)
+Deposits
+Withdrawals
+Account Seller Rules
+Seller Rules
+Changing Username
+Fees
+Refund Policy
+© 2025. The eldorado.gg website is operated by GWD Processing FZCO.
+Terms of Service
+Privacy Policy
+DMCA
