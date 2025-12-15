@@ -1410,6 +1410,7 @@ const brainrotSearchEl = document.getElementById('brainrotSearch');
 const sortDropdown = document.getElementById('sortDropdown');
 const accountDropdown = document.getElementById('accountDropdown');
 const accountDropdownMenu = document.getElementById('accountDropdownMenu');
+const priceFilterDropdown = document.getElementById('priceFilterDropdown');
 const brainrotsGridEl = document.getElementById('brainrotsGrid');
 const collectionStatsEl = document.getElementById('collectionStats');
 
@@ -1420,6 +1421,7 @@ let collectionState = {
     searchQuery: '',
     sortBy: 'income-desc',
     accountFilter: 'all',
+    priceFilter: 'all',
     pricesLoading: false,
     pricesLoaded: new Set() // Кэш загруженных цен по имени
 };
@@ -1492,7 +1494,7 @@ document.addEventListener('click', function(e) {
 function setupCollectionListeners() {
     if (brainrotSearchEl) {
         brainrotSearchEl.addEventListener('input', function(e) {
-            collectionState.searchQuery = e.target.value.toLowerCase().trim();
+            collectionState.searchQuery = e.target.value.trim();
             filterAndRenderCollection();
         });
     }
@@ -1504,6 +1506,11 @@ function setupCollectionListeners() {
 
     initDropdown(accountDropdown, function(value) {
         collectionState.accountFilter = value;
+        filterAndRenderCollection();
+    });
+
+    initDropdown(priceFilterDropdown, function(value) {
+        collectionState.priceFilter = value;
         filterAndRenderCollection();
     });
 }
@@ -1555,14 +1562,92 @@ function updateAccountDropdown(accounts) {
 }
 
 // Filter and sort brainrots
+/**
+ * Получить цену брейнрота из кэша
+ */
+function getBrainrotPrice(brainrot) {
+    const income = normalizeIncomeForApi(brainrot.income, brainrot.incomeText);
+    const cacheKey = getPriceCacheKey(brainrot.name, income);
+    const priceData = state.brainrotPrices[cacheKey];
+    return priceData && priceData.suggestedPrice ? priceData.suggestedPrice : null;
+}
+
+/**
+ * Парсинг поискового запроса для поддержки income фильтров
+ */
+function parseSearchQuery(query) {
+    // Поддержка форматов: >100, <50, 100-200, =150, просто число или текст
+    const result = { text: '', incomeFilter: null };
+    
+    if (!query) return result;
+    
+    // Проверяем на диапазон (100-200)
+    const rangeMatch = query.match(/^(\d+)\s*-\s*(\d+)$/);
+    if (rangeMatch) {
+        result.incomeFilter = { type: 'range', min: parseFloat(rangeMatch[1]), max: parseFloat(rangeMatch[2]) };
+        return result;
+    }
+    
+    // Проверяем на сравнение (>100, <50, >=100, <=50, =100)
+    const compareMatch = query.match(/^([<>=]+)\s*(\d+\.?\d*)$/);
+    if (compareMatch) {
+        const op = compareMatch[1];
+        const val = parseFloat(compareMatch[2]);
+        if (op === '>') result.incomeFilter = { type: 'gt', value: val };
+        else if (op === '>=') result.incomeFilter = { type: 'gte', value: val };
+        else if (op === '<') result.incomeFilter = { type: 'lt', value: val };
+        else if (op === '<=') result.incomeFilter = { type: 'lte', value: val };
+        else if (op === '=') result.incomeFilter = { type: 'eq', value: val };
+        return result;
+    }
+    
+    // Проверяем на просто число
+    const numMatch = query.match(/^(\d+\.?\d*)$/);
+    if (numMatch) {
+        // Если просто число - ищем точное совпадение или близкое
+        result.incomeFilter = { type: 'approx', value: parseFloat(numMatch[1]) };
+        return result;
+    }
+    
+    // Иначе это текстовый поиск
+    result.text = query.toLowerCase();
+    return result;
+}
+
+/**
+ * Проверка income по фильтру
+ */
+function matchesIncomeFilter(income, filter) {
+    if (!filter) return true;
+    
+    switch (filter.type) {
+        case 'gt': return income > filter.value;
+        case 'gte': return income >= filter.value;
+        case 'lt': return income < filter.value;
+        case 'lte': return income <= filter.value;
+        case 'eq': return Math.abs(income - filter.value) < 0.1;
+        case 'approx': return Math.abs(income - filter.value) < Math.max(filter.value * 0.1, 5);
+        case 'range': return income >= filter.min && income <= filter.max;
+        default: return true;
+    }
+}
+
 function filterAndRenderCollection() {
     let filtered = [...collectionState.allBrainrots];
 
-    // Filter by search
-    if (collectionState.searchQuery) {
+    // Parse search query
+    const searchParsed = parseSearchQuery(collectionState.searchQuery);
+
+    // Filter by search (text or income)
+    if (searchParsed.text) {
         filtered = filtered.filter(b => 
-            b.name.toLowerCase().includes(collectionState.searchQuery)
+            b.name.toLowerCase().includes(searchParsed.text) ||
+            b.accountName.toLowerCase().includes(searchParsed.text)
         );
+    }
+    
+    if (searchParsed.incomeFilter) {
+        filtered = filtered.filter(b => matchesIncomeFilter(b.income, searchParsed.incomeFilter));
     }
 
     // Filter by account
@@ -1572,6 +1657,24 @@ function filterAndRenderCollection() {
         );
     }
 
+    // Filter by price
+    if (collectionState.priceFilter !== 'all') {
+        filtered = filtered.filter(b => {
+            const price = getBrainrotPrice(b);
+            
+            switch (collectionState.priceFilter) {
+                case 'has-price': return price !== null;
+                case 'no-price': return price === null;
+                case 'under-1': return price !== null && price < 1;
+                case '1-5': return price !== null && price >= 1 && price < 5;
+                case '5-10': return price !== null && price >= 5 && price < 10;
+                case '10-25': return price !== null && price >= 10 && price < 25;
+                case 'over-25': return price !== null && price >= 25;
+                default: return true;
+            }
+        });
+    }
+
     // Sort
     switch (collectionState.sortBy) {
         case 'income-desc':
@@ -1579,6 +1682,20 @@ function filterAndRenderCollection() {
             break;
         case 'income-asc':
             filtered.sort((a, b) => a.income - b.income);
+            break;
+        case 'price-desc':
+            filtered.sort((a, b) => {
+                const priceA = getBrainrotPrice(a) || 0;
+                const priceB = getBrainrotPrice(b) || 0;
+                return priceB - priceA;
+            });
+            break;
+        case 'price-asc':
+            filtered.sort((a, b) => {
+                const priceA = getBrainrotPrice(a) || 0;
+                const priceB = getBrainrotPrice(b) || 0;
+                return priceA - priceB;
+            });
             break;
         case 'name-asc':
             filtered.sort((a, b) => a.name.localeCompare(b.name));
@@ -1611,7 +1728,7 @@ async function renderCollection() {
         if (totalValue > 0) {
             statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + '</span>';
         }
-        if (collectionState.searchQuery || collectionState.accountFilter !== 'all') {
+        if (collectionState.searchQuery || collectionState.accountFilter !== 'all' || collectionState.priceFilter !== 'all') {
             statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
         }
         collectionStatsEl.innerHTML = statsHtml;
