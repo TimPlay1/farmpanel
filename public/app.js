@@ -15,6 +15,7 @@ let state = {
     eldoradoPrices: {}, // Кэш цен Eldorado по ключу (name_income)
     brainrotPrices: {}, // Кэш цен по имени брейнрота для отображения
     previousPrices: {}, // Предыдущие цены для расчёта % изменения
+    previousTotalValue: null, // Предыдущее общее значение
     avatarCache: {} // Кэш аватаров по userId
 };
 
@@ -62,6 +63,67 @@ function getCachedAvatar(userId) {
         return cached.url;
     }
     return null;
+}
+
+/**
+ * Загрузить кэш цен из MongoDB
+ */
+async function loadPricesFromServer() {
+    if (!state.currentKey) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/prices?farmKey=${encodeURIComponent(state.currentKey)}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.prices && Object.keys(data.prices).length > 0 && !data.expired) {
+                // Загружаем цены в state
+                for (const [key, priceData] of Object.entries(data.prices)) {
+                    state.brainrotPrices[key] = priceData;
+                }
+                console.log(`Loaded ${Object.keys(data.prices).length} prices from server`);
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load prices from server:', e);
+    }
+    return false;
+}
+
+/**
+ * Сохранить кэш цен в MongoDB
+ */
+async function savePricesToServer() {
+    if (!state.currentKey) return;
+    
+    try {
+        const pricesToSave = {};
+        for (const [key, data] of Object.entries(state.brainrotPrices)) {
+            if (data && data.suggestedPrice && !data.error) {
+                pricesToSave[key] = {
+                    suggestedPrice: data.suggestedPrice,
+                    competitorPrice: data.competitorPrice,
+                    competitorIncome: data.competitorIncome,
+                    priceSource: data.priceSource,
+                    _timestamp: data._timestamp || Date.now()
+                };
+            }
+        }
+        
+        if (Object.keys(pricesToSave).length > 0) {
+            await fetch(`${API_BASE}/prices`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    farmKey: state.currentKey,
+                    prices: pricesToSave
+                })
+            });
+            console.log(`Saved ${Object.keys(pricesToSave).length} prices to server`);
+        }
+    } catch (e) {
+        console.warn('Failed to save prices to server:', e);
+    }
 }
 
 /**
@@ -405,6 +467,8 @@ const statsEls = {
     totalAccounts: document.getElementById('totalAccounts'),
     onlineAccounts: document.getElementById('onlineAccounts'),
     totalIncome: document.getElementById('totalIncome'),
+    totalValue: document.getElementById('totalValue'),
+    totalValueChange: document.getElementById('totalValueChange'),
     totalBrainrots: document.getElementById('totalBrainrots')
 };
 const accountsGridEl = document.getElementById('accountsGrid');
@@ -438,6 +502,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (state.currentKey && state.savedKeys.length > 0) {
         showMainApp();
+        // Пробуем загрузить цены с сервера для быстрого отображения
+        loadPricesFromServer().then(loaded => {
+            if (loaded) {
+                console.log('Loaded prices from server cache');
+                // Обновляем UI с загруженными ценами
+                updateUI();
+                renderFarmKeys();
+            }
+        });
         startPolling();
     } else {
         showLoginScreen();
@@ -770,10 +843,34 @@ function updateUI() {
     const totalIncome = accounts.reduce((sum, a) => sum + (a.totalIncome || 0), 0);
     const totalBrainrots = accounts.reduce((sum, a) => sum + (a.totalBrainrots || 0), 0);
     
+    // Собираем все брейнроты для расчета общей стоимости
+    const allBrainrots = [];
+    accounts.forEach(account => {
+        if (account.brainrots) {
+            account.brainrots.forEach(b => allBrainrots.push(b));
+        }
+    });
+    const totalValue = calculateTotalValue(allBrainrots);
+    
     statsEls.totalAccounts.textContent = accounts.length;
     statsEls.onlineAccounts.textContent = online;
     statsEls.totalIncome.textContent = formatIncome(totalIncome);
     statsEls.totalBrainrots.textContent = totalBrainrots;
+    
+    // Update total value with change indicator
+    if (statsEls.totalValue) {
+        statsEls.totalValue.textContent = totalValue > 0 ? `$${totalValue.toFixed(2)}` : '$0.00';
+        
+        // Show % change
+        if (statsEls.totalValueChange && state.previousTotalValue !== null && state.previousTotalValue > 0 && totalValue > 0) {
+            const changePercent = ((totalValue - state.previousTotalValue) / state.previousTotalValue) * 100;
+            if (Math.abs(changePercent) > 0.1) {
+                statsEls.totalValueChange.innerHTML = formatPriceChange(changePercent);
+            } else {
+                statsEls.totalValueChange.innerHTML = '';
+            }
+        }
+    }
     
     // Render accounts
     renderAccountsGrid(accounts);
@@ -961,6 +1058,7 @@ function renderAccountsList(accounts) {
         const isOnline = account._isOnline;
         const statusClass = isOnline ? 'online' : 'offline';
         const actionText = isOnline ? (account.action || account.status || 'Idle') : 'Offline';
+        const accountValue = calculateAccountValue(account);
         
         return `
             <div class="account-list-item">
@@ -983,6 +1081,12 @@ function renderAccountsList(accounts) {
                     <div class="value">${account.totalBrainrots || 0}</div>
                     <div class="label">BRAINROTS</div>
                 </div>
+                ${accountValue > 0 ? `
+                <div class="account-list-value">
+                    <div class="value">$${accountValue.toFixed(2)}</div>
+                    <div class="label">VALUE</div>
+                </div>
+                ` : ''}
             </div>
         `;
     }).join('');
@@ -1004,7 +1108,16 @@ function renderFarmKeys() {
         const isActive = key.farmKey === state.currentKey;
         const avatar = key.avatar || { icon: 'fa-user', color: '#6366f1' };
         const data = state.farmersData[key.farmKey];
-        const accountCount = data?.accounts?.length || 0;
+        const accounts = data?.accounts || [];
+        const accountCount = accounts.length;
+        
+        // Рассчитываем общую стоимость всех брейнротов фермера
+        let farmerValue = 0;
+        accounts.forEach(account => {
+            if (account.brainrots) {
+                farmerValue += calculateAccountValue(account);
+            }
+        });
         
         return `
             <div class="farm-key-card ${isActive ? 'active' : ''}" data-key="${key.farmKey}">
@@ -1027,6 +1140,12 @@ function renderFarmKeys() {
                         <div class="farm-key-accounts">${accountCount}</div>
                         <div class="farm-key-label">accounts</div>
                     </div>
+                    ${farmerValue > 0 ? `
+                    <div class="farm-key-stats farm-key-value">
+                        <div class="farm-key-accounts">$${farmerValue.toFixed(2)}</div>
+                        <div class="farm-key-label">value</div>
+                    </div>
+                    ` : ''}
                     <button class="select-key-btn" onclick="selectFarmKey('${key.farmKey}')">
                         ${isActive ? 'Active' : 'Select'}
                     </button>
@@ -1594,6 +1713,11 @@ async function loadBrainrotPrices(brainrots) {
         
         // Финальное сохранение
         savePriceCacheToStorage();
+        savePricesToServer(); // Также сохраняем на сервер
+        
+        // Обновляем UI для отображения обновленных значений
+        updateUI();
+        renderFarmKeys();
         
     } finally {
         collectionState.pricesLoading = false;
@@ -1659,6 +1783,18 @@ function updatePriceInDOM(brainrotName, income, priceData) {
 function clearPriceCache() {
     // Сохраняем текущие цены как предыдущие для отображения % изменения
     savePreviousPrices();
+    
+    // Сохраняем текущую общую стоимость
+    const data = state.farmersData[state.currentKey];
+    if (data && data.accounts) {
+        const allBrainrots = [];
+        data.accounts.forEach(account => {
+            if (account.brainrots) {
+                account.brainrots.forEach(b => allBrainrots.push(b));
+            }
+        });
+        state.previousTotalValue = calculateTotalValue(allBrainrots);
+    }
     
     state.brainrotPrices = {};
     state.eldoradoPrices = {};

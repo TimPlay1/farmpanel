@@ -1315,6 +1315,39 @@ body {
     color: var(--accent-green);
 }
 
+/* Account list value */
+.account-list-value {
+    text-align: center;
+    min-width: 80px;
+}
+
+.account-list-value .value {
+    color: var(--accent-green);
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.account-list-value .label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+/* Farm key value */
+.farm-key-value .farm-key-accounts {
+    color: var(--accent-green) !important;
+}
+
+/* Total value stat card */
+.stat-value-card .stat-value {
+    color: var(--accent-green);
+}
+
+.stat-value-card .value-change {
+    font-size: 0.8rem;
+    margin-left: 0.3rem;
+}
+
 .brainrot-account {
     display: flex;
     align-items: center;
