@@ -2204,6 +2204,10 @@ function createSupaGeneratorModal() {
                             <i class="fas fa-download"></i>
                             Скачать (800x800)
                         </button>
+                        <button id="supaPostEldoradoBtn" class="supa-eldorado-btn" onclick="postToEldorado()">
+                            <i class="fas fa-store"></i>
+                            Post to Eldorado
+                        </button>
                     </div>
                 </div>
                 <div class="supa-form-section">
@@ -2444,6 +2448,63 @@ function showSupaError(message) {
     const errorText = document.getElementById('supaErrorText');
     errorText.textContent = message;
     errorEl.classList.remove('hidden');
+}
+
+// Post to Eldorado - opens eldorado.gg with brainrot data
+function postToEldorado() {
+    if (!currentSupaResult || !currentSupaResult.resultUrl) {
+        showSupaError('Сначала сгенерируйте изображение');
+        return;
+    }
+    
+    const name = document.getElementById('supaName').value.trim();
+    const income = document.getElementById('supaIncome').value.trim();
+    const imageUrl = document.getElementById('supaImageUrl').value.trim();
+    
+    // Получаем цену из кэша или из данных брейнрота
+    let minPrice = 0;
+    let maxPrice = 0;
+    
+    if (currentSupaBrainrot) {
+        const brainrotName = currentSupaBrainrot.name;
+        // Пытаемся получить цену из eldoradoPrices
+        if (collectionState.eldoradoPrices && collectionState.eldoradoPrices[brainrotName]) {
+            const price = collectionState.eldoradoPrices[brainrotName];
+            minPrice = Math.floor(price * 0.9); // -10% для минимальной
+            maxPrice = Math.ceil(price * 1.1);  // +10% для максимальной
+        } else if (collectionState.brainrotPrices && collectionState.brainrotPrices[brainrotName]) {
+            const price = collectionState.brainrotPrices[brainrotName];
+            minPrice = Math.floor(price * 0.9);
+            maxPrice = Math.ceil(price * 1.1);
+        }
+    }
+    
+    // Формируем данные для Tampermonkey скрипта
+    const offerData = {
+        name: name,
+        income: income,
+        imageUrl: imageUrl,
+        generatedImageUrl: currentSupaResult.resultUrl,
+        minPrice: minPrice,
+        maxPrice: maxPrice,
+        accountId: currentSupaBrainrot?.accountId,
+        accountName: currentSupaBrainrot?.accountName,
+        timestamp: Date.now()
+    };
+    
+    // Сохраняем данные в localStorage для Tampermonkey скрипта
+    localStorage.setItem('glitched_offer_data', JSON.stringify(offerData));
+    
+    // Также можно передать через URL параметры (менее надежно для больших данных)
+    const encodedData = encodeURIComponent(JSON.stringify(offerData));
+    
+    // Открываем страницу Eldorado с данными
+    const eldoradoUrl = `https://www.eldorado.gg/sell/offer/CustomItem/259?glitched_data=${encodedData}`;
+    
+    // Открываем в новой вкладке
+    window.open(eldoradoUrl, '_blank');
+    
+    console.log('Opening Eldorado with offer data:', offerData);
 }
 
 // Initialize collection listeners on DOM ready
