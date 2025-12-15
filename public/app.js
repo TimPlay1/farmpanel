@@ -1321,7 +1321,6 @@ async function loadBrainrotPrices(brainrots) {
         });
     }
 }
-}
 
 // Update collection when data changes
 function updateCollection() {
@@ -1331,4 +1330,5 @@ function updateCollection() {
 
 // Initialize collection listeners on DOM ready
 setupCollectionListeners();
+
 
