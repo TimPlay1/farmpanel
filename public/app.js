@@ -326,12 +326,90 @@ function formatTimeAgo(lastUpdate) {
     }
 }
 
+// Cache for avatar URLs to avoid refetching
+const avatarCache = {};
+
+// Generate unique key for account card
+function getAccountCardId(account) {
+    return 'account-' + (account.playerName || '').replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// Smart update - only update changed elements in existing card
+function updateAccountCard(cardEl, account) {
+    if (!cardEl) return false;
+    
+    const isOnline = account._isOnline;
+    const statusClass = isOnline ? 'online' : 'offline';
+    const statusText = isOnline ? 'Online' : 'Offline';
+    const actionText = isOnline ? (account.action || account.status || '') : '';
+    
+    // Update status badge
+    const statusBadge = cardEl.querySelector('.status-badge');
+    if (statusBadge) {
+        statusBadge.className = 'status-badge ' + statusClass;
+        const icon = statusBadge.querySelector('i');
+        if (icon && icon.nextSibling) {
+            icon.nextSibling.textContent = ' ' + statusText;
+        }
+    }
+    
+    // Update action
+    const statusContainer = cardEl.querySelector('.account-status');
+    if (statusContainer) {
+        let actionEl = statusContainer.querySelector('.account-action');
+        if (isOnline && actionText) {
+            if (actionEl) {
+                actionEl.textContent = actionText;
+            } else {
+                actionEl = document.createElement('span');
+                actionEl.className = 'account-action';
+                actionEl.textContent = actionText;
+                statusContainer.appendChild(actionEl);
+            }
+        } else if (actionEl) {
+            actionEl.remove();
+        }
+    }
+    
+    // Update stats
+    const statValues = cardEl.querySelectorAll('.account-stat-value');
+    if (statValues[0]) {
+        const newIncome = account.totalIncomeFormatted || formatIncome(account.totalIncome || 0);
+        if (statValues[0].textContent !== newIncome) {
+            statValues[0].textContent = newIncome;
+        }
+    }
+    if (statValues[1]) {
+        const newCount = String(account.totalBrainrots || 0);
+        if (statValues[1].textContent !== newCount) {
+            statValues[1].textContent = newCount;
+        }
+    }
+    
+    // Update footer time
+    const footer = cardEl.querySelector('.account-footer');
+    if (footer) {
+        const timeText = formatTimeAgo(account.lastUpdate);
+        const currentTime = footer.textContent.trim();
+        if (!currentTime.includes(timeText)) {
+            footer.innerHTML = `<i class="fas fa-clock"></i> ${timeText}`;
+        }
+    }
+    
+    return true;
+}
+
 // UI Updates
 function updateUI() {
     const data = state.farmersData[state.currentKey];
     if (!data) return;
     
     const accounts = data.accounts || [];
+    
+    // Calculate _isOnline for each account based on lastUpdate
+    accounts.forEach(account => {
+        account._isOnline = isAccountOnline(account);
+    });
     
     // Update stats (use calculated online status)
     const online = accounts.filter(a => a._isOnline).length;
@@ -347,9 +425,6 @@ function updateUI() {
     renderAccountsGrid(accounts);
     renderAccountsList(accounts);
     updateCurrentFarmer();
-    
-    // Update collection view
-    updateCollection();
     
     // Update collection view
     updateCollection();
@@ -386,15 +461,24 @@ async function renderAccountsGrid(accounts) {
         return;
     }
     
-    // Pre-fetch avatars
+    // Pre-fetch avatars (use cache)
     const avatarPromises = accounts.map(async (account) => {
         if (account.userId) {
-            try {
-                const response = await fetch(`${API_BASE}/avatar?userId=${account.userId}`);
-                const data = await response.json();
-                account.avatarUrl = data.imageUrl;
-            } catch (err) {
-                account.avatarUrl = null;
+            if (avatarCache[account.userId]) {
+                account.avatarUrl = avatarCache[account.userId];
+            } else {
+                try {
+                    const response = await fetch(`${API_BASE}/avatar?userId=${account.userId}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.imageUrl) {
+                            avatarCache[account.userId] = data.imageUrl;
+                            account.avatarUrl = data.imageUrl;
+                        }
+                    }
+                } catch (err) {
+                    // ignore
+                }
             }
         }
         return account;
@@ -402,6 +486,30 @@ async function renderAccountsGrid(accounts) {
     
     await Promise.all(avatarPromises);
     
+    // Check if we can do smart update (same accounts exist)
+    const existingCards = accountsGridEl.querySelectorAll('.account-card');
+    const existingPlayerNames = new Set();
+    existingCards.forEach(card => {
+        const name = card.dataset.player;
+        if (name) existingPlayerNames.add(name);
+    });
+    
+    const newPlayerNames = new Set(accounts.map(a => a.playerName));
+    const sameAccounts = existingPlayerNames.size === newPlayerNames.size && 
+        existingPlayerNames.size > 0 &&
+        [...existingPlayerNames].every(name => newPlayerNames.has(name));
+    
+    if (sameAccounts) {
+        // Smart update - just update values in existing cards
+        accounts.forEach(account => {
+            const cardId = getAccountCardId(account);
+            const cardEl = document.getElementById(cardId);
+            updateAccountCard(cardEl, account);
+        });
+        return;
+    }
+    
+    // Full render (first time or accounts changed)
     accountsGridEl.innerHTML = accounts.map(account => {
         const brainrotsHtml = (account.brainrots || []).slice(0, 10).map(b => {
             const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
@@ -427,7 +535,7 @@ async function renderAccountsGrid(accounts) {
         const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
         
         return `
-            <div class="account-card">
+            <div class="account-card" id="${getAccountCardId(account)}" data-player="${account.playerName}">
                 <div class="account-header">
                     <div class="account-avatar">
                         <img src="${avatarSrc}" alt="${account.playerName}" onerror="this.src='${getDefaultAvatar(account.playerName)}'">
@@ -486,8 +594,10 @@ function renderAccountsList(accounts) {
     }
     
     accountsListEl.innerHTML = accounts.map(account => {
-        const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
-        const statusClass = account.isOnline ? 'online' : 'offline';
+        const avatarSrc = account.avatarUrl || avatarCache[account.userId] || getDefaultAvatar(account.playerName);
+        const isOnline = account._isOnline;
+        const statusClass = isOnline ? 'online' : 'offline';
+        const actionText = isOnline ? (account.action || account.status || 'Idle') : 'Offline';
         
         return `
             <div class="account-list-item">
@@ -496,7 +606,7 @@ function renderAccountsList(accounts) {
                 </div>
                 <div class="account-list-info">
                     <h4>${account.playerName || 'Unknown'}</h4>
-                    <p>${account.action || account.status || 'Idle'}</p>
+                    <p>${actionText}</p>
                 </div>
                 <span class="status-badge ${statusClass}">
                     <i class="fas fa-circle"></i>
