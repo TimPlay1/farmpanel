@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.8
+// @version      3.9
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -346,6 +346,25 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
     }
     
+    // Найти ng-select по aria-label (более надёжный способ)
+    function findNgSelectByAriaLabel(label) {
+        // Ищем input с нужным aria-label внутри десктопной версии (hidden md:block)
+        const inputs = document.querySelectorAll('.hidden.md\\:block input[aria-label]');
+        for (const input of inputs) {
+            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
+                return input.closest('ng-select');
+            }
+        }
+        // Fallback - ищем во всех ng-select
+        const allInputs = document.querySelectorAll('ng-select input[aria-label]');
+        for (const input of allInputs) {
+            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
+                return input.closest('ng-select');
+            }
+        }
+        return null;
+    }
+    
     // Найти ng-select по placeholder тексту
     function findNgSelectByPlaceholder(text) {
         const selects = document.querySelectorAll('ng-select');
@@ -402,7 +421,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
     }
 
-    // Основная функция заполнения v3.5
+    // Основная функция заполнения v3.9 - используем aria-label для точного выбора
     async function fillForm() {
         if (!offerData) return;
 
@@ -410,55 +429,65 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         const offerId = generateOfferId();
 
         updateStatus('🔄 Заполняем форму...', 'working');
-        log('Starting auto-fill v3.7...');
+        log('Starting auto-fill v3.9...');
 
         try {
             // Ждём загрузки страницы
             await waitForPage();
             await new Promise(r => setTimeout(r, 2000));
 
-            const getSelects = () => [...document.querySelectorAll('ng-select')];
-            
-            // === 1. Income range (первый dropdown) ===
+            // === 1. Income range (первый dropdown - Income) ===
             log('Step 1: Income range -> ' + getIncomeRange(income));
-            let selects = getSelects();
-            if (selects[0]) {
-                await selectNgOption(selects[0], getIncomeRange(income));
+            const incomeSelect = findNgSelectByAriaLabel('Income') || findNgSelectByPlaceholder('income');
+            if (incomeSelect) {
+                await selectNgOption(incomeSelect, getIncomeRange(income));
                 await new Promise(r => setTimeout(r, 600));
             }
             
-            // === 2. Mutations - None (второй dropdown) ===
+            // === 2. Mutations - None ===
             log('Step 2: Mutations -> None');
-            selects = getSelects();
-            if (selects[1]) {
-                await selectNgOption(selects[1], 'None');
+            const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
+            if (mutationSelect) {
+                await selectNgOption(mutationSelect, 'None');
                 await new Promise(r => setTimeout(r, 600));
             }
             
             // === 3. Item type - выбираем Brainrot ===
             log('Step 3: Item type -> Brainrot');
-            selects = getSelects();
-            if (selects[2]) {
-                await selectNgOption(selects[2], 'Brainrot');
+            const itemTypeSelect = findNgSelectByAriaLabel('Item type');
+            if (itemTypeSelect) {
+                await selectNgOption(itemTypeSelect, 'Brainrot');
                 await new Promise(r => setTimeout(r, 1000)); // Ждём появления Rarity
             }
             
             // === 4. Rarity - выбираем Secret (или указанный) ===
             log('Step 4: Rarity -> ' + (rarity || 'Secret'));
-            selects = getSelects();
-            if (selects.length > 3) {
-                await selectNgOption(selects[3], rarity || 'Secret');
+            // Ждём появления Rarity dropdown
+            let raritySelect = null;
+            for (let i = 0; i < 10; i++) {
+                raritySelect = findNgSelectByAriaLabel('Rarity');
+                if (raritySelect) break;
+                await new Promise(r => setTimeout(r, 300));
+            }
+            if (raritySelect) {
+                await selectNgOption(raritySelect, rarity || 'Secret');
                 await new Promise(r => setTimeout(r, 1000)); // Ждём появления Brainrot select
             }
             
             // === 5. Brainrot name - выбираем название или Other ===
             log('Step 5: Brainrot -> ' + name);
-            selects = getSelects();
-            if (selects.length > 4) {
-                const selected = await selectNgOption(selects[4], name);
+            // Ждём появления Brainrot dropdown
+            let brainrotSelect = null;
+            for (let i = 0; i < 10; i++) {
+                brainrotSelect = findNgSelectByAriaLabel('Brainrot');
+                if (brainrotSelect) break;
+                await new Promise(r => setTimeout(r, 300));
+            }
+            if (brainrotSelect) {
+                const selected = await selectNgOption(brainrotSelect, name);
                 if (!selected) {
                     log('Brainrot not found, selecting Other');
-                    await selectNgOption(selects[4], 'Other');
+                    await selectNgOption(brainrotSelect, 'Other');
                 }
                 await new Promise(r => setTimeout(r, 600));
             }
