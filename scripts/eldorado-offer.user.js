@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      3.7
+// @version      3.8
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -247,7 +247,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         });
     }
 
-    // Выбрать опцию в ng-select v3.7 - работаем через input
+    // Выбрать опцию в ng-select v3.8 - улучшенный поиск
     async function selectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
         
@@ -273,7 +273,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
             await new Promise(r => setTimeout(r, 100));
             input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 400));
             
             // Проверяем открылся ли (aria-expanded="true")
             let isOpen = input.getAttribute('aria-expanded') === 'true';
@@ -281,13 +281,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             // Если не открылся - пробуем keydown
             if (!isOpen) {
                 input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-                await new Promise(r => setTimeout(r, 300));
-                isOpen = input.getAttribute('aria-expanded') === 'true';
+                await new Promise(r => setTimeout(r, 400));
             }
             
             // Ждём появления панели
             let panel = null;
-            for (let i = 0; i < 15; i++) {
+            for (let i = 0; i < 20; i++) {
                 panel = document.querySelector('ng-dropdown-panel');
                 if (panel) break;
                 await new Promise(r => setTimeout(r, 150));
@@ -298,26 +297,45 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 return false;
             }
             
-            log(`Panel opened, searching for "${optionText}"...`);
-            
-            // Ищем опцию
+            // Ищем опции
             const options = panel.querySelectorAll('.ng-option');
-            log(`Found ${options.length} options`);
+            const allLabels = [];
             
             for (const opt of options) {
                 const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
-                if (label.toLowerCase().includes(optionText.toLowerCase())) {
-                    // Кликаем по опции
+                allLabels.push(label);
+            }
+            
+            log(`Found ${options.length} options: [${allLabels.join(', ')}]`);
+            
+            // Ищем точное совпадение сначала
+            const searchText = optionText.toLowerCase();
+            for (const opt of options) {
+                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                if (label.toLowerCase() === searchText) {
                     opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                     await new Promise(r => setTimeout(r, 50));
                     opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-                    log(`Selected: ${label}`, 'success');
+                    log(`Selected (exact): ${label}`, 'success');
                     await new Promise(r => setTimeout(r, 500));
                     return true;
                 }
             }
             
-            log(`Option "${optionText}" not found`, 'warn');
+            // Ищем частичное совпадение
+            for (const opt of options) {
+                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                if (label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 50));
+                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    log(`Selected (partial): ${label}`, 'success');
+                    await new Promise(r => setTimeout(r, 500));
+                    return true;
+                }
+            }
+            
+            log(`Option "${optionText}" not found in [${allLabels.join(', ')}]`, 'warn');
             closeAllDropdowns();
             return false;
             
