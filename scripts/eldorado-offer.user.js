@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Auto Offer
 // @namespace    http://tampermonkey.net/
-// @version      2.1
+// @version      3.0
 // @description  Auto-fill Eldorado.gg offer form with brainrot data from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/sell/offer/*
@@ -14,6 +14,7 @@
 // @connect      farmerpanel.vercel.app
 // @connect      api.supa.ru
 // @connect      storage.supa.ru
+// @connect      supa-temp.storage.yandexcloud.net
 // @connect      localhost
 // @connect      *
 // @run-at       document-idle
@@ -37,7 +38,7 @@
             z-index: 999999;
             box-shadow: 0 10px 40px rgba(102, 126, 234, 0.4);
             animation: glitched-slide-in 0.3s ease;
-            max-width: 300px;
+            max-width: 350px;
         }
         .glitched-notification.success {
             background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
@@ -51,9 +52,9 @@
         }
         .glitched-panel {
             position: fixed;
-            top: 100px;
+            top: 80px;
             right: 20px;
-            width: 300px;
+            width: 320px;
             background: #1a1a2e;
             border-radius: 16px;
             padding: 20px;
@@ -61,6 +62,8 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             font-family: 'Segoe UI', sans-serif;
             color: white;
+            max-height: 85vh;
+            overflow-y: auto;
         }
         .glitched-panel h3 {
             margin: 0 0 16px 0;
@@ -143,11 +146,17 @@
         .glitched-panel .brainrot-info .price {
             font-size: 12px;
             color: #ffc950;
+            margin-top: 4px;
+        }
+        .glitched-panel .brainrot-info .rarity {
+            font-size: 11px;
+            color: #a78bfa;
+            margin-top: 2px;
         }
         .glitched-panel .log {
             font-size: 11px;
             color: #666;
-            max-height: 100px;
+            max-height: 150px;
             overflow-y: auto;
             margin-top: 8px;
             padding: 8px;
@@ -162,6 +171,9 @@
         }
         .glitched-panel .log-entry.error {
             color: #f45c43;
+        }
+        .glitched-panel .log-entry.warn {
+            color: #ffc950;
         }
     `);
 
@@ -212,7 +224,7 @@
         notif.textContent = message;
         document.body.appendChild(notif);
 
-        setTimeout(() => notif.remove(), 4000);
+        setTimeout(() => notif.remove(), 5000);
     }
 
     // Генерация уникального ID оффера
@@ -252,26 +264,43 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 #${offerId}`;
     }
 
+    // Определить диапазон M/s по income
+    function getIncomeRange(income) {
+        if (!income) return '0-99 M/s';
+        
+        // Парсим число из строки типа "618.7M/s" или "$618.7M/s"
+        const match = income.match(/[\d.]+/);
+        if (!match) return '0-99 M/s';
+        
+        const value = parseFloat(match[0]);
+        
+        if (value < 100) return '0-99 M/s';
+        if (value < 250) return '100-249 M/s';
+        if (value < 500) return '250-499 M/s';
+        if (value < 750) return '500-749 M/s';
+        if (value < 1000) return '750-999 M/s';
+        if (value < 2000) return '1000-1999 M/s';
+        if (value < 5000) return '2000-4999 M/s';
+        if (value < 10000) return '5000-9999 M/s';
+        return '10000+ M/s';
+    }
+
     // Ждем когда страница полностью загрузится (Angular)
-    function waitForAngularLoad(timeout = 45000) {
+    function waitForAngularLoad(timeout = 60000) {
         return new Promise((resolve) => {
             const startTime = Date.now();
             const check = () => {
-                // Проверяем что скелетоны исчезли и появились реальные элементы формы
+                // Проверяем что скелетоны исчезли
                 const skeletons = document.querySelectorAll('eld-skeleton');
                 const visibleSkeletons = [...skeletons].filter(s => s.offsetParent !== null);
                 
-                // Ищем реальные элементы формы Eldorado
-                const titleInput = document.querySelector('input[formcontrolname="title"], input[placeholder*="Type here"], input[data-testid*="title"]');
-                const descTextarea = document.querySelector('textarea[formcontrolname="description"], textarea[placeholder*="Type here"], textarea[data-testid*="description"]');
-                const fileInput = document.querySelector('input[type="file"]');
+                // Ищем ключевые элементы формы
+                const ngSelects = document.querySelectorAll('ng-select');
+                const titleInput = document.querySelector('input[placeholder*="Type here"]');
                 
-                // Также проверяем наличие основного контейнера формы
-                const formContainer = document.querySelector('eld-place-offer, [data-testid*="create-offer"]');
+                log(`Check: skeletons=${visibleSkeletons.length}, ng-selects=${ngSelects.length}, title=${!!titleInput}`);
                 
-                log(`Check: skeletons=${visibleSkeletons.length}, title=${!!titleInput}, desc=${!!descTextarea}, file=${!!fileInput}`);
-                
-                if ((titleInput || descTextarea) && visibleSkeletons.length < 3) {
+                if (ngSelects.length >= 3 && visibleSkeletons.length < 3) {
                     log('Page loaded - form elements found');
                     resolve(true);
                 } else if (Date.now() - startTime > timeout) {
@@ -281,7 +310,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     setTimeout(check, 1000);
                 }
             };
-            setTimeout(check, 3000); // Начальная задержка для Angular
+            setTimeout(check, 3000);
         });
     }
 
@@ -292,14 +321,10 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             return false;
         }
 
-        // Фокусируемся на элементе
         input.focus();
         input.click();
-        
-        // Очищаем текущее значение
         input.value = '';
         
-        // Для Angular нужно использовать нативный setter и симулировать пользовательский ввод
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
             input.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
             'value'
@@ -311,7 +336,6 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             input.value = value;
         }
         
-        // Триггерим события для Angular - важен порядок
         input.dispatchEvent(new Event('focus', { bubbles: true }));
         input.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
         input.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
@@ -319,13 +343,68 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         input.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true, key: 'a' }));
         input.dispatchEvent(new Event('blur', { bubbles: true }));
         
-        // Дополнительно для reactive forms Angular
-        if (typeof input.ngControl !== 'undefined') {
-            input.ngControl.control.setValue(value);
-        }
-        
         log(`Set value: ${value.substring(0, 50)}${value.length > 50 ? '...' : ''}`);
         return true;
+    }
+
+    // Выбрать значение в ng-select dropdown
+    async function selectNgSelectOption(ngSelect, optionText, exactMatch = false) {
+        if (!ngSelect) {
+            log('ng-select not found', 'error');
+            return false;
+        }
+
+        try {
+            // Закрываем любой открытый dropdown
+            document.body.click();
+            await new Promise(r => setTimeout(r, 200));
+
+            // Кликаем на ng-select чтобы открыть dropdown
+            const container = ngSelect.querySelector('.ng-select-container') || ngSelect;
+            container.click();
+            await new Promise(r => setTimeout(r, 400));
+
+            // Ждем появления dropdown панели
+            let dropdownPanel = document.querySelector('ng-dropdown-panel');
+            
+            if (!dropdownPanel) {
+                // Попробуем еще раз
+                ngSelect.click();
+                await new Promise(r => setTimeout(r, 500));
+                dropdownPanel = document.querySelector('ng-dropdown-panel');
+            }
+
+            if (!dropdownPanel) {
+                log(`Dropdown not opened for: ${optionText}`, 'warn');
+                return false;
+            }
+
+            // Ищем все опции
+            const options = dropdownPanel.querySelectorAll('.ng-option');
+            
+            for (const option of options) {
+                const text = option.textContent.trim();
+                const matches = exactMatch ? 
+                    text === optionText : 
+                    text.toLowerCase().includes(optionText.toLowerCase());
+                
+                if (matches) {
+                    option.click();
+                    log(`Selected: ${text}`, 'success');
+                    await new Promise(r => setTimeout(r, 300));
+                    return true;
+                }
+            }
+
+            // Если не нашли, закрываем dropdown
+            document.body.click();
+            log(`Option not found: ${optionText}`, 'warn');
+            return false;
+
+        } catch (error) {
+            log(`Error selecting option: ${error.message}`, 'error');
+            return false;
+        }
     }
 
     // Загрузка изображения через GM_xmlhttpRequest
@@ -358,25 +437,19 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             const blob = await downloadImageAsBlob(imageUrl);
             log('Image downloaded, size: ' + blob.size);
             
-            // Находим input для файла
             const fileInput = document.querySelector('input[type="file"]');
             if (!fileInput) {
                 log('File input not found', 'error');
                 return false;
             }
 
-            // Создаем File объект
             const file = new File([blob], 'brainrot.png', { type: 'image/png' });
-            
-            // Создаем DataTransfer
             const dataTransfer = new DataTransfer();
             dataTransfer.items.add(file);
             fileInput.files = dataTransfer.files;
-            
-            // Триггерим change event
             fileInput.dispatchEvent(new Event('change', { bubbles: true }));
             
-            log('Image uploaded', 'success');
+            log('Image uploaded ✓', 'success');
             return true;
         } catch (error) {
             log('Image upload failed: ' + error.message, 'error');
@@ -384,138 +457,199 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
     }
 
-    // Заполнить форму
+    // Установить чекбокс
+    function setCheckbox(checkbox, checked = true) {
+        if (!checkbox) return false;
+        
+        if (checkbox.checked !== checked) {
+            checkbox.click();
+        }
+        return true;
+    }
+
+    // Заполнить форму полностью
     async function fillOfferForm() {
         if (!offerData) {
             showNotification('Нет данных для заполнения', 'error');
             return;
         }
 
-        const { name, income, generatedImageUrl } = offerData;
+        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity } = offerData;
         const offerId = generateOfferId();
         offerData.offerId = offerId;
 
         updateStatus('🔄 Заполняем форму...', 'working');
-        log('Starting auto-fill...');
+        log('Starting auto-fill v3.0...');
 
         try {
             // Ждем загрузки страницы
             const loaded = await waitForAngularLoad();
             if (!loaded) {
-                log('Page did not load properly, trying anyway...', 'error');
+                log('Page did not load properly, trying anyway...', 'warn');
             }
             
-            // Дополнительная задержка для Angular
             await new Promise(r => setTimeout(r, 2000));
-            
-            // === ЗАПОЛНЯЕМ НАЗВАНИЕ ===
-            log('Looking for title input...');
-            
-            // Пробуем разные селекторы для title
-            let titleInput = document.querySelector('input[formcontrolname="title"]');
-            if (!titleInput) titleInput = document.querySelector('input[data-testid*="title"]');
-            if (!titleInput) titleInput = document.querySelector('input[name="title"]');
-            
-            // Fallback: ищем по placeholder или по структуре
-            if (!titleInput) {
-                const allInputs = document.querySelectorAll('input[type="text"], input:not([type])');
-                for (const input of allInputs) {
-                    const placeholder = (input.placeholder || '').toLowerCase();
-                    const parentText = (input.closest('div, section')?.textContent || '').toLowerCase();
-                    
-                    // Пропускаем скрытые и уже заполненные
-                    if (input.offsetParent === null) continue;
-                    if (input.type === 'file' || input.type === 'hidden') continue;
-                    
-                    if (placeholder.includes('type here') || 
-                        placeholder.includes('title') ||
-                        (parentText.includes('offer title') && placeholder)) {
-                        titleInput = input;
-                        log('Found title by placeholder/context');
-                        break;
-                    }
-                }
+
+            // === 1. OFFER DETAILS - выбираем значения в dropdown'ах ===
+            log('Filling Offer Details...');
+
+            const allNgSelects = document.querySelectorAll('ng-select');
+            log(`Found ${allNgSelects.length} ng-selects`);
+
+            // M/s диапазон (первый dropdown)
+            const incomeRange = getIncomeRange(income);
+            log(`Income range: ${incomeRange}`);
+            if (allNgSelects.length > 0) {
+                await selectNgSelectOption(allNgSelects[0], incomeRange);
+                await new Promise(r => setTimeout(r, 600));
             }
-            
-            // Ещё один fallback - первый видимый text input
-            if (!titleInput) {
-                const visibleInputs = [...document.querySelectorAll('input')].filter(
-                    i => i.offsetParent !== null && 
-                         i.type !== 'file' && 
-                         i.type !== 'hidden' &&
-                         i.type !== 'checkbox' &&
-                         i.type !== 'radio'
-                );
-                if (visibleInputs.length > 0) {
-                    titleInput = visibleInputs[0];
-                    log('Using first visible input as title');
-                }
+
+            // Mutations - выбираем None (второй dropdown)
+            if (allNgSelects.length > 1) {
+                await selectNgSelectOption(allNgSelects[1], 'None');
+                await new Promise(r => setTimeout(r, 600));
             }
-            
+
+            // Item type - выбираем Brainrot (третий dropdown)
+            if (allNgSelects.length > 2) {
+                await selectNgSelectOption(allNgSelects[2], 'Brainrot');
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            // Rarity - четвёртый dropdown (если есть rarity в данных)
+            if (allNgSelects.length > 3 && rarity) {
+                await selectNgSelectOption(allNgSelects[3], rarity);
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            // Brainrot name - пятый dropdown
+            if (allNgSelects.length > 4) {
+                await selectNgSelectOption(allNgSelects[4], name);
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            // === 2. OFFER TITLE ===
+            log('Filling Offer Title...');
+            const titleInput = document.querySelector('input[placeholder*="Type here"]');
             if (titleInput) {
                 const title = generateOfferTitle(name, income);
                 setInputValue(titleInput, title);
                 log('Title filled ✓', 'success');
             } else {
-                log('Title input NOT found', 'error');
+                log('Title input not found', 'error');
             }
 
-            // Задержка между заполнениями
             await new Promise(r => setTimeout(r, 1000));
 
-            // === ЗАПОЛНЯЕМ ОПИСАНИЕ ===
-            log('Looking for description textarea...');
+            // === 3. UPLOAD IMAGE ===
+            if (generatedImageUrl) {
+                log('Uploading image...');
+                await uploadImage(generatedImageUrl);
+            }
+
+            await new Promise(r => setTimeout(r, 1000));
+
+            // === 4. DESCRIPTION ===
+            log('Filling Description...');
+            const descTextarea = document.querySelector('textarea[placeholder*="Type here"]');
+            if (descTextarea) {
+                const description = generateOfferDescription(offerId);
+                setInputValue(descTextarea, description);
+                log('Description filled ✓', 'success');
+            } else {
+                log('Description textarea not found', 'error');
+            }
+
+            await new Promise(r => setTimeout(r, 1000));
+
+            // === 5. DELIVERY TIME - выбираем 20 min ===
+            log('Setting Delivery Time...');
+            // Delivery time обычно находится в секции ниже - ищем по контексту
+            const allSections = document.querySelectorAll('section, .section, [class*="delivery"]');
+            let deliverySelected = false;
             
-            let descInput = document.querySelector('textarea[formcontrolname="description"]');
-            if (!descInput) descInput = document.querySelector('textarea[data-testid*="description"]');
-            if (!descInput) descInput = document.querySelector('textarea[name="description"]');
-            
-            // Fallback по placeholder
-            if (!descInput) {
-                const allTextareas = document.querySelectorAll('textarea');
-                for (const textarea of allTextareas) {
-                    if (textarea.offsetParent === null) continue;
-                    
-                    const placeholder = (textarea.placeholder || '').toLowerCase();
-                    if (placeholder.includes('type here') || placeholder.includes('description')) {
-                        descInput = textarea;
-                        log('Found description by placeholder');
+            for (const section of allSections) {
+                if (section.textContent.toLowerCase().includes('delivery')) {
+                    const deliveryNgSelect = section.querySelector('ng-select');
+                    if (deliveryNgSelect) {
+                        await selectNgSelectOption(deliveryNgSelect, '20 min');
+                        deliverySelected = true;
                         break;
                     }
                 }
             }
             
-            // Ещё fallback - первая видимая textarea
-            if (!descInput) {
-                const visibleTextareas = [...document.querySelectorAll('textarea')].filter(
-                    t => t.offsetParent !== null
-                );
-                if (visibleTextareas.length > 0) {
-                    descInput = visibleTextareas[0];
-                    log('Using first visible textarea as description');
+            // Fallback - пробуем последние ng-select на странице
+            if (!deliverySelected) {
+                const updatedNgSelects = document.querySelectorAll('ng-select');
+                for (let i = updatedNgSelects.length - 1; i >= 5; i--) {
+                    const result = await selectNgSelectOption(updatedNgSelects[i], '20 min');
+                    if (result) {
+                        deliverySelected = true;
+                        break;
+                    }
                 }
-            }
-            
-            if (descInput) {
-                const description = generateOfferDescription(offerId);
-                setInputValue(descInput, description);
-                log('Description filled ✓', 'success');
-            } else {
-                log('Description textarea NOT found', 'error');
             }
 
             await new Promise(r => setTimeout(r, 1000));
 
-            // === ЗАГРУЖАЕМ ИЗОБРАЖЕНИЕ ===
-            if (generatedImageUrl) {
-                log('Uploading image...');
-                const imageUploaded = await uploadImage(generatedImageUrl);
-                if (imageUploaded) {
-                    log('Image uploaded ✓', 'success');
+            // === 6. PRICE ===
+            log('Setting Price...');
+            // Ищем числовой input для цены
+            const priceInputs = document.querySelectorAll('input[type="number"], input[type="text"]');
+            let priceSet = false;
+            
+            for (const input of priceInputs) {
+                const parent = input.closest('section, div');
+                const parentText = parent ? parent.textContent.toLowerCase() : '';
+                const placeholder = (input.placeholder || '').toLowerCase();
+                
+                if (parentText.includes('price') && !parentText.includes('minimum') || 
+                    placeholder.includes('price') ||
+                    input.getAttribute('formcontrolname') === 'price') {
+                    
+                    const price = maxPrice || minPrice || 10;
+                    setInputValue(input, price.toString());
+                    log(`Price set: $${price}`, 'success');
+                    priceSet = true;
+                    break;
                 }
-            } else {
-                log('No image URL provided', 'error');
             }
+            
+            if (!priceSet) {
+                log('Price input not found', 'warn');
+            }
+
+            await new Promise(r => setTimeout(r, 1000));
+
+            // === 7. CHECKBOXES - Terms of Service и Seller Rules ===
+            log('Checking agreements...');
+            const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+            let checkedCount = 0;
+            
+            checkboxes.forEach(checkbox => {
+                // Кликаем по всем незаполненным чекбоксам в нижней части формы
+                const rect = checkbox.getBoundingClientRect();
+                const isInViewport = rect.top > 0;
+                
+                if (isInViewport && !checkbox.checked) {
+                    try {
+                        // Пробуем кликнуть по label если есть
+                        const label = checkbox.closest('label') || checkbox.parentElement.querySelector('label');
+                        if (label) {
+                            label.click();
+                        } else {
+                            checkbox.click();
+                        }
+                        checkedCount++;
+                    } catch (e) {
+                        checkbox.click();
+                        checkedCount++;
+                    }
+                }
+            });
+            
+            log(`Checkboxes checked: ${checkedCount}`, checkedCount > 0 ? 'success' : 'warn');
 
             updateStatus('✅ Форма заполнена!', 'ready');
             showNotification('Форма заполнена! Проверьте данные и нажмите Place offer.', 'success');
@@ -527,28 +661,47 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
     }
 
+    // Заполнить только Offer Details (dropdowns)
+    async function fillOfferDetailsOnly() {
+        if (!offerData) return;
+        
+        log('Filling Offer Details only...');
+        updateStatus('🔄 Заполняем Offer Details...', 'working');
+        
+        const allNgSelects = document.querySelectorAll('ng-select');
+        const incomeRange = getIncomeRange(offerData.income);
+        
+        if (allNgSelects.length > 0) {
+            await selectNgSelectOption(allNgSelects[0], incomeRange);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        if (allNgSelects.length > 1) {
+            await selectNgSelectOption(allNgSelects[1], 'None');
+            await new Promise(r => setTimeout(r, 500));
+        }
+        if (allNgSelects.length > 2) {
+            await selectNgSelectOption(allNgSelects[2], 'Brainrot');
+            await new Promise(r => setTimeout(r, 500));
+        }
+        if (allNgSelects.length > 3 && offerData.rarity) {
+            await selectNgSelectOption(allNgSelects[3], offerData.rarity);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        if (allNgSelects.length > 4) {
+            await selectNgSelectOption(allNgSelects[4], offerData.name);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        
+        updateStatus('✅ Offer Details заполнены', 'ready');
+        showNotification('Offer Details заполнены!', 'success');
+    }
+
     // Заполнить только название
     async function fillTitleOnly() {
         if (!offerData) return;
         
         log('Filling title only...');
-        
-        // Ждем загрузки
-        await waitForAngularLoad();
-        await new Promise(r => setTimeout(r, 1000));
-        
-        // Ищем input для title
-        let titleInput = document.querySelector('input[formcontrolname="title"]');
-        if (!titleInput) {
-            const visibleInputs = [...document.querySelectorAll('input')].filter(
-                i => i.offsetParent !== null && 
-                     i.type !== 'file' && 
-                     i.type !== 'hidden' &&
-                     i.type !== 'checkbox'
-            );
-            if (visibleInputs.length > 0) titleInput = visibleInputs[0];
-        }
-        
+        const titleInput = document.querySelector('input[placeholder*="Type here"]');
         if (titleInput) {
             const title = generateOfferTitle(offerData.name, offerData.income);
             setInputValue(titleInput, title);
@@ -563,28 +716,34 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         if (!offerData) return;
         
         log('Filling description only...');
-        
-        // Ждем загрузки
-        await waitForAngularLoad();
-        await new Promise(r => setTimeout(r, 1000));
-        
-        // Ищем textarea для description
-        let descInput = document.querySelector('textarea[formcontrolname="description"]');
-        if (!descInput) {
-            const visibleTextareas = [...document.querySelectorAll('textarea')].filter(
-                t => t.offsetParent !== null
-            );
-            if (visibleTextareas.length > 0) descInput = visibleTextareas[0];
-        }
-        
-        if (descInput) {
+        const descTextarea = document.querySelector('textarea[placeholder*="Type here"]');
+        if (descTextarea) {
             const offerId = offerData.offerId || generateOfferId();
             const description = generateOfferDescription(offerId);
-            setInputValue(descInput, description);
+            setInputValue(descTextarea, description);
             showNotification('Описание заполнено!', 'success');
         } else {
             showNotification('Поле описания не найдено', 'error');
         }
+    }
+
+    // Отметить чекбоксы
+    function checkAllAgreements() {
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]');
+        let count = 0;
+        checkboxes.forEach(cb => {
+            if (!cb.checked) {
+                const label = cb.closest('label') || cb.parentElement.querySelector('label');
+                if (label) {
+                    label.click();
+                } else {
+                    cb.click();
+                }
+                count++;
+            }
+        });
+        showNotification(`Отмечено чекбоксов: ${count}`, 'success');
+        log(`Checkboxes checked: ${count}`, 'success');
     }
 
     // Создаем панель управления
@@ -596,9 +755,10 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         panel.className = 'glitched-panel';
 
         const hasData = offerData !== null;
+        const price = offerData?.maxPrice || offerData?.minPrice || 0;
 
         panel.innerHTML = `
-            <h3>👾 Glitched Store</h3>
+            <h3>👾 Glitched Store v3.0</h3>
             <div class="status ${hasData ? 'ready' : ''}" id="glitched-status">
                 ${hasData ? '✅ Данные получены' : '⏳ Ожидание данных...'}
             </div>
@@ -608,25 +768,33 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                         ${offerData.generatedImageUrl ? `<img src="${offerData.generatedImageUrl}" alt="${offerData.name}">` : ''}
                         <div>
                             <div class="name">${offerData.name || 'Unknown'}</div>
-                            <div class="income">${offerData.income || '0/s'}</div>
+                            <div class="income">💰 ${offerData.income || '0/s'}</div>
+                            ${price > 0 ? `<div class="price">💵 $${price.toFixed(2)}</div>` : ''}
+                            ${offerData.rarity ? `<div class="rarity">⭐ ${offerData.rarity}</div>` : ''}
                         </div>
                     </div>
                 </div>
                 <button class="primary" id="glitched-autofill">
-                    🚀 Auto-Fill Form
+                    🚀 Auto-Fill ALL
+                </button>
+                <button class="secondary" id="glitched-fill-details">
+                    📋 Offer Details (Dropdowns)
                 </button>
                 <button class="secondary" id="glitched-fill-title">
-                    📝 Fill Title Only
+                    📝 Title
                 </button>
                 <button class="secondary" id="glitched-fill-desc">
-                    📄 Fill Description Only
+                    📄 Description
                 </button>
                 <button class="secondary" id="glitched-upload-img">
-                    🖼️ Upload Image Only
+                    🖼️ Upload Image
+                </button>
+                <button class="secondary" id="glitched-check-boxes">
+                    ☑️ Check Agreements
                 </button>
             ` : `
                 <p style="font-size: 12px; color: #888;">
-                    Откройте панель Farmer Panel и нажмите "Post to Eldorado" после генерации изображения.
+                    Откройте Farmer Panel и нажмите "Post to Eldorado" после генерации изображения.
                 </p>
             `}
             <button class="secondary" id="glitched-close" style="margin-top: 8px;">
@@ -640,27 +808,27 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         document.body.appendChild(panel);
         
-        // Сохраняем ссылки на элементы
         logEl = document.getElementById('glitched-log');
         statusEl = document.getElementById('glitched-status');
 
-        // Обработчики кнопок
         document.getElementById('glitched-close').addEventListener('click', () => panel.remove());
 
         if (hasData) {
             document.getElementById('glitched-autofill').addEventListener('click', fillOfferForm);
+            document.getElementById('glitched-fill-details').addEventListener('click', fillOfferDetailsOnly);
             document.getElementById('glitched-fill-title').addEventListener('click', fillTitleOnly);
             document.getElementById('glitched-fill-desc').addEventListener('click', fillDescriptionOnly);
             document.getElementById('glitched-upload-img').addEventListener('click', () => {
                 if (offerData.generatedImageUrl) {
                     uploadImage(offerData.generatedImageUrl);
                 } else {
-                    showNotification('Нет сгенерированного изображения', 'error');
+                    showNotification('Нет изображения', 'error');
                 }
             });
+            document.getElementById('glitched-check-boxes').addEventListener('click', checkAllAgreements);
         }
 
-        log('Panel created');
+        log('Panel created v3.0');
     }
 
     // Автоматический запуск заполнения
@@ -668,8 +836,6 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         if (offerData) {
             log('Auto-fill starting in 5 seconds...');
             updateStatus('⏳ Авто-заполнение через 5 сек...', 'working');
-            
-            // Показываем уведомление
             showNotification('🔄 Авто-заполнение начнётся через 5 секунд...', 'info');
             
             await new Promise(r => setTimeout(r, 5000));
@@ -679,17 +845,16 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
     // Инициализация
     async function init() {
-        console.log('🎮 Glitched Store - Eldorado Auto Offer v2.1 loaded');
+        console.log('🎮 Glitched Store - Eldorado Auto Offer v3.0 loaded');
         console.log('URL:', window.location.href);
 
-        // Получаем данные из URL
         offerData = getOfferDataFromURL();
         
         if (offerData) {
             console.log('✅ Offer data received:', offerData);
-            showNotification('✅ Данные брейнрота получены! Начинаем заполнение...', 'success');
+            showNotification('✅ Данные брейнрота получены!', 'success');
             
-            // Очищаем URL от параметров (для красоты)
+            // Очищаем URL от параметров
             const url = new URL(window.location.href);
             url.searchParams.delete('glitched_data');
             window.history.replaceState({}, '', url.toString());
@@ -697,13 +862,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             console.log('ℹ️ No offer data in URL');
         }
 
-        // Ждем пока DOM полностью готов
         await new Promise(r => setTimeout(r, 3000));
-        
-        // Создаем панель управления
         createControlPanel();
         
-        // Автоматически заполняем если есть данные
         if (offerData) {
             autoFillIfData();
         }
@@ -713,7 +874,6 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {
-        // Небольшая задержка для Angular
         setTimeout(init, 1000);
     }
 })();

@@ -2487,6 +2487,7 @@ function postToEldorado() {
         generatedImageUrl: currentSupaResult.resultUrl,
         minPrice: minPrice,
         maxPrice: maxPrice,
+        rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
         accountId: currentSupaBrainrot?.accountId,
         accountName: currentSupaBrainrot?.accountName,
         timestamp: Date.now()
