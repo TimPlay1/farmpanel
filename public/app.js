@@ -310,6 +310,12 @@ function updateUI() {
     renderAccountsGrid(accounts);
     renderAccountsList(accounts);
     updateCurrentFarmer();
+    
+    // Update collection view
+    updateCollection();
+    
+    // Update collection view
+    updateCollection();
 }
 
 function updateCurrentFarmer() {
@@ -697,3 +703,200 @@ function getDefaultAvatar(name) {
     const letter = name ? name[0].toUpperCase() : '?';
     return `data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="%231a1a24" width="100" height="100"/><text x="50" y="50" font-size="40" text-anchor="middle" dy=".3em" fill="%236b6b7d">${letter}</text></svg>`;
 }
+// ==========================================
+// COLLECTION VIEW - All Brainrots from all accounts
+// ==========================================
+
+// Additional DOM Elements for Collection
+const brainrotSearchEl = document.getElementById('brainrotSearch');
+const sortFilterEl = document.getElementById('sortFilter');
+const accountFilterEl = document.getElementById('accountFilter');
+const brainrotsGridEl = document.getElementById('brainrotsGrid');
+const collectionStatsEl = document.getElementById('collectionStats');
+
+// Collection state
+let collectionState = {
+    allBrainrots: [],
+    filteredBrainrots: [],
+    searchQuery: '',
+    sortBy: 'income-desc',
+    accountFilter: 'all'
+};
+
+// Setup Collection event listeners
+function setupCollectionListeners() {
+    if (brainrotSearchEl) {
+        brainrotSearchEl.addEventListener('input', (e) => {
+            collectionState.searchQuery = e.target.value.toLowerCase().trim();
+            filterAndRenderCollection();
+        });
+    }
+
+    if (sortFilterEl) {
+        sortFilterEl.addEventListener('change', (e) => {
+            collectionState.sortBy = e.target.value;
+            filterAndRenderCollection();
+        });
+    }
+
+    if (accountFilterEl) {
+        accountFilterEl.addEventListener('change', (e) => {
+            collectionState.accountFilter = e.target.value;
+            filterAndRenderCollection();
+        });
+    }
+}
+
+// Collect all brainrots from all accounts
+function collectAllBrainrots() {
+    const data = state.farmersData[state.currentKey];
+    if (!data || !data.accounts) {
+        collectionState.allBrainrots = [];
+        return;
+    }
+
+    const brainrots = [];
+    const accounts = data.accounts;
+
+    for (const account of accounts) {
+        if (!account.brainrots) continue;
+        
+        for (const b of account.brainrots) {
+            brainrots.push({
+                name: b.name,
+                income: b.income || 0,
+                incomeText: b.incomeText || '',
+                imageUrl: b.imageUrl || getBrainrotImageUrl(b.name),
+                accountName: account.playerName || 'Unknown',
+                accountId: account.userId
+            });
+        }
+    }
+
+    collectionState.allBrainrots = brainrots;
+    updateAccountFilter(accounts);
+}
+
+// Update account filter dropdown
+function updateAccountFilter(accounts) {
+    if (!accountFilterEl) return;
+
+    const currentValue = accountFilterEl.value;
+    
+    accountFilterEl.innerHTML = '<option value="all">All Accounts</option>';
+    
+    const uniqueAccounts = [...new Set(accounts.map(a => a.playerName))].sort();
+    
+    for (const name of uniqueAccounts) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        accountFilterEl.appendChild(option);
+    }
+
+    // Restore previous selection if still valid
+    if (uniqueAccounts.includes(currentValue) || currentValue === 'all') {
+        accountFilterEl.value = currentValue;
+    }
+}
+
+// Filter and sort brainrots
+function filterAndRenderCollection() {
+    let filtered = [...collectionState.allBrainrots];
+
+    // Filter by search
+    if (collectionState.searchQuery) {
+        filtered = filtered.filter(b => 
+            b.name.toLowerCase().includes(collectionState.searchQuery)
+        );
+    }
+
+    // Filter by account
+    if (collectionState.accountFilter !== 'all') {
+        filtered = filtered.filter(b => 
+            b.accountName === collectionState.accountFilter
+        );
+    }
+
+    // Sort
+    switch (collectionState.sortBy) {
+        case 'income-desc':
+            filtered.sort((a, b) => b.income - a.income);
+            break;
+        case 'income-asc':
+            filtered.sort((a, b) => a.income - b.income);
+            break;
+        case 'name-asc':
+            filtered.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        case 'name-desc':
+            filtered.sort((a, b) => b.name.localeCompare(a.name));
+            break;
+        case 'account':
+            filtered.sort((a, b) => a.accountName.localeCompare(b.accountName) || b.income - a.income);
+            break;
+    }
+
+    collectionState.filteredBrainrots = filtered;
+    renderCollection();
+}
+
+// Render collection
+function renderCollection() {
+    if (!brainrotsGridEl) return;
+
+    const brainrots = collectionState.filteredBrainrots;
+    
+    // Update stats
+    if (collectionStatsEl) {
+        const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
+        collectionStatsEl.innerHTML = `
+            <span><i class="fas fa-layer-group"></i> ${collectionState.allBrainrots.length} total</span>
+            <span><i class="fas fa-fingerprint"></i> ${uniqueNames.size} unique</span>
+            ${collectionState.searchQuery || collectionState.accountFilter !== 'all' 
+                ? `<span><i class="fas fa-filter"></i> ${brainrots.length} shown</span>` 
+                : ''}
+        `;
+    }
+
+    if (brainrots.length === 0) {
+        brainrotsGridEl.innerHTML = `
+            <div class="empty-state" style="grid-column: 1/-1">
+                <i class="fas fa-search"></i>
+                <h3>${collectionState.allBrainrots.length === 0 ? 'No brainrots found' : 'No matches'}</h3>
+                <p>${collectionState.allBrainrots.length === 0 
+                    ? 'Brainrots will appear here when accounts have them.' 
+                    : 'Try adjusting your search or filters.'}</p>
+            </div>
+        `;
+        return;
+    }
+
+    brainrotsGridEl.innerHTML = brainrots.map(b => `
+        <div class="brainrot-card">
+            <div class="brainrot-image">
+                ${b.imageUrl 
+                    ? `<img src="${b.imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                    : '<i class="fas fa-brain"></i>'
+                }
+            </div>
+            <div class="brainrot-details">
+                <div class="brainrot-name" title="${b.name}">${b.name}</div>
+                <div class="brainrot-income">${b.incomeText || formatIncome(b.income)}</div>
+                <div class="brainrot-account">
+                    <i class="fas fa-user"></i>
+                    ${b.accountName}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Update collection when data changes
+function updateCollection() {
+    collectAllBrainrots();
+    filterAndRenderCollection();
+}
+
+// Initialize collection listeners
+setupCollectionListeners();
