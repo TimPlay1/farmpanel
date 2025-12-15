@@ -77,9 +77,12 @@ async function requestRender(brainrotData) {
             }
         };
         
+        // Согласно документации Supa API, border требует: width, color, style
         if (borderColor) {
             imageOverride.border = {
-                color: borderColor
+                width: 5,
+                color: borderColor,
+                style: 'solid'  // обязательное поле: "solid" или "dashed"
             };
         }
         
