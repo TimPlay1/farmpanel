@@ -111,6 +111,27 @@ function shouldCheckAdjacentRanges(income, currentRange) {
 }
 
 /**
+ * Проверяет является ли оффер от нашего магазина Glitched Store
+ * По коду #GS или по названию магазина в title
+ */
+function isOurStoreOffer(offer) {
+    const title = (offer.offerTitle || '').toLowerCase();
+    const description = (offer.description || '').toLowerCase();
+    
+    // Проверяем по коду #GS (наш уникальный идентификатор)
+    if (title.includes('#gs') || description.includes('#gs')) {
+        return true;
+    }
+    
+    // Проверяем по названию магазина
+    if (title.includes('glitched store') || title.includes('glitched') && title.includes('store')) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
  * Находит брейнрота в Eldorado mapping (case-insensitive)
  */
 function findEldoradoBrainrot(name) {
@@ -356,6 +377,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 6
             }
         
             if (matches) {
+                // Пропускаем офферы от нашего магазина Glitched Store
+                if (isOurStoreOffer(offer)) {
+                    continue;
+                }
+                
                 const offerId = offer.id;
                 if (!seenIds.has(offerId)) {
                     seenIds.add(offerId);
@@ -435,6 +461,12 @@ function parseOffersForPricing(offers, ourIncome) {
     
     for (const item of offers) {
         const offer = item.offer || item;
+        
+        // Пропускаем офферы от нашего магазина
+        if (isOurStoreOffer(offer)) {
+            continue;
+        }
+        
         const title = offer.offerTitle || '';
         let income = parseIncomeFromTitle(title);
         const price = offer.pricePerUnitInUSD?.amount || 0;
