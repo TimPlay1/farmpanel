@@ -101,13 +101,15 @@ function parseIncomeFromTitle(title) {
     
     // Сначала проверяем B/s (Billions) - они должны конвертироваться в M/s
     const bPatterns = [
-        /\[?\$?(\d+[.,]?\d*)\s*B\/s\]?/i,      // 1.5B/s, [1B/S], [$1B/s]
-        /(\d+[.,]?\d*)\s*b\/sec/i,              // 1b/sec
-        /(\d+[.,]?\d*)\s*bil\/s/i,              // 1bil/s
-        /(\d+[.,]?\d*)\s*billion/i,             // 1.5 billion
-        /(\d+[.,]?\d*)B\s/i,                    // 1B (с пробелом после)
-        /(\d+[.,]?\d*)B$/i,                     // 1b (в конце строки)
-        /\[(\d+[.,]?\d*)B\]/i,                  // [1B]
+        /(\d+[.,]?\d*)\s*B\/S/i,              // 1.0B/S, 1.5 B/s
+        /(\d+[.,]?\d*)B\/s/i,                  // 1.5B/s (без пробела)
+        /\[(\d+[.,]?\d*)\s*B\/s\]/i,          // [1.5B/s]
+        /(\d+[.,]?\d*)\s*b\/sec/i,            // 1b/sec
+        /(\d+[.,]?\d*)\s*bil\/s/i,            // 1bil/s
+        /(\d+[.,]?\d*)\s*billion/i,           // 1.5 billion
+        /(\d+[.,]?\d*)B\s/i,                  // 1B (с пробелом после)
+        /(\d+[.,]?\d*)B$/i,                   // 1b (в конце строки)
+        /\[(\d+[.,]?\d*)B\]/i,                // [1B]
     ];
     
     for (const pattern of bPatterns) {
@@ -537,20 +539,19 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             competitorPrice = upperOffer.price;
             competitorIncome = upperOffer.income;
             
-            // Ищем нижний оффер:
+            // Ищем нижний оффер (lower):
             // - income < наш (хуже по доходности)
             // - price < upper.price (дешевле чем upper)
-            // Среди таких берём с МАКСИМАЛЬНЫМ income (ближайший к нашему по доходности)
+            // Приоритет: 1) ближе по ЦЕНЕ к upper, 2) ближе по INCOME к нашему
             if (lowerOffers.length > 0) {
                 // Фильтруем только те что дешевле upper
                 const validLower = lowerOffers.filter(o => o.price < competitorPrice);
                 
                 if (validLower.length > 0) {
-                    // Сортируем по income desc (ближайший к нашему = самый высокий)
-                    // При одинаковом income берём с максимальной ценой
+                    // Сортируем: 1) по цене DESC (ближе к upper = дороже), 2) по income DESC (ближе к нашему)
                     const sortedLower = [...validLower].sort((a, b) => {
-                        if (b.income !== a.income) return b.income - a.income;
-                        return b.price - a.price;
+                        if (b.price !== a.price) return b.price - a.price; // Ближе к upper по цене
+                        return b.income - a.income; // При равной цене - ближе к нашему income
                     });
                     const lowerOffer = sortedLower[0];
                     lowerPrice = lowerOffer.price;
@@ -579,16 +580,14 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         } else if (offersWithIncome.length > 0) {
             // Нет офферов с income >= нашему
-            // Наш income выше всех на рынке
+            // Наш income выше всех на рынке - берём ближайший lower как "upper"
             
-            // Находим оффер с МАКСИМАЛЬНЫМ income - это наш ближайший конкурент снизу
+            // Находим оффер с МАКСИМАЛЬНЫМ income (ближайший к нашему снизу)
             const maxIncomeOffer = offersWithIncome.reduce((max, o) => o.income > max.income ? o : max);
             
-            // Среди офферов с близким к максимальному income (в пределах 20%), находим самый дорогой
-            // Это более точно отражает рыночную цену для высоких incomes
-            const incomeThreshold = maxIncomeOffer.income * 0.8; // 80% от максимального
-            const highIncomeOffers = offersWithIncome.filter(o => o.income >= incomeThreshold);
-            const maxPriceOffer = highIncomeOffers.reduce((max, o) => o.price > max.price ? o : max);
+            // Среди офферов с этим max income, берём с максимальной ценой
+            const sameIncomeOffers = offersWithIncome.filter(o => o.income === maxIncomeOffer.income);
+            const maxPriceOffer = sameIncomeOffers.reduce((max, o) => o.price > max.price ? o : max);
             
             competitorPrice = maxPriceOffer.price;
             competitorIncome = maxIncomeOffer.income;
