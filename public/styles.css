@@ -3760,6 +3760,12 @@ body {
     transition: all 0.3s;
     z-index: 1000;
     display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+.mass-select-fab.visible {
+    display: flex;
 }
 
 .mass-select-fab:hover {
@@ -3774,14 +3780,6 @@ body {
 
 .mass-select-fab.active:hover {
     box-shadow: 0 6px 30px rgba(239, 68, 68, 0.5);
-}
-
-/* Show FAB only in collection view */
-.view#collectionView.active ~ .mass-select-fab,
-body:has(#collectionView.active) .mass-select-fab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 /* Mass selection state indicator */

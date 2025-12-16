@@ -1135,6 +1135,24 @@ function setupEventListeners() {
             toggleAccountDropdown(false);
         }
     });
+    
+    // Mass selection FAB button
+    const massSelectFab = document.getElementById('massSelectFab');
+    if (massSelectFab) {
+        massSelectFab.addEventListener('click', toggleMassSelectionMode);
+    }
+    
+    // Mass generation modal close button
+    const closeMassGenModal = document.getElementById('closeMassGenModal');
+    if (closeMassGenModal) {
+        closeMassGenModal.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    // Start mass generation button
+    const startMassGenBtn = document.getElementById('startMassGenBtn');
+    if (startMassGenBtn) {
+        startMassGenBtn.addEventListener('click', startMassGeneration);
+    }
 }
 
 function formatKeyInput(e) {
@@ -1243,6 +1261,20 @@ function switchView(viewName) {
         localStorage.setItem('glitched_active_view', viewName);
     } catch (e) {
         console.warn('Failed to save active view:', e);
+    }
+    
+    // Управление видимостью FAB кнопки массового выбора
+    const massSelectFab = document.getElementById('massSelectFab');
+    if (massSelectFab) {
+        if (viewName === 'collection') {
+            massSelectFab.classList.add('visible');
+        } else {
+            massSelectFab.classList.remove('visible');
+            // При выходе из collection view - выключаем режим массового выбора
+            if (typeof massSelectionState !== 'undefined' && massSelectionState.enabled) {
+                toggleMassSelectionMode();
+            }
+        }
     }
     
     // При переключении на Farm Keys - обновляем данные всех фермеров
