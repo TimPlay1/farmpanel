@@ -459,19 +459,34 @@ function extractPitName(name) {
 
 /**
  * Парсит доходность из incomeText
- * @param {string} incomeText - например "$112.5M/s"
+ * @param {string|number} incomeText - например "$112.5M/s" или число
  * @returns {number} - доходность в M/s
  */
 function parseIncomeValue(incomeText) {
-    if (!incomeText) return 0;
+    if (!incomeText && incomeText !== 0) return 0;
+    
+    // Если это число - возвращаем как есть или нормализуем
+    if (typeof incomeText === 'number') {
+        // Если очень большое число - это сырое значение, делим на 1M
+        if (incomeText > 10000) {
+            return Math.round(incomeText / 1000000 * 10) / 10;
+        }
+        return incomeText;
+    }
     
     // Убираем пробелы и приводим к нижнему регистру
-    const clean = incomeText.replace(/\s+/g, '').toLowerCase();
+    const clean = String(incomeText).replace(/\s+/g, '').toLowerCase();
     
     // Паттерны: $112.5m/s, 112.5m/s, $112.5 m/s
     const match = clean.match(/\$?([\d.]+)m/);
     if (match) {
         return parseFloat(match[1]);
+    }
+    
+    // Попробуем просто получить число
+    const numMatch = clean.match(/[\d.]+/);
+    if (numMatch) {
+        return parseFloat(numMatch[0]);
     }
     
     return 0;
