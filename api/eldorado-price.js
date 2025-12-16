@@ -143,6 +143,8 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
         /\[(\d+[.,]?\d*)\s*B\/s\]/i,          // [1.5B/s]
         /(\d+[.,]?\d*)\s*b\/sec/i,            // 1b/sec
         /(\d+[.,]?\d*)\s*bil\/s/i,            // 1bil/s
+        /(\d+[.,]?\d*)\s*B(?![a-zA-Z\/])/i,   // 1.2B, 1.5B (без /s, но не BrainRot)
+        /(\d+[.,]?\d*)b(?![a-zA-Z\/])/i,      // 1.2b, 1.5b (lowercase, без /s)
     ];
     
     for (const pattern of bPatterns) {
