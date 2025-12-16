@@ -6,6 +6,36 @@ const API_BASE = window.location.hostname === 'localhost'
 // Brainrot images base URL
 const BRAINROT_IMAGES_BASE = window.location.origin + '/brainrots';
 
+// Simple notification function
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const existing = document.querySelector('.panel-notification');
+    if (existing) existing.remove();
+    
+    const notif = document.createElement('div');
+    notif.className = `panel-notification panel-notification-${type}`;
+    notif.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        max-width: 400px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        ${type === 'success' ? 'background: linear-gradient(135deg, #11998e, #38ef7d); color: white;' : ''}
+        ${type === 'error' ? 'background: linear-gradient(135deg, #eb3349, #f45c43); color: white;' : ''}
+        ${type === 'info' ? 'background: linear-gradient(135deg, #667eea, #764ba2); color: white;' : ''}
+    `;
+    notif.textContent = message;
+    document.body.appendChild(notif);
+    
+    setTimeout(() => notif.remove(), 5000);
+    console.log(`[${type.toUpperCase()}] ${message}`);
+}
+
 // State
 let state = {
     currentKey: null,
@@ -3329,6 +3359,11 @@ async function scanEldoradoOffers() {
     const scanBtn = document.getElementById('scanOffersBtn');
     if (!scanBtn) return;
     
+    if (!state.currentKey) {
+        showNotification('No farm key selected', 'error');
+        return;
+    }
+    
     const originalContent = scanBtn.innerHTML;
     scanBtn.disabled = true;
     scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
@@ -3336,12 +3371,21 @@ async function scanEldoradoOffers() {
     try {
         showNotification('Scanning Eldorado for your offers...', 'info');
         
-        const response = await fetch(`${API_BASE}/scan-offers?maxPages=15`);
+        const response = await fetch(`${API_BASE}/scan-offers?farmKey=${encodeURIComponent(state.currentKey)}`);
         const data = await response.json();
         
         if (data.success) {
-            const message = `Found ${data.scanned} offers with codes. Matched: ${data.matched}, Updated: ${data.updated}, Created: ${data.created}`;
-            showNotification(message, data.matched > 0 ? 'success' : 'info');
+            const foundCount = data.found || 0;
+            const notFoundCount = data.notFound || 0;
+            const total = data.total || 0;
+            
+            if (foundCount > 0) {
+                showNotification(`Found ${foundCount} of ${total} offers on Eldorado!`, 'success');
+            } else if (total > 0) {
+                showNotification(`Scanned ${total} offers, none found on Eldorado yet`, 'info');
+            } else {
+                showNotification('No offers in database to scan', 'info');
+            }
             
             // Reload offers
             await loadOffers();
