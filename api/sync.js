@@ -95,17 +95,23 @@ async function fetchAvatarsForAccounts(accounts, existingAvatars = {}, avatarsCo
                 };
                 
                 // Сохраняем в отдельную коллекцию для постоянного хранения
+                // Также сохраняем playerName для обратного маппинга
                 if (avatarsCollection) {
+                    // Находим playerName для этого userId
+                    const accountWithName = accounts.find(a => String(a.userId) === key);
+                    const updateData = {
+                        userId: key,
+                        base64: base64,
+                        fetchedAt: Date.now(),
+                        updatedAt: new Date()
+                    };
+                    // Добавляем playerName если есть
+                    if (accountWithName && accountWithName.playerName) {
+                        updateData.playerName = accountWithName.playerName;
+                    }
                     await avatarsCollection.updateOne(
                         { userId: key },
-                        { 
-                            $set: {
-                                userId: key,
-                                base64: base64,
-                                fetchedAt: Date.now(),
-                                updatedAt: new Date()
-                            }
-                        },
+                        { $set: updateData },
                         { upsert: true }
                     );
                 }
@@ -252,6 +258,14 @@ module.exports = async (req, res) => {
             // Создаём маппинг playerName -> userId из существующих данных аккаунтов
             let playerUserIdMap = farmer.playerUserIdMap || {};
             
+            // Также строим маппинг из коллекции аватаров (там хранится playerName)
+            const allAvatars = await avatarsCollection.find({}).toArray();
+            for (const avatar of allAvatars) {
+                if (avatar.playerName && avatar.userId) {
+                    playerUserIdMap[avatar.playerName] = String(avatar.userId);
+                }
+            }
+            
             // Для каждого аккаунта проверяем есть ли аватар в отдельной коллекции
             const accounts = farmer.accounts || [];
             for (const account of accounts) {
@@ -283,7 +297,7 @@ module.exports = async (req, res) => {
                 avatar: farmer.avatar,
                 accounts: farmer.accounts || [],
                 accountAvatars: accountAvatars, // Возвращаем аватары из обоих источников
-                playerUserIdMap: farmer.playerUserIdMap || {}, // Маппинг playerName -> userId
+                playerUserIdMap: playerUserIdMap, // Маппинг playerName -> userId (обновлённый)
                 lastUpdate: farmer.lastUpdate,
                 totalValue: farmer.totalValue || 0,
                 valueUpdatedAt: farmer.valueUpdatedAt || null
