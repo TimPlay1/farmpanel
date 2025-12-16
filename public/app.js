@@ -3938,22 +3938,27 @@ function renderTopData(data, type) {
         html = renderTopPodium(top3, type);
     }
     
-    if (rest.length > 0) {
-        html += `<div class="top-list">`;
-        rest.forEach((item, index) => {
+    // Render positions 4-10 (real data + placeholders)
+    html += `<div class="top-list">`;
+    for (let i = 0; i < 7; i++) {
+        const rank = i + 4;
+        const item = rest[i];
+        
+        if (item) {
             const avatarIcon = item.avatar?.icon || 'fa-user';
             const avatarColor = item.avatar?.color || '#6366f1';
+            const accountText = item.accountsCount === 1 ? 'account' : 'accounts';
             
             if (type === 'total') {
                 html += `
                     <div class="top-list-item">
-                        <div class="top-list-rank">${index + 4}</div>
-                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                        <div class="top-list-rank">${rank}</div>
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}; color: white">
                             <i class="fas ${avatarIcon}"></i>
                         </div>
                         <div class="top-list-info">
                             <div class="top-list-name">${item.username}</div>
-                            <div class="top-list-brainrot">${item.accountsCount} skladov</div>
+                            <div class="top-list-brainrot">${item.accountsCount} ${accountText}</div>
                         </div>
                         <div class="top-list-stats">
                             <div class="top-list-value">${formatIncomeSec(item.value)}</div>
@@ -3961,15 +3966,14 @@ function renderTopData(data, type) {
                     </div>
                 `;
             } else {
-                const brainrotImg = getBrainrotImage(item.brainrot?.name);
                 const valueDisplay = type === 'income' 
                     ? formatIncomeSec(item.value)
                     : `$${formatMoney(item.value)}`;
                     
                 html += `
                     <div class="top-list-item">
-                        <div class="top-list-rank">${index + 4}</div>
-                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                        <div class="top-list-rank">${rank}</div>
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}; color: white">
                             <i class="fas ${avatarIcon}"></i>
                         </div>
                         <div class="top-list-info">
@@ -3982,9 +3986,26 @@ function renderTopData(data, type) {
                     </div>
                 `;
             }
-        });
-        html += `</div>`;
+        } else {
+            // Placeholder for empty position
+            html += `
+                <div class="top-list-item top-list-placeholder">
+                    <div class="top-list-rank">${rank}</div>
+                    <div class="top-list-avatar-icon placeholder-avatar">
+                        <i class="fas fa-question"></i>
+                    </div>
+                    <div class="top-list-info">
+                        <div class="top-list-name placeholder-text">???</div>
+                        <div class="top-list-brainrot">Waiting for player...</div>
+                    </div>
+                    <div class="top-list-stats">
+                        <div class="top-list-value placeholder-text">---</div>
+                    </div>
+                </div>
+            `;
+        }
     }
+    html += `</div>`;
     
     container.innerHTML = html;
 }
@@ -4043,6 +4064,8 @@ function renderTopPodiumTotal(top3) {
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
+        const accountText = item.accountsCount === 1 ? 'account' : 'accounts';
+        
         // Круглый аватар пользователя с иконкой
         html += `
             <div class="podium-item ${position}">
@@ -4054,7 +4077,7 @@ function renderTopPodiumTotal(top3) {
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-name">${item.username}</div>
-                <div class="podium-brainrot-label">${item.accountsCount} skladov</div>
+                <div class="podium-brainrot-label">${item.accountsCount} ${accountText}</div>
                 <div class="podium-value">${formatIncomeSec(item.value)}</div>
             </div>
         `;

@@ -3109,12 +3109,15 @@ body {
     left: 50%;
     transform: translateX(-50%);
     font-size: 1.5rem;
+    z-index: 10;
 }
 
 .podium-item.first .podium-crown {
     color: #ffd700;
     font-size: 2rem;
     top: -25px;
+    z-index: 10;
+    filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
 }
 
 .podium-item.second .podium-crown {
@@ -3367,6 +3370,27 @@ body {
 .top-list-item:hover {
     background: var(--bg-hover);
     border-color: var(--accent-primary)40;
+}
+
+/* Placeholder styles for empty positions */
+.top-list-placeholder {
+    opacity: 0.5;
+    background: var(--bg-tertiary);
+    border-style: dashed;
+}
+
+.top-list-placeholder:hover {
+    opacity: 0.6;
+    background: var(--bg-tertiary);
+}
+
+.placeholder-avatar {
+    background: var(--bg-secondary) !important;
+    color: var(--text-muted) !important;
+}
+
+.placeholder-text {
+    color: var(--text-muted) !important;
 }
 
 .top-list-rank {
