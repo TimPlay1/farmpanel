@@ -3290,6 +3290,82 @@ body {
     color: var(--text-secondary);
 }
 
+/* Top Loading State */
+.top-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 3rem;
+    color: var(--text-muted);
+}
+
+.top-loading i {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: var(--accent-primary);
+}
+
+.retry-btn {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    background: var(--accent-primary);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.retry-btn:hover {
+    background: var(--accent-secondary);
+    transform: translateY(-1px);
+}
+
+/* Podium Avatar Icon (instead of img) */
+.podium-avatar-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    border: 3px solid var(--border-color);
+}
+
+.podium-item.first .podium-avatar-icon {
+    width: 100px;
+    height: 100px;
+    font-size: 2.5rem;
+    border-color: #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.podium-item.second .podium-avatar-icon {
+    border-color: #c0c0c0;
+}
+
+.podium-item.third .podium-avatar-icon {
+    border-color: #cd7f32;
+}
+
+/* Top List Avatar Icon */
+.top-list-avatar-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    flex-shrink: 0;
+}
+
 @media (max-width: 768px) {
     .top-tabs {
         justify-content: stretch;
@@ -3307,12 +3383,14 @@ body {
         gap: 0.5rem;
     }
     
-    .podium-avatar img {
+    .podium-avatar img,
+    .podium-avatar-icon {
         width: 60px;
         height: 60px;
     }
     
-    .podium-item.first .podium-avatar img {
+    .podium-item.first .podium-avatar img,
+    .podium-item.first .podium-avatar-icon {
         width: 75px;
         height: 75px;
     }

@@ -3809,12 +3809,18 @@ function checkForPriceAdjustmentResult() {
 setInterval(checkForPriceAdjustmentResult, 2000);
 
 // ============================================
-// TOP / LEADERBOARDS SECTION
+// TOP / LEADERBOARDS SECTION (Server-based)
 // ============================================
 
 let topState = {
     activeTab: 'income',
-    initialized: false
+    initialized: false,
+    cache: {
+        income: null,
+        value: null,
+        total: null
+    },
+    loading: false
 };
 
 function initTopView() {
@@ -3822,7 +3828,7 @@ function initTopView() {
         setupTopTabListeners();
         topState.initialized = true;
     }
-    renderTopContent();
+    loadAndRenderTop();
 }
 
 function setupTopTabListeners() {
@@ -3832,275 +3838,131 @@ function setupTopTabListeners() {
             topTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             topState.activeTab = tab.dataset.top;
-            renderTopContent();
+            loadAndRenderTop();
         });
     });
 }
 
-function renderTopContent() {
-    switch (topState.activeTab) {
-        case 'income':
-            renderTopIncome();
-            break;
-        case 'value':
-            renderTopValue();
-            break;
-        case 'total':
-            renderTopTotal();
-            break;
-    }
-}
-
-// Top by best income brainrot (highest daily income brainrot for each panel)
-function renderTopIncome() {
+async function loadAndRenderTop() {
     const container = document.querySelector('.top-content');
     if (!container) return;
     
-    // Собираем данные по всем фермерам из панелей
-    const panelData = [];
+    const type = topState.activeTab;
     
-    for (const savedKey of state.savedKeys) {
-        const farmKey = savedKey.farmKey;
-        const farmerData = state.farmersData[farmKey];
-        if (!farmerData || !farmerData.data) continue;
-        
-        const accountsData = farmerData.data;
-        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
-        
-        // Находим брейнрот с максимальным income по всем аккаунтам
-        let bestBrainrot = null;
-        let bestIncome = 0;
-        
-        for (const account of accountsData) {
-            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
-            
-            for (const br of account.brainrots) {
-                const income = br.daily_income || br.income || 0;
-                if (income > bestIncome) {
-                    bestIncome = income;
-                    bestBrainrot = {
-                        ...br,
-                        daily_income: income
-                    };
-                }
-            }
-        }
-        
-        if (bestBrainrot && bestIncome > 0) {
-            panelData.push({
-                farmKey,
-                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
-                avatar: savedKey.avatar || null,
-                brainrot: bestBrainrot,
-                income: bestIncome
-            });
-        }
-    }
-    
-    // Сортируем по доходу
-    panelData.sort((a, b) => b.income - a.income);
-    
-    if (panelData.length === 0) {
+    // Показываем загрузку
+    if (!topState.cache[type]) {
         container.innerHTML = `
-            <div class="top-empty">
-                <i class="fas fa-chart-line"></i>
-                <h3>Нет данных</h3>
-                <p>Добавьте farm keys и загрузите данные</p>
+            <div class="top-loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Загрузка топа...</p>
             </div>
         `;
-        return;
     }
     
-    const top3 = panelData.slice(0, 3);
-    const rest = panelData.slice(3, 10);
+    // Если есть кэш - рендерим его сразу
+    if (topState.cache[type]) {
+        renderTopData(topState.cache[type], type);
+    }
     
-    let html = renderTopPodium(top3, 'income');
-    
-    if (rest.length > 0) {
-        html += `<div class="top-list">`;
-        rest.forEach((item, index) => {
-            const brainrotImg = getBrainrotImage(item.brainrot.name);
-            html += `
-                <div class="top-list-item">
-                    <div class="top-list-rank">${index + 4}</div>
-                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
-                    <div class="top-list-info">
-                        <div class="top-list-name">${item.name}</div>
-                        <div class="top-list-brainrot">${item.brainrot.name || 'Unknown'}</div>
-                    </div>
-                    <div class="top-list-stats">
-                        <div class="top-list-value">+${formatMoney(item.income)}/day</div>
-                    </div>
+    // Загружаем с сервера
+    try {
+        const response = await fetch(`${API_BASE}/top?type=${type}`);
+        if (!response.ok) {
+            throw new Error('Failed to fetch top data');
+        }
+        
+        const result = await response.json();
+        if (result.success && result.data) {
+            topState.cache[type] = result.data;
+            renderTopData(result.data, type);
+        }
+    } catch (error) {
+        console.error('Error loading top:', error);
+        if (!topState.cache[type]) {
+            container.innerHTML = `
+                <div class="top-empty">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h3>Ошибка загрузки</h3>
+                    <p>Не удалось загрузить данные топа</p>
+                    <button onclick="loadAndRenderTop()" class="retry-btn">
+                        <i class="fas fa-redo"></i> Повторить
+                    </button>
                 </div>
             `;
-        });
-        html += `</div>`;
+        }
     }
-    
-    container.innerHTML = html;
 }
 
-// Top by current brainrot value (most valuable brainrot for each panel)
-function renderTopValue() {
+function renderTopData(data, type) {
     const container = document.querySelector('.top-content');
     if (!container) return;
     
-    const panelData = [];
-    
-    for (const savedKey of state.savedKeys) {
-        const farmKey = savedKey.farmKey;
-        const farmerData = state.farmersData[farmKey];
-        if (!farmerData || !farmerData.data) continue;
-        
-        const accountsData = farmerData.data;
-        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
-        
-        // Находим брейнрот с максимальной стоимостью
-        let bestBrainrot = null;
-        let bestValue = 0;
-        
-        for (const account of accountsData) {
-            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
-            
-            for (const br of account.brainrots) {
-                const value = br.value || br.price || 0;
-                if (value > bestValue) {
-                    bestValue = value;
-                    bestBrainrot = {
-                        ...br,
-                        value: value
-                    };
-                }
-            }
-        }
-        
-        if (bestBrainrot && bestValue > 0) {
-            panelData.push({
-                farmKey,
-                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
-                avatar: savedKey.avatar || null,
-                brainrot: bestBrainrot,
-                value: bestValue
-            });
-        }
-    }
-    
-    // Сортируем по стоимости
-    panelData.sort((a, b) => b.value - a.value);
-    
-    if (panelData.length === 0) {
-        container.innerHTML = `
-            <div class="top-empty">
-                <i class="fas fa-gem"></i>
-                <h3>Нет данных</h3>
-                <p>Добавьте farm keys и загрузите данные</p>
-            </div>
-        `;
-        return;
-    }
-    
-    const top3 = panelData.slice(0, 3);
-    const rest = panelData.slice(3, 10);
-    
-    let html = renderTopPodium(top3, 'value');
-    
-    if (rest.length > 0) {
-        html += `<div class="top-list">`;
-        rest.forEach((item, index) => {
-            html += `
-                <div class="top-list-item">
-                    <div class="top-list-rank">${index + 4}</div>
-                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
-                    <div class="top-list-info">
-                        <div class="top-list-name">${item.name}</div>
-                        <div class="top-list-brainrot">${item.brainrot.name || 'Unknown'}</div>
-                    </div>
-                    <div class="top-list-stats">
-                        <div class="top-list-value">${formatMoney(item.value)}</div>
-                    </div>
-                </div>
-            `;
-        });
-        html += `</div>`;
-    }
-    
-    container.innerHTML = html;
-}
-
-// Top by total panel income (sum of all brainrot incomes per panel)
-function renderTopTotal() {
-    const container = document.querySelector('.top-content');
-    if (!container) return;
-    
-    const panelData = [];
-    
-    for (const savedKey of state.savedKeys) {
-        const farmKey = savedKey.farmKey;
-        const farmerData = state.farmersData[farmKey];
-        if (!farmerData || !farmerData.data) continue;
-        
-        const accountsData = farmerData.data;
-        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
-        
-        // Суммируем доход со всех брейнротов
-        let totalIncome = 0;
-        let farmersCount = 0;
-        
-        for (const account of accountsData) {
-            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
-            farmersCount++;
-            
-            for (const br of account.brainrots) {
-                totalIncome += br.daily_income || br.income || 0;
-            }
-        }
-        
-        if (totalIncome > 0) {
-            panelData.push({
-                farmKey,
-                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
-                avatar: savedKey.avatar || null,
-                totalIncome,
-                farmersCount
-            });
-        }
-    }
-    
-    // Сортируем по общему доходу
-    panelData.sort((a, b) => b.totalIncome - a.totalIncome);
-    
-    if (panelData.length === 0) {
+    if (!data || data.length === 0) {
         container.innerHTML = `
             <div class="top-empty">
                 <i class="fas fa-trophy"></i>
-                <h3>Нет данных</h3>
-                <p>Добавьте farm keys и загрузите данные</p>
+                <h3>Пока нет данных</h3>
+                <p>Топ формируется из данных всех пользователей панели</p>
             </div>
         `;
         return;
     }
     
-    const top3 = panelData.slice(0, 3);
-    const rest = panelData.slice(3, 10);
+    const top3 = data.slice(0, 3);
+    const rest = data.slice(3, 10);
     
-    let html = renderTopPodiumTotal(top3);
+    let html = '';
+    
+    if (type === 'total') {
+        html = renderTopPodiumTotal(top3);
+    } else {
+        html = renderTopPodium(top3, type);
+    }
     
     if (rest.length > 0) {
         html += `<div class="top-list">`;
         rest.forEach((item, index) => {
-            html += `
-                <div class="top-list-item">
-                    <div class="top-list-rank">${index + 4}</div>
-                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
-                    <div class="top-list-info">
-                        <div class="top-list-name">${item.name}</div>
-                        <div class="top-list-brainrot">${item.farmersCount} farmers</div>
+            const avatarIcon = item.avatar?.icon || 'fa-user';
+            const avatarColor = item.avatar?.color || '#6366f1';
+            
+            if (type === 'total') {
+                html += `
+                    <div class="top-list-item">
+                        <div class="top-list-rank">${index + 4}</div>
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                            <i class="fas ${avatarIcon}"></i>
+                        </div>
+                        <div class="top-list-info">
+                            <div class="top-list-name">${item.username}</div>
+                            <div class="top-list-brainrot">${item.accountsCount} skladov</div>
+                        </div>
+                        <div class="top-list-stats">
+                            <div class="top-list-value">+${formatMoney(item.value)}/day</div>
+                        </div>
                     </div>
-                    <div class="top-list-stats">
-                        <div class="top-list-value">+${formatMoney(item.totalIncome)}/day</div>
+                `;
+            } else {
+                const brainrotImg = getBrainrotImage(item.brainrot?.name);
+                const valueDisplay = type === 'income' 
+                    ? `+${formatMoney(item.value)}/day` 
+                    : `$${formatMoney(item.value)}`;
+                    
+                html += `
+                    <div class="top-list-item">
+                        <div class="top-list-rank">${index + 4}</div>
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                            <i class="fas ${avatarIcon}"></i>
+                        </div>
+                        <div class="top-list-info">
+                            <div class="top-list-name">${item.username}</div>
+                            <div class="top-list-brainrot">${item.brainrot?.name || 'Unknown'}</div>
+                        </div>
+                        <div class="top-list-stats">
+                            <div class="top-list-value">${valueDisplay}</div>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
         });
         html += `</div>`;
     }
@@ -4120,19 +3982,23 @@ function renderTopPodium(top3, type) {
         const position = positions[index];
         const brainrotImg = getBrainrotImage(item.brainrot?.name);
         const valueDisplay = type === 'income' 
-            ? `+${formatMoney(item.income)}/day` 
-            : formatMoney(item.value);
+            ? `+${formatMoney(item.value)}/day` 
+            : `$${formatMoney(item.value)}`;
+        const avatarIcon = item.avatar?.icon || 'fa-user';
+        const avatarColor = item.avatar?.color || '#6366f1';
         
         html += `
             <div class="podium-item ${position}">
                 <div class="podium-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <img src="${item.avatar || 'https://via.placeholder.com/100'}" alt="${item.name}">
+                    <div class="podium-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                        <i class="fas ${avatarIcon}"></i>
+                    </div>
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
-                <div class="podium-name">${item.name}</div>
+                <div class="podium-name">${item.username}</div>
                 <div class="podium-brainrot">
-                    <img src="${brainrotImg}" class="podium-brainrot-img" alt="">
+                    <img src="${brainrotImg}" class="podium-brainrot-img" alt="" onerror="this.style.display='none'">
                     <span class="podium-brainrot-name">${item.brainrot?.name || 'Unknown'}</span>
                 </div>
                 <div class="podium-value">${valueDisplay}</div>
@@ -4154,19 +4020,23 @@ function renderTopPodiumTotal(top3) {
     
     top3.forEach((item, index) => {
         const position = positions[index];
+        const avatarIcon = item.avatar?.icon || 'fa-user';
+        const avatarColor = item.avatar?.color || '#6366f1';
         
         html += `
             <div class="podium-item ${position}">
                 <div class="podium-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <img src="${item.avatar || 'https://via.placeholder.com/100'}" alt="${item.name}">
+                    <div class="podium-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                        <i class="fas ${avatarIcon}"></i>
+                    </div>
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
-                <div class="podium-name">${item.name}</div>
+                <div class="podium-name">${item.username}</div>
                 <div class="podium-brainrot">
-                    <span class="podium-brainrot-name">${item.farmersCount} farmers</span>
+                    <span class="podium-brainrot-name">${item.accountsCount} skladov</span>
                 </div>
-                <div class="podium-value">+${formatMoney(item.totalIncome)}/day</div>
+                <div class="podium-value">+${formatMoney(item.value)}/day</div>
             </div>
         `;
     });
