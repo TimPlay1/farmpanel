@@ -1200,25 +1200,32 @@ async function renderAccountsGrid(accounts) {
     // Получаем аватары из данных сервера (теперь base64)
     const data = state.farmersData[state.currentKey];
     const serverAvatars = data?.accountAvatars || {};
+    const playerUserIdMap = data?.playerUserIdMap || {}; // Маппинг playerName -> userId
     
     // Применяем серверные аватары к аккаунтам
     accounts.forEach(account => {
-        if (account.userId) {
-            const avatarData = serverAvatars[String(account.userId)];
+        // Определяем userId: напрямую из account или через маппинг по имени
+        let userId = account.userId;
+        if (!userId && account.playerName && playerUserIdMap[account.playerName]) {
+            userId = playerUserIdMap[account.playerName];
+        }
+        
+        if (userId) {
+            const avatarData = serverAvatars[String(userId)];
             // Предпочитаем base64 (новый формат), fallback на url (старый формат)
             const avatarUrl = avatarData?.base64 || avatarData?.url;
             if (avatarUrl) {
                 account.avatarUrl = avatarUrl;
                 // Также сохраняем в локальный кэш для быстрого доступа
-                saveAvatarToCache(account.userId, avatarUrl);
+                saveAvatarToCache(userId, avatarUrl);
             } else {
                 // Fallback на локальный кэш
-                const cachedAvatar = getCachedAvatar(account.userId);
+                const cachedAvatar = getCachedAvatar(userId);
                 if (cachedAvatar) {
                     account.avatarUrl = cachedAvatar;
-                } else if (account.userId) {
+                } else {
                     // Загружаем с Roblox в фоне
-                    fetchRobloxAvatar(account.userId).then(url => {
+                    fetchRobloxAvatar(userId).then(url => {
                         if (url) {
                             // Обновляем изображение в DOM если карточка существует
                             const cardId = getAccountCardId(account);

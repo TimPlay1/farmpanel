@@ -203,9 +203,18 @@ module.exports = async (req, res) => {
                 accountAvatars = await fetchAvatarsForAccounts(accounts, existingAccountAvatars, avatarsCollection);
             }
 
+            // Создаём/обновляем маппинг playerName -> userId для фронтенда
+            const playerUserIdMap = farmer.playerUserIdMap || {};
+            for (const account of accounts) {
+                if (account.userId && account.playerName) {
+                    playerUserIdMap[account.playerName] = String(account.userId);
+                }
+            }
+
             // Update farmer data
             farmer.accounts = accounts;
             farmer.accountAvatars = accountAvatars;
+            farmer.playerUserIdMap = playerUserIdMap; // Сохраняем маппинг
             farmer.lastUpdate = new Date();
             farmer.lastTimestamp = timestamp;
 
@@ -266,6 +275,7 @@ module.exports = async (req, res) => {
                 avatar: farmer.avatar,
                 accounts: farmer.accounts || [],
                 accountAvatars: accountAvatars, // Возвращаем аватары из обоих источников
+                playerUserIdMap: farmer.playerUserIdMap || {}, // Маппинг playerName -> userId
                 lastUpdate: farmer.lastUpdate,
                 totalValue: farmer.totalValue || 0,
                 valueUpdatedAt: farmer.valueUpdatedAt || null
