@@ -579,21 +579,23 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         } else if (offersWithIncome.length > 0) {
             // Нет офферов с income >= нашему
-            // Наш income выше всех на рынке - ставим чуть НИЖЕ максимальной цены
-            // Сортируем по цене desc чтобы найти максимальную цену на рынке
-            const sortedByPrice = [...offersWithIncome].sort((a, b) => b.price - a.price);
-            const maxPriceOffer = sortedByPrice[0];
+            // Наш income выше всех на рынке
             
-            // Также находим оффер с максимальным income для сравнения
+            // Находим оффер с МАКСИМАЛЬНЫМ income - это наш ближайший конкурент снизу
             const maxIncomeOffer = offersWithIncome.reduce((max, o) => o.income > max.income ? o : max);
+            
+            // Среди офферов с близким к максимальному income (в пределах 20%), находим самый дорогой
+            // Это более точно отражает рыночную цену для высоких incomes
+            const incomeThreshold = maxIncomeOffer.income * 0.8; // 80% от максимального
+            const highIncomeOffers = offersWithIncome.filter(o => o.income >= incomeThreshold);
+            const maxPriceOffer = highIncomeOffers.reduce((max, o) => o.price > max.price ? o : max);
             
             competitorPrice = maxPriceOffer.price;
             competitorIncome = maxIncomeOffer.income;
             
-            // Наш income выше рынка - всё равно ставим на $0.50 НИЖЕ максимальной цены
-            // Цена всегда должна быть ниже upper на $0.50-$1
+            // Наш income выше рынка - ставим на $0.50 НИЖЕ максимальной цены среди высоких incomes
             suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
-            priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)}, max income: ${competitorIncome}M/s) → -$0.50`;
+            priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, max income: ${competitorIncome}M/s) → -$0.50`;
         } else {
             // Никто не указывает income - берём минимальную цену - $0.50
             const minPrice = parsedOffers[0].price;
