@@ -36,6 +36,23 @@ function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
+// Format money with K/M/B suffixes
+function formatMoney(num) {
+    if (num === null || num === undefined || isNaN(num)) return '0';
+    
+    const absNum = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    
+    if (absNum >= 1e9) {
+        return sign + (absNum / 1e9).toFixed(2) + 'B';
+    } else if (absNum >= 1e6) {
+        return sign + (absNum / 1e6).toFixed(2) + 'M';
+    } else if (absNum >= 1e3) {
+        return sign + (absNum / 1e3).toFixed(1) + 'K';
+    }
+    return sign + absNum.toLocaleString();
+}
+
 // State
 let state = {
     currentKey: null,
@@ -768,6 +785,23 @@ function setupEventListeners() {
             scrollContainer.scrollLeft += e.deltaY;
         }
     }, { passive: false });
+    
+    // Account switcher dropdown
+    const farmerWrapper = document.getElementById('currentFarmerWrapper');
+    if (farmerWrapper) {
+        farmerWrapper.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleAccountDropdown();
+        });
+    }
+    
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const switcher = document.getElementById('accountSwitcher');
+        if (switcher && !switcher.contains(e.target)) {
+            toggleAccountDropdown(false);
+        }
+    });
 }
 
 function formatKeyInput(e) {
@@ -879,13 +913,18 @@ function switchView(viewName) {
     }
     
     // При переключении на Farm Keys - обновляем данные всех фермеров
-    if (viewName === 'farmKeys') {
+    if (viewName === 'farmers') {
         fetchAllFarmersData();
     }
     
     // При переключении на Offers - загружаем офферы
     if (viewName === 'offers') {
         initOffersView();
+    }
+    
+    // При переключении на Top - инициализируем раздел
+    if (viewName === 'top') {
+        initTopView();
     }
 }
 
@@ -895,7 +934,7 @@ function restoreLastView() {
         const savedView = localStorage.getItem('glitched_active_view');
         if (savedView) {
             // Проверяем что такая вкладка существует
-            const validViews = ['dashboard', 'collection', 'farmKeys', 'offers'];
+            const validViews = ['dashboard', 'accounts', 'collection', 'farmers', 'offers', 'top'];
             if (validViews.includes(savedView)) {
                 switchView(savedView);
                 return true;
@@ -1173,6 +1212,21 @@ function updateCurrentFarmer() {
     const avatar = savedKey.avatar || { icon: 'fa-user', color: '#6366f1' };
     const shortKey = state.currentKey.split('-').slice(-1)[0];
     
+    // Get current farmer data
+    const data = state.farmersData[state.currentKey];
+    const accounts = data?.accounts || [];
+    const accountCount = accounts.length;
+    
+    // Calculate total value
+    let totalValue = data?.totalValue || 0;
+    if (totalValue === 0 && accounts.length > 0) {
+        accounts.forEach(account => {
+            if (account.brainrots) {
+                totalValue += calculateAccountValue(account);
+            }
+        });
+    }
+    
     currentFarmerEl.innerHTML = `
         <div class="farmer-avatar" style="background: ${avatar.color}20; color: ${avatar.color}">
             <i class="fas ${avatar.icon}"></i>
@@ -1182,6 +1236,95 @@ function updateCurrentFarmer() {
             <div class="farmer-key">...${shortKey}</div>
         </div>
     `;
+    
+    // Update mini stats in header
+    const balanceEl = document.getElementById('farmerBalance');
+    const countEl = document.getElementById('farmerAccountsCount');
+    if (balanceEl) balanceEl.textContent = `$${totalValue.toFixed(2)}`;
+    if (countEl) countEl.textContent = `${accountCount} skladov`;
+    
+    // Update account dropdown
+    updateFarmerSwitcherDropdown();
+}
+
+function updateFarmerSwitcherDropdown() {
+    const dropdownList = document.getElementById('accountDropdownList');
+    if (!dropdownList) return;
+    
+    if (state.savedKeys.length === 0) {
+        dropdownList.innerHTML = `
+            <div class="account-dropdown-item" style="justify-content: center; color: var(--text-muted);">
+                No saved accounts
+            </div>
+        `;
+        return;
+    }
+    
+    dropdownList.innerHTML = state.savedKeys.map(key => {
+        const isActive = key.farmKey === state.currentKey;
+        const avatar = key.avatar || { icon: 'fa-user', color: '#6366f1' };
+        const data = state.farmersData[key.farmKey];
+        const accounts = data?.accounts || [];
+        const accountCount = accounts.length;
+        const shortKey = key.farmKey.split('-').slice(-1)[0];
+        
+        // Calculate value
+        let farmerValue = data?.totalValue || 0;
+        if (farmerValue === 0 && accounts.length > 0) {
+            accounts.forEach(account => {
+                if (account.brainrots) {
+                    farmerValue += calculateAccountValue(account);
+                }
+            });
+        }
+        
+        return `
+            <div class="account-dropdown-item ${isActive ? 'active' : ''}" onclick="quickSwitchAccount('${key.farmKey}')">
+                <div class="dropdown-avatar" style="background: ${avatar.color}20; color: ${avatar.color}">
+                    <i class="fas ${avatar.icon}"></i>
+                </div>
+                <div class="dropdown-info">
+                    <div class="dropdown-name">${key.username || 'Unknown'}</div>
+                    <div class="dropdown-key">...${shortKey}</div>
+                </div>
+                <div class="dropdown-stats">
+                    <div class="dropdown-value">$${farmerValue.toFixed(2)}</div>
+                    <div class="dropdown-accounts">${accountCount} skladov</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Quick switch account from dropdown
+window.quickSwitchAccount = function(farmKey) {
+    if (farmKey === state.currentKey) {
+        // Close dropdown if clicking active account
+        toggleAccountDropdown(false);
+        return;
+    }
+    
+    selectFarmKey(farmKey);
+    toggleAccountDropdown(false);
+    showNotification(`Switched to ${state.savedKeys.find(k => k.farmKey === farmKey)?.username || 'account'}`, 'success');
+};
+
+// Toggle account dropdown
+function toggleAccountDropdown(show) {
+    const switcher = document.getElementById('accountSwitcher');
+    const dropdown = document.getElementById('accountDropdownPanel');
+    
+    if (show === undefined) {
+        show = dropdown.classList.contains('hidden');
+    }
+    
+    if (show) {
+        dropdown.classList.remove('hidden');
+        switcher.classList.add('open');
+    } else {
+        dropdown.classList.add('hidden');
+        switcher.classList.remove('open');
+    }
 }
 
 // Render Functions
@@ -1358,12 +1501,20 @@ function renderAccountsList(accounts) {
     // Получаем аватары из данных сервера
     const data = state.farmersData[state.currentKey];
     const serverAvatars = data?.accountAvatars || {};
+    const playerUserIdMap = data?.playerUserIdMap || {}; // Маппинг playerName -> userId
     
     accountsListEl.innerHTML = accounts.map(account => {
         // Получаем аватар из серверных данных (предпочитаем base64)
         let avatarSrc = getDefaultAvatar(account.playerName);
-        if (account.userId) {
-            const avatarData = serverAvatars[String(account.userId)];
+        
+        // Определяем userId: напрямую из account или через маппинг по имени
+        let userId = account.userId;
+        if (!userId && account.playerName && playerUserIdMap[account.playerName]) {
+            userId = playerUserIdMap[account.playerName];
+        }
+        
+        if (userId) {
+            const avatarData = serverAvatars[String(userId)];
             // Предпочитаем base64, затем url
             const serverAvatar = avatarData?.base64 || avatarData?.url;
             if (serverAvatar) {
@@ -1371,7 +1522,7 @@ function renderAccountsList(accounts) {
             } else if (account.avatarUrl) {
                 avatarSrc = account.avatarUrl;
             } else {
-                const cached = getCachedAvatar(account.userId);
+                const cached = getCachedAvatar(userId);
                 if (cached) avatarSrc = cached;
             }
         }
@@ -1457,7 +1608,10 @@ function renderFarmKeys() {
                                 <i class="fas fa-pen"></i>
                             </button>
                         </div>
-                        <div class="farm-key-code">${key.farmKey}</div>
+                        <div class="farm-key-code blurred" onclick="toggleAndCopyKey(this, '${key.farmKey}')" title="Click to reveal and copy">
+                            <span class="key-text">${key.farmKey}</span>
+                            <i class="fas fa-eye-slash key-icon"></i>
+                        </div>
                     </div>
                 </div>
                 <div class="farm-key-right">
@@ -1541,6 +1695,37 @@ async function handleAddKey() {
         modalError.textContent = 'Connection error. Please try again.';
     }
 }
+
+// Toggle blur and copy farm key
+window.toggleAndCopyKey = function(element, farmKey) {
+    const wasBlurred = element.classList.contains('blurred');
+    const icon = element.querySelector('.key-icon');
+    
+    // Toggle blur
+    element.classList.toggle('blurred');
+    
+    if (wasBlurred) {
+        // Was blurred, now revealed - copy to clipboard
+        navigator.clipboard.writeText(farmKey).then(() => {
+            showNotification('Key copied to clipboard!', 'success');
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+            
+            // Re-blur after 3 seconds
+            setTimeout(() => {
+                element.classList.add('blurred');
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }, 3000);
+        }).catch(() => {
+            showNotification('Failed to copy key', 'error');
+        });
+    } else {
+        // Was revealed, now blurred
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    }
+};
 
 // Global functions for onclick handlers
 window.openEditUsername = function(farmKey) {
@@ -3622,3 +3807,397 @@ function checkForPriceAdjustmentResult() {
 
 // Check periodically for Tampermonkey results
 setInterval(checkForPriceAdjustmentResult, 2000);
+
+// ============================================
+// TOP / LEADERBOARDS SECTION
+// ============================================
+
+let topState = {
+    activeTab: 'income',
+    initialized: false
+};
+
+function initTopView() {
+    if (!topState.initialized) {
+        setupTopTabListeners();
+        topState.initialized = true;
+    }
+    renderTopContent();
+}
+
+function setupTopTabListeners() {
+    const topTabs = document.querySelectorAll('.top-tab');
+    topTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            topTabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            topState.activeTab = tab.dataset.top;
+            renderTopContent();
+        });
+    });
+}
+
+function renderTopContent() {
+    switch (topState.activeTab) {
+        case 'income':
+            renderTopIncome();
+            break;
+        case 'value':
+            renderTopValue();
+            break;
+        case 'total':
+            renderTopTotal();
+            break;
+    }
+}
+
+// Top by best income brainrot (highest daily income brainrot for each panel)
+function renderTopIncome() {
+    const container = document.querySelector('.top-content');
+    if (!container) return;
+    
+    // Собираем данные по всем фермерам из панелей
+    const panelData = [];
+    
+    for (const savedKey of state.savedKeys) {
+        const farmKey = savedKey.farmKey;
+        const farmerData = state.farmersData[farmKey];
+        if (!farmerData || !farmerData.data) continue;
+        
+        const accountsData = farmerData.data;
+        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
+        
+        // Находим брейнрот с максимальным income по всем аккаунтам
+        let bestBrainrot = null;
+        let bestIncome = 0;
+        
+        for (const account of accountsData) {
+            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
+            
+            for (const br of account.brainrots) {
+                const income = br.daily_income || br.income || 0;
+                if (income > bestIncome) {
+                    bestIncome = income;
+                    bestBrainrot = {
+                        ...br,
+                        daily_income: income
+                    };
+                }
+            }
+        }
+        
+        if (bestBrainrot && bestIncome > 0) {
+            panelData.push({
+                farmKey,
+                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
+                avatar: savedKey.avatar || null,
+                brainrot: bestBrainrot,
+                income: bestIncome
+            });
+        }
+    }
+    
+    // Сортируем по доходу
+    panelData.sort((a, b) => b.income - a.income);
+    
+    if (panelData.length === 0) {
+        container.innerHTML = `
+            <div class="top-empty">
+                <i class="fas fa-chart-line"></i>
+                <h3>Нет данных</h3>
+                <p>Добавьте farm keys и загрузите данные</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const top3 = panelData.slice(0, 3);
+    const rest = panelData.slice(3, 10);
+    
+    let html = renderTopPodium(top3, 'income');
+    
+    if (rest.length > 0) {
+        html += `<div class="top-list">`;
+        rest.forEach((item, index) => {
+            const brainrotImg = getBrainrotImage(item.brainrot.name);
+            html += `
+                <div class="top-list-item">
+                    <div class="top-list-rank">${index + 4}</div>
+                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
+                    <div class="top-list-info">
+                        <div class="top-list-name">${item.name}</div>
+                        <div class="top-list-brainrot">${item.brainrot.name || 'Unknown'}</div>
+                    </div>
+                    <div class="top-list-stats">
+                        <div class="top-list-value">+${formatMoney(item.income)}/day</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Top by current brainrot value (most valuable brainrot for each panel)
+function renderTopValue() {
+    const container = document.querySelector('.top-content');
+    if (!container) return;
+    
+    const panelData = [];
+    
+    for (const savedKey of state.savedKeys) {
+        const farmKey = savedKey.farmKey;
+        const farmerData = state.farmersData[farmKey];
+        if (!farmerData || !farmerData.data) continue;
+        
+        const accountsData = farmerData.data;
+        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
+        
+        // Находим брейнрот с максимальной стоимостью
+        let bestBrainrot = null;
+        let bestValue = 0;
+        
+        for (const account of accountsData) {
+            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
+            
+            for (const br of account.brainrots) {
+                const value = br.value || br.price || 0;
+                if (value > bestValue) {
+                    bestValue = value;
+                    bestBrainrot = {
+                        ...br,
+                        value: value
+                    };
+                }
+            }
+        }
+        
+        if (bestBrainrot && bestValue > 0) {
+            panelData.push({
+                farmKey,
+                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
+                avatar: savedKey.avatar || null,
+                brainrot: bestBrainrot,
+                value: bestValue
+            });
+        }
+    }
+    
+    // Сортируем по стоимости
+    panelData.sort((a, b) => b.value - a.value);
+    
+    if (panelData.length === 0) {
+        container.innerHTML = `
+            <div class="top-empty">
+                <i class="fas fa-gem"></i>
+                <h3>Нет данных</h3>
+                <p>Добавьте farm keys и загрузите данные</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const top3 = panelData.slice(0, 3);
+    const rest = panelData.slice(3, 10);
+    
+    let html = renderTopPodium(top3, 'value');
+    
+    if (rest.length > 0) {
+        html += `<div class="top-list">`;
+        rest.forEach((item, index) => {
+            html += `
+                <div class="top-list-item">
+                    <div class="top-list-rank">${index + 4}</div>
+                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
+                    <div class="top-list-info">
+                        <div class="top-list-name">${item.name}</div>
+                        <div class="top-list-brainrot">${item.brainrot.name || 'Unknown'}</div>
+                    </div>
+                    <div class="top-list-stats">
+                        <div class="top-list-value">${formatMoney(item.value)}</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Top by total panel income (sum of all brainrot incomes per panel)
+function renderTopTotal() {
+    const container = document.querySelector('.top-content');
+    if (!container) return;
+    
+    const panelData = [];
+    
+    for (const savedKey of state.savedKeys) {
+        const farmKey = savedKey.farmKey;
+        const farmerData = state.farmersData[farmKey];
+        if (!farmerData || !farmerData.data) continue;
+        
+        const accountsData = farmerData.data;
+        if (!Array.isArray(accountsData) || accountsData.length === 0) continue;
+        
+        // Суммируем доход со всех брейнротов
+        let totalIncome = 0;
+        let farmersCount = 0;
+        
+        for (const account of accountsData) {
+            if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
+            farmersCount++;
+            
+            for (const br of account.brainrots) {
+                totalIncome += br.daily_income || br.income || 0;
+            }
+        }
+        
+        if (totalIncome > 0) {
+            panelData.push({
+                farmKey,
+                name: savedKey.username || savedKey.name || farmKey.substring(0, 8),
+                avatar: savedKey.avatar || null,
+                totalIncome,
+                farmersCount
+            });
+        }
+    }
+    
+    // Сортируем по общему доходу
+    panelData.sort((a, b) => b.totalIncome - a.totalIncome);
+    
+    if (panelData.length === 0) {
+        container.innerHTML = `
+            <div class="top-empty">
+                <i class="fas fa-trophy"></i>
+                <h3>Нет данных</h3>
+                <p>Добавьте farm keys и загрузите данные</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const top3 = panelData.slice(0, 3);
+    const rest = panelData.slice(3, 10);
+    
+    let html = renderTopPodiumTotal(top3);
+    
+    if (rest.length > 0) {
+        html += `<div class="top-list">`;
+        rest.forEach((item, index) => {
+            html += `
+                <div class="top-list-item">
+                    <div class="top-list-rank">${index + 4}</div>
+                    <img src="${item.avatar || 'https://via.placeholder.com/40'}" class="top-list-avatar" alt="">
+                    <div class="top-list-info">
+                        <div class="top-list-name">${item.name}</div>
+                        <div class="top-list-brainrot">${item.farmersCount} farmers</div>
+                    </div>
+                    <div class="top-list-stats">
+                        <div class="top-list-value">+${formatMoney(item.totalIncome)}/day</div>
+                    </div>
+                </div>
+            `;
+        });
+        html += `</div>`;
+    }
+    
+    container.innerHTML = html;
+}
+
+// Render top 3 podium for income/value tabs
+function renderTopPodium(top3, type) {
+    if (top3.length === 0) return '';
+    
+    const positions = ['first', 'second', 'third'];
+    
+    let html = `<div class="top-podium">`;
+    
+    top3.forEach((item, index) => {
+        const position = positions[index];
+        const brainrotImg = getBrainrotImage(item.brainrot?.name);
+        const valueDisplay = type === 'income' 
+            ? `+${formatMoney(item.income)}/day` 
+            : formatMoney(item.value);
+        
+        html += `
+            <div class="podium-item ${position}">
+                <div class="podium-avatar">
+                    ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
+                    <img src="${item.avatar || 'https://via.placeholder.com/100'}" alt="${item.name}">
+                </div>
+                <div class="podium-rank">#${index + 1}</div>
+                <div class="podium-name">${item.name}</div>
+                <div class="podium-brainrot">
+                    <img src="${brainrotImg}" class="podium-brainrot-img" alt="">
+                    <span class="podium-brainrot-name">${item.brainrot?.name || 'Unknown'}</span>
+                </div>
+                <div class="podium-value">${valueDisplay}</div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    return html;
+}
+
+// Render top 3 podium for total tab (panel avatars only, no brainrot)
+function renderTopPodiumTotal(top3) {
+    if (top3.length === 0) return '';
+    
+    const positions = ['first', 'second', 'third'];
+    
+    let html = `<div class="top-podium">`;
+    
+    top3.forEach((item, index) => {
+        const position = positions[index];
+        
+        html += `
+            <div class="podium-item ${position}">
+                <div class="podium-avatar">
+                    ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
+                    <img src="${item.avatar || 'https://via.placeholder.com/100'}" alt="${item.name}">
+                </div>
+                <div class="podium-rank">#${index + 1}</div>
+                <div class="podium-name">${item.name}</div>
+                <div class="podium-brainrot">
+                    <span class="podium-brainrot-name">${item.farmersCount} farmers</span>
+                </div>
+                <div class="podium-value">+${formatMoney(item.totalIncome)}/day</div>
+            </div>
+        `;
+    });
+    
+    html += `</div>`;
+    return html;
+}
+
+// Helper to get brainrot image
+function getBrainrotImage(brainrotName) {
+    if (!brainrotName) return 'https://via.placeholder.com/60';
+    
+    const normalizedName = brainrotName.toLowerCase();
+    
+    // Сначала пробуем брать из state.brainrotImages (уже загружен)
+    if (state.brainrotImages && state.brainrotImages[normalizedName]) {
+        return `${BRAINROT_IMAGES_BASE}/${state.brainrotImages[normalizedName]}`;
+    }
+    
+    // Пробуем варианты имени
+    const variations = [
+        normalizedName,
+        normalizedName.replace(/ /g, '_'),
+        normalizedName.replace(/ /g, '')
+    ];
+    
+    for (const variant of variations) {
+        if (state.brainrotImages && state.brainrotImages[variant]) {
+            return `${BRAINROT_IMAGES_BASE}/${state.brainrotImages[variant]}`;
+        }
+    }
+    
+    return 'https://via.placeholder.com/60';
+}

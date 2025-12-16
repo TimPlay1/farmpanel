@@ -50,6 +50,10 @@
                         <i class="fas fa-chart-line"></i>
                         Dashboard
                     </button>
+                    <button class="nav-tab" data-view="top">
+                        <i class="fas fa-trophy"></i>
+                        Top
+                    </button>
                     <button class="nav-tab" data-view="accounts">
                         <i class="fas fa-users"></i>
                         Accounts
@@ -69,7 +73,22 @@
                 </nav>
             </div>
             <div class="header-right">
-                <div class="current-farmer" id="currentFarmer"></div>
+                <div class="account-switcher" id="accountSwitcher">
+                    <div class="current-farmer-wrapper" id="currentFarmerWrapper">
+                        <div class="current-farmer" id="currentFarmer"></div>
+                        <div class="farmer-stats-mini">
+                            <span class="farmer-balance" id="farmerBalance">$0.00</span>
+                            <span class="farmer-accounts-count" id="farmerAccountsCount">0 skladov</span>
+                        </div>
+                        <i class="fas fa-chevron-down switcher-arrow"></i>
+                    </div>
+                    <div class="account-dropdown hidden" id="accountDropdownPanel">
+                        <div class="account-dropdown-header">
+                            <span>Switch Account</span>
+                        </div>
+                        <div class="account-dropdown-list" id="accountDropdownList"></div>
+                    </div>
+                </div>
                 <button class="logout-btn" id="logoutBtn">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
@@ -122,6 +141,33 @@
                         Active Farmers
                     </h2>
                     <div class="accounts-grid" id="accountsGrid"></div>
+                </div>
+            </div>
+
+            <!-- Top View -->
+            <div id="topView" class="view">
+                <div class="section">
+                    <h2 class="section-title">
+                        <i class="fas fa-trophy"></i>
+                        Leaderboards
+                    </h2>
+                    <div class="top-tabs">
+                        <button class="top-tab active" data-top="income">
+                            <i class="fas fa-coins"></i>
+                            Best Income Brainrot
+                        </button>
+                        <button class="top-tab" data-top="value">
+                            <i class="fas fa-gem"></i>
+                            Most Valuable Brainrot
+                        </button>
+                        <button class="top-tab" data-top="total">
+                            <i class="fas fa-chart-bar"></i>
+                            Total Panel Income
+                        </button>
+                    </div>
+                    <div class="top-content" id="topContent">
+                        <!-- Top content will be rendered here -->
+                    </div>
                 </div>
             </div>
 
