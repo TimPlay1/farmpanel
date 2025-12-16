@@ -3200,6 +3200,7 @@ body {
     border-radius: 50%;
     object-fit: cover;
     border: 3px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .podium-item.first .podium-brainrot-circle {
@@ -3211,10 +3212,12 @@ body {
 
 .podium-item.second .podium-brainrot-circle {
     border-color: #c0c0c0;
+    box-shadow: 0 0 15px rgba(192, 192, 192, 0.3);
 }
 
 .podium-item.third .podium-brainrot-circle {
     border-color: #cd7f32;
+    box-shadow: 0 0 15px rgba(205, 127, 50, 0.3);
 }
 
 /* Panel info under podium */
@@ -3253,6 +3256,7 @@ body {
     font-size: 2rem;
     color: white;
     border: 3px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
 .podium-item.first .podium-user-circle {
@@ -3265,10 +3269,41 @@ body {
 
 .podium-item.second .podium-user-circle {
     border-color: #c0c0c0;
+    box-shadow: 0 0 15px rgba(192, 192, 192, 0.3);
 }
 
 .podium-item.third .podium-user-circle {
     border-color: #cd7f32;
+    box-shadow: 0 0 15px rgba(205, 127, 50, 0.3);
+}
+
+/* Podium animation for circles */
+.podium-animated {
+    animation: podiumPulse 2s ease-in-out infinite;
+}
+
+.podium-item.first .podium-animated {
+    animation: podiumGlow 2s ease-in-out infinite;
+}
+
+@keyframes podiumPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+@keyframes podiumGlow {
+    0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+    50% {
+        transform: scale(1.08);
+        box-shadow: 0 0 35px rgba(255, 215, 0, 0.5);
+    }
 }
 
 .podium-brainrot {
