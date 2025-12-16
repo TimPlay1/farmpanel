@@ -1990,6 +1990,38 @@ function updateAccountDropdown(accounts) {
     accountDropdownMenu.innerHTML = html;
 }
 
+/**
+ * Генерация ссылки на Eldorado для конкретного брейнрота
+ * attr_ids mapping для M/s диапазонов:
+ * 0-0 = Any, 0-1 = 0-24, 0-2 = 25-49, 0-3 = 50-99, 0-4 = 100-249, 
+ * 0-5 = 250-499, 0-6 = 500-749, 0-7 = 750-999, 0-8 = 1+ B/s
+ */
+function getEldoradoSearchLink(brainrotName, income) {
+    const incomeValue = typeof income === 'string' ? parseFloat(income) : income;
+    
+    // Определяем attr_ids на основе income
+    let attrIds = '0-0'; // default = Any
+    if (incomeValue >= 1000) attrIds = '0-8';      // 1+ B/s
+    else if (incomeValue >= 750) attrIds = '0-7';  // 750-999 M/s
+    else if (incomeValue >= 500) attrIds = '0-6';  // 500-749 M/s
+    else if (incomeValue >= 250) attrIds = '0-5';  // 250-499 M/s
+    else if (incomeValue >= 100) attrIds = '0-4';  // 100-249 M/s
+    else if (incomeValue >= 50) attrIds = '0-3';   // 50-99 M/s
+    else if (incomeValue >= 25) attrIds = '0-2';   // 25-49 M/s
+    else if (incomeValue > 0) attrIds = '0-1';     // 0-24 M/s
+    
+    const encodedName = encodeURIComponent(brainrotName);
+    return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
+}
+
+/**
+ * Открыть ссылку Eldorado для брейнрота
+ */
+function openEldoradoLink(brainrotName, income) {
+    const link = getEldoradoSearchLink(brainrotName, income);
+    window.open(link, '_blank');
+}
+
 // Filter and sort brainrots
 /**
  * Получить цену брейнрота из кэша
@@ -2299,6 +2331,9 @@ async function renderCollection() {
                     ${group.quantity > 1 ? group.quantity + ' accounts' : group.items[0]?.accountName || 'Unknown'}
                 </div>
             </div>
+            <button class="brainrot-eldorado-link" onclick="event.stopPropagation(); openEldoradoLink('${group.name.replace(/'/g, "\\'")}', ${income})" title="View on Eldorado">
+                <i class="fas fa-external-link-alt"></i>
+            </button>
         </div>`;
     }).join('');
     
