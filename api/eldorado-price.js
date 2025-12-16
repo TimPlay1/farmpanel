@@ -432,7 +432,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         
         // Если нашли upper - ищем lower среди ВСЕХ собранных офферов
         if (upperOffer && upperPage === page) {
-            // Lower = оффер с income < targetIncome, цена <= upper (ближайший по цене к upper)
+            // Lower = оффер с income < targetIncome, цена <= upper
+            // Берём с МАКСИМАЛЬНЫМ INCOME (ближайший к нашему по доходности)
             const lowerCandidates = allPageOffers.filter(o => 
                 o.income > 0 && 
                 o.income < targetIncome && 
@@ -440,8 +441,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             );
             
             if (lowerCandidates.length > 0) {
-                // Сортируем по цене DESC - берём с максимальной ценой (ближе к upper)
-                lowerCandidates.sort((a, b) => b.price - a.price);
+                // Сортируем по INCOME DESC - берём с максимальным income (ближе к нашему)
+                lowerCandidates.sort((a, b) => b.income - a.income);
                 lowerOffer = lowerCandidates[0];
                 console.log('Found LOWER:', lowerOffer.income, 'M/s @', lowerOffer.price.toFixed(2), '(page', lowerOffer.page + ')');
             }
