@@ -606,6 +606,18 @@ const accountsGridEl = document.getElementById('accountsGrid');
 const accountsListEl = document.getElementById('accountsList');
 const farmKeysListEl = document.getElementById('farmKeysList');
 
+// Offers elements
+const offersGridEl = document.getElementById('offersGrid');
+const offersStatsEl = document.getElementById('offersStats');
+const offerSearchEl = document.getElementById('offerSearch');
+const offerSortDropdown = document.getElementById('offerSortDropdown');
+const offerStatusDropdown = document.getElementById('offerStatusDropdown');
+const selectAllOffersEl = document.getElementById('selectAllOffers');
+const bulkAdjustBtn = document.getElementById('bulkAdjustBtn');
+const refreshOffersBtn = document.getElementById('refreshOffersBtn');
+const bulkPriceModal = document.getElementById('bulkPriceModal');
+const offerPriceModal = document.getElementById('offerPriceModal');
+
 const addKeyBtn = document.getElementById('addKeyBtn');
 const addKeyModal = document.getElementById('addKeyModal');
 const newKeyInput = document.getElementById('newKeyInput');
@@ -816,6 +828,11 @@ function switchView(viewName) {
     // При переключении на Farm Keys - обновляем данные всех фермеров
     if (viewName === 'farmKeys') {
         fetchAllFarmersData();
+    }
+    
+    // При переключении на Offers - загружаем офферы
+    if (viewName === 'offers') {
+        initOffersView();
     }
 }
 
@@ -2813,3 +2830,526 @@ function postToEldorado() {
 // Initialize collection listeners on DOM ready
 setupCollectionListeners();
 
+// ==========================================
+// OFFERS MANAGEMENT
+// ==========================================
+
+// Offers state
+const offersState = {
+    offers: [],
+    filteredOffers: [],
+    selectedOffers: new Set(),
+    searchQuery: '',
+    sortBy: 'newest',
+    statusFilter: 'all',
+    currentOffer: null
+};
+
+// Load offers from server
+async function loadOffers() {
+    try {
+        const farmKey = state.currentKey;
+        if (!farmKey) return;
+        
+        const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
+        const data = await response.json();
+        offersState.offers = data.offers || [];
+        
+        // Update recommended prices for each offer
+        await updateOffersRecommendedPrices();
+        
+        filterAndRenderOffers();
+        console.log('Loaded offers:', offersState.offers.length);
+    } catch (err) {
+        console.error('Error loading offers:', err);
+        offersState.offers = [];
+    }
+}
+
+// Update recommended prices for offers
+async function updateOffersRecommendedPrices() {
+    for (const offer of offersState.offers) {
+        if (offer.brainrotName && offer.income) {
+            const normalizedIncome = normalizeIncomeForApi(offer.income, offer.income);
+            const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
+            const priceData = state.brainrotPrices[priceKey];
+            if (priceData && priceData.suggestedPrice) {
+                offer.recommendedPrice = priceData.suggestedPrice;
+            }
+        }
+    }
+}
+
+// Filter and render offers
+function filterAndRenderOffers() {
+    let filtered = [...offersState.offers];
+    
+    // Search filter
+    if (offersState.searchQuery) {
+        const q = offersState.searchQuery.toLowerCase();
+        filtered = filtered.filter(o => 
+            o.brainrotName?.toLowerCase().includes(q) ||
+            o.offerId?.toLowerCase().includes(q)
+        );
+    }
+    
+    // Status filter
+    if (offersState.statusFilter === 'active') {
+        filtered = filtered.filter(o => o.status === 'active');
+    } else if (offersState.statusFilter === 'needs-update') {
+        filtered = filtered.filter(o => {
+            const diff = calculatePriceDiff(o.currentPrice, o.recommendedPrice);
+            return Math.abs(diff) > 5; // More than 5% difference
+        });
+    }
+    
+    // Sort
+    switch (offersState.sortBy) {
+        case 'oldest':
+            filtered.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            break;
+        case 'price-desc':
+            filtered.sort((a, b) => (b.currentPrice || 0) - (a.currentPrice || 0));
+            break;
+        case 'price-asc':
+            filtered.sort((a, b) => (a.currentPrice || 0) - (b.currentPrice || 0));
+            break;
+        case 'diff-desc':
+            filtered.sort((a, b) => {
+                const diffA = Math.abs(calculatePriceDiff(a.currentPrice, a.recommendedPrice));
+                const diffB = Math.abs(calculatePriceDiff(b.currentPrice, b.recommendedPrice));
+                return diffB - diffA;
+            });
+            break;
+        case 'diff-asc':
+            filtered.sort((a, b) => {
+                const diffA = Math.abs(calculatePriceDiff(a.currentPrice, a.recommendedPrice));
+                const diffB = Math.abs(calculatePriceDiff(b.currentPrice, b.recommendedPrice));
+                return diffA - diffB;
+            });
+            break;
+        default: // newest
+            filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+    
+    offersState.filteredOffers = filtered;
+    renderOffers();
+    updateOffersStats();
+}
+
+// Calculate price difference percentage
+function calculatePriceDiff(currentPrice, recommendedPrice) {
+    if (!currentPrice || !recommendedPrice) return 0;
+    return ((currentPrice - recommendedPrice) / recommendedPrice) * 100;
+}
+
+// Render offers grid
+function renderOffers() {
+    if (!offersGridEl) return;
+    
+    if (offersState.filteredOffers.length === 0) {
+        offersGridEl.innerHTML = `
+            <div class="offers-empty">
+                <i class="fas fa-store"></i>
+                <h3>${offersState.offers.length === 0 ? 'No offers yet' : 'No matches'}</h3>
+                <p>${offersState.offers.length === 0 
+                    ? 'Offers created via Eldorado will appear here' 
+                    : 'Try adjusting your search or filters'}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    offersGridEl.innerHTML = offersState.filteredOffers.map(offer => {
+        const diff = calculatePriceDiff(offer.currentPrice, offer.recommendedPrice);
+        const diffClass = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
+        const diffText = diff === 0 ? '0%' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
+        const isSelected = offersState.selectedOffers.has(offer.offerId);
+        const needsUpdate = Math.abs(diff) > 5;
+        
+        return `
+        <div class="offer-card ${isSelected ? 'selected' : ''}" data-offer-id="${offer.offerId}">
+            <div class="offer-card-checkbox">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleOfferSelection('${offer.offerId}')">
+                    <span class="checkmark"></span>
+                </label>
+            </div>
+            <span class="offer-status-badge ${needsUpdate ? 'needs-update' : 'active'}">
+                ${needsUpdate ? 'Needs Update' : 'Active'}
+            </span>
+            <div class="offer-card-header">
+                <div class="offer-card-image">
+                    ${offer.imageUrl 
+                        ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">`
+                        : '<i class="fas fa-brain" style="font-size: 1.5rem; color: var(--text-muted);"></i>'
+                    }
+                </div>
+                <div class="offer-card-info">
+                    <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
+                    <div class="offer-card-id">${offer.offerId}</div>
+                    <div class="offer-card-income">${offer.income || '0/s'}</div>
+                </div>
+            </div>
+            <div class="offer-card-prices">
+                <div class="offer-price-item">
+                    <div class="offer-price-label">Current</div>
+                    <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
+                </div>
+                <div class="offer-price-diff">
+                    <div class="offer-diff-badge ${diffClass}">${diffText}</div>
+                </div>
+                <div class="offer-price-item">
+                    <div class="offer-price-label">Recommended</div>
+                    <div class="offer-price-value recommended">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
+                </div>
+            </div>
+            <div class="offer-card-actions">
+                <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
+                    <i class="fas fa-edit"></i>
+                    Adjust Price
+                </button>
+            </div>
+        </div>
+        `;
+    }).join('');
+}
+
+// Update offers stats
+function updateOffersStats() {
+    if (!offersStatsEl) return;
+    
+    const total = offersState.offers.length;
+    const needsUpdate = offersState.offers.filter(o => {
+        const diff = Math.abs(calculatePriceDiff(o.currentPrice, o.recommendedPrice));
+        return diff > 5;
+    }).length;
+    
+    offersStatsEl.innerHTML = `
+        <span><i class="fas fa-store"></i> ${total} total</span>
+        ${needsUpdate > 0 ? `<span style="color: #fbbf24;"><i class="fas fa-exclamation-triangle"></i> ${needsUpdate} need update</span>` : ''}
+        ${offersState.selectedOffers.size > 0 ? `<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> ${offersState.selectedOffers.size} selected</span>` : ''}
+    `;
+}
+
+// Toggle offer selection
+function toggleOfferSelection(offerId) {
+    if (offersState.selectedOffers.has(offerId)) {
+        offersState.selectedOffers.delete(offerId);
+    } else {
+        offersState.selectedOffers.add(offerId);
+    }
+    updateBulkActionsState();
+    renderOffers();
+}
+
+// Toggle select all offers
+function toggleSelectAllOffers() {
+    if (offersState.selectedOffers.size === offersState.filteredOffers.length) {
+        offersState.selectedOffers.clear();
+    } else {
+        offersState.filteredOffers.forEach(o => offersState.selectedOffers.add(o.offerId));
+    }
+    updateBulkActionsState();
+    renderOffers();
+}
+
+// Update bulk actions button state
+function updateBulkActionsState() {
+    if (bulkAdjustBtn) {
+        bulkAdjustBtn.disabled = offersState.selectedOffers.size === 0;
+    }
+    if (selectAllOffersEl) {
+        selectAllOffersEl.checked = offersState.selectedOffers.size === offersState.filteredOffers.length && offersState.filteredOffers.length > 0;
+    }
+    updateOffersStats();
+}
+
+// Open single offer price modal
+function openOfferPriceModal(offerId) {
+    const offer = offersState.offers.find(o => o.offerId === offerId);
+    if (!offer) return;
+    
+    offersState.currentOffer = offer;
+    
+    const previewEl = document.getElementById('offerPreview');
+    const recommendedValueEl = document.getElementById('recommendedPriceValue');
+    const customInputEl = document.getElementById('customPriceInput');
+    
+    if (previewEl) {
+        previewEl.innerHTML = `
+            ${offer.imageUrl ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">` : ''}
+            <div class="offer-preview-info">
+                <h4>${offer.brainrotName || 'Unknown'}</h4>
+                <p>${offer.income || '0/s'} • Current: $${(offer.currentPrice || 0).toFixed(2)}</p>
+            </div>
+        `;
+    }
+    
+    if (recommendedValueEl) {
+        recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
+    }
+    
+    if (customInputEl) {
+        customInputEl.value = offer.currentPrice || '';
+    }
+    
+    // Reset radio to recommended
+    document.querySelector('input[name="priceType"][value="recommended"]').checked = true;
+    
+    openModal(offerPriceModal);
+}
+
+// Open bulk price modal
+function openBulkPriceModal() {
+    const selectedOffers = offersState.offers.filter(o => offersState.selectedOffers.has(o.offerId));
+    if (selectedOffers.length === 0) return;
+    
+    const bulkOffersListEl = document.getElementById('bulkOffersList');
+    const bulkCountEl = document.getElementById('bulkCount');
+    
+    if (bulkCountEl) {
+        bulkCountEl.textContent = selectedOffers.length;
+    }
+    
+    if (bulkOffersListEl) {
+        bulkOffersListEl.innerHTML = selectedOffers.map(offer => `
+            <div class="bulk-offer-item" data-offer-id="${offer.offerId}">
+                ${offer.imageUrl ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">` : '<div style="width:40px;height:40px;background:var(--bg-tertiary);border-radius:6px;"></div>'}
+                <div class="bulk-offer-info">
+                    <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
+                    <div class="bulk-offer-current">Current: $${(offer.currentPrice || 0).toFixed(2)}</div>
+                </div>
+                <div class="bulk-offer-price-input custom-price-input hidden">
+                    <input type="number" step="0.01" min="0" value="${offer.currentPrice || ''}" placeholder="0.00">
+                </div>
+                <div class="bulk-offer-recommended">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
+            </div>
+        `).join('');
+    }
+    
+    // Reset to recommended
+    document.querySelector('input[name="bulkPriceType"][value="recommended"]').checked = true;
+    document.getElementById('singlePriceInput')?.classList.add('hidden');
+    bulkOffersListEl?.querySelectorAll('.custom-price-input').forEach(el => el.classList.add('hidden'));
+    
+    openModal(bulkPriceModal);
+}
+
+// Handle bulk price type change
+function handleBulkPriceTypeChange(type) {
+    const singlePriceInput = document.getElementById('singlePriceInput');
+    const customInputs = document.querySelectorAll('#bulkOffersList .custom-price-input');
+    
+    singlePriceInput?.classList.toggle('hidden', type !== 'custom-single');
+    customInputs.forEach(el => el.classList.toggle('hidden', type !== 'custom-each'));
+}
+
+// Confirm single offer price adjustment
+async function confirmOfferPriceAdjustment() {
+    const offer = offersState.currentOffer;
+    if (!offer) return;
+    
+    const priceType = document.querySelector('input[name="priceType"]:checked')?.value;
+    let newPrice;
+    
+    if (priceType === 'recommended') {
+        newPrice = offer.recommendedPrice;
+    } else {
+        newPrice = parseFloat(document.getElementById('customPriceInput')?.value);
+    }
+    
+    if (!newPrice || newPrice <= 0) {
+        document.getElementById('offerPriceError').textContent = 'Please enter a valid price';
+        return;
+    }
+    
+    // Create adjustment data for Tampermonkey
+    const adjustmentData = {
+        action: 'adjust_price',
+        offers: [{
+            offerId: offer.offerId,
+            brainrotName: offer.brainrotName,
+            income: offer.income,
+            newPrice: newPrice,
+            currentPrice: offer.currentPrice
+        }],
+        returnUrl: window.location.href,
+        timestamp: Date.now()
+    };
+    
+    // Store in localStorage for Tampermonkey
+    localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
+    
+    // Open Eldorado dashboard
+    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adjust=${encodeURIComponent(JSON.stringify(adjustmentData))}`;
+    window.open(eldoradoUrl, '_blank');
+    
+    closeModalFn(offerPriceModal);
+}
+
+// Confirm bulk price adjustment
+async function confirmBulkPriceAdjustment() {
+    const selectedOffers = offersState.offers.filter(o => offersState.selectedOffers.has(o.offerId));
+    if (selectedOffers.length === 0) return;
+    
+    const priceType = document.querySelector('input[name="bulkPriceType"]:checked')?.value;
+    const adjustments = [];
+    
+    for (const offer of selectedOffers) {
+        let newPrice;
+        
+        if (priceType === 'recommended') {
+            newPrice = offer.recommendedPrice;
+        } else if (priceType === 'custom-single') {
+            newPrice = parseFloat(document.getElementById('singleCustomPrice')?.value);
+        } else if (priceType === 'custom-each') {
+            const input = document.querySelector(`#bulkOffersList .bulk-offer-item[data-offer-id="${offer.offerId}"] input`);
+            newPrice = parseFloat(input?.value);
+        }
+        
+        if (newPrice && newPrice > 0) {
+            adjustments.push({
+                offerId: offer.offerId,
+                brainrotName: offer.brainrotName,
+                income: offer.income,
+                newPrice: newPrice,
+                currentPrice: offer.currentPrice
+            });
+        }
+    }
+    
+    if (adjustments.length === 0) {
+        document.getElementById('bulkPriceError').textContent = 'Please enter valid prices';
+        return;
+    }
+    
+    // Create adjustment data for Tampermonkey
+    const adjustmentData = {
+        action: 'adjust_price',
+        offers: adjustments,
+        returnUrl: window.location.href,
+        timestamp: Date.now()
+    };
+    
+    // Store in localStorage for Tampermonkey
+    localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
+    
+    // Open Eldorado dashboard
+    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adjust=${encodeURIComponent(JSON.stringify(adjustmentData))}`;
+    window.open(eldoradoUrl, '_blank');
+    
+    closeModalFn(bulkPriceModal);
+}
+
+// Save offer to server (called after creating offer via Tampermonkey)
+async function saveOffer(offerData) {
+    try {
+        const farmKey = state.currentKey;
+        if (!farmKey) return;
+        
+        const response = await fetch(`${API_BASE}/offers`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                farmKey,
+                ...offerData
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            console.log('Offer saved:', offerData.offerId);
+            await loadOffers();
+        }
+    } catch (err) {
+        console.error('Error saving offer:', err);
+    }
+}
+
+// Setup offers event listeners
+function setupOffersListeners() {
+    // Search
+    if (offerSearchEl) {
+        offerSearchEl.addEventListener('input', (e) => {
+            offersState.searchQuery = e.target.value.trim();
+            filterAndRenderOffers();
+        });
+    }
+    
+    // Sort dropdown
+    initDropdown(offerSortDropdown, (value) => {
+        offersState.sortBy = value;
+        filterAndRenderOffers();
+    });
+    
+    // Status dropdown
+    initDropdown(offerStatusDropdown, (value) => {
+        offersState.statusFilter = value;
+        filterAndRenderOffers();
+    });
+    
+    // Select all
+    if (selectAllOffersEl) {
+        selectAllOffersEl.addEventListener('change', toggleSelectAllOffers);
+    }
+    
+    // Bulk adjust button
+    if (bulkAdjustBtn) {
+        bulkAdjustBtn.addEventListener('click', openBulkPriceModal);
+    }
+    
+    // Refresh button
+    if (refreshOffersBtn) {
+        refreshOffersBtn.addEventListener('click', loadOffers);
+    }
+    
+    // Bulk price type radio buttons
+    document.querySelectorAll('input[name="bulkPriceType"]').forEach(radio => {
+        radio.addEventListener('change', (e) => handleBulkPriceTypeChange(e.target.value));
+    });
+    
+    // Modal close buttons
+    document.getElementById('closeBulkPriceModal')?.addEventListener('click', () => closeModalFn(bulkPriceModal));
+    document.getElementById('cancelBulkPrice')?.addEventListener('click', () => closeModalFn(bulkPriceModal));
+    document.getElementById('confirmBulkPrice')?.addEventListener('click', confirmBulkPriceAdjustment);
+    
+    document.getElementById('closeOfferPriceModal')?.addEventListener('click', () => closeModalFn(offerPriceModal));
+    document.getElementById('cancelOfferPrice')?.addEventListener('click', () => closeModalFn(offerPriceModal));
+    document.getElementById('confirmOfferPrice')?.addEventListener('click', confirmOfferPriceAdjustment);
+}
+
+// Initialize offers when view is shown
+function initOffersView() {
+    loadOffers();
+}
+
+// Setup offers listeners on DOM ready
+setupOffersListeners();
+
+// Check for returned data from Tampermonkey after price adjustment
+function checkForPriceAdjustmentResult() {
+    const result = localStorage.getItem('glitched_price_result');
+    if (result) {
+        try {
+            const data = JSON.parse(result);
+            if (data.success) {
+                console.log('Price adjustment completed:', data);
+                // Update local offer data
+                for (const adjusted of data.adjusted || []) {
+                    const offer = offersState.offers.find(o => o.offerId === adjusted.offerId);
+                    if (offer) {
+                        offer.currentPrice = adjusted.newPrice;
+                    }
+                }
+                filterAndRenderOffers();
+            }
+            localStorage.removeItem('glitched_price_result');
+        } catch (e) {
+            console.error('Error parsing price result:', e);
+        }
+    }
+}
+
+// Check periodically for Tampermonkey results
+setInterval(checkForPriceAdjustmentResult, 2000);
