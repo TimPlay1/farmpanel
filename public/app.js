@@ -87,6 +87,7 @@ let state = {
     currentTotalValue: 0, // Текущий баланс (синхронизирован везде)
     currentBalanceChange: null, // Текущее изменение баланса
     isManualPriceRefresh: false, // Флаг ручного рефреша цен (не записываем в историю)
+    frozenBalance: null, // Замороженный баланс во время ручного рефреша
     lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
@@ -1461,10 +1462,17 @@ function updateUI() {
             account.brainrots.forEach(b => allBrainrots.push(b));
         }
     });
-    const totalValue = calculateTotalValue(allBrainrots);
+    let totalValue = calculateTotalValue(allBrainrots);
     
-    // Сохраняем в state для синхронизации везде
-    state.currentTotalValue = totalValue;
+    // При ручном рефреше используем замороженный баланс чтобы не показывать $0
+    if (state.isManualPriceRefresh && state.frozenBalance !== null) {
+        totalValue = state.frozenBalance;
+    }
+    
+    // Сохраняем в state для синхронизации везде (но не перезаписываем на 0 при рефреше)
+    if (!state.isManualPriceRefresh || totalValue > 0) {
+        state.currentTotalValue = totalValue;
+    }
     state.currentBalanceChange = getBalanceChange(state.currentKey, PERIODS.hour);
     
     // Записываем в историю баланса
@@ -1479,7 +1487,8 @@ function updateUI() {
     
     // Update total value with change indicator
     if (statsEls.totalValue) {
-        statsEls.totalValue.textContent = totalValue > 0 ? `$${totalValue.toFixed(2)}` : '$0.00';
+        const displayValue = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
+        statsEls.totalValue.textContent = displayValue > 0 ? `$${displayValue.toFixed(2)}` : '$0.00';
         
         // Show % change from history (hour period) - но НЕ при ручном рефреше
         if (statsEls.totalValueChange) {
@@ -1530,15 +1539,17 @@ function updateCurrentFarmer() {
     
     // Update mini stats in header with % change (используем значение из state)
     // НЕ показываем изменения при ручном рефреше
+    // При рефреше используем frozen balance
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
+    const displayBalance = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
     
     if (balanceEl) {
         let changeHtml = '';
         if (!state.isManualPriceRefresh && state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
             changeHtml = ` ${formatBalanceChange(state.currentBalanceChange.changePercent, true)}`;
         }
-        balanceEl.innerHTML = `$${totalValue.toFixed(2)}${changeHtml}`;
+        balanceEl.innerHTML = `$${displayBalance.toFixed(2)}${changeHtml}`;
     }
     
     const accountText = accountCount === 1 ? 'account' : 'accounts';
@@ -2705,9 +2716,12 @@ async function renderCollection() {
     const brainrots = collectionState.filteredBrainrots;
     
     // Update stats (используем синхронизированное значение из state)
+    // При ручном рефреше используем frozen balance
     if (collectionStatsEl) {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
-        const totalValue = state.currentTotalValue; // Используем синхронизированное значение
+        const totalValue = state.isManualPriceRefresh && state.frozenBalance !== null 
+            ? state.frozenBalance 
+            : state.currentTotalValue;
         
         // Get balance change for collection (используем из state) - НЕ при ручном рефреше
         let changeHtml = '';
@@ -3040,7 +3054,10 @@ function updatePriceInDOM(brainrotName, income, priceData) {
 function clearPriceCache() {
     // РУЧНОЙ РЕФРЕШ - не записываем изменения в историю баланса
     state.isManualPriceRefresh = true;
-    console.log('Manual price refresh started - balance history recording disabled');
+    
+    // ЗАМОРАЖИВАЕМ баланс ПЕРЕД очисткой цен - он будет отображаться пока цены загружаются
+    state.frozenBalance = state.currentTotalValue;
+    console.log('Manual price refresh started - balance frozen at $' + state.frozenBalance.toFixed(2));
     
     // Сохраняем текущие цены как предыдущие для отображения % изменения
     savePreviousPrices();
@@ -3067,7 +3084,8 @@ function clearPriceCache() {
     // Сбрасываем флаг после завершения рефреша (с задержкой чтобы все обновления прошли)
     setTimeout(() => {
         state.isManualPriceRefresh = false;
-        console.log('Manual price refresh completed - balance history recording re-enabled');
+        state.frozenBalance = null;
+        console.log('Manual price refresh completed - balance unfrozen');
     }, 30000); // 30 секунд на загрузку всех цен
 }
 
@@ -4466,6 +4484,12 @@ function updateBalanceChart(period = currentChartPeriod) {
     const chartStats = document.querySelector('.chart-stats');
     
     if (!chartContainer || !state.currentKey) return;
+    
+    // При ручном рефреше НЕ обновляем график - оставляем как есть
+    if (state.isManualPriceRefresh) {
+        console.log('Skip chart update during manual price refresh');
+        return;
+    }
     
     // Load period if not set
     if (!currentChartPeriod) {
