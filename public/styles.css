@@ -3490,6 +3490,18 @@ body {
     font-size: 1.25rem;
 }
 
+/* Podium income info for value tab */
+.podium-income {
+    font-size: 0.75rem;
+    color: var(--accent-blue);
+    opacity: 0.9;
+    margin-top: 0.15rem;
+}
+
+.podium-item.first .podium-income {
+    font-size: 0.85rem;
+}
+
 /* Top List (4-10) */
 .top-list {
     display: flex;
@@ -3571,6 +3583,12 @@ body {
 .top-list-brainrot {
     font-size: 0.75rem;
     color: var(--text-muted);
+}
+
+.top-list-income {
+    color: var(--accent-blue);
+    font-weight: 500;
+    margin-left: 0.25rem;
 }
 
 .top-list-value {

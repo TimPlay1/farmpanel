@@ -254,9 +254,27 @@ async function getAccountAvatar(userId, serverAvatars) {
 // ============ Balance History Functions ============
 
 /**
- * Загрузить историю баланса из localStorage
+ * Загрузить историю баланса из сервера (MongoDB)
  */
-function loadBalanceHistory() {
+async function loadBalanceHistory() {
+    if (!state.currentKey) return;
+    
+    try {
+        // Сначала пробуем загрузить из сервера
+        const response = await fetch(`${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.history && data.history.length > 0) {
+                state.balanceHistory[state.currentKey] = data.history;
+                console.log(`Loaded ${data.history.length} balance history records from server`);
+                return;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load balance history from server:', e);
+    }
+    
+    // Fallback: загружаем из localStorage
     try {
         const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
         if (stored) {
@@ -268,7 +286,7 @@ function loadBalanceHistory() {
                     entry => entry.timestamp > monthAgo
                 );
             }
-            console.log('Loaded balance history from cache');
+            console.log('Loaded balance history from localStorage cache');
         }
     } catch (e) {
         console.warn('Failed to load balance history:', e);
@@ -277,7 +295,22 @@ function loadBalanceHistory() {
 }
 
 /**
- * Сохранить историю баланса в localStorage
+ * Сохранить запись истории баланса на сервер
+ */
+async function saveBalanceHistoryToServer(farmKey, value) {
+    try {
+        await fetch(`${API_BASE}/balance-history`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey, value, timestamp: Date.now() })
+        });
+    } catch (e) {
+        console.warn('Failed to save balance history to server:', e);
+    }
+}
+
+/**
+ * Сохранить историю баланса в localStorage (backup)
  */
 function saveBalanceHistory() {
     try {
@@ -296,6 +329,30 @@ function saveBalanceHistory() {
             }
         }
     }
+}
+
+/**
+ * Очистить всю историю баланса (для сброса тестовых данных)
+ */
+async function clearBalanceHistory() {
+    state.balanceHistory = {};
+    state.currentBalanceChange = null;
+    localStorage.removeItem(BALANCE_HISTORY_KEY);
+    
+    // Очищаем на сервере
+    try {
+        await fetch(`${API_BASE}/balance-history?all=true&secret=cleanup-farmpanel-2024`, {
+            method: 'DELETE'
+        });
+        console.log('Balance history cleared on server');
+    } catch (e) {
+        console.warn('Failed to clear balance history on server:', e);
+    }
+    
+    console.log('Balance history cleared');
+    updateBalanceChart();
+    updateUI();
+    renderFarmKeys();
 }
 
 /**
@@ -334,11 +391,15 @@ function recordBalanceHistory(farmKey, value) {
     history.push({ timestamp: now, value: value });
     console.log(`Balance history: recorded $${value.toFixed(2)} for ${farmKey}`);
     
+    // Сохраняем на сервер (async, не блокируем)
+    saveBalanceHistoryToServer(farmKey, value);
+    
     // Ограничиваем размер истории (макс 2000 записей на аккаунт)
     if (history.length > 2000) {
         state.balanceHistory[farmKey] = history.slice(-1000);
     }
     
+    // Сохраняем в localStorage как backup
     saveBalanceHistory();
 }
 
@@ -4315,7 +4376,7 @@ function renderTopData(data, type) {
                         </div>
                         <div class="top-list-info">
                             <div class="top-list-name">${item.username}</div>
-                            <div class="top-list-brainrot">${item.brainrot?.name || 'Unknown'}</div>
+                            <div class="top-list-brainrot">${item.brainrot?.name || 'Unknown'}${type === 'value' && item.brainrot?.income ? ` <span class="top-list-income">${formatIncomeSec(item.brainrot.income)}</span>` : ''}</div>
                         </div>
                         <div class="top-list-stats">
                             <div class="top-list-value">${valueDisplay}</div>
@@ -4364,6 +4425,11 @@ function renderTopPodium(top3, type) {
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
+        // Для вкладки Value показываем также income
+        const incomeInfo = type === 'value' && item.brainrot?.income
+            ? `<div class="podium-income">${formatIncomeSec(item.brainrot.income)}</div>`
+            : '';
+        
         // Брейнрот отображается в круглом аватаре сверху, аватар юзера слева от никнейма
         html += `
             <div class="podium-item ${position}">
@@ -4379,6 +4445,7 @@ function renderTopPodium(top3, type) {
                     <span class="podium-name">${item.username}</span>
                 </div>
                 <div class="podium-brainrot-label">${item.brainrot?.name || 'Unknown'}</div>
+                ${incomeInfo}
                 <div class="podium-value">${valueDisplay}</div>
             </div>
         `;
