@@ -92,9 +92,11 @@ const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
+const CHART_PERIOD_KEY = 'chartPeriodCache';
 
 // Периоды для графика
 const PERIODS = {
+    realtime: 5 * 60 * 1000,      // 5 минут - Real Time
     hour: 60 * 60 * 1000,
     day: 24 * 60 * 60 * 1000,
     week: 7 * 24 * 60 * 60 * 1000,
@@ -304,17 +306,17 @@ function recordBalanceHistory(farmKey, value) {
     const history = state.balanceHistory[farmKey];
     const now = Date.now();
     
-    // Не записываем чаще чем раз в минуту
+    // Записываем раз в 10 секунд для real-time графика
     if (history.length > 0) {
         const last = history[history.length - 1];
-        if (now - last.timestamp < 60000) return;
+        if (now - last.timestamp < 10000) return;
     }
     
     history.push({ timestamp: now, value: value });
     
-    // Ограничиваем размер истории (макс 1000 записей на аккаунт)
-    if (history.length > 1000) {
-        state.balanceHistory[farmKey] = history.slice(-500);
+    // Ограничиваем размер истории (макс 2000 записей на аккаунт)
+    if (history.length > 2000) {
+        state.balanceHistory[farmKey] = history.slice(-1000);
     }
     
     saveBalanceHistory();
@@ -362,19 +364,23 @@ function getBalanceChange(farmKey, periodMs) {
 /**
  * Получить данные для графика
  */
-function getChartData(farmKey, periodMs, points = 20) {
+function getChartData(farmKey, periodMs, points = 30) {
     const history = state.balanceHistory[farmKey];
-    if (!history || history.length < 2) return null;
+    if (!history || history.length < 2) return { labels: [], values: [] };
     
     const now = Date.now();
     const periodStart = now - periodMs;
     
     // Фильтруем записи в периоде
     const periodHistory = history.filter(e => e.timestamp >= periodStart);
-    if (periodHistory.length < 2) return null;
+    if (periodHistory.length < 2) return { labels: [], values: [] };
+    
+    // Для realtime показываем все точки
+    const isRealtime = periodMs <= PERIODS.realtime;
+    const maxPoints = isRealtime ? 100 : points;
     
     // Сэмплируем до нужного количества точек
-    const step = Math.max(1, Math.floor(periodHistory.length / points));
+    const step = Math.max(1, Math.floor(periodHistory.length / maxPoints));
     const sampled = [];
     for (let i = 0; i < periodHistory.length; i += step) {
         sampled.push(periodHistory[i]);
@@ -384,7 +390,21 @@ function getChartData(farmKey, periodMs, points = 20) {
         sampled.push(periodHistory[periodHistory.length - 1]);
     }
     
-    return sampled;
+    // Форматируем метки времени
+    const labels = sampled.map(entry => {
+        const date = new Date(entry.timestamp);
+        if (periodMs <= PERIODS.hour) {
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        } else if (periodMs <= PERIODS.day) {
+            return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+        } else {
+            return date.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+        }
+    });
+    
+    const values = sampled.map(entry => entry.value);
+    
+    return { labels, values };
 }
 
 /**
@@ -1219,6 +1239,22 @@ async function fetchAllFarmersData() {
                     }
                 }
                 
+                // Записываем баланс в историю
+                if (data.totalValue && data.totalValue > 0) {
+                    recordBalanceHistory(key.farmKey, data.totalValue);
+                } else if (data.accounts && data.accounts.length > 0) {
+                    // Рассчитываем если нет totalValue
+                    let totalValue = 0;
+                    data.accounts.forEach(account => {
+                        if (account.brainrots) {
+                            totalValue += calculateAccountValue(account);
+                        }
+                    });
+                    if (totalValue > 0) {
+                        recordBalanceHistory(key.farmKey, totalValue);
+                    }
+                }
+                
                 // Обновляем savedKey
                 key.username = data.username;
                 key.avatar = data.avatar;
@@ -1807,6 +1843,12 @@ function renderFarmKeys() {
             });
         }
         
+        // Получаем изменение баланса за час
+        const balanceChange = getBalanceChange(key.farmKey, PERIODS.hour);
+        const changeHtml = balanceChange && Math.abs(balanceChange.changePercent) > 0.01 
+            ? formatBalanceChange(balanceChange.changePercent, true) 
+            : '';
+        
         return `
             <div class="farm-key-card ${isActive ? 'active' : ''}" data-key="${key.farmKey}">
                 <div class="farm-key-left">
@@ -1833,7 +1875,7 @@ function renderFarmKeys() {
                     </div>
                     ${farmerValue > 0 ? `
                     <div class="farm-key-stats farm-key-value">
-                        <div class="farm-key-accounts">$${farmerValue.toFixed(2)}</div>
+                        <div class="farm-key-accounts">$${farmerValue.toFixed(2)} ${changeHtml}</div>
                         <div class="farm-key-label">value</div>
                     </div>
                     ` : ''}
@@ -4316,7 +4358,29 @@ function getBrainrotImage(brainrotName) {
 
 // Balance Chart instance
 let balanceChart = null;
-let currentChartPeriod = PERIODS.day;
+let currentChartPeriod = null;
+
+// Load saved chart period
+function loadChartPeriod() {
+    try {
+        const saved = localStorage.getItem(CHART_PERIOD_KEY);
+        if (saved) {
+            const period = parseInt(saved);
+            if (Object.values(PERIODS).includes(period)) {
+                currentChartPeriod = period;
+                return;
+            }
+        }
+    } catch (e) {}
+    currentChartPeriod = PERIODS.day;
+}
+
+// Save chart period
+function saveChartPeriod(period) {
+    try {
+        localStorage.setItem(CHART_PERIOD_KEY, period.toString());
+    } catch (e) {}
+}
 
 // Update balance chart
 function updateBalanceChart(period = currentChartPeriod) {
@@ -4326,7 +4390,14 @@ function updateBalanceChart(period = currentChartPeriod) {
     
     if (!chartContainer || !state.currentKey) return;
     
+    // Load period if not set
+    if (!currentChartPeriod) {
+        loadChartPeriod();
+        period = currentChartPeriod;
+    }
+    
     currentChartPeriod = period;
+    saveChartPeriod(period);
     
     // Update active tab
     document.querySelectorAll('.period-tab').forEach(tab => {
@@ -4355,14 +4426,15 @@ function updateBalanceChart(period = currentChartPeriod) {
     
     // Update chart stats
     if (chartStats) {
-        const periodName = period === PERIODS.hour ? 'час' : 
+        const periodName = period === PERIODS.realtime ? '5 минут' :
+                          period === PERIODS.hour ? 'час' : 
                           period === PERIODS.day ? 'день' : 
                           period === PERIODS.week ? 'неделю' : 'месяц';
         chartStats.innerHTML = `
             <div class="chart-stat">
                 <span class="chart-stat-label">Изменение за ${periodName}:</span>
                 <span class="chart-stat-value ${isPositive ? 'change-positive' : 'change-negative'}">
-                    ${isPositive ? '+' : ''}${formatIncomeSec(change)} (${isPositive ? '+' : ''}${changePercent}%)
+                    ${isPositive ? '+' : ''}$${Math.abs(change).toFixed(2)} (${isPositive ? '+' : ''}${changePercent}%)
                 </span>
             </div>
         `;
@@ -4417,7 +4489,7 @@ function updateBalanceChart(period = currentChartPeriod) {
                     displayColors: false,
                     callbacks: {
                         label: function(context) {
-                            return formatIncomeSec(context.raw);
+                            return '$' + context.raw.toFixed(2);
                         }
                     }
                 }
@@ -4448,7 +4520,7 @@ function updateBalanceChart(period = currentChartPeriod) {
                             size: 10
                         },
                         callback: function(value) {
-                            return formatIncomeSec(value);
+                            return '$' + value.toFixed(0);
                         }
                     }
                 }
@@ -4463,6 +4535,9 @@ function updateBalanceChart(period = currentChartPeriod) {
 
 // Initialize period tab listeners
 document.addEventListener('DOMContentLoaded', function() {
+    // Load saved chart period
+    loadChartPeriod();
+    
     document.querySelectorAll('.period-tab').forEach(tab => {
         tab.addEventListener('click', function() {
             const period = parseInt(this.dataset.period);
