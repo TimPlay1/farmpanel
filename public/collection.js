@@ -520,6 +520,7 @@ function renderCollection() {
     if (!brainrotsGridEl) return;
 
     const brainrots = collectionState.filteredBrainrots;
+    const isSelectionMode = massSelectionState && massSelectionState.isActive;
     
     // Update stats
     if (collectionStatsEl) {
@@ -532,6 +533,7 @@ function renderCollection() {
             ${collectionState.searchQuery || collectionState.accountFilter !== 'all' 
                 ? `<span><i class="fas fa-filter"></i> ${brainrots.length} shown</span>` 
                 : ''}
+            ${isSelectionMode ? `<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> Режим выбора</span>` : ''}
         `;
     }
 
@@ -552,10 +554,22 @@ function renderCollection() {
         const generated = isGenerated(b.name);
         const genInfo = getGenerationInfo(b.name);
         const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
+        const isSelected = isSelectionMode && massSelectionState.selectedItems.includes(index);
+        
+        // Build class list
+        const classes = ['brainrot-card'];
+        if (generated) classes.push('brainrot-generated');
+        if (isSelectionMode) classes.push('selectable');
+        if (isSelected) classes.push('selected');
+        
+        // Click handler for selection mode
+        const clickHandler = isSelectionMode 
+            ? `onclick="toggleBrainrotSelection(${index})"` 
+            : '';
         
         return `
-        <div class="brainrot-card ${generated ? 'brainrot-generated' : ''}" data-brainrot-index="${index}">
-            <div class="brainrot-generate-btn" onclick="handleGenerateClick(${index})" title="Генерировать изображение">
+        <div class="${classes.join(' ')}" data-brainrot-index="${index}" ${clickHandler}>
+            <div class="brainrot-generate-btn" onclick="event.stopPropagation(); handleGenerateClick(${index})" title="Генерировать изображение">
                 <i class="fas fa-${generated ? 'check' : 'plus'}"></i>
             </div>
             ${generated ? `
@@ -589,6 +603,378 @@ function handleGenerateClick(index) {
     }
 }
 
+// ==========================================
+// MASS SELECTION MODE
+// ==========================================
+
+// Mass selection state
+let massSelectionState = {
+    isActive: false,
+    selectedItems: [], // Array of brainrot indices
+    isGenerating: false
+};
+
+// Toggle mass selection mode
+function toggleMassSelectionMode() {
+    massSelectionState.isActive = !massSelectionState.isActive;
+    
+    const fab = document.getElementById('massSelectFab');
+    const indicator = document.getElementById('massSelectIndicator');
+    
+    if (massSelectionState.isActive) {
+        fab.classList.add('active');
+        fab.innerHTML = '<i class="fas fa-times"></i>';
+        fab.title = 'Выйти из режима выбора';
+        indicator.classList.add('visible');
+        massSelectionState.selectedItems = [];
+        updateMassSelectionUI();
+    } else {
+        fab.classList.remove('active');
+        fab.innerHTML = '<i class="fas fa-layer-group"></i>';
+        fab.title = 'Массовый выбор для генерации';
+        indicator.classList.remove('visible');
+        massSelectionState.selectedItems = [];
+    }
+    
+    // Re-render collection to show/hide checkboxes
+    renderCollection();
+}
+
+// Toggle brainrot selection
+function toggleBrainrotSelection(index) {
+    if (!massSelectionState.isActive) return;
+    
+    const idx = massSelectionState.selectedItems.indexOf(index);
+    if (idx === -1) {
+        massSelectionState.selectedItems.push(index);
+    } else {
+        massSelectionState.selectedItems.splice(idx, 1);
+    }
+    
+    updateMassSelectionUI();
+    
+    // Update card appearance
+    const card = document.querySelector(`[data-brainrot-index="${index}"]`);
+    if (card) {
+        card.classList.toggle('selected', massSelectionState.selectedItems.includes(index));
+    }
+}
+
+// Update mass selection UI (counter and button)
+function updateMassSelectionUI() {
+    const countEl = document.getElementById('massSelectCount');
+    const btnEl = document.getElementById('massSelectGenerateBtn');
+    const count = massSelectionState.selectedItems.length;
+    
+    if (countEl) countEl.textContent = count;
+    if (btnEl) {
+        btnEl.disabled = count === 0;
+        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать${count > 0 ? ` (${count})` : ''}`;
+    }
+}
+
+// Open mass generation modal
+function openMassGenerationModal() {
+    if (massSelectionState.selectedItems.length === 0) return;
+    
+    const modal = document.getElementById('massGenerationModal');
+    const list = document.getElementById('massGenList');
+    const countEl = document.getElementById('massGenCount');
+    const progressEl = document.getElementById('massGenProgress');
+    const errorEl = document.getElementById('massGenError');
+    const startBtn = document.getElementById('startMassGen');
+    
+    // Reset state
+    progressEl.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    startBtn.disabled = false;
+    startBtn.innerHTML = `<i class="fas fa-play"></i> Начать (<span id="massGenCount">${massSelectionState.selectedItems.length}</span>)`;
+    
+    // Render list of selected items
+    const selectedBrainrots = massSelectionState.selectedItems.map(idx => ({
+        ...collectionState.filteredBrainrots[idx],
+        originalIndex: idx
+    }));
+    
+    list.innerHTML = selectedBrainrots.map((b, i) => {
+        const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
+        return `
+            <div class="mass-gen-item" data-item-index="${i}">
+                <img class="mass-gen-item-img" src="${b.imageUrl || ''}" alt="${b.name}" 
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%231a1a2e%22 width=%2240%22 height=%2240%22/></svg>'">
+                <div class="mass-gen-item-info">
+                    <div class="mass-gen-item-name">${b.name}</div>
+                    <div class="mass-gen-item-details">
+                        <span><i class="fas fa-coins"></i> ${b.incomeText || formatIncome(b.income)}</span>
+                        <span style="color: ${accountColor}"><i class="fas fa-user"></i> ${b.accountName}</span>
+                    </div>
+                </div>
+                <div class="mass-gen-item-status pending" data-status-index="${i}">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <button class="mass-gen-item-remove" onclick="removeMassGenItem(${i})" title="Удалить">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    countEl.textContent = selectedBrainrots.length;
+    modal.classList.remove('hidden');
+}
+
+// Remove item from mass generation list
+function removeMassGenItem(itemIndex) {
+    const list = document.getElementById('massGenList');
+    const item = list.querySelector(`[data-item-index="${itemIndex}"]`);
+    
+    if (item) {
+        item.remove();
+        
+        // Update indices for remaining items
+        const items = list.querySelectorAll('.mass-gen-item');
+        items.forEach((el, newIdx) => {
+            el.dataset.itemIndex = newIdx;
+            const statusEl = el.querySelector('[data-status-index]');
+            if (statusEl) statusEl.dataset.statusIndex = newIdx;
+            const removeBtn = el.querySelector('.mass-gen-item-remove');
+            if (removeBtn) removeBtn.setAttribute('onclick', `removeMassGenItem(${newIdx})`);
+        });
+        
+        // Update count
+        const countEl = document.getElementById('massGenCount');
+        const startBtn = document.getElementById('startMassGen');
+        const count = items.length;
+        countEl.textContent = count;
+        
+        if (count === 0) {
+            startBtn.disabled = true;
+        }
+    }
+}
+
+// Close mass generation modal
+function closeMassGenerationModal() {
+    const modal = document.getElementById('massGenerationModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Reset generating state if was cancelled
+    if (massSelectionState.isGenerating) {
+        massSelectionState.isGenerating = false;
+    }
+}
+
+// Start mass generation
+async function startMassGeneration() {
+    const list = document.getElementById('massGenList');
+    const items = list.querySelectorAll('.mass-gen-item');
+    const progressEl = document.getElementById('massGenProgress');
+    const progressFill = document.getElementById('massGenProgressFill');
+    const progressText = document.getElementById('massGenProgressText');
+    const progressPercent = document.getElementById('massGenProgressPercent');
+    const startBtn = document.getElementById('startMassGen');
+    const errorEl = document.getElementById('massGenError');
+    const createQueue = document.getElementById('massGenCreateQueue')?.checked ?? true;
+    
+    if (items.length === 0) return;
+    
+    massSelectionState.isGenerating = true;
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    progressEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    
+    // Disable remove buttons
+    list.querySelectorAll('.mass-gen-item-remove').forEach(btn => btn.style.display = 'none');
+    
+    const total = items.length;
+    let completed = 0;
+    let errors = 0;
+    const results = [];
+    
+    // Get brainrots data from the list
+    const brainrotsToGenerate = [];
+    items.forEach((item, idx) => {
+        const name = item.querySelector('.mass-gen-item-name')?.textContent || '';
+        const detailsEl = item.querySelector('.mass-gen-item-details');
+        const incomeText = detailsEl?.querySelector('span')?.textContent?.replace(/.*?(\d+.*?\/s).*/, '$1') || '';
+        const img = item.querySelector('.mass-gen-item-img');
+        const imageUrl = img?.src || '';
+        
+        // Find the brainrot in filtered list by name
+        const brainrot = collectionState.filteredBrainrots.find(b => b.name === name);
+        if (brainrot) {
+            brainrotsToGenerate.push({
+                ...brainrot,
+                itemIndex: idx
+            });
+        }
+    });
+    
+    // Queue for Eldorado
+    const eldoradoQueue = [];
+    
+    for (const brainrot of brainrotsToGenerate) {
+        const idx = brainrot.itemIndex;
+        const statusEl = list.querySelector(`[data-status-index="${idx}"]`);
+        
+        // Update status to processing
+        if (statusEl) {
+            statusEl.className = 'mass-gen-item-status processing';
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
+        try {
+            // Generate image
+            const borderColor = collectionState.accountColors[brainrot.accountId] || '#4ade80';
+            const priceKey = `${brainrot.name.toLowerCase()}_${Math.floor(brainrot.income / 1000000)}`;
+            const price = state.eldoradoPrices?.[priceKey]?.minPrice || 
+                         state.brainrotPrices?.[brainrot.name.toLowerCase()] || 0;
+            
+            const response = await fetch(`/api/supa-generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: brainrot.name, 
+                    income: brainrot.incomeText || formatIncome(brainrot.income), 
+                    price: price ? `$${price.toFixed(2)}` : '',
+                    imageUrl: brainrot.imageUrl,
+                    borderColor,
+                    accountId: brainrot.accountId,
+                    accountName: brainrot.accountName
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Generation failed');
+            }
+            
+            // Save generation record
+            await saveGeneration(brainrot.name, brainrot.accountId, result.resultUrl);
+            
+            // Add to Eldorado queue
+            if (createQueue) {
+                eldoradoQueue.push({
+                    name: brainrot.name,
+                    income: brainrot.incomeText || formatIncome(brainrot.income),
+                    imageUrl: result.resultUrl,
+                    price: price || 0,
+                    accountId: brainrot.accountId,
+                    accountName: brainrot.accountName
+                });
+            }
+            
+            results.push({ success: true, name: brainrot.name, resultUrl: result.resultUrl });
+            
+            // Update status to done
+            if (statusEl) {
+                statusEl.className = 'mass-gen-item-status done';
+                statusEl.innerHTML = '<i class="fas fa-check"></i>';
+            }
+            
+        } catch (error) {
+            console.error('Mass gen error for', brainrot.name, error);
+            errors++;
+            results.push({ success: false, name: brainrot.name, error: error.message });
+            
+            // Update status to error
+            if (statusEl) {
+                statusEl.className = 'mass-gen-item-status error';
+                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            }
+        }
+        
+        completed++;
+        const percent = Math.round((completed / total) * 100);
+        progressFill.style.width = `${percent}%`;
+        progressText.textContent = `${completed} / ${total}`;
+        progressPercent.textContent = `${percent}%`;
+        
+        // Small delay between generations
+        if (completed < total) {
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    
+    // Save Eldorado queue to localStorage
+    if (createQueue && eldoradoQueue.length > 0) {
+        localStorage.setItem('eldoradoQueue', JSON.stringify(eldoradoQueue));
+        localStorage.setItem('eldoradoQueueIndex', '0');
+        localStorage.setItem('eldoradoQueueCompleted', '[]');
+        localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+        console.log('Eldorado queue saved:', eldoradoQueue.length, 'items');
+    }
+    
+    massSelectionState.isGenerating = false;
+    
+    // Show results
+    const successCount = results.filter(r => r.success).length;
+    startBtn.innerHTML = `<i class="fas fa-check"></i> Готово (${successCount}/${total})`;
+    
+    if (errors > 0) {
+        errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errors} ошибок при генерации`;
+        errorEl.classList.remove('hidden');
+    }
+    
+    // Update collection to show generated badges
+    renderCollection();
+    
+    // Show notification
+    if (typeof showNotification === 'function') {
+        if (createQueue && eldoradoQueue.length > 0) {
+            showNotification(`✅ Сгенерировано ${successCount}/${total}. Очередь Eldorado: ${eldoradoQueue.length} шт. Откройте Eldorado для создания офферов.`, 'success');
+        } else {
+            showNotification(`✅ Сгенерировано ${successCount} из ${total}`, successCount === total ? 'success' : 'info');
+        }
+    }
+    
+    // Close modal after delay and exit selection mode
+    setTimeout(() => {
+        closeMassGenerationModal();
+        if (massSelectionState.isActive) {
+            toggleMassSelectionMode();
+        }
+    }, 2000);
+}
+
+// Setup mass selection event listeners
+function setupMassSelectionListeners() {
+    const fab = document.getElementById('massSelectFab');
+    const generateBtn = document.getElementById('massSelectGenerateBtn');
+    const closeModalBtn = document.getElementById('closeMassGenModal');
+    const cancelBtn = document.getElementById('cancelMassGen');
+    const startBtn = document.getElementById('startMassGen');
+    const modalOverlay = document.querySelector('#massGenerationModal .modal-overlay');
+    
+    if (fab) {
+        fab.addEventListener('click', toggleMassSelectionMode);
+    }
+    
+    if (generateBtn) {
+        generateBtn.addEventListener('click', openMassGenerationModal);
+    }
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    if (startBtn) {
+        startBtn.addEventListener('click', startMassGeneration);
+    }
+    
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeMassGenerationModal);
+    }
+}
+
 // Update collection when data changes
 async function updateCollection() {
     // Load generations and colors first
@@ -601,5 +987,20 @@ async function updateCollection() {
     filterAndRenderCollection();
 }
 
+// ==========================================
+// EXPORT FUNCTIONS TO GLOBAL SCOPE
+// ==========================================
+// These functions are used by onclick handlers in HTML
+window.handleGenerateClick = handleGenerateClick;
+window.toggleBrainrotSelection = toggleBrainrotSelection;
+window.removeMassGenItem = removeMassGenItem;
+window.openSupaGenerator = openSupaGenerator;
+window.closeSupaModal = closeSupaModal;
+window.updateSupaImagePreview = updateSupaImagePreview;
+window.generateSupaImage = generateSupaImage;
+window.downloadSupaImage = downloadSupaImage;
+
 // Initialize collection listeners
 setupCollectionListeners();
+setupMassSelectionListeners();
+

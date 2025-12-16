@@ -3738,3 +3738,303 @@ body {
         max-width: 80px;
     }
 }
+
+/* ==========================================
+   MASS SELECTION MODE
+   ========================================== */
+
+/* FAB Button - Mass Select Toggle */
+.mass-select-fab {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+    transition: all 0.3s;
+    z-index: 1000;
+    display: none;
+}
+
+.mass-select-fab:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(139, 92, 246, 0.5);
+}
+
+.mass-select-fab.active {
+    background: linear-gradient(135deg, #ef4444, #f97316);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+}
+
+.mass-select-fab.active:hover {
+    box-shadow: 0 6px 30px rgba(239, 68, 68, 0.5);
+}
+
+/* Show FAB only in collection view */
+.view#collectionView.active ~ .mass-select-fab,
+body:has(#collectionView.active) .mass-select-fab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Mass selection state indicator */
+.mass-select-indicator {
+    position: fixed;
+    bottom: 6rem;
+    right: 2rem;
+    background: var(--bg-card);
+    border: 1px solid var(--accent-primary);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    z-index: 1000;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.mass-select-indicator.visible {
+    display: flex;
+}
+
+.mass-select-count {
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.mass-select-generate-btn {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border: none;
+    border-radius: 8px;
+    color: white;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mass-select-generate-btn:hover {
+    transform: scale(1.05);
+}
+
+.mass-select-generate-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Brainrot card in selection mode */
+.brainrot-card.selectable {
+    cursor: pointer;
+}
+
+.brainrot-card.selectable::before {
+    content: '';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.brainrot-card.selectable:hover::before {
+    border-color: var(--accent-primary);
+}
+
+.brainrot-card.selectable.selected::before {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.brainrot-card.selectable.selected::after {
+    content: '✓';
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 0.75rem;
+    font-weight: bold;
+    z-index: 11;
+}
+
+.brainrot-card.selectable.selected {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3);
+}
+
+/* Hide generate button in selection mode */
+.brainrot-card.selectable .brainrot-generate-btn {
+    display: none;
+}
+
+/* Mass Generation Modal */
+.mass-gen-modal .modal-content {
+    max-width: 700px;
+}
+
+.mass-gen-list {
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 1rem 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.mass-gen-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mass-gen-item:last-child {
+    border-bottom: none;
+}
+
+.mass-gen-item-img {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    object-fit: cover;
+    background: var(--bg-secondary);
+}
+
+.mass-gen-item-info {
+    flex: 1;
+}
+
+.mass-gen-item-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.mass-gen-item-details {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.mass-gen-item-status {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+}
+
+.mass-gen-item-status.pending { color: var(--text-secondary); }
+.mass-gen-item-status.processing { color: #f59e0b; }
+.mass-gen-item-status.done { color: #22c55e; }
+.mass-gen-item-status.error { color: #ef4444; }
+
+.mass-gen-item-remove {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.mass-gen-item-remove:hover {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+}
+
+.mass-gen-progress {
+    margin: 1rem 0;
+}
+
+.mass-gen-progress-bar {
+    height: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.mass-gen-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 4px;
+    transition: width 0.3s;
+}
+
+.mass-gen-progress-text {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.mass-gen-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.mass-gen-option {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.mass-gen-option label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+
+.mass-gen-footer-info {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.5rem;
+}
+
+@media (max-width: 768px) {
+    .mass-select-fab {
+        bottom: 1rem;
+        right: 1rem;
+        width: 48px;
+        height: 48px;
+        font-size: 1.25rem;
+    }
+    
+    .mass-select-indicator {
+        bottom: 4.5rem;
+        right: 1rem;
+        left: 1rem;
+        justify-content: space-between;
+    }
+}

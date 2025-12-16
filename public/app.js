@@ -2775,6 +2775,7 @@ async function renderCollection() {
     if (!brainrotsGridEl) return;
 
     const brainrots = collectionState.filteredBrainrots;
+    const isSelectionMode = massSelectionState && massSelectionState.isActive;
     
     // Update stats (используем синхронизированное значение из state)
     // При ручном рефреше используем frozen balance
@@ -2797,6 +2798,9 @@ async function renderCollection() {
         }
         if (collectionState.searchQuery || collectionState.accountFilter !== 'all' || collectionState.priceFilter !== 'all') {
             statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
+        }
+        if (isSelectionMode) {
+            statsHtml += '<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> Режим выбора</span>';
         }
         collectionStatsEl.innerHTML = statsHtml;
     }
@@ -2831,6 +2835,9 @@ async function renderCollection() {
         const notGeneratedCount = group.items.filter(item => 
             !isGenerated(item.accountId, group.name, income)
         ).length;
+        
+        // Selection mode variables
+        const isSelected = isSelectionMode && massSelectionState.selectedItems.includes(index);
         
         let priceHtml;
         
@@ -2891,13 +2898,26 @@ async function renderCollection() {
         // Получаем общее количество генераций для этого оффера (суммируем count всех генераций)
         const totalGenerationCount = getGroupTotalGenerationCount(group.name, income);
         
+        // Build class list for selection mode
+        const cardClasses = ['brainrot-card'];
+        if (allGenerated) cardClasses.push('brainrot-generated');
+        if (partialGenerated) cardClasses.push('brainrot-partial');
+        if (isSelectionMode) cardClasses.push('selectable');
+        if (isSelected) cardClasses.push('selected');
+        
+        // Click handler for selection mode
+        const clickHandler = isSelectionMode 
+            ? `onclick="toggleBrainrotSelection(${index})"` 
+            : '';
+        
         return `
-        <div class="brainrot-card ${allGenerated ? 'brainrot-generated' : ''} ${partialGenerated ? 'brainrot-partial' : ''}" 
+        <div class="${cardClasses.join(' ')}" 
              data-brainrot-name="${group.name}" 
              data-brainrot-income="${income}" 
              data-brainrot-index="${index}"
-             data-quantity="${group.quantity}">
-            <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
+             data-quantity="${group.quantity}"
+             ${clickHandler}>
+            <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
                 ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
             </div>
             ${group.quantity > 1 ? `
@@ -3585,8 +3605,396 @@ function postToEldorado() {
     console.log('Opening Eldorado with offer data:', offerData);
 }
 
+// ==========================================
+// MASS SELECTION MODE
+// ==========================================
+
+// Mass selection state
+let massSelectionState = {
+    isActive: false,
+    selectedItems: [], // Array of group indices
+    isGenerating: false
+};
+
+// Toggle mass selection mode
+function toggleMassSelectionMode() {
+    massSelectionState.isActive = !massSelectionState.isActive;
+    
+    const fab = document.getElementById('massSelectFab');
+    const indicator = document.getElementById('massSelectIndicator');
+    
+    if (massSelectionState.isActive) {
+        fab.classList.add('active');
+        fab.innerHTML = '<i class="fas fa-times"></i>';
+        fab.title = 'Выйти из режима выбора';
+        indicator.classList.add('visible');
+        massSelectionState.selectedItems = [];
+        updateMassSelectionUI();
+    } else {
+        fab.classList.remove('active');
+        fab.innerHTML = '<i class="fas fa-layer-group"></i>';
+        fab.title = 'Массовый выбор для генерации';
+        indicator.classList.remove('visible');
+        massSelectionState.selectedItems = [];
+    }
+    
+    // Re-render collection to show/hide checkboxes
+    renderCollection();
+}
+
+// Toggle brainrot group selection
+function toggleBrainrotSelection(index) {
+    if (!massSelectionState.isActive) return;
+    
+    const idx = massSelectionState.selectedItems.indexOf(index);
+    if (idx === -1) {
+        massSelectionState.selectedItems.push(index);
+    } else {
+        massSelectionState.selectedItems.splice(idx, 1);
+    }
+    
+    updateMassSelectionUI();
+    
+    // Update card appearance
+    const card = document.querySelector(`[data-brainrot-index="${index}"]`);
+    if (card) {
+        card.classList.toggle('selected', massSelectionState.selectedItems.includes(index));
+    }
+}
+
+// Update mass selection UI (counter and button)
+function updateMassSelectionUI() {
+    const countEl = document.getElementById('massSelectCount');
+    const btnEl = document.getElementById('massSelectGenerateBtn');
+    const count = massSelectionState.selectedItems.length;
+    
+    // Calculate total quantity (sum of all group quantities)
+    let totalQuantity = 0;
+    if (collectionState.displayedGroups) {
+        for (const idx of massSelectionState.selectedItems) {
+            const group = collectionState.displayedGroups[idx];
+            if (group) {
+                totalQuantity += group.quantity || 1;
+            }
+        }
+    }
+    
+    if (countEl) countEl.textContent = count + (totalQuantity > count ? ` (${totalQuantity} шт)` : '');
+    if (btnEl) {
+        btnEl.disabled = count === 0;
+        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать${count > 0 ? ` (${count})` : ''}`;
+    }
+}
+
+// Open mass generation modal
+function openMassGenerationModal() {
+    if (massSelectionState.selectedItems.length === 0) return;
+    
+    const modal = document.getElementById('massGenerationModal');
+    const list = document.getElementById('massGenList');
+    const countEl = document.getElementById('massGenCount');
+    const progressEl = document.getElementById('massGenProgress');
+    const errorEl = document.getElementById('massGenError');
+    const startBtn = document.getElementById('startMassGen');
+    
+    // Reset state
+    progressEl.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    startBtn.disabled = false;
+    
+    // Get selected groups
+    const selectedGroups = massSelectionState.selectedItems.map(idx => ({
+        ...collectionState.displayedGroups[idx],
+        groupIndex: idx
+    })).filter(g => g);
+    
+    const totalItems = selectedGroups.reduce((sum, g) => sum + (g.quantity || 1), 0);
+    
+    startBtn.innerHTML = `<i class="fas fa-play"></i> Начать (<span id="massGenCount">${selectedGroups.length}</span>)`;
+    
+    // Render list of selected items
+    list.innerHTML = selectedGroups.map((group, i) => {
+        const accountsList = group.items ? group.items.map(item => item.accountName).join(', ') : 'Unknown';
+        return `
+            <div class="mass-gen-item" data-item-index="${i}">
+                <img class="mass-gen-item-img" src="${group.imageUrl || ''}" alt="${group.name}" 
+                     onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%231a1a2e%22 width=%2240%22 height=%2240%22/></svg>'">
+                <div class="mass-gen-item-info">
+                    <div class="mass-gen-item-name">${group.name}${group.quantity > 1 ? ` <span style="color:#f59e0b;">x${group.quantity}</span>` : ''}</div>
+                    <div class="mass-gen-item-details">
+                        <span><i class="fas fa-coins"></i> ${group.incomeText || formatIncome(group.income)}</span>
+                        <span><i class="fas fa-user"></i> ${accountsList}</span>
+                    </div>
+                </div>
+                <div class="mass-gen-item-status pending" data-status-index="${i}">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <button class="mass-gen-item-remove" onclick="removeMassGenItem(${i})" title="Удалить">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+    }).join('');
+    
+    countEl.textContent = selectedGroups.length;
+    modal.classList.remove('hidden');
+}
+
+// Remove item from mass generation list
+function removeMassGenItem(itemIndex) {
+    const list = document.getElementById('massGenList');
+    const item = list.querySelector(`[data-item-index="${itemIndex}"]`);
+    
+    if (item) {
+        item.remove();
+        
+        // Update indices for remaining items
+        const items = list.querySelectorAll('.mass-gen-item');
+        items.forEach((el, newIdx) => {
+            el.dataset.itemIndex = newIdx;
+            const statusEl = el.querySelector('[data-status-index]');
+            if (statusEl) statusEl.dataset.statusIndex = newIdx;
+            const removeBtn = el.querySelector('.mass-gen-item-remove');
+            if (removeBtn) removeBtn.setAttribute('onclick', `removeMassGenItem(${newIdx})`);
+        });
+        
+        // Update count
+        const countEl = document.getElementById('massGenCount');
+        const startBtn = document.getElementById('startMassGen');
+        const count = items.length;
+        countEl.textContent = count;
+        
+        if (count === 0) {
+            startBtn.disabled = true;
+        }
+    }
+}
+
+// Close mass generation modal
+function closeMassGenerationModal() {
+    const modal = document.getElementById('massGenerationModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Reset generating state if was cancelled
+    if (massSelectionState.isGenerating) {
+        massSelectionState.isGenerating = false;
+    }
+}
+
+// Start mass generation
+async function startMassGeneration() {
+    const list = document.getElementById('massGenList');
+    const items = list.querySelectorAll('.mass-gen-item');
+    const progressEl = document.getElementById('massGenProgress');
+    const progressFill = document.getElementById('massGenProgressFill');
+    const progressText = document.getElementById('massGenProgressText');
+    const progressPercent = document.getElementById('massGenProgressPercent');
+    const startBtn = document.getElementById('startMassGen');
+    const errorEl = document.getElementById('massGenError');
+    const createQueue = document.getElementById('massGenCreateQueue')?.checked ?? true;
+    
+    if (items.length === 0) return;
+    
+    massSelectionState.isGenerating = true;
+    startBtn.disabled = true;
+    startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
+    progressEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    
+    // Disable remove buttons
+    list.querySelectorAll('.mass-gen-item-remove').forEach(btn => btn.style.display = 'none');
+    
+    // Get groups to generate from displayed groups
+    const groupsToGenerate = [];
+    items.forEach((item, idx) => {
+        const name = item.querySelector('.mass-gen-item-name')?.textContent?.replace(/\s*x\d+\s*$/, '').trim() || '';
+        // Find the group in displayed groups by name
+        const group = collectionState.displayedGroups?.find(g => g.name === name);
+        if (group) {
+            groupsToGenerate.push({
+                ...group,
+                itemIndex: idx
+            });
+        }
+    });
+    
+    const total = groupsToGenerate.length;
+    let completed = 0;
+    let errors = 0;
+    const results = [];
+    
+    // Queue for Eldorado
+    const eldoradoQueue = [];
+    
+    for (const group of groupsToGenerate) {
+        const idx = group.itemIndex;
+        const statusEl = list.querySelector(`[data-status-index="${idx}"]`);
+        
+        // Update status to processing
+        if (statusEl) {
+            statusEl.className = 'mass-gen-item-status processing';
+            statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+        
+        try {
+            // Get price from cache
+            const income = normalizeIncomeForApi(group.income, group.incomeText);
+            const cacheKey = getPriceCacheKey(group.name, income);
+            const cachedPrice = state.brainrotPrices[cacheKey];
+            const price = cachedPrice?.suggestedPrice || 0;
+            
+            // Use panel color
+            const borderColor = collectionState.panelColor || '#4ade80';
+            
+            // Generate image
+            const response = await fetch(`/api/supa-generate`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    name: group.name, 
+                    income: group.incomeText || formatIncome(group.income), 
+                    price: price ? `$${price.toFixed(2)}` : '',
+                    imageUrl: group.imageUrl,
+                    borderColor,
+                    quantity: group.quantity || 1
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Generation failed');
+            }
+            
+            // Save generation record for each item in the group
+            if (group.items) {
+                for (const item of group.items) {
+                    await saveGeneration(item.accountId, group.name, income, result.resultUrl);
+                }
+            }
+            
+            // Add to Eldorado queue
+            if (createQueue) {
+                eldoradoQueue.push({
+                    name: group.name,
+                    income: group.incomeText || formatIncome(group.income),
+                    imageUrl: result.resultUrl,
+                    price: price || 0,
+                    quantity: group.quantity || 1,
+                    accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown'
+                });
+            }
+            
+            results.push({ success: true, name: group.name, resultUrl: result.resultUrl });
+            
+            // Update status to done
+            if (statusEl) {
+                statusEl.className = 'mass-gen-item-status done';
+                statusEl.innerHTML = '<i class="fas fa-check"></i>';
+            }
+            
+        } catch (error) {
+            console.error('Mass gen error for', group.name, error);
+            errors++;
+            results.push({ success: false, name: group.name, error: error.message });
+            
+            // Update status to error
+            if (statusEl) {
+                statusEl.className = 'mass-gen-item-status error';
+                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+            }
+        }
+        
+        completed++;
+        const percent = Math.round((completed / total) * 100);
+        progressFill.style.width = `${percent}%`;
+        progressText.textContent = `${completed} / ${total}`;
+        progressPercent.textContent = `${percent}%`;
+        
+        // Small delay between generations
+        if (completed < total) {
+            await new Promise(r => setTimeout(r, 500));
+        }
+    }
+    
+    // Save Eldorado queue to localStorage
+    if (createQueue && eldoradoQueue.length > 0) {
+        localStorage.setItem('eldoradoQueue', JSON.stringify(eldoradoQueue));
+        localStorage.setItem('eldoradoQueueIndex', '0');
+        localStorage.setItem('eldoradoQueueCompleted', '[]');
+        localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+        console.log('Eldorado queue saved:', eldoradoQueue.length, 'items');
+    }
+    
+    massSelectionState.isGenerating = false;
+    
+    // Show results
+    const successCount = results.filter(r => r.success).length;
+    startBtn.innerHTML = `<i class="fas fa-check"></i> Готово (${successCount}/${total})`;
+    
+    if (errors > 0) {
+        errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errors} ошибок при генерации`;
+        errorEl.classList.remove('hidden');
+    }
+    
+    // Update collection to show generated badges
+    renderCollection();
+    
+    // Show notification
+    if (createQueue && eldoradoQueue.length > 0) {
+        showNotification(`✅ Сгенерировано ${successCount}/${total}. Очередь Eldorado: ${eldoradoQueue.length} шт. Откройте Eldorado для создания офферов.`, 'success');
+    } else {
+        showNotification(`✅ Сгенерировано ${successCount} из ${total}`, successCount === total ? 'success' : 'info');
+    }
+    
+    // Close modal after delay and exit selection mode
+    setTimeout(() => {
+        closeMassGenerationModal();
+        if (massSelectionState.isActive) {
+            toggleMassSelectionMode();
+        }
+    }, 2000);
+}
+
+// Setup mass selection event listeners
+function setupMassSelectionListeners() {
+    const fab = document.getElementById('massSelectFab');
+    const generateBtn = document.getElementById('massSelectGenerateBtn');
+    const closeModalBtn = document.getElementById('closeMassGenModal');
+    const cancelBtn = document.getElementById('cancelMassGen');
+    const startBtn = document.getElementById('startMassGen');
+    const modalOverlay = document.querySelector('#massGenerationModal .modal-overlay');
+    
+    if (fab) {
+        fab.addEventListener('click', toggleMassSelectionMode);
+    }
+    
+    if (generateBtn) {
+        generateBtn.addEventListener('click', openMassGenerationModal);
+    }
+    
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    if (startBtn) {
+        startBtn.addEventListener('click', startMassGeneration);
+    }
+    
+    if (modalOverlay) {
+        modalOverlay.addEventListener('click', closeMassGenerationModal);
+    }
+}
+
 // Initialize collection listeners on DOM ready
 setupCollectionListeners();
+setupMassSelectionListeners();
 
 // ==========================================
 // OFFERS MANAGEMENT

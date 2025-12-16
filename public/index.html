@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css?v=3">
+    <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
     <!-- Login Screen -->
@@ -354,6 +354,19 @@
                 </div>
             </div>
         </main>
+        
+        <!-- Mass Select FAB Button -->
+        <button class="mass-select-fab" id="massSelectFab" title="Массовый выбор для генерации">
+            <i class="fas fa-layer-group"></i>
+        </button>
+        
+        <!-- Mass Select Indicator -->
+        <div class="mass-select-indicator" id="massSelectIndicator">
+            <span>Выбрано: <span class="mass-select-count" id="massSelectCount">0</span></span>
+            <button class="mass-select-generate-btn" id="massSelectGenerateBtn" disabled>
+                <i class="fas fa-wand-magic-sparkles"></i> Генерировать
+            </button>
+        </div>
     </div>
 
     <!-- Add Key Modal -->
@@ -511,7 +524,54 @@
         </div>
     </div>
 
-    <script src="app.js?v=3"></script>
+    <!-- Mass Generation Modal -->
+    <div id="massGenerationModal" class="modal mass-gen-modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-layer-group"></i> Массовая генерация</h3>
+                <button class="modal-close" id="closeMassGenModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="mass-gen-options">
+                    <div class="mass-gen-option">
+                        <label>
+                            <input type="checkbox" id="massGenCreateQueue" checked>
+                            <span>Создать очередь для Eldorado</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="mass-gen-list" id="massGenList">
+                    <!-- Items will be rendered here -->
+                </div>
+                <div class="mass-gen-progress hidden" id="massGenProgress">
+                    <div class="mass-gen-progress-bar">
+                        <div class="mass-gen-progress-fill" id="massGenProgressFill" style="width: 0%"></div>
+                    </div>
+                    <div class="mass-gen-progress-text">
+                        <span id="massGenProgressText">0 / 0</span>
+                        <span id="massGenProgressPercent">0%</span>
+                    </div>
+                </div>
+                <div id="massGenError" class="modal-error hidden"></div>
+                <p class="mass-gen-footer-info">
+                    <i class="fas fa-info-circle"></i> 
+                    После генерации будет создана очередь для автоматического создания офферов на Eldorado
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelMassGen">Отмена</button>
+                <button class="btn btn-primary" id="startMassGen">
+                    <i class="fas fa-play"></i>
+                    Начать (<span id="massGenCount">0</span>)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=4"></script>
 </body>
 </html>
 
