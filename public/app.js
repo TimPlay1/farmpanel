@@ -858,6 +858,9 @@ function showMainApp() {
     mainApp.classList.remove('hidden');
     updateCurrentFarmer();
     renderFarmKeys();
+    
+    // Восстанавливаем последнюю активную вкладку
+    restoreLastView();
 }
 
 function switchView(viewName) {
@@ -869,6 +872,13 @@ function switchView(viewName) {
         view.classList.toggle('active', view.id === `${viewName}View`);
     });
     
+    // Сохраняем активную вкладку в localStorage
+    try {
+        localStorage.setItem('glitched_active_view', viewName);
+    } catch (e) {
+        console.warn('Failed to save active view:', e);
+    }
+    
     // При переключении на Farm Keys - обновляем данные всех фермеров
     if (viewName === 'farmKeys') {
         fetchAllFarmersData();
@@ -878,6 +888,24 @@ function switchView(viewName) {
     if (viewName === 'offers') {
         initOffersView();
     }
+}
+
+// Восстановить последнюю активную вкладку
+function restoreLastView() {
+    try {
+        const savedView = localStorage.getItem('glitched_active_view');
+        if (savedView) {
+            // Проверяем что такая вкладка существует
+            const validViews = ['dashboard', 'collection', 'farmKeys', 'offers'];
+            if (validViews.includes(savedView)) {
+                switchView(savedView);
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to restore active view:', e);
+    }
+    return false;
 }
 
 // Polling
