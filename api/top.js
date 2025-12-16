@@ -195,6 +195,25 @@ function calculateTopIncome(farmers) {
 function calculateTopValue(farmers, allPrices) {
     const results = [];
     
+    // Группируем цены по имени брейнрота для быстрого поиска ближайшего income
+    const pricesByName = {};
+    for (const [cacheKey, price] of Object.entries(allPrices)) {
+        const parts = cacheKey.split('_');
+        if (parts.length >= 2) {
+            const income = parseInt(parts.pop());
+            const name = parts.join('_');
+            if (!pricesByName[name]) {
+                pricesByName[name] = [];
+            }
+            pricesByName[name].push({ income, price });
+        }
+    }
+    
+    // Сортируем по income для бинарного поиска ближайшего
+    for (const name of Object.keys(pricesByName)) {
+        pricesByName[name].sort((a, b) => a.income - b.income);
+    }
+    
     for (const farmer of farmers) {
         if (!farmer.accounts || farmer.accounts.length === 0) continue;
         
@@ -215,20 +234,26 @@ function calculateTopValue(farmers, allPrices) {
                 const name = br.name || '';
                 const nameLower = name.toLowerCase();
                 
-                // Пробуем разные форматы ключа
-                const cacheKeys = [
-                    `${nameLower}_${incomeInMs}`,
-                    `${nameLower}_${incomeInMs + 10}`,
-                    `${nameLower}_${incomeInMs - 10}`,
-                    `${nameLower}_${Math.round(incomeInMs / 10) * 10}`,
-                    nameLower
-                ];
-                
                 let price = 0;
-                for (const key of cacheKeys) {
-                    if (allPrices[key]) {
-                        price = allPrices[key];
-                        break;
+                
+                // Ищем ближайшую цену по income для данного брейнрота
+                const pricesForName = pricesByName[nameLower];
+                if (pricesForName && pricesForName.length > 0) {
+                    // Находим ближайший income
+                    let closestPrice = pricesForName[0];
+                    let minDiff = Math.abs(pricesForName[0].income - incomeInMs);
+                    
+                    for (const p of pricesForName) {
+                        const diff = Math.abs(p.income - incomeInMs);
+                        if (diff < minDiff) {
+                            minDiff = diff;
+                            closestPrice = p;
+                        }
+                    }
+                    
+                    // Принимаем цену если разница в income не более 50%
+                    if (minDiff <= incomeInMs * 0.5 || minDiff <= 50) {
+                        price = closestPrice.price;
                     }
                 }
                 
@@ -242,7 +267,8 @@ function calculateTopValue(farmers, allPrices) {
                     bestBrainrot = {
                         name: br.name || 'Unknown',
                         income: incomeInMs,
-                        image: br.image || null
+                        image: br.image || null,
+                        priceFound: price > 0
                     };
                 }
             }
