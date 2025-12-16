@@ -2838,6 +2838,7 @@ function postToEldorado() {
         rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
         accountId: currentSupaBrainrot?.accountId,
         accountName: currentSupaBrainrot?.accountName,
+        farmKey: currentFarmKey, // Передаём farmKey для сохранения оффера в панель
         timestamp: Date.now()
     };
     
