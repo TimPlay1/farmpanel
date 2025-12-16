@@ -645,73 +645,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
 
         if (upperOffers.length > 0) {
             // Нашли офферы с доходностью >= нашей
-            // ДЕТЕКЦИЯ ДАМПЕРОВ: проверяем не является ли первый оффер аномально дешёвым
-            const sortedUpper = [...upperOffers].sort((a, b) => a.price - b.price);
-            
-            // Ищем дамперов: если первые 1-2 оффера сильно дешевле остальных с похожим income
-            let dumperDetected = false;
-            let realUpperOffer = sortedUpper[0];
-            
-            if (sortedUpper.length >= 3) {
-                // Группируем офферы по похожему income (±10%)
-                const firstOffer = sortedUpper[0];
-                const similarIncomeOffers = sortedUpper.filter(o => 
-                    Math.abs(o.income - firstOffer.income) <= firstOffer.income * 0.1
-                );
-                
-                if (similarIncomeOffers.length >= 2) {
-                    const firstPrice = similarIncomeOffers[0].price;
-                    const secondPrice = similarIncomeOffers.length > 1 ? similarIncomeOffers[1].price : firstPrice;
-                    
-                    // Ищем "нормальную" цену среди остальных офферов с похожим income
-                    // Дампер: если первые 1-2 оффера на 40%+ дешевле следующих
-                    const restOffers = similarIncomeOffers.slice(2);
-                    if (restOffers.length > 0) {
-                        const avgRestPrice = restOffers.reduce((sum, o) => sum + o.price, 0) / restOffers.length;
-                        const cheapestTwoAvg = (firstPrice + secondPrice) / 2;
-                        
-                        // Если средняя цена первых двух на 40%+ ниже средней остальных - это дамперы
-                        if (cheapestTwoAvg < avgRestPrice * 0.6) {
-                            dumperDetected = true;
-                            // Берём первый "нормальный" оффер (третий и далее)
-                            realUpperOffer = restOffers[0];
-                            console.log(`DUMPER DETECTED for ${brainrotName}: first offers ${firstPrice.toFixed(2)}/${secondPrice.toFixed(2)}, normal price ~${avgRestPrice.toFixed(2)}`);
-                        }
-                    }
-                }
-                
-                // Альтернативная проверка: ищем такой же income дальше по списку
-                // Если находим тот же income но намного дороже - первый был дампер
-                if (!dumperDetected) {
-                    const firstIncome = sortedUpper[0].income;
-                    const firstPrice = sortedUpper[0].price;
-                    
-                    // Ищем оффер с таким же income (±5) но дороже
-                    const sameIncomeHigherPrice = sortedUpper.find((o, idx) => 
-                        idx > 0 && 
-                        Math.abs(o.income - firstIncome) <= 5 && 
-                        o.price > firstPrice * 1.5 // На 50%+ дороже
-                    );
-                    
-                    if (sameIncomeHigherPrice) {
-                        // Проверяем есть ли "нормальные" цены между дампером и дорогим
-                        const pricesBetween = sortedUpper.filter(o => 
-                            o.price > firstPrice * 1.2 && o.price < sameIncomeHigherPrice.price * 0.9
-                        );
-                        
-                        if (pricesBetween.length >= 2) {
-                            // Есть нормальное распределение цен - первый был дампер
-                            dumperDetected = true;
-                            // Берём медианную цену
-                            const medianIdx = Math.floor(pricesBetween.length / 2);
-                            realUpperOffer = pricesBetween[medianIdx];
-                            console.log(`DUMPER DETECTED (same income): ${firstIncome}M/s @ $${firstPrice.toFixed(2)} vs $${sameIncomeHigherPrice.price.toFixed(2)}, using median $${realUpperOffer.price.toFixed(2)}`);
-                        }
-                    }
-                }
-            }
-            
-            const upperOffer = realUpperOffer;
+            // Берём минимальную цену среди них
+            const upperOffer = upperOffers[0];
             competitorPrice = upperOffer.price;
             competitorIncome = upperOffer.income;
             
@@ -748,27 +683,24 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                     
                     const priceDiff = competitorPrice - lowerPrice;
                     const rangeNote = adjacentRangeName ? ` [+${adjacentRangeName}]` : '';
-                    const dumperNote = dumperDetected ? ' [DUMPER SKIPPED]' : '';
                     
                     if (isLowerDump) {
                         suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50${rangeNote}${dumperNote}`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50${rangeNote}`;
                     } else if (priceDiff >= 1) {
                         suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1${rangeNote}${dumperNote}`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1${rangeNote}`;
                     } else {
                         suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50${rangeNote}${dumperNote}`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50${rangeNote}`;
                     }
                 } else {
-                    const dumperNote = dumperDetected ? ' [DUMPER SKIPPED]' : '';
                     suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no valid lower → -$0.50${dumperNote}`;
+                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no valid lower → -$0.50`;
                 }
             } else {
-                const dumperNote = dumperDetected ? ' [DUMPER SKIPPED]' : '';
                 suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower offer → -$0.50${dumperNote}`;
+                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower offer → -$0.50`;
             }
         } else if (offersWithIncome.length > 0) {
             // Нет офферов с income >= нашему - наш income выше всех

@@ -2069,24 +2069,10 @@ function filterAndRenderCollection() {
 
     // Filter by search (text or income)
     if (searchParsed.text) {
-        const searchText = searchParsed.text;
-        const isShortNumeric = /^\d{1,3}$/.test(searchText); // 1-3 digit numbers like 67, 25
-        
-        filtered = filtered.filter(b => {
-            const nameLower = b.name.toLowerCase();
-            const accountLower = b.accountName.toLowerCase();
-            
-            if (isShortNumeric) {
-                // For short numeric names, use exact match or word boundary match
-                // "67" should match "67" but not "167" or "567"
-                const exactMatch = nameLower === searchText;
-                const wordBoundaryMatch = new RegExp(`(^|[^\\d])${searchText}([^\\d]|$)`).test(nameLower);
-                return exactMatch || wordBoundaryMatch || accountLower.includes(searchText);
-            }
-            
-            // Default includes search for longer queries
-            return nameLower.includes(searchText) || accountLower.includes(searchText);
-        });
+        filtered = filtered.filter(b => 
+            b.name.toLowerCase().includes(searchParsed.text) ||
+            b.accountName.toLowerCase().includes(searchParsed.text)
+        );
     }
     
     if (searchParsed.incomeFilter) {
@@ -2973,21 +2959,10 @@ function filterAndRenderOffers() {
     // Search filter
     if (offersState.searchQuery) {
         const q = offersState.searchQuery.toLowerCase();
-        const isShortNumeric = /^\d{1,3}$/.test(q); // 1-3 digit numbers like 67, 25
-        
-        filtered = filtered.filter(o => {
-            const nameLower = o.brainrotName?.toLowerCase() || '';
-            const offerIdLower = o.offerId?.toLowerCase() || '';
-            
-            if (isShortNumeric) {
-                // For short numeric names, use exact match or word boundary match
-                const exactMatch = nameLower === q;
-                const wordBoundaryMatch = new RegExp(`(^|[^\\d])${q}([^\\d]|$)`).test(nameLower);
-                return exactMatch || wordBoundaryMatch || offerIdLower.includes(q);
-            }
-            
-            return nameLower.includes(q) || offerIdLower.includes(q);
-        });
+        filtered = filtered.filter(o => 
+            o.brainrotName?.toLowerCase().includes(q) ||
+            o.offerId?.toLowerCase().includes(q)
+        );
     }
     
     // Status filter
