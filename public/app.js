@@ -1301,7 +1301,7 @@ function updateFarmerSwitcherDropdown() {
         
         return `
             <div class="account-dropdown-item ${isActive ? 'active' : ''}" onclick="quickSwitchAccount('${key.farmKey}')">
-                <div class="dropdown-avatar" style="background: ${avatar.color}; color: white">
+                <div class="dropdown-avatar" style="background: ${avatar.color}20; color: ${avatar.color}">
                     <i class="fas ${avatar.icon}"></i>
                 </div>
                 <div class="dropdown-info">
@@ -3955,7 +3955,7 @@ function renderTopData(data, type) {
                 html += `
                     <div class="top-list-item">
                         <div class="top-list-rank">${rank}</div>
-                        <div class="top-list-avatar-icon" style="background: ${avatarColor}; color: white">
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
                             <i class="fas ${avatarIcon}"></i>
                         </div>
                         <div class="top-list-info">
@@ -3975,7 +3975,7 @@ function renderTopData(data, type) {
                 html += `
                     <div class="top-list-item">
                         <div class="top-list-rank">${rank}</div>
-                        <div class="top-list-avatar-icon" style="background: ${avatarColor}; color: white">
+                        <div class="top-list-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
                             <i class="fas ${avatarIcon}"></i>
                         </div>
                         <div class="top-list-info">
@@ -4038,7 +4038,7 @@ function renderTopPodium(top3, type) {
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-user-row">
-                    <div class="podium-user-mini" style="background: ${avatarColor}; color: white">
+                    <div class="podium-user-mini" style="background: ${avatarColor}20; color: ${avatarColor}">
                         <i class="fas ${avatarIcon}"></i>
                     </div>
                     <span class="podium-name">${item.username}</span>
@@ -4068,12 +4068,12 @@ function renderTopPodiumTotal(top3) {
         
         const accountText = item.accountsCount === 1 ? 'account' : 'accounts';
         
-        // Круглый аватар пользователя с иконкой
+        // Круглый аватар пользователя с иконкой (стиль как farmer-avatar)
         html += `
             <div class="podium-item ${position}">
                 <div class="podium-avatar podium-user-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <div class="podium-user-circle podium-animated" style="background: ${avatarColor}; border-color: ${position === 'first' ? '#ffd700' : position === 'second' ? '#c0c0c0' : '#cd7f32'}">
+                    <div class="podium-user-circle podium-animated" style="background: ${avatarColor}20; color: ${avatarColor}; border-color: ${position === 'first' ? '#ffd700' : position === 'second' ? '#c0c0c0' : '#cd7f32'}">
                         <i class="fas ${avatarIcon}"></i>
                     </div>
                 </div>
