@@ -249,9 +249,17 @@ module.exports = async (req, res) => {
             const avatarsCollection = db.collection('accountAvatars');
             let accountAvatars = farmer.accountAvatars || {};
             
+            // Создаём маппинг playerName -> userId из существующих данных аккаунтов
+            let playerUserIdMap = farmer.playerUserIdMap || {};
+            
             // Для каждого аккаунта проверяем есть ли аватар в отдельной коллекции
             const accounts = farmer.accounts || [];
             for (const account of accounts) {
+                // Обновляем маппинг для аккаунтов с userId
+                if (account.userId && account.playerName) {
+                    playerUserIdMap[account.playerName] = String(account.userId);
+                }
+                
                 if (!account.userId) continue;
                 const key = String(account.userId);
                 
