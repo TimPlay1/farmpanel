@@ -53,21 +53,23 @@ function formatMoney(num) {
     return sign + absNum.toLocaleString();
 }
 
-// Format income with K/M/B suffixes and /sec unit
+// Format income with K/M/B/T suffixes and /s unit (with space)
 function formatIncomeSec(num) {
-    if (num === null || num === undefined || isNaN(num)) return '0/sec';
+    if (num === null || num === undefined || isNaN(num)) return '0 /s';
     
     const absNum = Math.abs(num);
     const sign = num < 0 ? '-' : '';
     
-    if (absNum >= 1e9) {
-        return sign + (absNum / 1e9).toFixed(2) + 'B/sec';
+    if (absNum >= 1e12) {
+        return sign + (absNum / 1e12).toFixed(2) + ' T/s';
+    } else if (absNum >= 1e9) {
+        return sign + (absNum / 1e9).toFixed(2) + ' B/s';
     } else if (absNum >= 1e6) {
-        return sign + (absNum / 1e6).toFixed(2) + 'M/sec';
+        return sign + (absNum / 1e6).toFixed(2) + ' M/s';
     } else if (absNum >= 1e3) {
-        return sign + (absNum / 1e3).toFixed(1) + 'K/sec';
+        return sign + (absNum / 1e3).toFixed(1) + ' K/s';
     }
-    return sign + absNum.toFixed(0) + '/sec';
+    return sign + absNum.toFixed(0) + ' /s';
 }
 
 // State
@@ -4028,7 +4030,7 @@ function renderTopPodium(top3, type) {
     return html;
 }
 
-// Render top 3 podium for total tab (panel avatars, no brainrot)
+// Render top 3 podium for total tab (panel avatars in circles)
 function renderTopPodiumTotal(top3) {
     if (top3.length === 0) return '';
     
@@ -4041,11 +4043,12 @@ function renderTopPodiumTotal(top3) {
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
+        // Круглый аватар пользователя с иконкой
         html += `
             <div class="podium-item ${position}">
-                <div class="podium-avatar">
+                <div class="podium-avatar podium-user-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <div class="podium-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
+                    <div class="podium-user-circle" style="background: ${avatarColor}; border-color: ${position === 'first' ? '#ffd700' : position === 'second' ? '#c0c0c0' : '#cd7f32'}">
                         <i class="fas ${avatarIcon}"></i>
                     </div>
                 </div>
