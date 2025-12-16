@@ -579,7 +579,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         } else if (offersWithIncome.length > 0) {
             // Нет офферов с income >= нашему
-            // Наш income выше всех на рынке - берём максимальную цену и добавляем немного
+            // Наш income выше всех на рынке - ставим чуть выше максимальной цены
             // Сортируем по цене desc чтобы найти максимальную цену на рынке
             const sortedByPrice = [...offersWithIncome].sort((a, b) => b.price - a.price);
             const maxPriceOffer = sortedByPrice[0];
@@ -590,12 +590,10 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             competitorPrice = maxPriceOffer.price;
             competitorIncome = maxIncomeOffer.income;
             
-            // Наш income выше рынка - ставим на $1-2 выше максимальной цены на рынке
-            // Не завышаем пропорционально, просто немного выше
-            const incomeDiff = ourIncome - maxIncomeOffer.income;
-            const extraPrice = Math.min(incomeDiff * 0.01, 5); // Максимум +$5
-            suggestedPrice = Math.round((maxPriceOffer.price + 1 + extraPrice) * 100) / 100;
-            priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)}, max income: ${competitorIncome}M/s)`;
+            // Наш income выше рынка - ставим на $0.50-$1 выше максимальной цены
+            // Как и в других случаях, расхождение должно быть не более $1
+            suggestedPrice = Math.round((maxPriceOffer.price + 0.5) * 100) / 100;
+            priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)}, max income: ${competitorIncome}M/s) → +$0.50`;
         } else {
             // Никто не указывает income - берём минимальную цену - $0.50
             const minPrice = parsedOffers[0].price;
