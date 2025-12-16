@@ -3303,6 +3303,12 @@ function setupOffersListeners() {
         refreshOffersBtn.addEventListener('click', loadOffers);
     }
     
+    // Scan Eldorado button
+    const scanOffersBtn = document.getElementById('scanOffersBtn');
+    if (scanOffersBtn) {
+        scanOffersBtn.addEventListener('click', scanEldoradoOffers);
+    }
+    
     // Bulk price type radio buttons
     document.querySelectorAll('input[name="bulkPriceType"]').forEach(radio => {
         radio.addEventListener('change', (e) => handleBulkPriceTypeChange(e.target.value));
@@ -3316,6 +3322,39 @@ function setupOffersListeners() {
     document.getElementById('closeOfferPriceModal')?.addEventListener('click', () => closeModalFn(offerPriceModal));
     document.getElementById('cancelOfferPrice')?.addEventListener('click', () => closeModalFn(offerPriceModal));
     document.getElementById('confirmOfferPrice')?.addEventListener('click', confirmOfferPriceAdjustment);
+}
+
+// Scan Eldorado for offers with panel codes
+async function scanEldoradoOffers() {
+    const scanBtn = document.getElementById('scanOffersBtn');
+    if (!scanBtn) return;
+    
+    const originalContent = scanBtn.innerHTML;
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    
+    try {
+        showNotification('Scanning Eldorado for your offers...', 'info');
+        
+        const response = await fetch(`${API_BASE}/scan-offers?maxPages=15`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const message = `Found ${data.scanned} offers with codes. Matched: ${data.matched}, Updated: ${data.updated}, Created: ${data.created}`;
+            showNotification(message, data.matched > 0 ? 'success' : 'info');
+            
+            // Reload offers
+            await loadOffers();
+        } else {
+            showNotification('Error scanning: ' + (data.error || 'Unknown error'), 'error');
+        }
+    } catch (err) {
+        console.error('Scan error:', err);
+        showNotification('Failed to scan Eldorado: ' + err.message, 'error');
+    } finally {
+        scanBtn.disabled = false;
+        scanBtn.innerHTML = originalContent;
+    }
 }
 
 // Initialize offers when view is shown

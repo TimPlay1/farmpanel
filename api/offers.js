@@ -43,13 +43,14 @@ module.exports = async (req, res) => {
                 farmKey, 
                 offerId, 
                 brainrotName, 
-                income, 
+                income,
+                incomeRaw, // оригинальная строка income для отображения
                 currentPrice, 
                 recommendedPrice,
                 imageUrl,
                 eldoradoOfferId,
                 accountId,
-                status = 'active'
+                status = 'pending' // pending пока не найден на Eldorado
             } = req.body;
 
             if (!farmKey || !offerId) {
@@ -60,22 +61,22 @@ module.exports = async (req, res) => {
                 farmKey,
                 offerId,
                 brainrotName,
-                income,
+                income: typeof income === 'number' ? income : parseFloat(income) || 0,
+                incomeRaw: incomeRaw || income, // сохраняем оригинальную строку
                 currentPrice: parseFloat(currentPrice) || 0,
                 recommendedPrice: parseFloat(recommendedPrice) || 0,
                 imageUrl,
                 eldoradoOfferId,
                 accountId,
                 status,
-                updatedAt: new Date(),
-                createdAt: new Date()
+                updatedAt: new Date()
             };
 
             // Upsert - обновить если существует, создать если нет
             await offersCollection.updateOne(
                 { farmKey, offerId },
                 { 
-                    $set: { ...offer },
+                    $set: offer,
                     $setOnInsert: { createdAt: new Date() }
                 },
                 { upsert: true }
