@@ -658,7 +658,6 @@ const offerSortDropdown = document.getElementById('offerSortDropdown');
 const offerStatusDropdown = document.getElementById('offerStatusDropdown');
 const selectAllOffersEl = document.getElementById('selectAllOffers');
 const bulkAdjustBtn = document.getElementById('bulkAdjustBtn');
-const refreshOffersBtn = document.getElementById('refreshOffersBtn');
 const bulkPriceModal = document.getElementById('bulkPriceModal');
 const offerPriceModal = document.getElementById('offerPriceModal');
 
@@ -3372,12 +3371,7 @@ function setupOffersListeners() {
         bulkAdjustBtn.addEventListener('click', openBulkPriceModal);
     }
     
-    // Refresh button
-    if (refreshOffersBtn) {
-        refreshOffersBtn.addEventListener('click', loadOffers);
-    }
-    
-    // Scan Eldorado button
+    // Scan Eldorado button (also refreshes offers after scan)
     const scanOffersBtn = document.getElementById('scanOffersBtn');
     if (scanOffersBtn) {
         scanOffersBtn.addEventListener('click', scanEldoradoOffers);
