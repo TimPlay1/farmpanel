@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css?v=5">
+    <link rel="stylesheet" href="styles.css?v=6">
 </head>
 <body>
     <!-- Login Screen -->
@@ -354,19 +354,19 @@
                 </div>
             </div>
         </main>
-        
-        <!-- Mass Select FAB Button -->
-        <button class="mass-select-fab" id="massSelectFab" title="Массовый выбор для генерации">
-            <i class="fas fa-layer-group"></i>
+    </div>
+
+    <!-- Mass Select FAB Button (outside mainApp for fixed positioning) -->
+    <button class="mass-select-fab" id="massSelectFab" title="Массовый выбор для генерации">
+        <i class="fas fa-layer-group"></i>
+    </button>
+    
+    <!-- Mass Select Indicator -->
+    <div class="mass-select-indicator" id="massSelectIndicator">
+        <span>Выбрано: <span class="mass-select-count" id="massSelectCount">0</span></span>
+        <button class="mass-select-generate-btn" id="massSelectGenerateBtn" disabled>
+            <i class="fas fa-wand-magic-sparkles"></i> Генерировать
         </button>
-        
-        <!-- Mass Select Indicator -->
-        <div class="mass-select-indicator" id="massSelectIndicator">
-            <span>Выбрано: <span class="mass-select-count" id="massSelectCount">0</span></span>
-            <button class="mass-select-generate-btn" id="massSelectGenerateBtn" disabled>
-                <i class="fas fa-wand-magic-sparkles"></i> Генерировать
-            </button>
-        </div>
     </div>
 
     <!-- Add Key Modal -->
@@ -571,7 +571,7 @@
         </div>
     </div>
 
-    <script src="app.js?v=5"></script>
+    <script src="app.js?v=6"></script>
 </body>
 </html>
 
