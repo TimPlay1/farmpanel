@@ -15,6 +15,11 @@
     "price": 1
   },
   {
+    "name": "Agarrini La Palini",
+    "id": "0-6-213",
+    "price": 1
+  },
+  {
     "name": "Alessio",
     "id": "0-5-18",
     "price": 1
@@ -55,6 +60,16 @@
     "price": 1.2
   },
   {
+    "name": "Brainrot God Lucky Block",
+    "id": "0-6-200",
+    "price": 1
+  },
+  {
+    "name": "Buho de Noelo",
+    "id": "0-6-203",
+    "price": 1
+  },
+  {
     "name": "Bulbito Bandito Traktorito",
     "id": "0-5-11",
     "price": 1.9
@@ -90,9 +105,29 @@
     "price": 35.99
   },
   {
+    "name": "Chimino",
+    "id": "0-6-221",
+    "price": 1
+  },
+  {
+    "name": "Chimpanzini Spiderini",
+    "id": "0-6-211",
+    "price": 1
+  },
+  {
     "name": "Chipso and Queso",
     "id": "0-6-60",
     "price": 30
+  },
+  {
+    "name": "Chrismasmamat",
+    "id": "0-6-204",
+    "price": 1
+  },
+  {
+    "name": "Cocoa Assassino",
+    "id": "0-6-205",
+    "price": 1
   },
   {
     "name": "Cocofanto Elefanto",
@@ -135,6 +170,16 @@
     "price": 9.99
   },
   {
+    "name": "Extinct Matteo",
+    "id": "0-6-212",
+    "price": 1
+  },
+  {
+    "name": "Festive 67",
+    "id": "0-6-223",
+    "price": 1
+  },
+  {
     "name": "Fishino Clownino",
     "id": "0-6-68",
     "price": 29.99
@@ -145,6 +190,11 @@
     "price": 79.99
   },
   {
+    "name": "Fragrama and Chocrama",
+    "id": "0-6-214",
+    "price": 1
+  },
+  {
     "name": "Frigo Camelo",
     "id": "0-4-0",
     "price": 1
@@ -153,6 +203,11 @@
     "name": "Garama and Madundung",
     "id": "0-6-24",
     "price": 32.99
+  },
+  {
+    "name": "Gingerat Gerat",
+    "id": "0-6-215",
+    "price": 1
   },
   {
     "name": "Girafa Celestre",
@@ -215,6 +270,11 @@
     "price": 78.99
   },
   {
+    "name": "La Ginger Sekolah",
+    "id": "0-6-224",
+    "price": 1
+  },
+  {
     "name": "La Grande Combinasion",
     "id": "0-6-13",
     "price": 29.49
@@ -248,6 +308,11 @@
     "name": "La Supreme Combinasion",
     "id": "0-6-22",
     "price": 79.99
+  },
+  {
+    "name": "La Taco Combinasion",
+    "id": "0-6-227",
+    "price": 1
   },
   {
     "name": "La Vacca Prese Presente",
@@ -285,6 +350,11 @@
     "price": 40
   },
   {
+    "name": "Los 25",
+    "id": "0-6-220",
+    "price": 1
+  },
+  {
     "name": "Los 67",
     "id": "0-6-51",
     "price": 19.99
@@ -300,6 +370,16 @@
     "price": 9.5
   },
   {
+    "name": "Los Burritos",
+    "id": "0-6-228",
+    "price": 1
+  },
+  {
+    "name": "Los Candies",
+    "id": "0-6-222",
+    "price": 1
+  },
+  {
     "name": "Los Chicleteiras",
     "id": "0-6-39",
     "price": 6
@@ -308,6 +388,11 @@
     "name": "Los Combinasionas",
     "id": "0-6-14",
     "price": 5.99
+  },
+  {
+    "name": "Los Crocodillitos",
+    "id": "0-6-206",
+    "price": 1
   },
   {
     "name": "Los Hotspotsitos",
@@ -320,9 +405,19 @@
     "price": 1
   },
   {
+    "name": "Los Matteos",
+    "id": "0-6-209",
+    "price": 1
+  },
+  {
     "name": "Los Mobilis",
     "id": "0-6-50",
     "price": 2.5
+  },
+  {
+    "name": "Los Nooo My Hotspotsitos",
+    "id": "0-6-229",
+    "price": 1
   },
   {
     "name": "Los Orcalitos",
@@ -348,6 +443,16 @@
     "name": "Los Spaghettis",
     "id": "0-6-75",
     "price": 39.99
+  },
+  {
+    "name": "Los Spooky Combinasionas",
+    "id": "0-6-226",
+    "price": 1
+  },
+  {
+    "name": "Los Spyderinis",
+    "id": "0-6-210",
+    "price": 1
   },
   {
     "name": "Los Tacoritas",
@@ -390,6 +495,16 @@
     "price": 16.9
   },
   {
+    "name": "Naughty Naughty",
+    "id": "0-6-218",
+    "price": 1
+  },
+  {
+    "name": "Noo my Present",
+    "id": "0-6-219",
+    "price": 1
+  },
+  {
     "name": "Nooo My Hotspot",
     "id": "0-6-35",
     "price": 3
@@ -430,6 +545,11 @@
     "price": 5
   },
   {
+    "name": "Pandanini Frostini",
+    "id": "0-6-207",
+    "price": 1
+  },
+  {
     "name": "Piccione Macchina",
     "id": "0-5-14",
     "price": 1
@@ -445,9 +565,19 @@
     "price": 2
   },
   {
+    "name": "Reinito Sleighito",
+    "id": "0-6-225",
+    "price": 1
+  },
+  {
     "name": "Sammyni Spyderini",
     "id": "0-6-32",
     "price": 3.5
+  },
+  {
+    "name": "Santa Hotspot",
+    "id": "0-6-217",
+    "price": 1
   },
   {
     "name": "Secret Lucky Block",
@@ -463,6 +593,11 @@
     "name": "Spooky and Pumpky",
     "id": "0-6-53",
     "price": 17.99
+  },
+  {
+    "name": "Statutino Libertino",
+    "id": "0-6-202",
+    "price": 1
   },
   {
     "name": "Strawberry Elephant",
@@ -505,6 +640,11 @@
     "price": 35
   },
   {
+    "name": "Tigroligre Frutonni",
+    "id": "0-6-208",
+    "price": 1
+  },
+  {
     "name": "Tipi Topi Taco",
     "id": "0-5-24",
     "price": 3.9
@@ -540,9 +680,19 @@
     "price": 4.99
   },
   {
+    "name": "Triplito Tralaleritos",
+    "id": "0-6-216",
+    "price": 1
+  },
+  {
     "name": "Trippi Troppi Troppa Trippa",
     "id": "0-5-9",
     "price": 1.5
+  },
+  {
+    "name": "Urubini Flamenguini",
+    "id": "0-6-201",
+    "price": 1
   },
   {
     "name": "W or L",
