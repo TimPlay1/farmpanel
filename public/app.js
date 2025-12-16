@@ -36,7 +36,7 @@ function showNotification(message, type = 'info') {
     console.log(`[${type.toUpperCase()}] ${message}`);
 }
 
-// Format money with K/M/B suffixes
+// Format money with K/M/B suffixes (for prices)
 function formatMoney(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
     
@@ -51,6 +51,23 @@ function formatMoney(num) {
         return sign + (absNum / 1e3).toFixed(1) + 'K';
     }
     return sign + absNum.toLocaleString();
+}
+
+// Format income with K/M/B suffixes and /sec unit
+function formatIncomeSec(num) {
+    if (num === null || num === undefined || isNaN(num)) return '0/sec';
+    
+    const absNum = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    
+    if (absNum >= 1e9) {
+        return sign + (absNum / 1e9).toFixed(2) + 'B/sec';
+    } else if (absNum >= 1e6) {
+        return sign + (absNum / 1e6).toFixed(2) + 'M/sec';
+    } else if (absNum >= 1e3) {
+        return sign + (absNum / 1e3).toFixed(1) + 'K/sec';
+    }
+    return sign + absNum.toFixed(0) + '/sec';
 }
 
 // State
@@ -3937,14 +3954,14 @@ function renderTopData(data, type) {
                             <div class="top-list-brainrot">${item.accountsCount} skladov</div>
                         </div>
                         <div class="top-list-stats">
-                            <div class="top-list-value">+${formatMoney(item.value)}/day</div>
+                            <div class="top-list-value">${formatIncomeSec(item.value)}</div>
                         </div>
                     </div>
                 `;
             } else {
                 const brainrotImg = getBrainrotImage(item.brainrot?.name);
                 const valueDisplay = type === 'income' 
-                    ? `+${formatMoney(item.value)}/day` 
+                    ? formatIncomeSec(item.value)
                     : `$${formatMoney(item.value)}`;
                     
                 html += `
@@ -3970,7 +3987,7 @@ function renderTopData(data, type) {
     container.innerHTML = html;
 }
 
-// Render top 3 podium for income/value tabs
+// Render top 3 podium for income/value tabs - brainrot images in round avatars
 function renderTopPodium(top3, type) {
     if (top3.length === 0) return '';
     
@@ -3982,23 +3999,24 @@ function renderTopPodium(top3, type) {
         const position = positions[index];
         const brainrotImg = getBrainrotImage(item.brainrot?.name);
         const valueDisplay = type === 'income' 
-            ? `+${formatMoney(item.value)}/day` 
+            ? formatIncomeSec(item.value)
             : `$${formatMoney(item.value)}`;
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
+        // Брейнрот отображается в круглом аватаре сверху
         html += `
             <div class="podium-item ${position}">
-                <div class="podium-avatar">
+                <div class="podium-avatar podium-brainrot-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <div class="podium-avatar-icon" style="background: ${avatarColor}20; color: ${avatarColor}">
-                        <i class="fas ${avatarIcon}"></i>
-                    </div>
+                    <img src="${brainrotImg}" class="podium-brainrot-circle" alt="${item.brainrot?.name || ''}" onerror="this.src='https://via.placeholder.com/100'">
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-name">${item.username}</div>
-                <div class="podium-brainrot">
-                    <img src="${brainrotImg}" class="podium-brainrot-img" alt="" onerror="this.style.display='none'">
+                <div class="podium-panel-info">
+                    <div class="podium-panel-avatar" style="background: ${avatarColor}20; color: ${avatarColor}">
+                        <i class="fas ${avatarIcon}"></i>
+                    </div>
                     <span class="podium-brainrot-name">${item.brainrot?.name || 'Unknown'}</span>
                 </div>
                 <div class="podium-value">${valueDisplay}</div>
@@ -4010,7 +4028,7 @@ function renderTopPodium(top3, type) {
     return html;
 }
 
-// Render top 3 podium for total tab (panel avatars only, no brainrot)
+// Render top 3 podium for total tab (panel avatars, no brainrot)
 function renderTopPodiumTotal(top3) {
     if (top3.length === 0) return '';
     
@@ -4033,10 +4051,10 @@ function renderTopPodiumTotal(top3) {
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-name">${item.username}</div>
-                <div class="podium-brainrot">
+                <div class="podium-panel-info">
                     <span class="podium-brainrot-name">${item.accountsCount} skladov</span>
                 </div>
-                <div class="podium-value">+${formatMoney(item.value)}/day</div>
+                <div class="podium-value">${formatIncomeSec(item.value)}</div>
             </div>
         `;
     });
