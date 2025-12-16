@@ -95,50 +95,96 @@ function findEldoradoBrainrot(name) {
  * Парсит доходность из title оффера
  * Примеры: "37.5M/s", "37 M/S", "46,8M/S", "37.5 m/s", "1.5B/s", "1B/S", "1b"
  * B/s = Billions per second, конвертируется в M/s (* 1000)
+ * 
+ * @param {string} title - заголовок оффера
+ * @param {string} msRangeAttr - M/s диапазон из атрибутов оффера для валидации (опционально)
  */
-function parseIncomeFromTitle(title) {
+function parseIncomeFromTitle(title, msRangeAttr = null) {
     if (!title) return null;
     
-    // Сначала проверяем B/s (Billions) - они должны конвертироваться в M/s
+    // Получаем границы диапазона из атрибута для валидации
+    let rangeMin = 0, rangeMax = 99999;
+    if (msRangeAttr) {
+        const rangeMatch = msRangeAttr.match(/(\d+)-(\d+)/);
+        if (rangeMatch) {
+            rangeMin = parseInt(rangeMatch[1]);
+            rangeMax = parseInt(rangeMatch[2]);
+        } else if (msRangeAttr.includes('1+') || msRangeAttr.includes('1000+')) {
+            rangeMin = 1000;
+            rangeMax = 99999;
+        }
+    }
+    
+    // Убираем $ перед числами M/s (хитрость недобросовестных продавцов: "$111M/s")
+    const cleanTitle = title.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
+    
+    // Сначала ищем явный M/s паттерн (более надёжный)
+    const mPatterns = [
+        /(\d+[.,]?\d*)\s*M\/s/i,      // 37.5M/s, 37 M/S
+        /(\d+[.,]?\d*)\s*m\/sec/i,    // 37m/sec
+        /(\d+[.,]?\d*)\s*mil\/s/i,    // 37mil/s
+    ];
+
+    for (const pattern of mPatterns) {
+        const match = cleanTitle.match(pattern);
+        if (match) {
+            const value = parseFloat(match[1].replace(',', '.'));
+            if (value >= 1 && value <= 9999) {
+                return value;
+            }
+        }
+    }
+    
+    // Проверяем B/s (Billions) - но ТОЛЬКО если это валидно для диапазона
+    // Защита от манипуляций типа "2.7B GET 111M/S" в категории 100-249 M/s
     const bPatterns = [
         /(\d+[.,]?\d*)\s*B\/S/i,              // 1.0B/S, 1.5 B/s
         /(\d+[.,]?\d*)B\/s/i,                  // 1.5B/s (без пробела)
         /\[(\d+[.,]?\d*)\s*B\/s\]/i,          // [1.5B/s]
         /(\d+[.,]?\d*)\s*b\/sec/i,            // 1b/sec
         /(\d+[.,]?\d*)\s*bil\/s/i,            // 1bil/s
-        /(\d+[.,]?\d*)\s*billion/i,           // 1.5 billion
-        /(\d+[.,]?\d*)B\s/i,                  // 1B (с пробелом после)
-        /(\d+[.,]?\d*)B$/i,                   // 1b (в конце строки)
-        /\[(\d+[.,]?\d*)B\]/i,                // [1B]
     ];
     
     for (const pattern of bPatterns) {
-        const match = title.match(pattern);
+        const match = cleanTitle.match(pattern);
         if (match) {
             const value = parseFloat(match[1].replace(',', '.'));
-            // B/s -> M/s: умножаем на 1000
-            const msValue = value * 1000;
+            const msValue = value * 1000; // B/s -> M/s
+            
+            // Валидация: B/s значение должно быть в диапазоне атрибута
+            // Если оффер в категории 100-249 M/s, но парсится как 2700M/s - это манипуляция!
+            if (msRangeAttr && (msValue < rangeMin || msValue > rangeMax * 1.5)) {
+                console.log(`⚠️ Manipulation detected: "${title}" claims ${msValue}M/s but in range ${msRangeAttr}`);
+                // Пробуем найти реальный M/s в title
+                const realMsMatch = cleanTitle.match(/GET\s+(\d+[.,]?\d*)\s*M/i) || 
+                                   cleanTitle.match(/(\d+[.,]?\d*)\s*M\/S/i);
+                if (realMsMatch) {
+                    const realValue = parseFloat(realMsMatch[1].replace(',', '.'));
+                    if (realValue >= rangeMin && realValue <= rangeMax * 1.5) {
+                        console.log(`   → Real income: ${realValue}M/s`);
+                        return realValue;
+                    }
+                }
+                continue; // Пропускаем этот B/s паттерн
+            }
+            
             if (msValue >= 1000 && msValue <= 99999) {
                 return msValue;
             }
         }
     }
     
-    // Затем проверяем M/s паттерны
-    const patterns = [
-        /(\d+[.,]?\d*)\s*M\/s/i,      // 37.5M/s, 37 M/S
-        /(\d+[.,]?\d*)\s*m\/sec/i,    // 37m/sec
-        /(\d+[.,]?\d*)\s*mil\/s/i,    // 37mil/s
+    // Fallback: менее строгие M паттерны
+    const fallbackPatterns = [
         /(\d+[.,]?\d*)\s*M\s/i,       // 37M (с пробелом после)
         /(\d+[.,]?\d*)\s*M$/i,        // 37M (в конце строки)
         /(\d+[.,]?\d*)M/i,            // 37.5M (без пробела)
     ];
 
-    for (const pattern of patterns) {
-        const match = title.match(pattern);
+    for (const pattern of fallbackPatterns) {
+        const match = cleanTitle.match(pattern);
         if (match) {
             const value = parseFloat(match[1].replace(',', '.'));
-            // Проверяем что это разумное значение M/s (не цена и не ID)
             if (value >= 1 && value <= 9999) {
                 return value;
             }
@@ -401,6 +447,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             const envValue = (brainrotEnv?.value || '').toLowerCase();
             const offerTitle = offer.offerTitle || '';
             
+            // Получаем M/s диапазон из атрибутов оффера для валидации парсинга
+            const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+            const offerMsRange = msAttr?.value || targetMsRange; // "100-249 M/s", "500-749 M/s", etc
+            
             // Если использовали фильтр по имени - API уже отфильтровал, доверяем результатам
             // Если НЕ использовали фильтр - нужно проверить title (fallback режим)
             let matches = true;
@@ -422,8 +472,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             if (seenIds.has(offerId)) continue;
             seenIds.add(offerId);
             
-            // Парсим income из title
-            const parsedIncome = parseIncomeFromTitle(offerTitle);
+            // Парсим income из title С ВАЛИДАЦИЕЙ по M/s диапазону
+            // Это защищает от манипуляций типа "2.7B GET 111M/S" в категории 100-249 M/s
+            const parsedIncome = parseIncomeFromTitle(offerTitle, offerMsRange);
             const price = offer.pricePerUnitInUSD?.amount || 0;
             
             if (price <= 0) continue;
@@ -432,7 +483,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 title: offerTitle,
                 income: parsedIncome || 0,
                 price: price,
-                msRange: targetMsRange,
+                msRange: offerMsRange,
                 incomeFromTitle: !!parsedIncome,
                 page: page
             };
@@ -649,3 +700,4 @@ module.exports = async (req, res) => {
 module.exports.calculateOptimalPrice = calculateOptimalPrice;
 module.exports.searchBrainrotOffers = searchBrainrotOffers;
 module.exports.findEldoradoBrainrot = findEldoradoBrainrot;
+module.exports.parseIncomeFromTitle = parseIncomeFromTitle;
