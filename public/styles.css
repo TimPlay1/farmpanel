@@ -3042,7 +3042,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: flex-end;
-    gap: 1rem;
+    gap: 3rem;
     padding: 2rem 1rem;
     margin-bottom: 1rem;
 }
@@ -3053,6 +3053,8 @@ body {
     align-items: center;
     text-align: center;
     transition: transform 0.3s;
+    min-width: 140px;
+    width: 140px;
 }
 
 .podium-item:hover {
@@ -3061,6 +3063,8 @@ body {
 
 .podium-item.first {
     order: 2;
+    min-width: 160px;
+    width: 160px;
 }
 
 .podium-item.second {
@@ -3144,8 +3148,42 @@ body {
 .podium-name {
     font-size: 1rem;
     font-weight: 600;
+    max-width: 130px;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+/* User row with avatar and name */
+.podium-user-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
     margin-bottom: 0.25rem;
-    max-width: 120px;
+}
+
+.podium-user-mini {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    flex-shrink: 0;
+}
+
+.podium-item.first .podium-user-mini {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+}
+
+.podium-brainrot-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-top: 0.25rem;
+    max-width: 130px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -205,16 +205,23 @@ function calculateTopValue(farmers, allPrices) {
             if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
             
             for (const br of account.brainrots) {
-                // Формируем ключ кэша как в prices.js
-                const income = parseFloat(br.income || br.daily_income || 0);
+                // Income может быть в разных форматах:
+                // - raw number: 390000000 (нужно /1e6 для получения 390)
+                // - M/s format: 390
+                let rawIncome = parseFloat(br.income || br.daily_income || 0);
+                // Если income > 10000, это raw формат - конвертируем в M/s
+                const incomeInMs = rawIncome > 10000 ? Math.round(rawIncome / 1e6) : Math.round(rawIncome);
+                
                 const name = br.name || '';
+                const nameLower = name.toLowerCase();
                 
                 // Пробуем разные форматы ключа
                 const cacheKeys = [
-                    `${name.toLowerCase()}_${income}`,
-                    `${name.toLowerCase()}_${Math.round(income)}`,
-                    `${name}_${income}`,
-                    name.toLowerCase()
+                    `${nameLower}_${incomeInMs}`,
+                    `${nameLower}_${incomeInMs + 10}`,
+                    `${nameLower}_${incomeInMs - 10}`,
+                    `${nameLower}_${Math.round(incomeInMs / 10) * 10}`,
+                    nameLower
                 ];
                 
                 let price = 0;
@@ -234,7 +241,7 @@ function calculateTopValue(farmers, allPrices) {
                     bestValue = price;
                     bestBrainrot = {
                         name: br.name || 'Unknown',
-                        income: income,
+                        income: incomeInMs,
                         image: br.image || null
                     };
                 }

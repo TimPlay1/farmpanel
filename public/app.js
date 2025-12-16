@@ -1764,8 +1764,8 @@ async function handleEditUsername() {
         return;
     }
     
-    if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
-        usernameError.textContent = '3-20 characters, letters, numbers and underscore only';
+    if (!/^[a-zA-Z]{1,15}$/.test(newUsername)) {
+        usernameError.textContent = 'Max 15 English letters only (a-z, A-Z)';
         return;
     }
     
@@ -4006,21 +4006,21 @@ function renderTopPodium(top3, type) {
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
-        // Брейнрот отображается в круглом аватаре сверху
+        // Брейнрот отображается в круглом аватаре сверху, аватар юзера слева от никнейма
         html += `
             <div class="podium-item ${position}">
                 <div class="podium-avatar podium-brainrot-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <img src="${brainrotImg}" class="podium-brainrot-circle" alt="${item.brainrot?.name || ''}" onerror="this.src='https://via.placeholder.com/100'">
+                    <img src="${brainrotImg}" class="podium-brainrot-circle podium-animated" alt="${item.brainrot?.name || ''}" onerror="this.src='https://via.placeholder.com/100'">
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
-                <div class="podium-name">${item.username}</div>
-                <div class="podium-panel-info">
-                    <div class="podium-panel-avatar" style="background: ${avatarColor}20; color: ${avatarColor}">
+                <div class="podium-user-row">
+                    <div class="podium-user-mini" style="background: ${avatarColor}; color: white">
                         <i class="fas ${avatarIcon}"></i>
                     </div>
-                    <span class="podium-brainrot-name">${item.brainrot?.name || 'Unknown'}</span>
+                    <span class="podium-name">${item.username}</span>
                 </div>
+                <div class="podium-brainrot-label">${item.brainrot?.name || 'Unknown'}</div>
                 <div class="podium-value">${valueDisplay}</div>
             </div>
         `;
@@ -4048,15 +4048,13 @@ function renderTopPodiumTotal(top3) {
             <div class="podium-item ${position}">
                 <div class="podium-avatar podium-user-avatar">
                     ${index === 0 ? '<div class="podium-crown"><i class="fas fa-crown"></i></div>' : ''}
-                    <div class="podium-user-circle" style="background: ${avatarColor}; border-color: ${position === 'first' ? '#ffd700' : position === 'second' ? '#c0c0c0' : '#cd7f32'}">
+                    <div class="podium-user-circle podium-animated" style="background: ${avatarColor}; border-color: ${position === 'first' ? '#ffd700' : position === 'second' ? '#c0c0c0' : '#cd7f32'}">
                         <i class="fas ${avatarIcon}"></i>
                     </div>
                 </div>
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-name">${item.username}</div>
-                <div class="podium-panel-info">
-                    <span class="podium-brainrot-name">${item.accountsCount} skladov</span>
-                </div>
+                <div class="podium-brainrot-label">${item.accountsCount} skladov</div>
                 <div class="podium-value">${formatIncomeSec(item.value)}</div>
             </div>
         `;
