@@ -85,7 +85,9 @@ let state = {
     avatarCache: {}, // Кэш аватаров по userId
     balanceHistory: {}, // История баланса по farmKey {farmKey: [{timestamp, value}]}
     currentTotalValue: 0, // Текущий баланс (синхронизирован везде)
-    currentBalanceChange: null // Текущее изменение баланса
+    currentBalanceChange: null, // Текущее изменение баланса
+    isManualPriceRefresh: false, // Флаг ручного рефреша цен (не записываем в историю)
+    lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
 // Кэш цен Eldorado (время жизни 5 минут)
@@ -297,9 +299,18 @@ function saveBalanceHistory() {
 
 /**
  * Добавить запись в историю баланса
+ * Записывает ТОЛЬКО если:
+ * 1. Это НЕ ручной рефреш цен
+ * 2. Баланс реально изменился (цены изменились)
  */
 function recordBalanceHistory(farmKey, value) {
     if (!farmKey || value === undefined || value === null) return;
+    
+    // При ручном рефреше не записываем в историю
+    if (state.isManualPriceRefresh) {
+        console.log('Skip balance history: manual price refresh');
+        return;
+    }
     
     if (!state.balanceHistory[farmKey]) {
         state.balanceHistory[farmKey] = [];
@@ -312,9 +323,15 @@ function recordBalanceHistory(farmKey, value) {
     if (history.length > 0) {
         const last = history[history.length - 1];
         if (now - last.timestamp < 10000) return;
+        
+        // Не записываем если баланс не изменился (разница < $0.01)
+        if (Math.abs(last.value - value) < 0.01) {
+            return;
+        }
     }
     
     history.push({ timestamp: now, value: value });
+    console.log(`Balance history: recorded $${value.toFixed(2)} for ${farmKey}`);
     
     // Ограничиваем размер истории (макс 2000 записей на аккаунт)
     if (history.length > 2000) {
@@ -1464,9 +1481,9 @@ function updateUI() {
     if (statsEls.totalValue) {
         statsEls.totalValue.textContent = totalValue > 0 ? `$${totalValue.toFixed(2)}` : '$0.00';
         
-        // Show % change from history (hour period)
+        // Show % change from history (hour period) - но НЕ при ручном рефреше
         if (statsEls.totalValueChange) {
-            if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+            if (!state.isManualPriceRefresh && state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
                 statsEls.totalValueChange.innerHTML = formatBalanceChange(state.currentBalanceChange.changePercent);
             } else {
                 statsEls.totalValueChange.innerHTML = '';
@@ -1512,12 +1529,13 @@ function updateCurrentFarmer() {
     `;
     
     // Update mini stats in header with % change (используем значение из state)
+    // НЕ показываем изменения при ручном рефреше
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
     
     if (balanceEl) {
         let changeHtml = '';
-        if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+        if (!state.isManualPriceRefresh && state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
             changeHtml = ` ${formatBalanceChange(state.currentBalanceChange.changePercent, true)}`;
         }
         balanceEl.innerHTML = `$${totalValue.toFixed(2)}${changeHtml}`;
@@ -1891,7 +1909,8 @@ function renderFarmKeys() {
             balanceChange = getBalanceChange(key.farmKey, PERIODS.hour);
         }
         
-        const changeHtml = balanceChange && Math.abs(balanceChange.changePercent) > 0.01 
+        // НЕ показываем изменения при ручном рефреше
+        const changeHtml = !state.isManualPriceRefresh && balanceChange && Math.abs(balanceChange.changePercent) > 0.01 
             ? formatBalanceChange(balanceChange.changePercent, true) 
             : '';
         
@@ -2690,9 +2709,9 @@ async function renderCollection() {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
         const totalValue = state.currentTotalValue; // Используем синхронизированное значение
         
-        // Get balance change for collection (используем из state)
+        // Get balance change for collection (используем из state) - НЕ при ручном рефреше
         let changeHtml = '';
-        if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+        if (!state.isManualPriceRefresh && state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
             changeHtml = ' ' + formatBalanceChange(state.currentBalanceChange.changePercent, true);
         }
         
@@ -3019,6 +3038,10 @@ function updatePriceInDOM(brainrotName, income, priceData) {
  * Очистить кэш цен и перезагрузить
  */
 function clearPriceCache() {
+    // РУЧНОЙ РЕФРЕШ - не записываем изменения в историю баланса
+    state.isManualPriceRefresh = true;
+    console.log('Manual price refresh started - balance history recording disabled');
+    
     // Сохраняем текущие цены как предыдущие для отображения % изменения
     savePreviousPrices();
     
@@ -3040,6 +3063,12 @@ function clearPriceCache() {
     console.log('Price cache cleared');
     // Перезагружаем цены
     filterAndRenderCollection();
+    
+    // Сбрасываем флаг после завершения рефреша (с задержкой чтобы все обновления прошли)
+    setTimeout(() => {
+        state.isManualPriceRefresh = false;
+        console.log('Manual price refresh completed - balance history recording re-enabled');
+    }, 30000); // 30 секунд на загрузку всех цен
 }
 
 // Update collection when data changes
