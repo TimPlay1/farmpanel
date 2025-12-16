@@ -3421,14 +3421,34 @@ async function scanEldoradoOffers() {
         if (data.success) {
             const foundCount = data.found || 0;
             const notFoundCount = data.notFound || 0;
+            const deletedCount = data.deleted || 0;
             const total = data.total || 0;
             
-            if (foundCount > 0) {
-                showNotification(`Found ${foundCount} of ${total} offers on Eldorado!`, 'success');
+            let message = '';
+            let type = 'info';
+            
+            if (foundCount > 0 && deletedCount > 0) {
+                message = `Found ${foundCount} offers, deleted ${deletedCount} not found on Eldorado`;
+                type = 'warning';
+            } else if (foundCount > 0) {
+                message = `Found ${foundCount} of ${total} offers on Eldorado!`;
+                type = 'success';
+            } else if (deletedCount > 0) {
+                message = `Deleted ${deletedCount} offers not found on Eldorado`;
+                type = 'warning';
             } else if (total > 0) {
-                showNotification(`Scanned ${total} offers, none found on Eldorado yet`, 'info');
+                message = `Scanned ${total} offers, none found on Eldorado yet`;
+                type = 'info';
             } else {
-                showNotification('No offers in database to scan', 'info');
+                message = 'No offers in database to scan';
+                type = 'info';
+            }
+            
+            showNotification(message, type);
+            
+            // Log deleted offers
+            if (data.deletedOffers?.length > 0) {
+                console.log('Deleted offers:', data.deletedOffers);
             }
             
             // Reload offers

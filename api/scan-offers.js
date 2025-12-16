@@ -235,10 +235,16 @@ async function scanUserOffers(farmKey, db) {
                 status: 'active'
             });
         } else {
+            // Оффер не найден на Eldorado - удаляем из БД
+            console.log(`  Offer ${offerCode} not found on Eldorado - DELETING from database`);
+            
+            await offersCollection.deleteOne({ farmKey, offerId: offerCode });
+            
             notFound.push({
                 code: offerCode,
                 brainrotName: brainrotName,
-                reason: 'not_found_on_eldorado'
+                reason: 'not_found_on_eldorado',
+                deleted: true
             });
         }
         
@@ -246,7 +252,8 @@ async function scanUserOffers(farmKey, db) {
         await new Promise(r => setTimeout(r, 200));
     }
     
-    return { found, notFound, total: userOffers.length };
+    const deleted = notFound.filter(o => o.deleted);
+    return { found, notFound, deleted, total: userOffers.length };
 }
 
 /**
@@ -288,8 +295,10 @@ module.exports = async (req, res) => {
             total: result.total,
             found: result.found.length,
             notFound: result.notFound.length,
+            deleted: result.deleted?.length || 0,
             offers: result.found,
-            missing: result.notFound
+            missing: result.notFound,
+            deletedOffers: result.deleted || []
         });
         
     } catch (error) {
