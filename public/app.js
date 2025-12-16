@@ -83,7 +83,9 @@ let state = {
     previousPrices: {}, // Предыдущие цены для расчёта % изменения
     previousTotalValue: null, // Предыдущее общее значение
     avatarCache: {}, // Кэш аватаров по userId
-    balanceHistory: {} // История баланса по farmKey {farmKey: [{timestamp, value}]}
+    balanceHistory: {}, // История баланса по farmKey {farmKey: [{timestamp, value}]}
+    currentTotalValue: 0, // Текущий баланс (синхронизирован везде)
+    currentBalanceChange: null // Текущее изменение баланса
 };
 
 // Кэш цен Eldorado (время жизни 5 минут)
@@ -1405,6 +1407,10 @@ function updateUI() {
     });
     const totalValue = calculateTotalValue(allBrainrots);
     
+    // Сохраняем в state для синхронизации везде
+    state.currentTotalValue = totalValue;
+    state.currentBalanceChange = getBalanceChange(state.currentKey, PERIODS.hour);
+    
     // Записываем в историю баланса
     if (totalValue > 0) {
         recordBalanceHistory(state.currentKey, totalValue);
@@ -1421,9 +1427,8 @@ function updateUI() {
         
         // Show % change from history (hour period)
         if (statsEls.totalValueChange) {
-            const change = getBalanceChange(state.currentKey, PERIODS.hour);
-            if (change && Math.abs(change.changePercent) > 0.01) {
-                statsEls.totalValueChange.innerHTML = formatBalanceChange(change.changePercent);
+            if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+                statsEls.totalValueChange.innerHTML = formatBalanceChange(state.currentBalanceChange.changePercent);
             } else {
                 statsEls.totalValueChange.innerHTML = '';
             }
@@ -1454,15 +1459,8 @@ function updateCurrentFarmer() {
     const accounts = data?.accounts || [];
     const accountCount = accounts.length;
     
-    // Calculate total value
-    let totalValue = data?.totalValue || 0;
-    if (totalValue === 0 && accounts.length > 0) {
-        accounts.forEach(account => {
-            if (account.brainrots) {
-                totalValue += calculateAccountValue(account);
-            }
-        });
-    }
+    // Используем синхронизированное значение из state
+    const totalValue = state.currentTotalValue;
     
     currentFarmerEl.innerHTML = `
         <div class="farmer-avatar" style="background: ${avatar.color}20; color: ${avatar.color}">
@@ -1474,15 +1472,14 @@ function updateCurrentFarmer() {
         </div>
     `;
     
-    // Update mini stats in header with % change
+    // Update mini stats in header with % change (используем значение из state)
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
     
     if (balanceEl) {
-        const change = getBalanceChange(state.currentKey, PERIODS.hour);
         let changeHtml = '';
-        if (change && Math.abs(change.changePercent) > 0.01) {
-            changeHtml = ` ${formatBalanceChange(change.changePercent, true)}`;
+        if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+            changeHtml = ` ${formatBalanceChange(state.currentBalanceChange.changePercent, true)}`;
         }
         balanceEl.innerHTML = `$${totalValue.toFixed(2)}${changeHtml}`;
     }
@@ -1516,14 +1513,19 @@ function updateFarmerSwitcherDropdown() {
         const shortKey = key.farmKey.split('-').slice(-1)[0];
         const accountText = accountCount === 1 ? 'account' : 'accounts';
         
-        // Calculate value
-        let farmerValue = data?.totalValue || 0;
-        if (farmerValue === 0 && accounts.length > 0) {
-            accounts.forEach(account => {
-                if (account.brainrots) {
-                    farmerValue += calculateAccountValue(account);
-                }
-            });
+        // Для текущего аккаунта используем синхронизированное значение из state
+        let farmerValue;
+        if (isActive) {
+            farmerValue = state.currentTotalValue;
+        } else {
+            farmerValue = data?.totalValue || 0;
+            if (farmerValue === 0 && accounts.length > 0) {
+                accounts.forEach(account => {
+                    if (account.brainrots) {
+                        farmerValue += calculateAccountValue(account);
+                    }
+                });
+            }
         }
         
         return `
@@ -1831,20 +1833,25 @@ function renderFarmKeys() {
         const accounts = data?.accounts || [];
         const accountCount = accounts.length;
         
-        // Используем totalValue из данных сервера, или рассчитываем локально
-        let farmerValue = data?.totalValue || 0;
+        // Для текущего аккаунта используем синхронизированное значение из state
+        let farmerValue;
+        let balanceChange;
         
-        // Если нет серверного значения и есть локальные цены, рассчитываем
-        if (farmerValue === 0 && accounts.length > 0) {
-            accounts.forEach(account => {
-                if (account.brainrots) {
-                    farmerValue += calculateAccountValue(account);
-                }
-            });
+        if (isActive) {
+            farmerValue = state.currentTotalValue;
+            balanceChange = state.currentBalanceChange;
+        } else {
+            farmerValue = data?.totalValue || 0;
+            if (farmerValue === 0 && accounts.length > 0) {
+                accounts.forEach(account => {
+                    if (account.brainrots) {
+                        farmerValue += calculateAccountValue(account);
+                    }
+                });
+            }
+            balanceChange = getBalanceChange(key.farmKey, PERIODS.hour);
         }
         
-        // Получаем изменение баланса за час
-        const balanceChange = getBalanceChange(key.farmKey, PERIODS.hour);
         const changeHtml = balanceChange && Math.abs(balanceChange.changePercent) > 0.01 
             ? formatBalanceChange(balanceChange.changePercent, true) 
             : '';
@@ -2639,16 +2646,15 @@ async function renderCollection() {
 
     const brainrots = collectionState.filteredBrainrots;
     
-    // Update stats
+    // Update stats (используем синхронизированное значение из state)
     if (collectionStatsEl) {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
-        const totalValue = calculateTotalValue(collectionState.allBrainrots);
+        const totalValue = state.currentTotalValue; // Используем синхронизированное значение
         
-        // Get balance change for collection
-        const change = getBalanceChange(state.currentKey, PERIODS.hour);
+        // Get balance change for collection (используем из state)
         let changeHtml = '';
-        if (change && Math.abs(change.changePercent) > 0.01) {
-            changeHtml = ' ' + formatBalanceChange(change.changePercent, true);
+        if (state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
+            changeHtml = ' ' + formatBalanceChange(state.currentBalanceChange.changePercent, true);
         }
         
         let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' total</span>';
