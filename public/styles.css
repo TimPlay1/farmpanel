@@ -22,6 +22,135 @@
     --accent-blue: #38bdf8;
 }
 
+/* Balance Change Indicators */
+.change-positive {
+    color: var(--accent-green);
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+.change-negative {
+    color: var(--accent-red);
+    font-size: 0.85em;
+    font-weight: 500;
+}
+
+/* Balance Chart Section */
+.balance-chart-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.chart-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.chart-header h3 i {
+    color: var(--accent-primary);
+}
+
+.chart-period-tabs {
+    display: flex;
+    gap: 0.25rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.period-tab {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.period-tab:hover {
+    color: var(--text-secondary);
+}
+
+.period-tab.active {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.chart-container {
+    position: relative;
+    height: 150px;
+    margin-bottom: 0.75rem;
+}
+
+.chart-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+}
+
+.chart-empty {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.chart-empty i {
+    font-size: 1.5rem;
+    margin-bottom: 0.5rem;
+    opacity: 0.5;
+}
+
+.chart-empty.hidden {
+    display: none;
+}
+
+.chart-stats {
+    display: flex;
+    justify-content: space-around;
+    gap: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.chart-stat {
+    text-align: center;
+}
+
+.chart-stat-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 0.25rem;
+}
+
+.chart-stat-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     background: var(--bg-primary);

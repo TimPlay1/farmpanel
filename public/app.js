@@ -82,7 +82,8 @@ let state = {
     brainrotPrices: {}, // Кэш цен по имени брейнрота для отображения
     previousPrices: {}, // Предыдущие цены для расчёта % изменения
     previousTotalValue: null, // Предыдущее общее значение
-    avatarCache: {} // Кэш аватаров по userId
+    avatarCache: {}, // Кэш аватаров по userId
+    balanceHistory: {} // История баланса по farmKey {farmKey: [{timestamp, value}]}
 };
 
 // Кэш цен Eldorado (время жизни 5 минут)
@@ -90,6 +91,15 @@ const PRICE_CACHE_TTL = 5 * 60 * 1000;
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
+const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
+
+// Периоды для графика
+const PERIODS = {
+    hour: 60 * 60 * 1000,
+    day: 24 * 60 * 60 * 1000,
+    week: 7 * 24 * 60 * 60 * 1000,
+    month: 30 * 24 * 60 * 60 * 1000
+};
 
 /**
  * Проверить, является ли строка base64 изображением
@@ -232,6 +242,169 @@ async function getAccountAvatar(userId, serverAvatars) {
     
     // 3. Загружаем с Roblox (в фоне)
     return fetchRobloxAvatar(userId);
+}
+
+// ============ Balance History Functions ============
+
+/**
+ * Загрузить историю баланса из localStorage
+ */
+function loadBalanceHistory() {
+    try {
+        const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
+        if (stored) {
+            state.balanceHistory = JSON.parse(stored);
+            // Очищаем старые записи (старше месяца)
+            const monthAgo = Date.now() - PERIODS.month;
+            for (const farmKey of Object.keys(state.balanceHistory)) {
+                state.balanceHistory[farmKey] = state.balanceHistory[farmKey].filter(
+                    entry => entry.timestamp > monthAgo
+                );
+            }
+            console.log('Loaded balance history from cache');
+        }
+    } catch (e) {
+        console.warn('Failed to load balance history:', e);
+        state.balanceHistory = {};
+    }
+}
+
+/**
+ * Сохранить историю баланса в localStorage
+ */
+function saveBalanceHistory() {
+    try {
+        localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(state.balanceHistory));
+    } catch (e) {
+        console.warn('Failed to save balance history:', e);
+        if (e.name === 'QuotaExceededError') {
+            // Очищаем старые записи
+            for (const farmKey of Object.keys(state.balanceHistory)) {
+                state.balanceHistory[farmKey] = state.balanceHistory[farmKey].slice(-100);
+            }
+            try {
+                localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(state.balanceHistory));
+            } catch (e2) {
+                state.balanceHistory = {};
+            }
+        }
+    }
+}
+
+/**
+ * Добавить запись в историю баланса
+ */
+function recordBalanceHistory(farmKey, value) {
+    if (!farmKey || value === undefined || value === null) return;
+    
+    if (!state.balanceHistory[farmKey]) {
+        state.balanceHistory[farmKey] = [];
+    }
+    
+    const history = state.balanceHistory[farmKey];
+    const now = Date.now();
+    
+    // Не записываем чаще чем раз в минуту
+    if (history.length > 0) {
+        const last = history[history.length - 1];
+        if (now - last.timestamp < 60000) return;
+    }
+    
+    history.push({ timestamp: now, value: value });
+    
+    // Ограничиваем размер истории (макс 1000 записей на аккаунт)
+    if (history.length > 1000) {
+        state.balanceHistory[farmKey] = history.slice(-500);
+    }
+    
+    saveBalanceHistory();
+}
+
+/**
+ * Получить изменение баланса за период
+ */
+function getBalanceChange(farmKey, periodMs) {
+    const history = state.balanceHistory[farmKey];
+    if (!history || history.length < 2) return null;
+    
+    const now = Date.now();
+    const periodStart = now - periodMs;
+    
+    // Находим самую раннюю запись в периоде
+    let oldestInPeriod = null;
+    for (const entry of history) {
+        if (entry.timestamp >= periodStart) {
+            oldestInPeriod = entry;
+            break;
+        }
+    }
+    
+    if (!oldestInPeriod) {
+        // Если нет записей в периоде, берём самую старую
+        oldestInPeriod = history[0];
+    }
+    
+    const latest = history[history.length - 1];
+    
+    if (oldestInPeriod.value === 0) return null;
+    
+    const change = latest.value - oldestInPeriod.value;
+    const changePercent = (change / oldestInPeriod.value) * 100;
+    
+    return {
+        change: change,
+        changePercent: changePercent,
+        oldValue: oldestInPeriod.value,
+        newValue: latest.value
+    };
+}
+
+/**
+ * Получить данные для графика
+ */
+function getChartData(farmKey, periodMs, points = 20) {
+    const history = state.balanceHistory[farmKey];
+    if (!history || history.length < 2) return null;
+    
+    const now = Date.now();
+    const periodStart = now - periodMs;
+    
+    // Фильтруем записи в периоде
+    const periodHistory = history.filter(e => e.timestamp >= periodStart);
+    if (periodHistory.length < 2) return null;
+    
+    // Сэмплируем до нужного количества точек
+    const step = Math.max(1, Math.floor(periodHistory.length / points));
+    const sampled = [];
+    for (let i = 0; i < periodHistory.length; i += step) {
+        sampled.push(periodHistory[i]);
+    }
+    // Всегда включаем последнюю точку
+    if (sampled[sampled.length - 1] !== periodHistory[periodHistory.length - 1]) {
+        sampled.push(periodHistory[periodHistory.length - 1]);
+    }
+    
+    return sampled;
+}
+
+/**
+ * Форматировать изменение баланса для отображения
+ */
+function formatBalanceChange(changePercent, compact = false) {
+    if (changePercent === null || changePercent === undefined || isNaN(changePercent)) {
+        return '';
+    }
+    
+    const isPositive = changePercent >= 0;
+    const arrow = isPositive ? '↑' : '↓';
+    const colorClass = isPositive ? 'change-positive' : 'change-negative';
+    const absPercent = Math.abs(changePercent);
+    
+    if (compact) {
+        return `<span class="${colorClass}">${arrow}${absPercent.toFixed(1)}%</span>`;
+    }
+    
+    return `<span class="${colorClass}">${arrow} ${absPercent.toFixed(2)}%</span>`;
 }
 
 /**
@@ -720,6 +893,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadState();
     loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
     loadAvatarCache(); // Загружаем кэш аватаров
+    loadBalanceHistory(); // Загружаем историю баланса
     setupEventListeners();
     
     if (state.currentKey && state.savedKeys.length > 0) {
@@ -1195,6 +1369,11 @@ function updateUI() {
     });
     const totalValue = calculateTotalValue(allBrainrots);
     
+    // Записываем в историю баланса
+    if (totalValue > 0) {
+        recordBalanceHistory(state.currentKey, totalValue);
+    }
+    
     statsEls.totalAccounts.textContent = accounts.length;
     statsEls.onlineAccounts.textContent = online;
     statsEls.totalIncome.textContent = formatIncome(totalIncome);
@@ -1204,11 +1383,11 @@ function updateUI() {
     if (statsEls.totalValue) {
         statsEls.totalValue.textContent = totalValue > 0 ? `$${totalValue.toFixed(2)}` : '$0.00';
         
-        // Show % change
-        if (statsEls.totalValueChange && state.previousTotalValue !== null && state.previousTotalValue > 0 && totalValue > 0) {
-            const changePercent = ((totalValue - state.previousTotalValue) / state.previousTotalValue) * 100;
-            if (Math.abs(changePercent) > 0.1) {
-                statsEls.totalValueChange.innerHTML = formatPriceChange(changePercent);
+        // Show % change from history (hour period)
+        if (statsEls.totalValueChange) {
+            const change = getBalanceChange(state.currentKey, PERIODS.hour);
+            if (change && Math.abs(change.changePercent) > 0.01) {
+                statsEls.totalValueChange.innerHTML = formatBalanceChange(change.changePercent);
             } else {
                 statsEls.totalValueChange.innerHTML = '';
             }
@@ -1222,6 +1401,9 @@ function updateUI() {
     
     // Update collection view
     updateCollection();
+    
+    // Update balance chart
+    updateBalanceChart();
 }
 
 function updateCurrentFarmer() {
@@ -1256,10 +1438,19 @@ function updateCurrentFarmer() {
         </div>
     `;
     
-    // Update mini stats in header
+    // Update mini stats in header with % change
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
-    if (balanceEl) balanceEl.textContent = `$${totalValue.toFixed(2)}`;
+    
+    if (balanceEl) {
+        const change = getBalanceChange(state.currentKey, PERIODS.hour);
+        let changeHtml = '';
+        if (change && Math.abs(change.changePercent) > 0.01) {
+            changeHtml = ` ${formatBalanceChange(change.changePercent, true)}`;
+        }
+        balanceEl.innerHTML = `$${totalValue.toFixed(2)}${changeHtml}`;
+    }
+    
     const accountText = accountCount === 1 ? 'account' : 'accounts';
     if (countEl) countEl.textContent = `${accountCount} ${accountText}`;
     
@@ -2411,10 +2602,17 @@ async function renderCollection() {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
         const totalValue = calculateTotalValue(collectionState.allBrainrots);
         
+        // Get balance change for collection
+        const change = getBalanceChange(state.currentKey, PERIODS.hour);
+        let changeHtml = '';
+        if (change && Math.abs(change.changePercent) > 0.01) {
+            changeHtml = ' ' + formatBalanceChange(change.changePercent, true);
+        }
+        
         let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' total</span>';
         statsHtml += '<span><i class="fas fa-fingerprint"></i> ' + uniqueNames.size + ' unique</span>';
         if (totalValue > 0) {
-            statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + '</span>';
+            statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + changeHtml + '</span>';
         }
         if (collectionState.searchQuery || collectionState.accountFilter !== 'all' || collectionState.priceFilter !== 'all') {
             statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
@@ -4115,3 +4313,162 @@ function getBrainrotImage(brainrotName) {
     
     return 'https://via.placeholder.com/60';
 }
+
+// Balance Chart instance
+let balanceChart = null;
+let currentChartPeriod = PERIODS.day;
+
+// Update balance chart
+function updateBalanceChart(period = currentChartPeriod) {
+    const chartContainer = document.getElementById('balanceChart');
+    const chartEmpty = document.querySelector('.chart-empty');
+    const chartStats = document.querySelector('.chart-stats');
+    
+    if (!chartContainer || !state.currentKey) return;
+    
+    currentChartPeriod = period;
+    
+    // Update active tab
+    document.querySelectorAll('.period-tab').forEach(tab => {
+        tab.classList.toggle('active', parseInt(tab.dataset.period) === period);
+    });
+    
+    const chartData = getChartData(state.currentKey, period);
+    
+    if (chartData.labels.length < 2) {
+        // Not enough data
+        chartContainer.style.display = 'none';
+        if (chartEmpty) chartEmpty.style.display = 'flex';
+        if (chartStats) chartStats.innerHTML = '';
+        return;
+    }
+    
+    chartContainer.style.display = 'block';
+    if (chartEmpty) chartEmpty.style.display = 'none';
+    
+    // Calculate period change
+    const firstValue = chartData.values[0];
+    const lastValue = chartData.values[chartData.values.length - 1];
+    const change = lastValue - firstValue;
+    const changePercent = firstValue > 0 ? ((change / firstValue) * 100).toFixed(2) : 0;
+    const isPositive = change >= 0;
+    
+    // Update chart stats
+    if (chartStats) {
+        const periodName = period === PERIODS.hour ? 'час' : 
+                          period === PERIODS.day ? 'день' : 
+                          period === PERIODS.week ? 'неделю' : 'месяц';
+        chartStats.innerHTML = `
+            <div class="chart-stat">
+                <span class="chart-stat-label">Изменение за ${periodName}:</span>
+                <span class="chart-stat-value ${isPositive ? 'change-positive' : 'change-negative'}">
+                    ${isPositive ? '+' : ''}${formatIncomeSec(change)} (${isPositive ? '+' : ''}${changePercent}%)
+                </span>
+            </div>
+        `;
+    }
+    
+    const ctx = chartContainer.getContext('2d');
+    
+    // Gradient fill
+    const gradient = ctx.createLinearGradient(0, 0, 0, 200);
+    gradient.addColorStop(0, isPositive ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)');
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    
+    const chartColor = isPositive ? '#22c55e' : '#ef4444';
+    
+    if (balanceChart) {
+        balanceChart.destroy();
+    }
+    
+    balanceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: 'Balance',
+                data: chartData.values,
+                borderColor: chartColor,
+                backgroundColor: gradient,
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4,
+                pointRadius: chartData.values.length > 20 ? 0 : 3,
+                pointHoverRadius: 5,
+                pointBackgroundColor: chartColor,
+                pointBorderColor: '#fff',
+                pointBorderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                    titleColor: '#fff',
+                    bodyColor: '#fff',
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    padding: 12,
+                    displayColors: false,
+                    callbacks: {
+                        label: function(context) {
+                            return formatIncomeSec(context.raw);
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        font: {
+                            size: 10
+                        },
+                        maxRotation: 0,
+                        maxTicksLimit: 6
+                    }
+                },
+                y: {
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.05)',
+                        drawBorder: false
+                    },
+                    ticks: {
+                        color: 'rgba(255, 255, 255, 0.5)',
+                        font: {
+                            size: 10
+                        },
+                        callback: function(value) {
+                            return formatIncomeSec(value);
+                        }
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            }
+        }
+    });
+}
+
+// Initialize period tab listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.period-tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            const period = parseInt(this.dataset.period);
+            if (period) {
+                updateBalanceChart(period);
+            }
+        });
+    });
+});
