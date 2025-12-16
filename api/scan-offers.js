@@ -110,40 +110,43 @@ function parseIncomeFromTitle(title) {
 }
 
 /**
+ * Проверяет содержит ли оффер наш код (в title или description)
+ */
+function offerContainsCode(offer, code) {
+    const normalizedCode = code.toUpperCase();
+    const title = (offer.offerTitle || '').toUpperCase();
+    const description = (offer.offerDescription || '').toUpperCase();
+    
+    return title.includes(`#${normalizedCode}`) || description.includes(`#${normalizedCode}`);
+}
+
+/**
  * Ищет оффер на Eldorado по brainrotName и коду
  * @param {string} brainrotName - название брейнрота для поиска
- * @param {string} offerCode - код оффера для проверки в title
+ * @param {string} offerCode - код оффера для проверки в title/description
  * @param {number} maxPages - максимум страниц для поиска
  * @returns {object|null} - данные оффера или null
  */
 async function findOfferOnEldorado(brainrotName, offerCode, maxPages = 10) {
-    if (!brainrotName || !offerCode) return null;
+    if (!offerCode) return null;
     
     const normalizedCode = offerCode.toUpperCase();
-    console.log(`Searching for "${brainrotName}" with code #${normalizedCode}`);
+    console.log(`Searching for code #${normalizedCode} (brainrot: ${brainrotName || 'any'})`);
     
-    // Ищем по названию brainrot
-    for (let page = 1; page <= maxPages; page++) {
-        const response = await fetchEldoradoOffers(brainrotName, page);
-        
-        if (response.error || !response.results?.length) {
-            console.log(`  Page ${page}: no results or error`);
-            break;
-        }
-        
-        // Ищем оффер с нашим кодом в title
-        for (const item of response.results) {
+    // Стратегия 1: Поиск напрямую по коду #GS через searchQuery
+    console.log('  Strategy 1: Search by offer code directly');
+    const codeSearchResponse = await fetchEldoradoOffers(`#${normalizedCode}`, 1, 20);
+    
+    if (!codeSearchResponse.error && codeSearchResponse.results?.length) {
+        for (const item of codeSearchResponse.results) {
             const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            
-            // Проверяем есть ли наш код в title
-            if (title.toUpperCase().includes(`#${normalizedCode}`)) {
+            if (offerContainsCode(offer, normalizedCode)) {
                 const price = offer.pricePerUnitInUSD?.amount || 0;
-                const income = parseIncomeFromTitle(title);
+                const income = parseIncomeFromTitle(offer.offerTitle || '');
                 const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
                 const imageUrl = offer.images?.[0]?.originalUrl || offer.images?.[0]?.url || null;
                 
-                console.log(`  FOUND on page ${page}: $${price}`);
+                console.log(`  FOUND by code search: $${price}`);
                 
                 return {
                     eldoradoOfferId: offer.id,
@@ -151,7 +154,86 @@ async function findOfferOnEldorado(brainrotName, offerCode, maxPages = 10) {
                     income: income,
                     incomeRange: msAttr?.value || null,
                     currentPrice: price,
-                    title: title,
+                    title: offer.offerTitle,
+                    imageUrl: imageUrl,
+                    sellerName: offer.seller?.nickname || null,
+                    sellerId: offer.seller?.id || null,
+                    status: offer.status || 'active'
+                };
+            }
+        }
+    }
+    
+    // Стратегия 2: Поиск по названию brainrot (если указано)
+    if (brainrotName) {
+        console.log(`  Strategy 2: Search by brainrot name "${brainrotName}"`);
+        for (let page = 1; page <= maxPages; page++) {
+            const response = await fetchEldoradoOffers(brainrotName, page);
+            
+            if (response.error || !response.results?.length) {
+                console.log(`    Page ${page}: no results or error`);
+                break;
+            }
+            
+            // Ищем оффер с нашим кодом в title или description
+            for (const item of response.results) {
+                const offer = item.offer || item;
+                
+                if (offerContainsCode(offer, normalizedCode)) {
+                    const price = offer.pricePerUnitInUSD?.amount || 0;
+                    const income = parseIncomeFromTitle(offer.offerTitle || '');
+                    const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+                    const imageUrl = offer.images?.[0]?.originalUrl || offer.images?.[0]?.url || null;
+                    
+                    console.log(`    FOUND on page ${page}: $${price}`);
+                    
+                    return {
+                        eldoradoOfferId: offer.id,
+                        brainrotName: brainrotName,
+                        income: income,
+                        incomeRange: msAttr?.value || null,
+                        currentPrice: price,
+                        title: offer.offerTitle,
+                        imageUrl: imageUrl,
+                        sellerName: offer.seller?.nickname || null,
+                        sellerId: offer.seller?.id || null,
+                        status: offer.status || 'active'
+                    };
+                }
+            }
+            
+            // Небольшая задержка между страницами
+            await new Promise(r => setTimeout(r, 150));
+        }
+    }
+    
+    // Стратегия 3: Поиск по "Glitched Store" чтобы найти все наши офферы
+    console.log('  Strategy 3: Search by "Glitched Store"');
+    for (let page = 1; page <= 3; page++) {
+        const response = await fetchEldoradoOffers('Glitched Store', page, 50);
+        
+        if (response.error || !response.results?.length) {
+            break;
+        }
+        
+        for (const item of response.results) {
+            const offer = item.offer || item;
+            
+            if (offerContainsCode(offer, normalizedCode)) {
+                const price = offer.pricePerUnitInUSD?.amount || 0;
+                const income = parseIncomeFromTitle(offer.offerTitle || '');
+                const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+                const imageUrl = offer.images?.[0]?.originalUrl || offer.images?.[0]?.url || null;
+                
+                console.log(`    FOUND by Glitched Store search on page ${page}: $${price}`);
+                
+                return {
+                    eldoradoOfferId: offer.id,
+                    brainrotName: brainrotName,
+                    income: income,
+                    incomeRange: msAttr?.value || null,
+                    currentPrice: price,
+                    title: offer.offerTitle,
                     imageUrl: imageUrl,
                     sellerName: offer.seller?.nickname || null,
                     sellerId: offer.seller?.id || null,
@@ -160,11 +242,10 @@ async function findOfferOnEldorado(brainrotName, offerCode, maxPages = 10) {
             }
         }
         
-        // Небольшая задержка между страницами
         await new Promise(r => setTimeout(r, 150));
     }
     
-    console.log(`  Not found after ${maxPages} pages`);
+    console.log(`  Not found after all strategies`);
     return null;
 }
 
