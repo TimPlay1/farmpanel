@@ -2313,9 +2313,24 @@ body {
 
 .offer-card-header {
     display: flex;
-    gap: 0.75rem;
+    flex-direction: column;
+    gap: 0.5rem;
     align-items: flex-start;
     padding-left: 28px;
+    position: relative;
+}
+
+.offer-card-header .offer-status-badge {
+    position: static;
+    align-self: flex-start;
+    margin-bottom: 0.25rem;
+}
+
+.offer-card-header-content {
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    width: 100%;
 }
 
 .offer-card-image {

@@ -2069,10 +2069,24 @@ function filterAndRenderCollection() {
 
     // Filter by search (text or income)
     if (searchParsed.text) {
-        filtered = filtered.filter(b => 
-            b.name.toLowerCase().includes(searchParsed.text) ||
-            b.accountName.toLowerCase().includes(searchParsed.text)
-        );
+        const searchText = searchParsed.text;
+        const isShortNumeric = /^\d{1,3}$/.test(searchText); // 1-3 digit numbers like 67, 25
+        
+        filtered = filtered.filter(b => {
+            const nameLower = b.name.toLowerCase();
+            const accountLower = b.accountName.toLowerCase();
+            
+            if (isShortNumeric) {
+                // For short numeric names, use exact match or word boundary match
+                // "67" should match "67" but not "167" or "567"
+                const exactMatch = nameLower === searchText;
+                const wordBoundaryMatch = new RegExp(`(^|[^\\d])${searchText}([^\\d]|$)`).test(nameLower);
+                return exactMatch || wordBoundaryMatch || accountLower.includes(searchText);
+            }
+            
+            // Default includes search for longer queries
+            return nameLower.includes(searchText) || accountLower.includes(searchText);
+        });
     }
     
     if (searchParsed.incomeFilter) {
@@ -2959,10 +2973,21 @@ function filterAndRenderOffers() {
     // Search filter
     if (offersState.searchQuery) {
         const q = offersState.searchQuery.toLowerCase();
-        filtered = filtered.filter(o => 
-            o.brainrotName?.toLowerCase().includes(q) ||
-            o.offerId?.toLowerCase().includes(q)
-        );
+        const isShortNumeric = /^\d{1,3}$/.test(q); // 1-3 digit numbers like 67, 25
+        
+        filtered = filtered.filter(o => {
+            const nameLower = o.brainrotName?.toLowerCase() || '';
+            const offerIdLower = o.offerId?.toLowerCase() || '';
+            
+            if (isShortNumeric) {
+                // For short numeric names, use exact match or word boundary match
+                const exactMatch = nameLower === q;
+                const wordBoundaryMatch = new RegExp(`(^|[^\\d])${q}([^\\d]|$)`).test(nameLower);
+                return exactMatch || wordBoundaryMatch || offerIdLower.includes(q);
+            }
+            
+            return nameLower.includes(q) || offerIdLower.includes(q);
+        });
     }
     
     // Status filter
@@ -3047,20 +3072,22 @@ function renderOffers() {
                     <span class="checkmark"></span>
                 </label>
             </div>
-            <span class="offer-status-badge ${needsUpdate ? 'needs-update' : 'active'}">
-                ${needsUpdate ? 'Needs Update' : 'Active'}
-            </span>
             <div class="offer-card-header">
-                <div class="offer-card-image">
-                    ${offer.imageUrl 
-                        ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">`
-                        : '<i class="fas fa-brain" style="font-size: 1.5rem; color: var(--text-muted);"></i>'
-                    }
-                </div>
-                <div class="offer-card-info">
-                    <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
-                    <div class="offer-card-id">${offer.offerId}</div>
-                    <div class="offer-card-income">${offer.income || '0/s'}</div>
+                <span class="offer-status-badge ${needsUpdate ? 'needs-update' : 'active'}">
+                    ${needsUpdate ? 'Needs Update' : 'Active'}
+                </span>
+                <div class="offer-card-header-content">
+                    <div class="offer-card-image">
+                        ${offer.imageUrl 
+                            ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">`
+                            : '<i class="fas fa-brain" style="font-size: 1.5rem; color: var(--text-muted);"></i>'
+                        }
+                    </div>
+                    <div class="offer-card-info">
+                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
+                        <div class="offer-card-id">${offer.offerId}</div>
+                        <div class="offer-card-income">${offer.income || '0/s'}</div>
+                    </div>
                 </div>
             </div>
             <div class="offer-card-prices">
