@@ -2735,8 +2735,11 @@ async function renderCollection() {
         let priceHtml;
         
         if (cachedPrice && cachedPrice.suggestedPrice) {
+            // competitorPrice - это цена конкурента (может быть upper или max на рынке)
+            // Если priceSource содержит "above market" - показываем "max" вместо "~"
+            const isAboveMarket = cachedPrice.priceSource && cachedPrice.priceSource.includes('above market');
             const competitorInfo = cachedPrice.competitorPrice 
-                ? `~$${cachedPrice.competitorPrice.toFixed(2)}` 
+                ? `${isAboveMarket ? 'max ' : '~'}$${cachedPrice.competitorPrice.toFixed(2)}` 
                 : '';
             const priceChange = getPriceChangePercent(cacheKey, cachedPrice.suggestedPrice);
             const changeHtml = formatPriceChange(priceChange);
