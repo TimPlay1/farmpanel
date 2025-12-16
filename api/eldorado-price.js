@@ -337,14 +337,17 @@ function generateSearchVariants(name) {
  */
 async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50) {
     const eldoradoInfo = findEldoradoBrainrot(brainrotName);
-    const eldoradoName = eldoradoInfo?.name || brainrotName; // Используем точное имя из Eldorado
+    // Используем точное имя из mapping или оригинальное имя (Eldorado API сам разберётся)
+    const eldoradoName = eldoradoInfo?.name || brainrotName;
     const targetMsRange = getMsRange(targetIncome);
     const msRangeAttrId = getMsRangeAttrId(targetMsRange);
     
-    // Проверяем есть ли брейнрот в списке Eldorado
+    // ВСЕГДА пробуем использовать имя брейнрота как фильтр
+    // Eldorado API сам вернёт результаты если брейнрот существует в их системе
+    // Это позволяет работать с новыми брейнротами без обновления mapping
     const isInEldoradoList = !!eldoradoInfo;
     
-    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome);
+    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In mapping:', isInEldoradoList);
     
     let upperOffer = null;
     let lowerOffer = null;
@@ -352,15 +355,25 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
+    let usedNameFilter = true; // Флаг использования фильтра по имени
     
     for (let page = 1; page <= maxPages; page++) {
-        // Запрос с ОБОИМИ фильтрами: M/s диапазон + имя брейнрота
-        // Теперь используем официальные swagger параметры!
-        const response = await fetchEldorado(page, msRangeAttrId, isInEldoradoList ? eldoradoName : null);
+        // ВСЕГДА передаём имя брейнрота как фильтр - Eldorado API автоматически 
+        // найдёт совпадение если брейнрот существует в их системе
+        let response = await fetchEldorado(page, msRangeAttrId, usedNameFilter ? eldoradoName : null);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages);
+            console.log('Total pages in range:', totalPages, '| Name filter:', usedNameFilter);
+            
+            // Если с фильтром по имени 0 результатов - пробуем без него (fallback для новых брейнротов)
+            if (totalPages === 0 && usedNameFilter) {
+                console.log('No results with name filter, trying without...');
+                usedNameFilter = false;
+                response = await fetchEldorado(page, msRangeAttrId, null);
+                totalPages = response.totalPages || 0;
+                console.log('Without name filter - total pages:', totalPages);
+            }
         }
         
         if (response.error || !response.results?.length) {
@@ -388,15 +401,14 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             const envValue = (brainrotEnv?.value || '').toLowerCase();
             const offerTitle = offer.offerTitle || '';
             
-            // Если запрос был с brainrotName фильтром - API уже отфильтровал по брейнроту и M/s диапазону
-            // Если брейнрот в категории Other - дополнительно проверяем title
+            // Если использовали фильтр по имени - API уже отфильтровал, доверяем результатам
+            // Если НЕ использовали фильтр - нужно проверить title (fallback режим)
             let matches = true;
             
-            if (!isInEldoradoList) {
-                // Брейнрот "Other" - API не может фильтровать по имени, проверяем title
-                const isOtherCategory = envValue === 'other' || envValue === '';
+            if (!usedNameFilter) {
+                // Fallback: фильтруем по title вручную
                 const titleContainsName = offerTitle.toLowerCase().includes(brainrotName.toLowerCase());
-                matches = isOtherCategory && titleContainsName;
+                matches = titleContainsName;
             }
             
             if (!matches) continue;
