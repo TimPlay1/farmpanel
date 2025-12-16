@@ -723,7 +723,7 @@ function extractPitName(name) {
 
 /**
  * Парсит доходность из incomeText
- * @param {string|number} incomeText - например "$112.5M/s" или число
+ * @param {string|number} incomeText - например "$112.5M/s", "$1.5B/s" или число
  * @returns {number} - доходность в M/s
  */
 function parseIncomeValue(incomeText) {
@@ -740,6 +740,12 @@ function parseIncomeValue(incomeText) {
     
     // Убираем пробелы и приводим к нижнему регистру
     const clean = String(incomeText).replace(/\s+/g, '').toLowerCase();
+    
+    // Сначала проверяем B/s (billions) - конвертируем в M/s (*1000)
+    const bMatch = clean.match(/\$?([\d.]+)b/);
+    if (bMatch) {
+        return parseFloat(bMatch[1]) * 1000; // 1.5B -> 1500 M/s
+    }
     
     // Паттерны: $112.5m/s, 112.5m/s, $112.5 m/s
     const match = clean.match(/\$?([\d.]+)m/);

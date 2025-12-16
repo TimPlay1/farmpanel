@@ -93,12 +93,36 @@ function findEldoradoBrainrot(name) {
 
 /**
  * Парсит доходность из title оффера
- * Примеры: "37.5M/s", "37 M/S", "46,8M/S", "37.5 m/s"
+ * Примеры: "37.5M/s", "37 M/S", "46,8M/S", "37.5 m/s", "1.5B/s", "1B/S", "1b"
+ * B/s = Billions per second, конвертируется в M/s (* 1000)
  */
 function parseIncomeFromTitle(title) {
     if (!title) return null;
     
-    // Паттерны от более специфичных к общим
+    // Сначала проверяем B/s (Billions) - они должны конвертироваться в M/s
+    const bPatterns = [
+        /\[?\$?(\d+[.,]?\d*)\s*B\/s\]?/i,      // 1.5B/s, [1B/S], [$1B/s]
+        /(\d+[.,]?\d*)\s*b\/sec/i,              // 1b/sec
+        /(\d+[.,]?\d*)\s*bil\/s/i,              // 1bil/s
+        /(\d+[.,]?\d*)\s*billion/i,             // 1.5 billion
+        /(\d+[.,]?\d*)B\s/i,                    // 1B (с пробелом после)
+        /(\d+[.,]?\d*)B$/i,                     // 1b (в конце строки)
+        /\[(\d+[.,]?\d*)B\]/i,                  // [1B]
+    ];
+    
+    for (const pattern of bPatterns) {
+        const match = title.match(pattern);
+        if (match) {
+            const value = parseFloat(match[1].replace(',', '.'));
+            // B/s -> M/s: умножаем на 1000
+            const msValue = value * 1000;
+            if (msValue >= 1000 && msValue <= 99999) {
+                return msValue;
+            }
+        }
+    }
+    
+    // Затем проверяем M/s паттерны
     const patterns = [
         /(\d+[.,]?\d*)\s*M\/s/i,      // 37.5M/s, 37 M/S
         /(\d+[.,]?\d*)\s*m\/sec/i,    // 37m/sec
@@ -516,56 +540,30 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             // Ищем нижний оффер:
             // - income < наш (хуже по доходности)
             // - price < upper.price (дешевле чем upper)
+            // Среди таких берём с МАКСИМАЛЬНЫМ income (ближайший к нашему по доходности)
             if (lowerOffers.length > 0) {
                 // Фильтруем только те что дешевле upper
                 const validLower = lowerOffers.filter(o => o.price < competitorPrice);
                 
                 if (validLower.length > 0) {
-                    // ГИБРИДНАЯ ЛОГИКА: ищем два варианта lower
-                    // 1) По доходности: максимальный income (ближайший к нашему)
-                    // 2) По цене: максимальная цена (показывает реальный потолок рынка)
-                    
-                    const sortedByIncome = [...validLower].sort((a, b) => {
+                    // Сортируем по income desc (ближайший к нашему = самый высокий)
+                    // При одинаковом income берём с максимальной ценой
+                    const sortedLower = [...validLower].sort((a, b) => {
                         if (b.income !== a.income) return b.income - a.income;
                         return b.price - a.price;
                     });
-                    const lowerByIncome = sortedByIncome[0];
-                    
-                    const sortedByPrice = [...validLower].sort((a, b) => b.price - a.price);
-                    const lowerByPrice = sortedByPrice[0];
-                    
-                    // Определяем является ли lowerByIncome "сливом"
-                    // Слив = цена сильно ниже других lower офферов (< 80% от max lower price)
-                    const isLowerDump = lowerByIncome.price < lowerByPrice.price * 0.8;
-                    
-                    // Выбираем какой lower использовать
-                    let effectiveLower;
-                    let dumpWarning = '';
-                    
-                    if (isLowerDump && lowerByPrice.price !== lowerByIncome.price) {
-                        // Lower по доходности это слив - используем lower по цене для расчёта
-                        // Но всё равно уменьшаем только на $0.50 для безопасности
-                        effectiveLower = lowerByPrice;
-                        dumpWarning = ` [dump detected: ${lowerByIncome.income}M/s @ $${lowerByIncome.price.toFixed(2)}]`;
-                    } else {
-                        effectiveLower = lowerByIncome;
-                    }
-                    
-                    lowerPrice = effectiveLower.price;
-                    lowerIncome = effectiveLower.income;
+                    const lowerOffer = sortedLower[0];
+                    lowerPrice = lowerOffer.price;
+                    lowerIncome = lowerOffer.income;
                     
                     const priceDiff = competitorPrice - lowerPrice;
                     
-                    if (isLowerDump) {
-                        // Есть слив - всегда консервативно -$0.50
-                        suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50`;
-                    } else if (priceDiff >= 1) {
-                        // Разница >= $1 и нет слива - ставим на $1 меньше
+                    if (priceDiff >= 1) {
+                        // Разница >= $1 - ставим на $1 меньше upper
                         suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
                         priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
                     } else {
-                        // Разница < $1 - ставим на $0.50 меньше
+                        // Разница < $1 - ставим на $0.50 меньше upper
                         suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
                         priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
                     }
