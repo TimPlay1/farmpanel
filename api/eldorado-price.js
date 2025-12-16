@@ -34,6 +34,20 @@ try {
 }
 
 /**
+ * Все диапазоны M/s в порядке возрастания
+ */
+const MS_RANGES = [
+    { range: '0-24 M/s', min: 0, max: 24, center: 12 },
+    { range: '25-49 M/s', min: 25, max: 49, center: 37 },
+    { range: '50-99 M/s', min: 50, max: 99, center: 74.5 },
+    { range: '100-249 M/s', min: 100, max: 249, center: 174.5 },
+    { range: '250-499 M/s', min: 250, max: 499, center: 374.5 },
+    { range: '500-749 M/s', min: 500, max: 749, center: 624.5 },
+    { range: '750-999 M/s', min: 750, max: 999, center: 874.5 },
+    { range: '1+ B/s', min: 1000, max: 99999, center: 1500 }
+];
+
+/**
  * Определяет диапазон M/s по income (диапазоны Eldorado)
  */
 function getMsRangeForIncome(income) {
@@ -46,6 +60,54 @@ function getMsRangeForIncome(income) {
     if (income >= 25) return '25-49 M/s';
     if (income > 0) return '0-24 M/s';
     return '0';
+}
+
+/**
+ * Получает информацию о диапазоне по его названию
+ */
+function getRangeInfo(rangeName) {
+    return MS_RANGES.find(r => r.range === rangeName);
+}
+
+/**
+ * Получает соседний диапазон (вверх или вниз)
+ * @param {string} currentRange - текущий диапазон
+ * @param {string} direction - 'up' или 'down'
+ * @returns {Object|null} - информация о соседнем диапазоне или null
+ */
+function getAdjacentRange(currentRange, direction) {
+    const currentIndex = MS_RANGES.findIndex(r => r.range === currentRange);
+    if (currentIndex === -1) return null;
+    
+    if (direction === 'up' && currentIndex < MS_RANGES.length - 1) {
+        return MS_RANGES[currentIndex + 1];
+    }
+    if (direction === 'down' && currentIndex > 0) {
+        return MS_RANGES[currentIndex - 1];
+    }
+    return null;
+}
+
+/**
+ * Определяет нужно ли проверять соседний диапазон
+ * Проверяем если income > center + (max - center) * 0.5 (ближе к верхней границе)
+ * или income < center - (center - min) * 0.5 (ближе к нижней границе)
+ * @returns {Object} { checkUp: boolean, checkDown: boolean }
+ */
+function shouldCheckAdjacentRanges(income, currentRange) {
+    const rangeInfo = getRangeInfo(currentRange);
+    if (!rangeInfo) return { checkUp: false, checkDown: false };
+    
+    const { min, max, center } = rangeInfo;
+    
+    // Порог 50% от расстояния до границы
+    const upperThreshold = center + (max - center) * 0.5;
+    const lowerThreshold = center - (center - min) * 0.5;
+    
+    return {
+        checkUp: income > upperThreshold,
+        checkDown: income < lowerThreshold
+    };
 }
 
 /**
@@ -352,12 +414,63 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 6
 }
 
 /**
+ * Извлекает офферы из определённого M/s диапазона из списка allOffers
+ * @param {Array} allOffers - все найденные офферы
+ * @param {string} msRange - диапазон M/s для фильтрации
+ * @returns {Array} - офферы в указанном диапазоне
+ */
+function filterOffersByRange(allOffers, msRange) {
+    return allOffers.filter(item => {
+        const offer = item.offer || item;
+        const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+        return msAttr?.value === msRange;
+    });
+}
+
+/**
+ * Парсит офферы в унифицированный формат для расчёта цены
+ */
+function parseOffersForPricing(offers, ourIncome) {
+    const parsedOffers = [];
+    
+    for (const item of offers) {
+        const offer = item.offer || item;
+        const title = offer.offerTitle || '';
+        let income = parseIncomeFromTitle(title);
+        const price = offer.pricePerUnitInUSD?.amount || 0;
+        const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+        
+        const incomeFromTitle = !!income;
+        if (!income && msAttr?.value) {
+            const rangeMatch = msAttr.value.match(/(\d+)-(\d+)/);
+            if (rangeMatch) {
+                income = parseInt(rangeMatch[1]); // Минимум диапазона
+            }
+        }
+        
+        if (price > 0) {
+            parsedOffers.push({
+                title,
+                income: income || 0,
+                price,
+                msRange: msAttr?.value,
+                incomeFromTitle
+            });
+        }
+    }
+    
+    parsedOffers.sort((a, b) => a.price - b.price);
+    return parsedOffers;
+}
+
+/**
  * Рассчитывает оптимальную цену для брейнрота
+ * С проверкой соседних диапазонов когда income близок к границе
  */
 async function calculateOptimalPrice(brainrotName, ourIncome) {
     // Кэш по M/s диапазону + точному income (округлённому до 5)
     const targetMsRange = getMsRangeForIncome(ourIncome);
-    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(ourIncome / 5) * 5}`;
+    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(ourIncome / 5) * 5}_v2`;
     
     // Проверяем кэш
     const cached = priceCache.get(cacheKey);
@@ -406,44 +519,38 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             return result;
         }
 
-        // Парсим офферы из нужного M/s диапазона
-        const offersToProcess = matchingRangeOffers.length > 0 ? matchingRangeOffers : allOffers;
-        const parsedOffers = [];
+        // === НОВАЯ ЛОГИКА: Проверяем нужно ли смотреть соседние диапазоны ===
+        const adjacentCheck = shouldCheckAdjacentRanges(ourIncome, targetMsRange);
+        let adjacentRangeOffers = [];
+        let adjacentRangeName = null;
         
-        for (const item of offersToProcess) {
-            const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            // ВАЖНО: используем только ТОЧНЫЙ income из title для upper/lower расчётов
-            // НЕ используем среднее значение диапазона - это создаёт ложные совпадения
-            let income = parseIncomeFromTitle(title);
-            const price = offer.pricePerUnitInUSD?.amount || 0;
-            const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
-            
-            // Если income не указан в title - помечаем как "fromRange" для отдельной обработки
-            const incomeFromTitle = !!income;
-            if (!income && msAttr?.value) {
-                // Используем МИНИМУМ диапазона (а не среднее) как fallback
-                // Это консервативнее - оффер точно не хуже этого значения
-                const rangeMatch = msAttr.value.match(/(\d+)-(\d+)/);
-                if (rangeMatch) {
-                    income = parseInt(rangeMatch[1]); // Минимум диапазона
-                }
+        if (adjacentCheck.checkUp) {
+            const upperRange = getAdjacentRange(targetMsRange, 'up');
+            if (upperRange) {
+                adjacentRangeName = upperRange.range;
+                adjacentRangeOffers = filterOffersByRange(allOffers, upperRange.range);
+                console.log(`Income ${ourIncome} close to upper bound, also checking ${upperRange.range}: ${adjacentRangeOffers.length} offers`);
             }
-            
-            if (price > 0) {
-                parsedOffers.push({
-                    title,
-                    income: income || 0,
-                    price,
-                    msRange: msAttr?.value,
-                    incomeFromTitle // true если income точно из title
-                });
+        } else if (adjacentCheck.checkDown) {
+            const lowerRange = getAdjacentRange(targetMsRange, 'down');
+            if (lowerRange) {
+                adjacentRangeName = lowerRange.range;
+                adjacentRangeOffers = filterOffersByRange(allOffers, lowerRange.range);
+                console.log(`Income ${ourIncome} close to lower bound, also checking ${lowerRange.range}: ${adjacentRangeOffers.length} offers`);
             }
         }
 
-        parsedOffers.sort((a, b) => a.price - b.price);
+        // Парсим офферы из основного диапазона
+        const mainParsed = parseOffersForPricing(matchingRangeOffers.length > 0 ? matchingRangeOffers : allOffers, ourIncome);
+        
+        // Парсим офферы из соседнего диапазона если есть
+        const adjacentParsed = adjacentRangeOffers.length > 0 ? parseOffersForPricing(adjacentRangeOffers, ourIncome) : [];
+        
+        // Объединяем все офферы для анализа
+        const allParsedOffers = [...mainParsed, ...adjacentParsed];
+        allParsedOffers.sort((a, b) => a.price - b.price);
 
-        if (parsedOffers.length === 0) {
+        if (allParsedOffers.length === 0) {
             const result = { 
                 error: 'No offers with price', 
                 suggestedPrice: null,
@@ -453,23 +560,15 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             return result;
         }
 
-        // ЛОГИКА РАСЧЁТА ЦЕНЫ:
-        // 1. Ищем "верхний" оффер - первый с income >= наш (минимальная цена среди них)
-        //    ВАЖНО: приоритет офферам с точным income из title (incomeFromTitle=true)
-        // 2. Ищем "нижний" оффер - оффер с income < наш, но с МАКСИМАЛЬНОЙ ценой
-        //    (это показывает "потолок" цен для брейнротов хуже нашего)
-        // 3. Если разница цен (верхний - нижний) >= $1 → ставим верхний.price - $1
-        // 4. Если разница < $1 или нижнего нет → ставим верхний.price - $0.50
-        
+        // ЛОГИКА РАСЧЁТА ЦЕНЫ (с учётом соседнего диапазона):
         // Фильтруем офферы: сначала только с точным income из title
-        const offersWithExactIncome = parsedOffers.filter(o => o.income > 0 && o.incomeFromTitle);
-        // Fallback на все офферы с income (включая из диапазона)
-        const offersWithAnyIncome = parsedOffers.filter(o => o.income > 0);
+        const offersWithExactIncome = allParsedOffers.filter(o => o.income > 0 && o.incomeFromTitle);
+        const offersWithAnyIncome = allParsedOffers.filter(o => o.income > 0);
         
         // Используем точные данные если есть, иначе fallback
         const offersWithIncome = offersWithExactIncome.length >= 3 ? offersWithExactIncome : offersWithAnyIncome;
-        const usingExactIncome = offersWithExactIncome.length >= 3;
         
+        // Разделяем на upper и lower относительно НАШЕГО income
         const upperOffers = offersWithIncome.filter(o => o.income >= ourIncome);
         const lowerOffers = offersWithIncome.filter(o => o.income < ourIncome);
         
@@ -480,25 +579,28 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         let lowerPrice = null;
         let lowerIncome = null;
 
+        // Логируем для отладки
+        console.log(`Analyzing ${brainrotName} @ ${ourIncome}M/s:`);
+        console.log(`  Main range: ${targetMsRange} (${mainParsed.length} offers)`);
+        if (adjacentRangeName) {
+            console.log(`  Adjacent range: ${adjacentRangeName} (${adjacentParsed.length} offers)`);
+        }
+        console.log(`  Upper offers (income >= ${ourIncome}): ${upperOffers.length}`);
+        console.log(`  Lower offers (income < ${ourIncome}): ${lowerOffers.length}`);
+
         if (upperOffers.length > 0) {
             // Нашли офферы с доходностью >= нашей
-            // Берём минимальную цену среди них (уже отсортировано по цене)
+            // Берём минимальную цену среди них
             const upperOffer = upperOffers[0];
             competitorPrice = upperOffer.price;
             competitorIncome = upperOffer.income;
             
-            // Ищем нижний оффер:
-            // - income < наш (хуже по доходности)
-            // - price < upper.price (дешевле чем upper)
+            // Ищем нижний оффер
             if (lowerOffers.length > 0) {
-                // Фильтруем только те что дешевле upper
                 const validLower = lowerOffers.filter(o => o.price < competitorPrice);
                 
                 if (validLower.length > 0) {
                     // ГИБРИДНАЯ ЛОГИКА: ищем два варианта lower
-                    // 1) По доходности: максимальный income (ближайший к нашему)
-                    // 2) По цене: максимальная цена (показывает реальный потолок рынка)
-                    
                     const sortedByIncome = [...validLower].sort((a, b) => {
                         if (b.income !== a.income) return b.income - a.income;
                         return b.price - a.price;
@@ -509,16 +611,12 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                     const lowerByPrice = sortedByPrice[0];
                     
                     // Определяем является ли lowerByIncome "сливом"
-                    // Слив = цена сильно ниже других lower офферов (< 80% от max lower price)
                     const isLowerDump = lowerByIncome.price < lowerByPrice.price * 0.8;
                     
-                    // Выбираем какой lower использовать
                     let effectiveLower;
                     let dumpWarning = '';
                     
                     if (isLowerDump && lowerByPrice.price !== lowerByIncome.price) {
-                        // Lower по доходности это слив - используем lower по цене для расчёта
-                        // Но всё равно уменьшаем только на $0.50 для безопасности
                         effectiveLower = lowerByPrice;
                         dumpWarning = ` [dump detected: ${lowerByIncome.income}M/s @ $${lowerByIncome.price.toFixed(2)}]`;
                     } else {
@@ -529,70 +627,62 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                     lowerIncome = effectiveLower.income;
                     
                     const priceDiff = competitorPrice - lowerPrice;
+                    const rangeNote = adjacentRangeName ? ` [+${adjacentRangeName}]` : '';
                     
                     if (isLowerDump) {
-                        // Есть слив - всегда консервативно -$0.50
                         suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50${rangeNote}`;
                     } else if (priceDiff >= 1) {
-                        // Разница >= $1 и нет слива - ставим на $1 меньше
                         suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1${rangeNote}`;
                     } else {
-                        // Разница < $1 - ставим на $0.50 меньше
                         suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50${rangeNote}`;
                     }
                 } else {
-                    // Нет valid lower (все lower дороже upper) - ставим -$0.50
                     suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no valid lower (all lower >= upper price) → -$0.50`;
+                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no valid lower → -$0.50`;
                 }
             } else {
-                // Нижнего оффера нет - ставим на $0.50 меньше верхнего
                 suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
                 priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower offer → -$0.50`;
             }
         } else if (offersWithIncome.length > 0) {
-            // Нет офферов с income >= нашему
-            // Наш income выше всех на рынке - берём максимальную цену и добавляем немного
-            // Сортируем по цене desc чтобы найти максимальную цену на рынке
+            // Нет офферов с income >= нашему - наш income выше всех
             const sortedByPrice = [...offersWithIncome].sort((a, b) => b.price - a.price);
             const maxPriceOffer = sortedByPrice[0];
-            
-            // Также находим оффер с максимальным income для сравнения
             const maxIncomeOffer = offersWithIncome.reduce((max, o) => o.income > max.income ? o : max);
             
             competitorPrice = maxPriceOffer.price;
             competitorIncome = maxIncomeOffer.income;
             
-            // Наш income выше рынка - ставим на $1-2 выше максимальной цены на рынке
-            // Не завышаем пропорционально, просто немного выше
             const incomeDiff = ourIncome - maxIncomeOffer.income;
-            const extraPrice = Math.min(incomeDiff * 0.01, 5); // Максимум +$5
+            const extraPrice = Math.min(incomeDiff * 0.01, 5);
             suggestedPrice = Math.round((maxPriceOffer.price + 1 + extraPrice) * 100) / 100;
             priceSource = `above market (max price: $${maxPriceOffer.price.toFixed(2)}, max income: ${competitorIncome}M/s)`;
         } else {
-            // Никто не указывает income - берём минимальную цену - $0.50
-            const minPrice = parsedOffers[0].price;
+            const minPrice = allParsedOffers[0].price;
             suggestedPrice = Math.round((minPrice - 0.5) * 100) / 100;
             priceSource = 'min price - $0.50 (no income data in offers)';
         }
 
         const result = {
             suggestedPrice,
-            marketPrice: parsedOffers[0].price,
-            offersFound: parsedOffers.length,
+            marketPrice: allParsedOffers[0].price,
+            offersFound: allParsedOffers.length,
             matchingRangeCount: matchingRangeOffers.length,
+            adjacentRangeCount: adjacentRangeOffers.length,
             targetMsRange,
+            adjacentRange: adjacentRangeName,
             priceSource,
             brainrotName,
             competitorPrice,
             competitorIncome,
-            samples: parsedOffers.slice(0, 5).map(o => ({
+            samples: allParsedOffers.slice(0, 5).map(o => ({
                 income: o.income,
                 price: o.price,
-                title: o.title
+                title: o.title,
+                msRange: o.msRange
             }))
         };
 
