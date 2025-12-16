@@ -490,34 +490,59 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             // Ищем нижний оффер:
             // - income < наш (хуже по доходности)
             // - price < upper.price (дешевле чем upper)
-            // Среди таких берём с МАКСИМАЛЬНЫМ income (ближайший к нашему по доходности)
             if (lowerOffers.length > 0) {
                 // Фильтруем только те что дешевле upper
                 const validLower = lowerOffers.filter(o => o.price < competitorPrice);
                 
                 if (validLower.length > 0) {
-                    // Сортируем по income desc, при одинаковом income - по price desc
-                    // Нам нужен оффер с максимальным income, а среди таких - с максимальной ценой
-                    // (ближайший к upper по цене)
-                    const sortedLower = [...validLower].sort((a, b) => {
+                    // ГИБРИДНАЯ ЛОГИКА: ищем два варианта lower
+                    // 1) По доходности: максимальный income (ближайший к нашему)
+                    // 2) По цене: максимальная цена (показывает реальный потолок рынка)
+                    
+                    const sortedByIncome = [...validLower].sort((a, b) => {
                         if (b.income !== a.income) return b.income - a.income;
-                        return b.price - a.price; // при одинаковом income - максимальная цена
+                        return b.price - a.price;
                     });
-                    const lowerOffer = sortedLower[0];
-                    lowerPrice = lowerOffer.price;
-                    lowerIncome = lowerOffer.income;
-                }
-                
-                const priceDiff = lowerPrice ? (competitorPrice - lowerPrice) : null;
-                
-                if (priceDiff !== null && priceDiff >= 1) {
-                    // Разница >= $1, есть запас - ставим на $1 меньше верхнего
-                    suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
-                } else if (priceDiff !== null) {
-                    // Разница < $1 - ставим на $0.50 меньше верхнего
-                    suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
+                    const lowerByIncome = sortedByIncome[0];
+                    
+                    const sortedByPrice = [...validLower].sort((a, b) => b.price - a.price);
+                    const lowerByPrice = sortedByPrice[0];
+                    
+                    // Определяем является ли lowerByIncome "сливом"
+                    // Слив = цена сильно ниже других lower офферов (< 80% от max lower price)
+                    const isLowerDump = lowerByIncome.price < lowerByPrice.price * 0.8;
+                    
+                    // Выбираем какой lower использовать
+                    let effectiveLower;
+                    let dumpWarning = '';
+                    
+                    if (isLowerDump && lowerByPrice.price !== lowerByIncome.price) {
+                        // Lower по доходности это слив - используем lower по цене для расчёта
+                        // Но всё равно уменьшаем только на $0.50 для безопасности
+                        effectiveLower = lowerByPrice;
+                        dumpWarning = ` [dump detected: ${lowerByIncome.income}M/s @ $${lowerByIncome.price.toFixed(2)}]`;
+                    } else {
+                        effectiveLower = lowerByIncome;
+                    }
+                    
+                    lowerPrice = effectiveLower.price;
+                    lowerIncome = effectiveLower.income;
+                    
+                    const priceDiff = competitorPrice - lowerPrice;
+                    
+                    if (isLowerDump) {
+                        // Есть слив - всегда консервативно -$0.50
+                        suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)}${dumpWarning} → -$0.50`;
+                    } else if (priceDiff >= 1) {
+                        // Разница >= $1 и нет слива - ставим на $1 меньше
+                        suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
+                    } else {
+                        // Разница < $1 - ставим на $0.50 меньше
+                        suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                        priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
+                    }
                 } else {
                     // Нет valid lower (все lower дороже upper) - ставим -$0.50
                     suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
