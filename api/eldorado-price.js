@@ -272,15 +272,18 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 6
             const offer = item.offer || item;
             const brainrotEnv = offer.tradeEnvironmentValues?.find(e => e.name === 'Brainrot');
             const envValue = brainrotEnv?.value?.toLowerCase() || '';
+            const envId = brainrotEnv?.id || '';
             const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
             const offerTitle = (offer.offerTitle || '').toLowerCase();
             
             let matches = false;
             
-            if (isInEldoradoList) {
-                // Брейнрот есть в списке Eldorado - ищем точное совпадение по tradeEnvironmentValues
-                matches = envValue === nameLower || 
-                          (eldoradoInfo && envValue === eldoradoInfo.name.toLowerCase());
+            if (isInEldoradoList && eldoradoInfo) {
+                // Брейнрот есть в списке Eldorado - ищем ТОЧНОЕ совпадение по ID!
+                // Это самый надёжный способ фильтрации
+                const idMatches = envId === eldoradoInfo.id;
+                const nameMatches = envValue === nameLower || envValue === eldoradoInfo.name.toLowerCase();
+                matches = idMatches || nameMatches;
             } else {
                 // Брейнрот НЕТ в списке Eldorado (категория "Other")
                 // Ищем по названию в title оффера + проверяем что это "Other" категория
@@ -339,7 +342,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 6
         pagesWithoutMatch++;
     }
     
-    console.log('Found', relevantOffers.length, 'offers for', brainrotName, '| In target range:', matchingRangeOffers.length, '| Upper found:', foundUpperOffer);
+    console.log('Found', relevantOffers.length, 'offers for', brainrotName, '| In target range:', matchingRangeOffers.length, '| Upper found:', foundUpperOffer, '| Eldorado ID:', eldoradoInfo?.id || 'N/A');
     
     return {
         allOffers: relevantOffers,
@@ -410,21 +413,30 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         for (const item of offersToProcess) {
             const offer = item.offer || item;
             const title = offer.offerTitle || '';
+            // ВАЖНО: используем только ТОЧНЫЙ income из title для upper/lower расчётов
+            // НЕ используем среднее значение диапазона - это создаёт ложные совпадения
             let income = parseIncomeFromTitle(title);
             const price = offer.pricePerUnitInUSD?.amount || 0;
             const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
             
-            // Если income не указан в title, используем среднее значение из M/s атрибута
+            // Если income не указан в title - помечаем как "fromRange" для отдельной обработки
+            const incomeFromTitle = !!income;
             if (!income && msAttr?.value) {
-                income = parseIncomeFromMsRange(msAttr.value);
+                // Используем МИНИМУМ диапазона (а не среднее) как fallback
+                // Это консервативнее - оффер точно не хуже этого значения
+                const rangeMatch = msAttr.value.match(/(\d+)-(\d+)/);
+                if (rangeMatch) {
+                    income = parseInt(rangeMatch[1]); // Минимум диапазона
+                }
             }
             
             if (price > 0) {
                 parsedOffers.push({
                     title,
-                    income: income || 0, // 0 если не указано
+                    income: income || 0,
                     price,
-                    msRange: msAttr?.value
+                    msRange: msAttr?.value,
+                    incomeFromTitle // true если income точно из title
                 });
             }
         }
@@ -443,12 +455,21 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
 
         // ЛОГИКА РАСЧЁТА ЦЕНЫ:
         // 1. Ищем "верхний" оффер - первый с income >= наш (минимальная цена среди них)
+        //    ВАЖНО: приоритет офферам с точным income из title (incomeFromTitle=true)
         // 2. Ищем "нижний" оффер - оффер с income < наш, но с МАКСИМАЛЬНОЙ ценой
         //    (это показывает "потолок" цен для брейнротов хуже нашего)
         // 3. Если разница цен (верхний - нижний) >= $1 → ставим верхний.price - $1
         // 4. Если разница < $1 или нижнего нет → ставим верхний.price - $0.50
         
-        const offersWithIncome = parsedOffers.filter(o => o.income > 0);
+        // Фильтруем офферы: сначала только с точным income из title
+        const offersWithExactIncome = parsedOffers.filter(o => o.income > 0 && o.incomeFromTitle);
+        // Fallback на все офферы с income (включая из диапазона)
+        const offersWithAnyIncome = parsedOffers.filter(o => o.income > 0);
+        
+        // Используем точные данные если есть, иначе fallback
+        const offersWithIncome = offersWithExactIncome.length >= 3 ? offersWithExactIncome : offersWithAnyIncome;
+        const usingExactIncome = offersWithExactIncome.length >= 3;
+        
         const upperOffers = offersWithIncome.filter(o => o.income >= ourIncome);
         const lowerOffers = offersWithIncome.filter(o => o.income < ourIncome);
         
