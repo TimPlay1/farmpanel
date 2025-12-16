@@ -562,15 +562,32 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             const upperRange = getAdjacentRange(targetMsRange, 'up');
             if (upperRange) {
                 adjacentRangeName = upperRange.range;
+                // Фильтруем из ВСЕХ найденных офферов (не только matchingRange)
                 adjacentRangeOffers = filterOffersByRange(allOffers, upperRange.range);
-                console.log(`Income ${ourIncome} close to upper bound, also checking ${upperRange.range}: ${adjacentRangeOffers.length} offers`);
+                console.log(`Income ${ourIncome} close to upper bound, checking ${upperRange.range}: ${adjacentRangeOffers.length} offers from allOffers`);
+                
+                // Если в allOffers нет офферов из соседнего диапазона - делаем отдельный поиск
+                if (adjacentRangeOffers.length === 0) {
+                    console.log(`No adjacent offers in allOffers, doing separate search for ${upperRange.range}`);
+                    const adjacentSearch = await searchBrainrotOffers(brainrotName, upperRange.center, 20);
+                    adjacentRangeOffers = adjacentSearch.matchingRangeOffers || [];
+                    console.log(`Separate search found ${adjacentRangeOffers.length} offers in ${upperRange.range}`);
+                }
             }
         } else if (adjacentCheck.checkDown) {
             const lowerRange = getAdjacentRange(targetMsRange, 'down');
             if (lowerRange) {
                 adjacentRangeName = lowerRange.range;
                 adjacentRangeOffers = filterOffersByRange(allOffers, lowerRange.range);
-                console.log(`Income ${ourIncome} close to lower bound, also checking ${lowerRange.range}: ${adjacentRangeOffers.length} offers`);
+                console.log(`Income ${ourIncome} close to lower bound, checking ${lowerRange.range}: ${adjacentRangeOffers.length} offers from allOffers`);
+                
+                // Если в allOffers нет офферов из соседнего диапазона - делаем отдельный поиск
+                if (adjacentRangeOffers.length === 0) {
+                    console.log(`No adjacent offers in allOffers, doing separate search for ${lowerRange.range}`);
+                    const adjacentSearch = await searchBrainrotOffers(brainrotName, lowerRange.center, 20);
+                    adjacentRangeOffers = adjacentSearch.matchingRangeOffers || [];
+                    console.log(`Separate search found ${adjacentRangeOffers.length} offers in ${lowerRange.range}`);
+                }
             }
         }
 
