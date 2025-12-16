@@ -5,6 +5,34 @@ const avatarCache = new Map();
 const AVATAR_CACHE_TTL = 7 * 24 * 60 * 60 * 1000; // 7 дней
 
 /**
+ * Получить userId по username через Roblox API
+ */
+async function fetchUserIdByUsername(username) {
+    try {
+        const response = await fetch('https://users.roblox.com/v1/usernames/users', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                usernames: [username],
+                excludeBannedUsers: false
+            })
+        });
+        
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        if (data.data && data.data.length > 0 && data.data[0].id) {
+            return String(data.data[0].id);
+        }
+    } catch (e) {
+        console.warn('Failed to fetch userId for username', username, e.message);
+    }
+    return null;
+}
+
+/**
  * Загрузить аватар с Roblox API и конвертировать в base64
  */
 async function fetchRobloxAvatarBase64(userId) {
@@ -274,8 +302,24 @@ module.exports = async (req, res) => {
                     playerUserIdMap[account.playerName] = String(account.userId);
                 }
                 
-                if (!account.userId) continue;
-                const key = String(account.userId);
+                // Если у аккаунта нет userId и нет в маппинге - пробуем получить из Roblox API
+                if (!account.userId && account.playerName && !playerUserIdMap[account.playerName]) {
+                    const fetchedUserId = await fetchUserIdByUsername(account.playerName);
+                    if (fetchedUserId) {
+                        playerUserIdMap[account.playerName] = fetchedUserId;
+                        // Также обновляем коллекцию аватаров для будущих запросов
+                        await avatarsCollection.updateOne(
+                            { userId: fetchedUserId },
+                            { $set: { playerName: account.playerName } },
+                            { upsert: false } // Только обновляем существующие записи
+                        );
+                    }
+                }
+                
+                // Далее работаем только с аккаунтами у которых есть userId
+                const userId = account.userId || playerUserIdMap[account.playerName];
+                if (!userId) continue;
+                const key = String(userId);
                 
                 // Если нет аватара или нет base64 - проверяем отдельную коллекцию
                 if (!accountAvatars[key] || !accountAvatars[key].base64) {
