@@ -3168,7 +3168,7 @@ body {
 .podium-user-mini {
     width: 24px;
     height: 24px;
-    border-radius: 50%;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -3180,6 +3180,7 @@ body {
     width: 28px;
     height: 28px;
     font-size: 0.8rem;
+    border-radius: 8px;
 }
 
 .podium-brainrot-label {

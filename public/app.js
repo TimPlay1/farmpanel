@@ -1260,7 +1260,8 @@ function updateCurrentFarmer() {
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
     if (balanceEl) balanceEl.textContent = `$${totalValue.toFixed(2)}`;
-    if (countEl) countEl.textContent = `${accountCount} skladov`;
+    const accountText = accountCount === 1 ? 'account' : 'accounts';
+    if (countEl) countEl.textContent = `${accountCount} ${accountText}`;
     
     // Update account dropdown
     updateFarmerSwitcherDropdown();
@@ -1286,6 +1287,7 @@ function updateFarmerSwitcherDropdown() {
         const accounts = data?.accounts || [];
         const accountCount = accounts.length;
         const shortKey = key.farmKey.split('-').slice(-1)[0];
+        const accountText = accountCount === 1 ? 'account' : 'accounts';
         
         // Calculate value
         let farmerValue = data?.totalValue || 0;
@@ -1299,7 +1301,7 @@ function updateFarmerSwitcherDropdown() {
         
         return `
             <div class="account-dropdown-item ${isActive ? 'active' : ''}" onclick="quickSwitchAccount('${key.farmKey}')">
-                <div class="dropdown-avatar" style="background: ${avatar.color}20; color: ${avatar.color}">
+                <div class="dropdown-avatar" style="background: ${avatar.color}; color: white">
                     <i class="fas ${avatar.icon}"></i>
                 </div>
                 <div class="dropdown-info">
@@ -1308,7 +1310,7 @@ function updateFarmerSwitcherDropdown() {
                 </div>
                 <div class="dropdown-stats">
                     <div class="dropdown-value">$${farmerValue.toFixed(2)}</div>
-                    <div class="dropdown-accounts">${accountCount} skladov</div>
+                    <div class="dropdown-accounts">${accountCount} ${accountText}</div>
                 </div>
             </div>
         `;
