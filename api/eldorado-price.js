@@ -115,8 +115,11 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
         }
     }
     
-    // Убираем $ перед числами M/s (хитрость недобросовестных продавцов: "$111M/s")
-    const cleanTitle = title.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
+    // Убираем $ перед числами M/s и B/s (хитрость недобросовестных продавцов: "$111M/s", "$1.2B/s")
+    // Но НЕ убираем в контексте "Unit Price:" - это цена, а не income
+    let cleanTitle = title.replace(/Unit\s*Price\s*:?\s*\$?[\d.,]+\s*[BbMm]?/gi, ''); // Удаляем Unit Price полностью
+    cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
+    cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*B/gi, '$1B');
     
     // Сначала ищем явный M/s паттерн (более надёжный)
     const mPatterns = [
