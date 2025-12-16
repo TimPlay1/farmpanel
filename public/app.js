@@ -138,7 +138,6 @@ async function fetchRobloxAvatar(userId) {
     } catch (e) {
         console.warn('Failed to fetch Roblox avatar for', userId, e);
     }
-    }
     return null;
 }
 
