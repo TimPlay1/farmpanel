@@ -90,23 +90,25 @@ function getAdjacentRange(currentRange, direction) {
 
 /**
  * Определяет нужно ли проверять соседний диапазон
- * Проверяем если income > center + (max - center) * 0.5 (ближе к верхней границе)
- * или income < center - (center - min) * 0.5 (ближе к нижней границе)
+ * Проверяем если income находится в верхних или нижних 30% диапазона
  * @returns {Object} { checkUp: boolean, checkDown: boolean }
  */
 function shouldCheckAdjacentRanges(income, currentRange) {
     const rangeInfo = getRangeInfo(currentRange);
     if (!rangeInfo) return { checkUp: false, checkDown: false };
     
-    const { min, max, center } = rangeInfo;
+    const { min, max } = rangeInfo;
+    const rangeSize = max - min;
     
-    // Порог 50% от расстояния до границы
-    const upperThreshold = center + (max - center) * 0.5;
-    const lowerThreshold = center - (center - min) * 0.5;
+    // Проверяем если income в верхних 30% или нижних 30% диапазона
+    const upperThreshold = min + rangeSize * 0.7; // 70% от начала = верхние 30%
+    const lowerThreshold = min + rangeSize * 0.3; // 30% от начала = нижние 30%
+    
+    console.log(`Adjacent check: income=${income}, range=${currentRange}, upperThreshold=${upperThreshold}, lowerThreshold=${lowerThreshold}`);
     
     return {
-        checkUp: income > upperThreshold,
-        checkDown: income < lowerThreshold
+        checkUp: income >= upperThreshold,
+        checkDown: income <= lowerThreshold
     };
 }
 
