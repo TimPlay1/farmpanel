@@ -1340,6 +1340,29 @@ body {
     font-size: 0.8rem;
 }
 
+/* Spike warning for brainrot price */
+.brainrot-price.spike-warning {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    border-radius: 6px;
+    padding: 2px 6px;
+}
+
+.price-spike-badge {
+    color: #fbbf24;
+    font-size: 0.7rem;
+    font-weight: 600;
+    margin-left: 0.3rem;
+    animation: pulse-spike 1.5s ease-in-out infinite;
+}
+
+.price-pending {
+    color: #94a3b8;
+    font-size: 0.7rem;
+    margin-left: 0.3rem;
+    opacity: 0.7;
+}
+
 /* Price change indicators */
 .price-change-up {
     color: #4ade80;
@@ -2438,6 +2461,29 @@ body {
 .offer-diff-badge.same {
     color: var(--text-muted);
     background: var(--bg-secondary);
+}
+
+.offer-diff-badge.spike {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.2);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    animation: pulse-spike 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-spike {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+.offer-pending-price {
+    font-size: 0.65rem;
+    color: #94a3b8;
+    margin-top: 2px;
+}
+
+.offer-price-value.spike-value {
+    color: #fbbf24;
+    opacity: 0.7;
 }
 
 .offer-card-actions {

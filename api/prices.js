@@ -33,22 +33,62 @@ module.exports = async (req, res) => {
             const now = new Date();
             const bulkOps = [];
             
+            // Сначала получаем текущие цены для детекции spike
+            const existingKeys = Object.keys(prices);
+            const existing = await globalPricesCollection.find({ 
+                cacheKey: { $in: existingKeys } 
+            }).toArray();
+            const existingMap = new Map(existing.map(e => [e.cacheKey, e]));
+            
             // Сохраняем каждую цену отдельно в глобальный кэш
             for (const [cacheKey, priceData] of Object.entries(prices)) {
                 if (priceData && priceData.suggestedPrice) {
+                    const prev = existingMap.get(cacheKey);
+                    const prevPrice = prev?.suggestedPrice || null;
+                    
+                    // Детектим spike - если изменение > 100%
+                    let isSpike = false;
+                    let spikeDetectedAt = prev?.spikeDetectedAt || null;
+                    
+                    if (prevPrice && prevPrice > 0) {
+                        const changePercent = Math.abs((priceData.suggestedPrice - prevPrice) / prevPrice * 100);
+                        if (changePercent > 100) {
+                            isSpike = true;
+                            // Если spike уже был детектирован ранее, проверяем прошло ли 5 минут
+                            if (spikeDetectedAt) {
+                                const spikeAge = now.getTime() - new Date(spikeDetectedAt).getTime();
+                                if (spikeAge > 5 * 60 * 1000) {
+                                    // Прошло 5 минут, spike подтверждён - обновляем цену
+                                    isSpike = false;
+                                    spikeDetectedAt = null;
+                                }
+                            } else {
+                                // Новый spike - запоминаем время
+                                spikeDetectedAt = now;
+                            }
+                        } else {
+                            // Нет spike - сбрасываем
+                            spikeDetectedAt = null;
+                        }
+                    }
+                    
+                    const updateData = { 
+                        cacheKey,
+                        suggestedPrice: isSpike ? (prevPrice || priceData.suggestedPrice) : priceData.suggestedPrice,
+                        previousPrice: prevPrice,
+                        pendingPrice: isSpike ? priceData.suggestedPrice : null,
+                        isSpike: isSpike,
+                        spikeDetectedAt: spikeDetectedAt,
+                        competitorPrice: priceData.competitorPrice,
+                        competitorIncome: priceData.competitorIncome,
+                        priceSource: priceData.priceSource,
+                        updatedAt: now
+                    };
+                    
                     bulkOps.push({
                         updateOne: {
                             filter: { cacheKey },
-                            update: { 
-                                $set: { 
-                                    cacheKey,
-                                    suggestedPrice: priceData.suggestedPrice,
-                                    competitorPrice: priceData.competitorPrice,
-                                    competitorIncome: priceData.competitorIncome,
-                                    priceSource: priceData.priceSource,
-                                    updatedAt: now
-                                }
-                            },
+                            update: { $set: updateData },
                             upsert: true
                         }
                     });
@@ -101,6 +141,10 @@ module.exports = async (req, res) => {
             for (const item of cached) {
                 prices[item.cacheKey] = {
                     suggestedPrice: item.suggestedPrice,
+                    previousPrice: item.previousPrice || null,
+                    pendingPrice: item.pendingPrice || null,
+                    isSpike: item.isSpike || false,
+                    spikeDetectedAt: item.spikeDetectedAt || null,
                     competitorPrice: item.competitorPrice,
                     competitorIncome: item.competitorIncome,
                     priceSource: item.priceSource

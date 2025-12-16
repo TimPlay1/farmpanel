@@ -2216,12 +2216,23 @@ async function renderCollection() {
                 : '';
             const priceChange = getPriceChangePercent(cacheKey, cachedPrice.suggestedPrice);
             const changeHtml = formatPriceChange(priceChange);
+            
+            // Check for spike
+            const isSpikePrice = cachedPrice.isSpike || false;
+            const spikeHtml = isSpikePrice 
+                ? `<span class="price-spike-badge" title="Price spike detected! Waiting for verification...">⚠️ Spike</span>` 
+                : '';
+            const pendingInfo = isSpikePrice && cachedPrice.pendingPrice 
+                ? `<span class="price-pending" title="Pending: $${cachedPrice.pendingPrice.toFixed(2)}">→ $${cachedPrice.pendingPrice.toFixed(2)}</span>` 
+                : '';
+            
             priceHtml = `
-                <div class="brainrot-price" title="${cachedPrice.priceSource || ''}">
+                <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
-                    ${changeHtml}
-                    ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
+                    ${isSpikePrice ? spikeHtml : changeHtml}
+                    ${pendingInfo}
+                    ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
                 </div>`;
         } else if (cachedPrice && cachedPrice.error) {
             priceHtml = `
@@ -2436,11 +2447,28 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             : '';
         const priceChange = getPriceChangePercent(cacheKey, priceData.suggestedPrice);
         const changeHtml = formatPriceChange(priceChange);
+        
+        // Check for spike
+        const isSpikePrice = priceData.isSpike || false;
+        const spikeHtml = isSpikePrice 
+            ? `<span class="price-spike-badge" title="Price spike detected!">⚠️ Spike</span>` 
+            : '';
+        const pendingInfo = isSpikePrice && priceData.pendingPrice 
+            ? `<span class="price-pending">→ $${priceData.pendingPrice.toFixed(2)}</span>` 
+            : '';
+        
+        if (isSpikePrice) {
+            priceEl.classList.add('spike-warning');
+        } else {
+            priceEl.classList.remove('spike-warning');
+        }
+        
         priceEl.innerHTML = `
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
-            ${changeHtml}
-            ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
+            ${isSpikePrice ? spikeHtml : changeHtml}
+            ${pendingInfo}
+            ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
         `;
         priceEl.title = priceData.priceSource || `Suggested: ${formatPrice(priceData.suggestedPrice)}`;
     } else {
@@ -2960,7 +2988,13 @@ async function updateOffersRecommendedPrices() {
             const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
             const priceData = state.brainrotPrices[priceKey];
             if (priceData && priceData.suggestedPrice) {
+                // Store previous recommended price before updating
+                if (offer.recommendedPrice && offer.recommendedPrice !== priceData.suggestedPrice) {
+                    offer.previousRecommendedPrice = offer.recommendedPrice;
+                }
                 offer.recommendedPrice = priceData.suggestedPrice;
+                offer.isSpike = priceData.isSpike || false;
+                offer.pendingPrice = priceData.pendingPrice || null;
             }
         }
     }
@@ -3035,9 +3069,30 @@ function filterAndRenderOffers() {
 }
 
 // Calculate price difference percentage
+// Shows how much the price needs to change: positive = can raise price, negative = need to lower
 function calculatePriceDiff(currentPrice, recommendedPrice) {
     if (!currentPrice || !recommendedPrice) return 0;
-    return ((currentPrice - recommendedPrice) / recommendedPrice) * 100;
+    // (recommended - current) / current * 100
+    // If recommended > current → positive (green, can raise)
+    // If recommended < current → negative (red, need to lower)
+    return ((recommendedPrice - currentPrice) / currentPrice) * 100;
+}
+
+// Check if price change is a suspicious spike (>100% change)
+function isPriceSpike(currentPrice, recommendedPrice, previousRecommended) {
+    if (!currentPrice || !recommendedPrice) return false;
+    const diff = Math.abs(calculatePriceDiff(currentPrice, recommendedPrice));
+    
+    // If change is more than 100%, it's suspicious
+    if (diff > 100) return true;
+    
+    // If we have previous recommended price, check the change between recommendations
+    if (previousRecommended && previousRecommended > 0) {
+        const recChange = Math.abs((recommendedPrice - previousRecommended) / previousRecommended * 100);
+        if (recChange > 100) return true;
+    }
+    
+    return false;
 }
 
 // Render offers grid
@@ -3059,10 +3114,14 @@ function renderOffers() {
     
     offersGridEl.innerHTML = offersState.filteredOffers.map(offer => {
         const diff = calculatePriceDiff(offer.currentPrice, offer.recommendedPrice);
-        const diffClass = diff > 0 ? 'up' : diff < 0 ? 'down' : 'same';
-        const diffText = diff === 0 ? '0%' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`;
+        // Use isSpike from API data if available, otherwise calculate locally
+        const isSpike = offer.isSpike || isPriceSpike(offer.currentPrice, offer.recommendedPrice, offer.previousRecommendedPrice);
+        // Green (up) = can raise price (recommended > current, diff > 0)
+        // Red (down) = need to lower price (recommended < current, diff < 0)
+        const diffClass = isSpike ? 'spike' : (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same');
+        const diffText = isSpike ? '⚠️ Spike' : (diff === 0 ? '0%' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`);
         const isSelected = offersState.selectedOffers.has(offer.offerId);
-        const needsUpdate = Math.abs(diff) > 5;
+        const needsUpdate = !isSpike && Math.abs(diff) > 5;
         
         return `
         <div class="offer-card ${isSelected ? 'selected' : ''}" data-offer-id="${offer.offerId}">
@@ -3097,10 +3156,11 @@ function renderOffers() {
                 </div>
                 <div class="offer-price-diff">
                     <div class="offer-diff-badge ${diffClass}">${diffText}</div>
+                    ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
                 </div>
                 <div class="offer-price-item">
-                    <div class="offer-price-label">Recommended</div>
-                    <div class="offer-price-value recommended">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
+                    <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}</div>
+                    <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''}">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
                 </div>
             </div>
             <div class="offer-card-actions">
