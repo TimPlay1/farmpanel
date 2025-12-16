@@ -1240,6 +1240,24 @@ body {
     font-size: 0.7rem;
 }
 
+/* Generation count badge on button */
+.brainrot-generate-btn.has-generations {
+    opacity: 1;
+    background: linear-gradient(135deg, #4ade80, #22c55e);
+    box-shadow: 0 2px 8px rgba(74, 222, 128, 0.4);
+}
+
+.brainrot-generate-btn .generation-count {
+    color: white;
+    font-size: 0.65rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.brainrot-card:hover .brainrot-generate-btn.has-generations {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
 .brainrot-image {
     width: 80px;
     height: 80px;

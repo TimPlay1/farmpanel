@@ -26,14 +26,28 @@ const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 
 /**
+ * Проверить, является ли строка base64 изображением
+ */
+function isBase64Avatar(url) {
+    return url && url.startsWith('data:image/');
+}
+
+/**
  * Загрузить кэш аватаров из localStorage
  */
 function loadAvatarCache() {
     try {
         const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
         if (stored) {
-            state.avatarCache = JSON.parse(stored);
-            console.log(`Loaded ${Object.keys(state.avatarCache).length} avatars from cache`);
+            const parsed = JSON.parse(stored);
+            // Фильтруем только base64 аватары (они не истекают)
+            // URL аватары от Roblox CDN истекают
+            for (const [userId, data] of Object.entries(parsed)) {
+                if (data && data.url && isBase64Avatar(data.url)) {
+                    state.avatarCache[userId] = data;
+                }
+            }
+            console.log(`Loaded ${Object.keys(state.avatarCache).length} base64 avatars from cache`);
         }
     } catch (e) {
         console.warn('Failed to load avatar cache:', e);
@@ -41,47 +55,89 @@ function loadAvatarCache() {
 }
 
 /**
- * Сохранить аватар в кэш
+ * Сохранить аватар в кэш (только base64)
  */
 function saveAvatarToCache(userId, avatarUrl) {
+    // Сохраняем только base64 аватары (они не истекают)
+    // URL аватары от Roblox CDN временные и истекают
+    if (!isBase64Avatar(avatarUrl)) {
+        return; // Не кэшируем временные URL
+    }
+    
     state.avatarCache[userId] = {
         url: avatarUrl,
         timestamp: Date.now()
     };
+    
     try {
+        // Ограничиваем размер кэша чтобы не переполнить localStorage
+        const cacheKeys = Object.keys(state.avatarCache);
+        if (cacheKeys.length > 100) {
+            // Удаляем старые записи
+            const sorted = cacheKeys.sort((a, b) => 
+                (state.avatarCache[a].timestamp || 0) - (state.avatarCache[b].timestamp || 0)
+            );
+            for (let i = 0; i < 20; i++) {
+                delete state.avatarCache[sorted[i]];
+            }
+        }
         localStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(state.avatarCache));
     } catch (e) {
         console.warn('Failed to save avatar cache:', e);
+        // Если localStorage переполнен, очищаем кэш
+        if (e.name === 'QuotaExceededError') {
+            state.avatarCache = {};
+            localStorage.removeItem(AVATAR_STORAGE_KEY);
+        }
     }
 }
 
 /**
- * Получить аватар из кэша (действителен 24 часа)
+ * Получить аватар из кэша
+ * Base64 аватары не имеют срока действия
  */
 function getCachedAvatar(userId) {
     const cached = state.avatarCache[userId];
-    if (cached && Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
-        return cached.url;
+    if (cached && cached.url) {
+        // Base64 аватары не истекают
+        if (isBase64Avatar(cached.url)) {
+            return cached.url;
+        }
+        // URL аватары истекают через 24 часа
+        if (Date.now() - cached.timestamp < 24 * 60 * 60 * 1000) {
+            return cached.url;
+        }
     }
     return null;
 }
 
 /**
- * Загрузить аватар напрямую с Roblox API (fallback)
+ * Загрузить аватар через серверный API (конвертирует в base64 и сохраняет)
  */
 async function fetchRobloxAvatar(userId) {
     try {
-        const response = await fetch(
+        // Используем серверный API который конвертирует в base64 и сохраняет в MongoDB
+        const response = await fetch(`${API_BASE}/account-avatar?userId=${userId}`);
+        const data = await response.json();
+        
+        if (data.avatarUrl) {
+            saveAvatarToCache(userId, data.avatarUrl);
+            return data.avatarUrl;
+        }
+        
+        // Fallback: прямой запрос к Roblox API (менее надёжно, URL временные)
+        const robloxResponse = await fetch(
             `https://thumbnails.roblox.com/v1/users/avatar-headshot?userIds=${userId}&size=150x150&format=Png&isCircular=false`
         );
-        const data = await response.json();
-        if (data.data?.[0]?.imageUrl) {
-            const url = data.data[0].imageUrl;
+        const robloxData = await robloxResponse.json();
+        if (robloxData.data?.[0]?.imageUrl) {
+            const url = robloxData.data[0].imageUrl;
             saveAvatarToCache(userId, url);
             return url;
         }
     } catch (e) {
         console.warn('Failed to fetch Roblox avatar for', userId, e);
+    }
     }
     return null;
 }
@@ -792,6 +848,16 @@ async function fetchFarmerData() {
         const data = await response.json();
         state.farmersData[state.currentKey] = data;
         
+        // Кэшируем base64 аватары в localStorage для офлайн доступа
+        if (data.accountAvatars) {
+            for (const [userId, avatarData] of Object.entries(data.accountAvatars)) {
+                const avatarUrl = avatarData?.base64 || avatarData?.url;
+                if (avatarUrl && isBase64Avatar(avatarUrl)) {
+                    saveAvatarToCache(userId, avatarUrl);
+                }
+            }
+        }
+        
         // Update saved key info
         const savedKey = state.savedKeys.find(k => k.farmKey === state.currentKey);
         if (savedKey) {
@@ -822,6 +888,16 @@ async function fetchAllFarmersData() {
             if (response.ok) {
                 const data = await response.json();
                 state.farmersData[key.farmKey] = data;
+                
+                // Кэшируем base64 аватары для офлайн доступа
+                if (data.accountAvatars) {
+                    for (const [userId, avatarData] of Object.entries(data.accountAvatars)) {
+                        const avatarUrl = avatarData?.base64 || avatarData?.url;
+                        if (avatarUrl && isBase64Avatar(avatarUrl)) {
+                            saveAvatarToCache(userId, avatarUrl);
+                        }
+                    }
+                }
                 
                 // Обновляем savedKey
                 key.username = data.username;
@@ -1710,6 +1786,12 @@ function getGroupGenerationInfos(name, income) {
     return infos;
 }
 
+// Get total generation count for a group (sum of all count values)
+function getGroupTotalGenerationCount(name, income) {
+    const infos = getGroupGenerationInfos(name, income);
+    return infos.reduce((sum, gen) => sum + (gen.count || 1), 0);
+}
+
 // Current brainrot data for generation
 let currentSupaBrainrot = null;
 
@@ -2066,24 +2148,27 @@ async function renderCollection() {
         
         const accountsList = group.items.map(i => i.accountName).join(', ');
         
+        // Получаем общее количество генераций для этого оффера (суммируем count всех генераций)
+        const totalGenerationCount = getGroupTotalGenerationCount(group.name, income);
+        
         return `
         <div class="brainrot-card ${allGenerated ? 'brainrot-generated' : ''} ${partialGenerated ? 'brainrot-partial' : ''}" 
              data-brainrot-name="${group.name}" 
              data-brainrot-income="${income}" 
              data-brainrot-index="${index}"
              data-quantity="${group.quantity}">
-            <div class="brainrot-generate-btn" onclick="handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}">
-                <i class="fas fa-${allGenerated ? 'check' : 'plus'}"></i>
+            <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
+                ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
             </div>
             ${group.quantity > 1 ? `
             <div class="brainrot-quantity-badge" data-tooltip="Фермеры:\n${accountsDetails}">
                 x${group.quantity}
             </div>
             ` : ''}
-            ${groupGenerated ? `
-            <div class="brainrot-generated-badge" title="Сгенерировано: ${generatedCount}/${group.quantity}">
+            ${groupGenerated && partialGenerated ? `
+            <div class="brainrot-generated-badge" title="Сгенерировано аккаунтов: ${generatedCount}/${group.quantity}">
                 <i class="fas fa-check-circle"></i>
-                ${partialGenerated ? `<span class="gen-count">${generatedCount}/${group.quantity}</span>` : ''}
+                <span class="gen-count">${generatedCount}/${group.quantity}</span>
             </div>
             ` : ''}
             <div class="brainrot-image">
