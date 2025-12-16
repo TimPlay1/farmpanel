@@ -529,8 +529,21 @@ function loadPriceCacheFromStorage() {
         // Загружаем предыдущие цены для отображения % изменения
         const prevStored = localStorage.getItem(PREVIOUS_PRICES_KEY);
         if (prevStored) {
-            state.previousPrices = JSON.parse(prevStored);
-            console.log(`Loaded ${Object.keys(state.previousPrices).length} previous prices`);
+            const parsed = JSON.parse(prevStored);
+            const twoHours = 2 * 60 * 60 * 1000;
+            const now = Date.now();
+            
+            // Фильтруем - оставляем только записи за последние 2 часа
+            for (const [key, data] of Object.entries(parsed)) {
+                // Поддержка нового формата {price, timestamp} и старого (просто число)
+                if (typeof data === 'object' && data.timestamp) {
+                    if (now - data.timestamp < twoHours) {
+                        state.previousPrices[key] = data;
+                    }
+                }
+                // Старый формат (просто число) - пропускаем, т.к. нет timestamp
+            }
+            console.log(`Loaded ${Object.keys(state.previousPrices).length} recent previous prices`);
         }
     } catch (e) {
         console.warn('Failed to load price cache from storage:', e);
@@ -602,9 +615,13 @@ function calculateAccountValue(account) {
  * Сохранить предыдущие цены перед обновлением
  */
 function savePreviousPrices() {
+    const now = Date.now();
     for (const [key, data] of Object.entries(state.brainrotPrices)) {
         if (data && data.suggestedPrice) {
-            state.previousPrices[key] = data.suggestedPrice;
+            state.previousPrices[key] = {
+                price: data.suggestedPrice,
+                timestamp: now
+            };
         }
     }
     // Сохраняем в localStorage
@@ -616,12 +633,28 @@ function savePreviousPrices() {
 }
 
 /**
- * Получить % изменения цены
+ * Получить % изменения цены (только если предыдущая цена была в последний час)
  */
 function getPriceChangePercent(cacheKey, newPrice) {
-    const oldPrice = state.previousPrices[cacheKey];
+    const prevData = state.previousPrices[cacheKey];
+    if (!prevData) return null;
+    
+    // Поддержка старого формата (просто число)
+    const oldPrice = typeof prevData === 'object' ? prevData.price : prevData;
+    const timestamp = typeof prevData === 'object' ? prevData.timestamp : 0;
+    
+    // Если нет цены или цены равны - нет изменения
     if (!oldPrice || oldPrice === newPrice) return null;
+    
+    // Показываем изменение только если предыдущая цена была в последний час
+    const oneHour = 60 * 60 * 1000;
+    if (timestamp && Date.now() - timestamp > oneHour) return null;
+    
     const change = ((newPrice - oldPrice) / oldPrice) * 100;
+    
+    // Игнорируем маленькие изменения (< 1%)
+    if (Math.abs(change) < 1) return null;
+    
     return change;
 }
 
