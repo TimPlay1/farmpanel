@@ -1740,10 +1740,15 @@ body {
 
 .parsing-source-badge.regex {
     color: #60a5fa; /* blue for regex/bot */
+    font-size: 0.6rem;
+    padding: 0.1rem 0.3rem;
+    background: rgba(96, 165, 250, 0.15);
+    border-radius: 4px;
 }
 
 .parsing-source-badge.ai {
     color: #a78bfa; /* purple for AI */
+    font-size: 0.8rem;
 }
 
 .parsing-source-badge.hybrid {
@@ -1751,6 +1756,19 @@ body {
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+/* AI pending indicator */
+.ai-pending-badge {
+    font-size: 0.55rem;
+    margin-left: 0.15rem;
+    animation: spin 1.5s linear infinite;
+    opacity: 0.6;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
 }
 
 /* Price change indicators */

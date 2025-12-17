@@ -872,6 +872,8 @@ function getPriceCacheKey(name, income) {
 
 /**
  * Получить цену с Eldorado для брейнрота
+ * AI-FIRST: сначала пробуем AI эндпоинт, fallback на regex
+ * 
  * @param {string} brainrotName - имя брейнрота
  * @param {number} income - доходность M/s
  * @returns {Promise<object>} - данные о цене
@@ -882,6 +884,11 @@ async function fetchEldoradoPrice(brainrotName, income) {
     // Проверяем кэш
     const cached = state.eldoradoPrices[cacheKey];
     if (cached && Date.now() - cached.timestamp < PRICE_CACHE_TTL) {
+        // Если в кэше regex результат и AI pending - пробуем обновить
+        if (cached.data && cached.data.aiPending && cached.data.source === 'regex') {
+            // Проверяем AI статус в фоне (не блокируем)
+            checkAIStatus(brainrotName, income, cacheKey);
+        }
         return cached.data;
     }
     
@@ -891,13 +898,27 @@ async function fetchEldoradoPrice(brainrotName, income) {
             income: income.toString()
         });
         
-        const response = await fetch(`${API_BASE}/eldorado-price?${params}`);
-        
-        if (!response.ok) {
-            throw new Error('Failed to fetch price');
+        // Пробуем AI-first эндпоинт
+        let data = null;
+        try {
+            const aiResponse = await fetch(`${API_BASE}/ai-price?${params}`);
+            if (aiResponse.ok) {
+                data = await aiResponse.json();
+                console.log(`🤖 AI price for ${brainrotName}: $${data.suggestedPrice} (source: ${data.source})`);
+            }
+        } catch (aiError) {
+            console.warn('AI price endpoint failed, falling back to regex:', aiError.message);
         }
         
-        const data = await response.json();
+        // Fallback на обычный eldorado-price если AI не сработал
+        if (!data || data.error) {
+            const response = await fetch(`${API_BASE}/eldorado-price?${params}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch price');
+            }
+            data = await response.json();
+            data.source = data.source || 'regex';
+        }
         
         // Сохраняем в кэш
         state.eldoradoPrices[cacheKey] = {
@@ -909,6 +930,50 @@ async function fetchEldoradoPrice(brainrotName, income) {
     } catch (error) {
         console.warn('Error fetching Eldorado price:', error);
         return null;
+    }
+}
+
+/**
+ * Проверяет статус AI парсинга в фоне и обновляет кэш
+ */
+async function checkAIStatus(brainrotName, income, cacheKey) {
+    try {
+        const params = new URLSearchParams({
+            name: brainrotName,
+            income: income.toString(),
+            status: ''
+        });
+        
+        const response = await fetch(`${API_BASE}/ai-price?${params}`);
+        if (!response.ok) return;
+        
+        const status = await response.json();
+        
+        // Если AI закончил - обновляем данные
+        if (status.status === 'cached' && status.source === 'ai') {
+            // Получаем полные данные
+            const aiParams = new URLSearchParams({
+                name: brainrotName,
+                income: income.toString()
+            });
+            const aiResponse = await fetch(`${API_BASE}/ai-price?${aiParams}`);
+            if (aiResponse.ok) {
+                const aiData = await aiResponse.json();
+                if (aiData.source === 'ai') {
+                    console.log(`🤖 AI update for ${brainrotName}: $${aiData.suggestedPrice}`);
+                    state.eldoradoPrices[cacheKey] = {
+                        data: aiData,
+                        timestamp: Date.now()
+                    };
+                    // Перерисовываем collection если нужно
+                    if (typeof renderBrainrotCollection === 'function') {
+                        // Не вызываем полную перерисовку, просто обновим при следующем рендере
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        // Игнорируем ошибки фонового обновления
     }
 }
 
@@ -2893,21 +2958,29 @@ async function renderCollection() {
                 : '';
             
             // Parsing source badge (regex, ai, or hybrid)
-            const parsingSource = cachedPrice.parsingSource || 'regex';
+            // Приоритет: source (новый AI-first API) > parsingSource (старый)
+            const source = cachedPrice.source || cachedPrice.parsingSource || 'regex';
             let sourceBadge = '';
-            if (parsingSource === 'ai') {
-                sourceBadge = `<span class="parsing-source-badge ai" title="Income parsed by AI">🤖</span>`;
-            } else if (parsingSource === 'hybrid') {
+            let aiPendingBadge = '';
+            
+            if (source === 'ai') {
+                sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI 🤖">🤖</span>`;
+            } else if (source === 'hybrid') {
                 sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
             } else {
-                sourceBadge = `<span class="parsing-source-badge regex" title="Income parsed by Regex">⚡</span>`;
+                // Regex source
+                sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)">⚡ Bot</span>`;
+                // Показываем индикатор если AI ещё грузится
+                if (cachedPrice.aiPending) {
+                    aiPendingBadge = `<span class="ai-pending-badge" title="AI processing in background...">🔄</span>`;
+                }
             }
             
             priceHtml = `
                 <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
-                    ${sourceBadge}
+                    ${sourceBadge}${aiPendingBadge}
                     ${isSpikePrice ? spikeHtml : changeHtml}
                     ${pendingInfo}
                     ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
@@ -3152,14 +3225,20 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             : '';
         
         // Parsing source badge (regex, ai, or hybrid)
-        const parsingSource = priceData.parsingSource || 'regex';
+        // Приоритет: source (новый AI-first API) > parsingSource (старый)
+        const source = priceData.source || priceData.parsingSource || 'regex';
         let sourceBadge = '';
-        if (parsingSource === 'ai') {
-            sourceBadge = `<span class="parsing-source-badge ai" title="Income parsed by AI">🤖</span>`;
-        } else if (parsingSource === 'hybrid') {
+        let aiPendingBadge = '';
+        
+        if (source === 'ai') {
+            sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI 🤖">🤖</span>`;
+        } else if (source === 'hybrid') {
             sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
         } else {
-            sourceBadge = `<span class="parsing-source-badge regex" title="Income parsed by Regex">⚡</span>`;
+            sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)">⚡ Bot</span>`;
+            if (priceData.aiPending) {
+                aiPendingBadge = `<span class="ai-pending-badge" title="AI processing in background...">🔄</span>`;
+            }
         }
         
         if (isSpikePrice) {
@@ -3171,7 +3250,7 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         priceEl.innerHTML = `
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
-            ${sourceBadge}
+            ${sourceBadge}${aiPendingBadge}
             ${isSpikePrice ? spikeHtml : changeHtml}
             ${pendingInfo}
             ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
