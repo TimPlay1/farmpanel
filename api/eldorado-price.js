@@ -668,31 +668,42 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         }
 
         // ДИНАМИЧЕСКИЙ ЛИМИТ: вычисляем максимальную разумную цену на основе реального рынка
-        // Берём среднюю цену первых 10 офферов × 2 или максимальную цену среди офферов с income × 1.5
+        // ВАЖНО: учитываем только офферы с ПОХОЖИМ income (±50%), чтобы не блокировать высокий income
         let dynamicMaxPrice = null;
         let dynamicLimitSource = '';
         
         if (allPageOffers.length > 0) {
-            // Метод 1: средняя цена первых 10 офферов × 2
-            const first10 = allPageOffers.slice(0, 10);
-            const avgPrice = first10.reduce((sum, o) => sum + o.price, 0) / first10.length;
-            const limitFromAvg = Math.round(avgPrice * 2 * 100) / 100;
+            // Фильтруем офферы с похожим income (±50% от нашего)
+            const similarIncomeOffers = allPageOffers.filter(o => {
+                if (o.income <= 0) return false;
+                const ratio = o.income / ourIncome;
+                return ratio >= 0.5 && ratio <= 1.5; // ±50%
+            });
             
-            // Метод 2: максимальная цена среди офферов с распарсенным income × 1.5
-            const offersWithIncome = allPageOffers.filter(o => o.income > 0);
+            // Если есть офферы с похожим income - используем их для лимита
+            const offersForLimit = similarIncomeOffers.length >= 3 ? similarIncomeOffers : allPageOffers;
+            const usingSimilar = similarIncomeOffers.length >= 3;
+            
+            // Метод 1: средняя цена × 2.5 (более мягкий множитель)
+            const first10 = offersForLimit.slice(0, 10);
+            const avgPrice = first10.reduce((sum, o) => sum + o.price, 0) / first10.length;
+            const limitFromAvg = Math.round(avgPrice * 2.5 * 100) / 100;
+            
+            // Метод 2: максимальная цена среди офферов × 1.5
+            const offersWithIncome = offersForLimit.filter(o => o.income > 0);
             let limitFromMax = limitFromAvg; // fallback
             if (offersWithIncome.length > 0) {
                 const maxPriceWithIncome = Math.max(...offersWithIncome.map(o => o.price));
                 limitFromMax = Math.round(maxPriceWithIncome * 1.5 * 100) / 100;
             }
             
-            // Берём МЕНЬШИЙ из двух лимитов (более строгий)
-            dynamicMaxPrice = Math.min(limitFromAvg, limitFromMax);
+            // Берём БОЛЬШИЙ из двух лимитов (менее строгий) - чтобы не блокировать легитимные высокие цены
+            dynamicMaxPrice = Math.max(limitFromAvg, limitFromMax);
             
-            // Минимальный лимит $3 (чтобы не заблокировать дешёвые офферы)
-            dynamicMaxPrice = Math.max(dynamicMaxPrice, 3);
+            // Минимальный лимит $5 (чтобы не заблокировать дешёвые офферы)
+            dynamicMaxPrice = Math.max(dynamicMaxPrice, 5);
             
-            dynamicLimitSource = `dynamic: avg×2=$${limitFromAvg.toFixed(2)}, max×1.5=$${limitFromMax.toFixed(2)} → limit=$${dynamicMaxPrice.toFixed(2)}`;
+            dynamicLimitSource = `dynamic (${usingSimilar ? 'similar income' : 'all offers'}): avg×2.5=$${limitFromAvg.toFixed(2)}, max×1.5=$${limitFromMax.toFixed(2)} → limit=$${dynamicMaxPrice.toFixed(2)}`;
             console.log(`📊 ${brainrotName} @ ${msRange}: ${dynamicLimitSource}`);
         }
         
