@@ -2,6 +2,15 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+// Импортируем AI сканер для гибридного парсинга
+let aiScanner = null;
+try {
+    aiScanner = require('./ai-scanner.js');
+    console.log('AI Scanner loaded successfully');
+} catch (e) {
+    console.warn('AI Scanner not available:', e.message);
+}
+
 // Кэш для цен (хранится в памяти)
 const priceCache = new Map();
 const CACHE_TTL = 15 * 60 * 1000; // 15 минут
@@ -478,7 +487,27 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             if (!usedNameFilter) {
                 // Fallback: фильтруем по title вручную
-                const titleContainsName = offerTitle.toLowerCase().includes(brainrotName.toLowerCase());
+                // Улучшенный matching для комбинированных брейнротов (например "Los Nooo My Hotspotsitos")
+                const titleLower = offerTitle.toLowerCase();
+                const nameLower = brainrotName.toLowerCase();
+                
+                // 1. Точное совпадение имени
+                let titleContainsName = titleLower.includes(nameLower);
+                
+                // 2. Для комбинированных имён (содержащих "Los" или "La") пробуем компоненты
+                if (!titleContainsName && (nameLower.includes('los ') || nameLower.includes('la '))) {
+                    // Разбиваем на значимые слова (минимум 4 символа)
+                    const nameWords = nameLower.split(/\s+/).filter(w => w.length >= 4);
+                    // Требуем минимум 2 совпадения из значимых слов
+                    const matchCount = nameWords.filter(w => titleLower.includes(w)).length;
+                    titleContainsName = matchCount >= 2;
+                }
+                
+                // 3. Также проверяем tradeEnvironmentValue (если есть)
+                if (!titleContainsName && envValue) {
+                    titleContainsName = envValue.includes(nameLower) || nameLower.includes(envValue);
+                }
+                
                 matches = titleContainsName;
             }
             
@@ -557,14 +586,56 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         console.log('No upper found, will use above-market logic');
     }
     
-    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none');
+    // ВАЖНО: если не использовали фильтр по имени и не нашли совпадений - 
+    // allPageOffers пустой или содержит только отфильтрованные офферы этого брейнрота
+    const searchWasReliable = usedNameFilter || allPageOffers.length > 0;
+    
+    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| Reliable:', searchWasReliable);
+    
+    // AI RE-PARSING: для офферов где regex не справился - пробуем AI
+    const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
+    let aiParsedCount = 0;
+    
+    if (unparsedOffers.length > 0 && aiScanner && process.env.GEMINI_API_KEY) {
+        console.log(`🤖 AI re-parsing ${unparsedOffers.length} unparsed offers...`);
+        try {
+            const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
+            const aiResults = await aiScanner.hybridParse(unparsedOffers, eldoradoLists);
+            
+            // Обновляем income в allPageOffers на основе AI результатов
+            for (const aiResult of aiResults) {
+                if (aiResult.income !== null && aiResult.source === 'ai') {
+                    const originalOffer = allPageOffers.find(o => o.title === aiResult.title);
+                    if (originalOffer) {
+                        console.log(`   AI parsed: "${aiResult.title.substring(0, 40)}..." → ${aiResult.income}M/s`);
+                        originalOffer.income = aiResult.income;
+                        originalOffer.incomeFromTitle = true;
+                        originalOffer.parsingSource = 'ai';
+                        aiParsedCount++;
+                        
+                        // Пересчитываем upper/lower если AI нашёл лучшие значения
+                        if (!upperOffer && aiResult.income >= targetIncome) {
+                            upperOffer = originalOffer;
+                            console.log(`   → New UPPER from AI: ${aiResult.income}M/s @ $${originalOffer.price.toFixed(2)}`);
+                        }
+                    }
+                }
+            }
+            console.log(`🤖 AI parsed ${aiParsedCount} additional offers`);
+        } catch (aiError) {
+            console.warn('AI parsing failed:', aiError.message);
+        }
+    }
     
     return {
         upperOffer,
         lowerOffer,
         allPageOffers,
         targetMsRange,
-        isInEldoradoList
+        isInEldoradoList,
+        usedNameFilter,
+        searchWasReliable,
+        aiParsedCount
     };
 }
 
@@ -592,7 +663,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
     try {
         // Ищем офферы брейнрота в нужном M/s диапазоне
         const searchResult = await searchBrainrotOffers(brainrotName, ourIncome);
-        const { upperOffer, lowerOffer, allPageOffers, targetMsRange: msRange, isInEldoradoList } = searchResult;
+        const { upperOffer, lowerOffer, allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount } = searchResult;
         
         let suggestedPrice;
         let priceSource;
@@ -738,12 +809,30 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         // Используем динамический лимит если он есть, иначе статический
         const maxAllowedPrice = dynamicMaxPrice || staticMaxPriceLimits[msRange] || 50;
 
+        // Определяем источник парсинга (regex, ai, или hybrid)
+        const hasAiParsed = aiParsedCount > 0;
+        const totalParsedOffers = allPageOffers.filter(o => o.income > 0).length;
+        let parsingSource = 'regex';
+        if (hasAiParsed && aiParsedCount === totalParsedOffers) {
+            parsingSource = 'ai';
+        } else if (hasAiParsed) {
+            parsingSource = 'hybrid';
+        }
+        
+        // Проверяем источник парсинга для upper/lower
+        const upperParsingSource = upperOffer?.parsingSource || 'regex';
+        const lowerParsingSource = lowerOffer?.parsingSource || 'regex';
+
         const result = {
             suggestedPrice,
             marketPrice: upperOffer?.price || competitorPrice,
             offersFound: allPageOffers.length,
             targetMsRange: msRange,
             priceSource,
+            parsingSource,
+            upperParsingSource,
+            lowerParsingSource,
+            aiParsedCount: aiParsedCount || 0,
             brainrotName,
             competitorPrice,
             competitorIncome,
@@ -755,7 +844,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             samples: allPageOffers.slice(0, 5).map(o => ({
                 income: o.income,
                 price: o.price,
-                title: o.title?.substring(0, 60)
+                title: o.title?.substring(0, 60),
+                source: o.parsingSource || 'regex'
             }))
         };
 

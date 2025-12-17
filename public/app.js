@@ -2892,10 +2892,22 @@ async function renderCollection() {
                 ? `<span class="price-pending" title="Pending: $${cachedPrice.pendingPrice.toFixed(2)}">→ $${cachedPrice.pendingPrice.toFixed(2)}</span>` 
                 : '';
             
+            // Parsing source badge (regex, ai, or hybrid)
+            const parsingSource = cachedPrice.parsingSource || 'regex';
+            let sourceBadge = '';
+            if (parsingSource === 'ai') {
+                sourceBadge = `<span class="parsing-source-badge ai" title="Income parsed by AI">🤖</span>`;
+            } else if (parsingSource === 'hybrid') {
+                sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
+            } else {
+                sourceBadge = `<span class="parsing-source-badge regex" title="Income parsed by Regex">⚡</span>`;
+            }
+            
             priceHtml = `
                 <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
+                    ${sourceBadge}
                     ${isSpikePrice ? spikeHtml : changeHtml}
                     ${pendingInfo}
                     ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
@@ -3139,6 +3151,17 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             ? `<span class="price-pending">→ $${priceData.pendingPrice.toFixed(2)}</span>` 
             : '';
         
+        // Parsing source badge (regex, ai, or hybrid)
+        const parsingSource = priceData.parsingSource || 'regex';
+        let sourceBadge = '';
+        if (parsingSource === 'ai') {
+            sourceBadge = `<span class="parsing-source-badge ai" title="Income parsed by AI">🤖</span>`;
+        } else if (parsingSource === 'hybrid') {
+            sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
+        } else {
+            sourceBadge = `<span class="parsing-source-badge regex" title="Income parsed by Regex">⚡</span>`;
+        }
+        
         if (isSpikePrice) {
             priceEl.classList.add('spike-warning');
         } else {
@@ -3148,6 +3171,7 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         priceEl.innerHTML = `
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
+            ${sourceBadge}
             ${isSpikePrice ? spikeHtml : changeHtml}
             ${pendingInfo}
             ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}

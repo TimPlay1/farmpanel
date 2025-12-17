@@ -14,7 +14,8 @@ const path = require('path');
 const { connectToDatabase } = require('./_lib/db');
 
 // Gemini AI Configuration
-const GEMINI_API_KEY = 'AIzaSyB8PIO3ATq0piSl5vFGy7a7ERNQ0esiWdc';
+// IMPORTANT: API key should be set via environment variable GEMINI_API_KEY
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
 const GEMINI_MODEL = 'gemma-3-27b-it';
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`;
 
@@ -234,7 +235,10 @@ function stripEmojis(str) {
 function parseIncomeRegex(title) {
     if (!title) return { income: null, reason: 'empty', source: 'regex' };
     
-    const normalized = title
+    // Сначала удаляем эмодзи для чистого парсинга
+    const cleanTitle = stripEmojis(title);
+    
+    const normalized = cleanTitle
         .replace(/,/g, '.')
         .replace(/\s+/g, ' ')
         .replace(/\s*\.\s*/g, '.')
@@ -254,18 +258,30 @@ function parseIncomeRegex(title) {
         }
     }
     
-    // Проверка на рандомные офферы
-    if (/spin\s*(the)?\s*wheel|random|mystery|lucky/i.test(normalized)) {
-        return { income: null, reason: 'random', source: 'regex' };
+    // Проверка на рандомные офферы (но не "Lucky Block" - это название брейнрота!)
+    // Ищем: "spin the wheel", "random m/s", "mystery box", "lucky spin/wheel/draw"
+    const randomPatterns = [
+        /spin\s*(the)?\s*wheel/i,
+        /random\s*(m\/s|brainrot|pet)/i,
+        /mystery\s*(box|pet|brainrot)/i,
+        /lucky\s*(spin|wheel|draw)/i
+    ];
+    
+    for (const pattern of randomPatterns) {
+        if (pattern.test(normalized)) {
+            return { income: null, reason: 'random', source: 'regex' };
+        }
     }
     
-    // M/s паттерны
+    // M/s паттерны - улучшенные
     const mPatterns = [
-        /\$?([\d.]+)\s*M\s*\/\s*[1]?\s*[sS]/i,
-        /\$?([\d.]+)\s*[mM]\/[sS](?:ec)?/i,
-        /\$?([\d.]+)\s*mil\/s/i,
-        /\$?([\d.]+)\s*mil\b/i,
-        /\$?([\d.]+)\s*[mM]\b(?!\w)/
+        // Явные M/s форматы (высший приоритет)
+        /(\d+\.?\d*)\s*[mM]\s*\/\s*[sS]/i,        // 125M/s, 125 m / s
+        /(\d+\.?\d*)\s*[mM]\/[sS]/i,              // 125m/s (без пробелов)
+        /(\d+\.?\d*)\s*mil\s*\/\s*[sS]/i,         // 125mil/s
+        // M без /s но с пробелом или в конце
+        /(\d+\.?\d*)\s*[mM](?:\s|$|[^a-zA-Z\/])/i, // 125M , 125m (не 125Max)
+        /(\d+\.?\d*)\s*mil\b/i,                    // 125mil
     ];
 
     for (const pattern of mPatterns) {
@@ -348,9 +364,10 @@ INCOME FORMATS - CRITICAL - EXTRACT ANY NUMBER + M/m/K/B pattern:
 - "270M/s" → 270
 - "135m/s" → 135  
 - "350 m" or "350m" → 350
-- "18,5M/s" or "18.5 mil" → 18.5 (comma = decimal)
-- "531K/s" → 0.531 (K=thousands)
-- "1.5B/s" → 1500 (B=billions)
+- "18,5M/s" → 18.5 (COMMA IS DECIMAL SEPARATOR, NOT RANGE!)
+- "18.5 mil" → 18.5
+- "531K/s" → 0.531 (K=thousands, divide by 1000)
+- "1.5B/s" → 1500 (B=billions, multiply by 1000)
 - "125m/s LA SECRET" → 125 (ignore text after number!)
 - "300M DIAMOND" → 300 (DIAMOND is mutation, ignore!)
 
@@ -359,12 +376,19 @@ CRITICAL RULES:
 2. "m" alone after number = millions (e.g., "350 m" = 350 M/s)
 3. Ignore all brainrot names, mutations, rarities
 4. Ignore prices ($4.50, $12, etc.)
+5. COMMA IN NUMBER (18,5) = DECIMAL (18.5), NOT A RANGE!
 
-RANGE = null:
-- "0-24M/s", "10m-13m/s", "100->150m/s", "50~100M" → null, r="range"
+RANGE = null (MUST HAVE DASH/ARROW/TILDE BETWEEN TWO NUMBERS):
+- "0-24M/s", "10m-13m/s" → null, r="range" (dash between numbers)
+- "100->150m/s" → null, r="range" (arrow between numbers)  
+- "50~100M" → null, r="range" (tilde between numbers)
+- "18,5M/s" is NOT a range - comma is decimal separator!
 
-RANDOM = null:
-- "Random", "random ms", "spin wheel", "mystery" → null, r="random"
+RANDOM = null (when title contains "random" word or similar):
+- "Random Brainrot" → null, r="random" (word "random" in title)
+- "Random ms/s" → null, r="random"
+- "Spin The Wheel" → null, r="random"
+- "Mystery Box" → null, r="random"
 
 OUTPUT STRICT JSON (no markdown, no explanation):
 {"results":[{"i":1,"m":350},{"i":2,"m":null,"r":"range"}]}`;
@@ -817,6 +841,13 @@ module.exports = async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 };
+
+// Экспорты для использования в других модулях
+module.exports.parseIncomeRegex = parseIncomeRegex;
+module.exports.parseIncomeAI = parseIncomeAI;
+module.exports.hybridParse = hybridParse;
+module.exports.fetchEldoradoDynamicLists = fetchEldoradoDynamicLists;
+module.exports.stripEmojis = stripEmojis;
 
 // Экспорт для тестирования
 module.exports.fetchEldoradoDynamicLists = fetchEldoradoDynamicLists;

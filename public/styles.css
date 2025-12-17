@@ -1725,6 +1725,34 @@ body {
     opacity: 0.7;
 }
 
+/* Parsing source badges (AI / Regex) */
+.parsing-source-badge {
+    font-size: 0.65rem;
+    margin-left: 0.25rem;
+    cursor: help;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+}
+
+.parsing-source-badge:hover {
+    opacity: 1;
+}
+
+.parsing-source-badge.regex {
+    color: #60a5fa; /* blue for regex/bot */
+}
+
+.parsing-source-badge.ai {
+    color: #a78bfa; /* purple for AI */
+}
+
+.parsing-source-badge.hybrid {
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
 /* Price change indicators */
 .price-change-up {
     color: #4ade80;
