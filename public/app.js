@@ -3728,11 +3728,14 @@ function openMassGenerationModal() {
     const progressEl = document.getElementById('massGenProgress');
     const errorEl = document.getElementById('massGenError');
     const startBtn = document.getElementById('startMassGen');
+    const actionsEl = document.getElementById('massGenActions');
     
     // Reset state
     progressEl.classList.add('hidden');
     errorEl.classList.add('hidden');
+    if (actionsEl) actionsEl.classList.add('hidden');
     startBtn.disabled = false;
+    massSelectionState.generationResults = [];
     
     // Get selected groups
     const selectedGroups = massSelectionState.selectedItems.map(idx => ({
@@ -3921,10 +3924,20 @@ async function startMassGeneration() {
             
             results.push({ success: true, name: group.name, resultUrl: result.resultUrl });
             
-            // Update status to done
+            // Update status to done and update image
             if (statusEl) {
                 statusEl.className = 'mass-gen-item-status done';
                 statusEl.innerHTML = '<i class="fas fa-check"></i>';
+            }
+            
+            // Update image in the modal to show generated result
+            const itemEl = list.querySelector(`[data-item-index="${idx}"]`);
+            if (itemEl) {
+                const imgEl = itemEl.querySelector('.mass-gen-item-img');
+                if (imgEl) {
+                    imgEl.src = result.resultUrl;
+                    imgEl.style.border = '2px solid #22c55e';
+                }
             }
             
         } catch (error) {
@@ -3960,6 +3973,8 @@ async function startMassGeneration() {
         console.log('Eldorado queue saved:', eldoradoQueue.length, 'items');
     }
     
+    // Store results for download/eldorado actions
+    massSelectionState.generationResults = results;
     massSelectionState.isGenerating = false;
     
     // Show results
@@ -3974,20 +3989,117 @@ async function startMassGeneration() {
     // Update collection to show generated badges
     renderCollection();
     
+    // Show action buttons if there are successful generations
+    if (successCount > 0) {
+        const actionsEl = document.getElementById('massGenActions');
+        if (actionsEl) {
+            actionsEl.classList.remove('hidden');
+        }
+    }
+    
     // Show notification
     if (createQueue && eldoradoQueue.length > 0) {
-        showNotification(`✅ Сгенерировано ${successCount}/${total}. Очередь Eldorado: ${eldoradoQueue.length} шт. Откройте Eldorado для создания офферов.`, 'success');
+        showNotification(`✅ Сгенерировано ${successCount}/${total}. Нажмите "Выложить на Eldorado" для создания офферов.`, 'success');
     } else {
         showNotification(`✅ Сгенерировано ${successCount} из ${total}`, successCount === total ? 'success' : 'info');
     }
+}
+
+// Download all generated images
+async function downloadAllMassGenImages() {
+    const results = massSelectionState.generationResults || [];
+    const successResults = results.filter(r => r.success && r.resultUrl);
     
-    // Close modal after delay and exit selection mode
-    setTimeout(() => {
-        closeMassGenerationModal();
-        if (massSelectionState.isActive) {
-            toggleMassSelectionMode();
+    if (successResults.length === 0) {
+        showNotification('Нет изображений для скачивания', 'error');
+        return;
+    }
+    
+    const downloadBtn = document.getElementById('massGenDownloadAll');
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Скачивание...';
+    
+    try {
+        for (let i = 0; i < successResults.length; i++) {
+            const result = successResults[i];
+            const response = await fetch(result.resultUrl);
+            const blob = await response.blob();
+            
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${result.name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            // Small delay between downloads
+            if (i < successResults.length - 1) {
+                await new Promise(r => setTimeout(r, 300));
+            }
         }
-    }, 2000);
+        
+        showNotification(`✅ Скачано ${successResults.length} изображений`, 'success');
+    } catch (error) {
+        console.error('Download error:', error);
+        showNotification('Ошибка при скачивании: ' + error.message, 'error');
+    } finally {
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать все';
+    }
+}
+
+// Start Eldorado queue from mass generation
+function startMassEldoradoQueue() {
+    const queue = localStorage.getItem('eldoradoQueue');
+    if (!queue) {
+        showNotification('Очередь пуста. Сначала выполните генерацию с включённой опцией "Создать очередь для Eldorado"', 'error');
+        return;
+    }
+    
+    const queueData = JSON.parse(queue);
+    if (queueData.length === 0) {
+        showNotification('Очередь пуста', 'error');
+        return;
+    }
+    
+    // Reset queue index to start from beginning
+    localStorage.setItem('eldoradoQueueIndex', '0');
+    localStorage.setItem('eldoradoQueueCompleted', '[]');
+    localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+    
+    // Get first item
+    const firstItem = queueData[0];
+    
+    // Build offer data for URL
+    const offerData = {
+        name: firstItem.name,
+        income: firstItem.income,
+        generatedImageUrl: firstItem.imageUrl,
+        maxPrice: parseFloat(firstItem.price) || 0,
+        minPrice: parseFloat(firstItem.price) || 0,
+        quantity: firstItem.quantity || 1,
+        accountName: firstItem.accountName,
+        farmKey: state.currentKey,
+        fromQueue: true,
+        queueIndex: 0,
+        queueTotal: queueData.length
+    };
+    
+    const encodedData = encodeURIComponent(JSON.stringify(offerData));
+    const url = `https://www.eldorado.gg/sell/create/roblox/roblox-items/o/steal-a-brainrot/steal-a-brainrot-brainrots?glitched_data=${encodedData}`;
+    
+    // Open in new tab
+    window.open(url, '_blank');
+    
+    showNotification(`🚀 Запущена очередь Eldorado: ${queueData.length} офферов`, 'success');
+    
+    // Close modal and exit selection mode
+    closeMassGenerationModal();
+    if (massSelectionState.isActive) {
+        toggleMassSelectionMode();
+    }
 }
 
 // Setup mass selection event listeners
@@ -3998,6 +4110,8 @@ function setupMassSelectionListeners() {
     const cancelBtn = document.getElementById('cancelMassGen');
     const startBtn = document.getElementById('startMassGen');
     const modalOverlay = document.querySelector('#massGenerationModal .modal-overlay');
+    const downloadAllBtn = document.getElementById('massGenDownloadAll');
+    const startEldoradoBtn = document.getElementById('massGenStartEldorado');
     
     if (fab) {
         fab.addEventListener('click', toggleMassSelectionMode);
@@ -4021,6 +4135,14 @@ function setupMassSelectionListeners() {
     
     if (modalOverlay) {
         modalOverlay.addEventListener('click', closeMassGenerationModal);
+    }
+    
+    if (downloadAllBtn) {
+        downloadAllBtn.addEventListener('click', downloadAllMassGenImages);
+    }
+    
+    if (startEldoradoBtn) {
+        startEldoradoBtn.addEventListener('click', startMassEldoradoQueue);
     }
 }
 

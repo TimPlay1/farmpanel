@@ -3895,6 +3895,25 @@ body {
     border-radius: 8px;
 }
 
+/* Custom scrollbar for mass-gen-list */
+.mass-gen-list::-webkit-scrollbar {
+    width: 8px;
+}
+
+.mass-gen-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}
+
+.mass-gen-list::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-primary), var(--accent-secondary));
+    border-radius: 4px;
+}
+
+.mass-gen-list::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, var(--accent-secondary), var(--accent-primary));
+}
+
 .mass-gen-item {
     display: flex;
     align-items: center;
@@ -4012,6 +4031,98 @@ body {
     gap: 0.5rem;
     cursor: pointer;
     font-size: 0.9rem;
+}
+
+/* Custom checkbox styling */
+.mass-gen-option input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-color);
+    border-radius: 5px;
+    background: var(--bg-secondary);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.mass-gen-option input[type="checkbox"]:checked {
+    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+    border-color: var(--accent-primary);
+}
+
+.mass-gen-option input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 2px;
+    width: 6px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.mass-gen-option input[type="checkbox"]:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
+}
+
+/* Mass generation action buttons (after completion) */
+.mass-gen-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.mass-gen-actions.hidden {
+    display: none;
+}
+
+.mass-gen-download-btn,
+.mass-gen-eldorado-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.875rem 1rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.mass-gen-download-btn {
+    background: linear-gradient(135deg, #3b82f6, #06b6d4);
+    color: white;
+}
+
+.mass-gen-download-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+}
+
+.mass-gen-eldorado-btn {
+    background: linear-gradient(135deg, #f59e0b, #eab308);
+    color: #1a1a2e;
+}
+
+.mass-gen-eldorado-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+}
+
+.mass-gen-download-btn:disabled,
+.mass-gen-eldorado-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
 }
 
 .mass-gen-footer-info {
