@@ -4009,66 +4009,6 @@ body {
     color: var(--text-secondary);
 }
 
-.mass-gen-options {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-    padding: 1rem;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-}
-
-.mass-gen-option {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-}
-
-.mass-gen-option label {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    font-size: 0.9rem;
-}
-
-/* Custom checkbox styling */
-.mass-gen-option input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 20px;
-    height: 20px;
-    border: 2px solid var(--border-color);
-    border-radius: 5px;
-    background: var(--bg-secondary);
-    cursor: pointer;
-    position: relative;
-    transition: all 0.2s ease;
-}
-
-.mass-gen-option input[type="checkbox"]:checked {
-    background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
-    border-color: var(--accent-primary);
-}
-
-.mass-gen-option input[type="checkbox"]:checked::after {
-    content: '';
-    position: absolute;
-    left: 5px;
-    top: 2px;
-    width: 6px;
-    height: 10px;
-    border: solid white;
-    border-width: 0 2px 2px 0;
-    transform: rotate(45deg);
-}
-
-.mass-gen-option input[type="checkbox"]:hover {
-    border-color: var(--accent-primary);
-    box-shadow: 0 0 8px rgba(139, 92, 246, 0.3);
-}
-
 /* Mass generation action buttons (after completion) */
 .mass-gen-actions {
     display: flex;

@@ -535,14 +535,6 @@
                 </button>
             </div>
             <div class="modal-body">
-                <div class="mass-gen-options">
-                    <div class="mass-gen-option">
-                        <label>
-                            <input type="checkbox" id="massGenCreateQueue" checked>
-                            <span>Создать очередь для Eldorado</span>
-                        </label>
-                    </div>
-                </div>
                 <div class="mass-gen-list" id="massGenList">
                     <!-- Items will be rendered here -->
                 </div>
@@ -566,16 +558,16 @@
                         Выложить на Eldorado
                     </button>
                 </div>
-                <p class="mass-gen-footer-info">
+                <p class="mass-gen-footer-info" id="massGenFooterInfo">
                     <i class="fas fa-info-circle"></i> 
-                    После генерации будет создана очередь для автоматического создания офферов на Eldorado
+                    После генерации нажмите "Выложить на Eldorado" для создания офферов
                 </p>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancelMassGen">Отмена</button>
                 <button class="btn btn-primary" id="startMassGen">
-                    <i class="fas fa-play"></i>
-                    Начать (<span id="massGenCount">0</span>)
+                    <i class="fas fa-wand-magic-sparkles"></i>
+                    <span id="massGenBtnText">Генерировать</span>
                 </button>
             </div>
         </div>

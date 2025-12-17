@@ -3711,10 +3711,10 @@ function updateMassSelectionUI() {
         }
     }
     
-    if (countEl) countEl.textContent = count + (totalQuantity > count ? ` (${totalQuantity} шт)` : '');
+    if (countEl) countEl.textContent = totalQuantity > count ? `${count} / ${totalQuantity} шт` : count;
     if (btnEl) {
         btnEl.disabled = count === 0;
-        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать${count > 0 ? ` (${count})` : ''}`;
+        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать ${count} шт`;
     }
 }
 
@@ -3724,16 +3724,17 @@ function openMassGenerationModal() {
     
     const modal = document.getElementById('massGenerationModal');
     const list = document.getElementById('massGenList');
-    const countEl = document.getElementById('massGenCount');
     const progressEl = document.getElementById('massGenProgress');
     const errorEl = document.getElementById('massGenError');
     const startBtn = document.getElementById('startMassGen');
     const actionsEl = document.getElementById('massGenActions');
+    const footerInfo = document.getElementById('massGenFooterInfo');
     
     // Reset state
     progressEl.classList.add('hidden');
     errorEl.classList.add('hidden');
     if (actionsEl) actionsEl.classList.add('hidden');
+    if (footerInfo) footerInfo.classList.remove('hidden');
     startBtn.disabled = false;
     massSelectionState.generationResults = [];
     
@@ -3745,7 +3746,12 @@ function openMassGenerationModal() {
     
     const totalItems = selectedGroups.reduce((sum, g) => sum + (g.quantity || 1), 0);
     
-    startBtn.innerHTML = `<i class="fas fa-play"></i> Начать (<span id="massGenCount">${selectedGroups.length}</span>)`;
+    // Update button text
+    const btnText = document.getElementById('massGenBtnText');
+    if (btnText) {
+        btnText.textContent = `Генерировать ${selectedGroups.length} шт`;
+    }
+    startBtn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> <span id="massGenBtnText">Генерировать ${selectedGroups.length} шт</span>`;
     
     // Render list of selected items
     list.innerHTML = selectedGroups.map((group, i) => {
@@ -3828,7 +3834,7 @@ async function startMassGeneration() {
     const progressPercent = document.getElementById('massGenProgressPercent');
     const startBtn = document.getElementById('startMassGen');
     const errorEl = document.getElementById('massGenError');
-    const createQueue = document.getElementById('massGenCreateQueue')?.checked ?? true;
+    const footerInfo = document.getElementById('massGenFooterInfo');
     
     if (items.length === 0) return;
     
@@ -3837,6 +3843,7 @@ async function startMassGeneration() {
     startBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация...';
     progressEl.classList.remove('hidden');
     errorEl.classList.add('hidden');
+    if (footerInfo) footerInfo.classList.add('hidden');
     
     // Disable remove buttons
     list.querySelectorAll('.mass-gen-item-remove').forEach(btn => btn.style.display = 'none');
@@ -3897,10 +3904,31 @@ async function startMassGeneration() {
                 })
             });
             
-            const result = await response.json();
+            let result = await response.json();
             
             if (!response.ok || !result.success) {
                 throw new Error(result.error || 'Generation failed');
+            }
+            
+            // If pending, poll for result
+            if (result.pending && result.taskId) {
+                console.log('Generation pending, polling for result...');
+                for (let attempt = 0; attempt < 20; attempt++) {
+                    await new Promise(r => setTimeout(r, 1500));
+                    const statusResponse = await fetch(`/api/supa-status?taskId=${result.taskId}`);
+                    const statusData = await statusResponse.json();
+                    
+                    if (statusData.state === 'done' && statusData.resultUrl) {
+                        result = { ...result, resultUrl: statusData.resultUrl, pending: false };
+                        break;
+                    } else if (statusData.state === 'error') {
+                        throw new Error('Generation failed during polling');
+                    }
+                }
+                
+                if (!result.resultUrl) {
+                    throw new Error('Generation timed out');
+                }
             }
             
             // Save generation record for each item in the group
@@ -3910,17 +3938,15 @@ async function startMassGeneration() {
                 }
             }
             
-            // Add to Eldorado queue
-            if (createQueue) {
-                eldoradoQueue.push({
-                    name: group.name,
-                    income: group.incomeText || formatIncome(group.income),
-                    imageUrl: result.resultUrl,
-                    price: price || 0,
-                    quantity: group.quantity || 1,
-                    accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown'
-                });
-            }
+            // Always add to Eldorado queue
+            eldoradoQueue.push({
+                name: group.name,
+                income: group.incomeText || formatIncome(group.income),
+                imageUrl: result.resultUrl,
+                price: price || 0,
+                quantity: group.quantity || 1,
+                accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown'
+            });
             
             results.push({ success: true, name: group.name, resultUrl: result.resultUrl });
             
@@ -3964,8 +3990,8 @@ async function startMassGeneration() {
         }
     }
     
-    // Save Eldorado queue to localStorage
-    if (createQueue && eldoradoQueue.length > 0) {
+    // Save Eldorado queue to localStorage (always save if there are items)
+    if (eldoradoQueue.length > 0) {
         localStorage.setItem('eldoradoQueue', JSON.stringify(eldoradoQueue));
         localStorage.setItem('eldoradoQueueIndex', '0');
         localStorage.setItem('eldoradoQueueCompleted', '[]');
@@ -3979,7 +4005,7 @@ async function startMassGeneration() {
     
     // Show results
     const successCount = results.filter(r => r.success).length;
-    startBtn.innerHTML = `<i class="fas fa-check"></i> Готово (${successCount}/${total})`;
+    startBtn.innerHTML = `<i class="fas fa-check"></i> Готово ${successCount}/${total}`;
     
     if (errors > 0) {
         errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errors} ошибок при генерации`;
@@ -3998,7 +4024,7 @@ async function startMassGeneration() {
     }
     
     // Show notification
-    if (createQueue && eldoradoQueue.length > 0) {
+    if (eldoradoQueue.length > 0) {
         showNotification(`✅ Сгенерировано ${successCount}/${total}. Нажмите "Выложить на Eldorado" для создания офферов.`, 'success');
     } else {
         showNotification(`✅ Сгенерировано ${successCount} из ${total}`, successCount === total ? 'success' : 'info');
