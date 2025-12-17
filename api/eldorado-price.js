@@ -121,6 +121,22 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*B/gi, '$1B');
     
+    // ПРОВЕРКА НА ДИАПАЗОНЫ: "150m - 500m/s", "100-500M/s", "250m~500m/s"
+    // Такие офферы - это "spin the wheel" или рандомные, их income ненадёжен
+    const rangePattern = /(\d+)\s*[mM]\s*[-~]\s*(\d+)\s*[mM]\/[sS]/i;
+    const rangeMatch = cleanTitle.match(rangePattern);
+    if (rangeMatch) {
+        // Это диапазон, возвращаем null чтобы не использовать этот оффер как референс
+        console.log(`⚠️ Skipping range offer: "${title}" (${rangeMatch[1]}-${rangeMatch[2]} M/s)`);
+        return null;
+    }
+    
+    // Также проверяем паттерны "Spin the Wheel", "Random", "Mystery" - это ненадёжные офферы
+    if (/spin\s*(the)?\s*wheel|random|mystery|lucky/i.test(cleanTitle)) {
+        console.log(`⚠️ Skipping random/mystery offer: "${title}"`);
+        return null;
+    }
+    
     // Сначала ищем явный M/s паттерн (более надёжный)
     const mPatterns = [
         /(\d+[.,]?\d*)\s*M\/s/i,      // 37.5M/s, 37 M/S
