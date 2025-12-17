@@ -667,6 +667,50 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         }
 
+        // ДИНАМИЧЕСКИЙ ЛИМИТ: вычисляем максимальную разумную цену на основе реального рынка
+        // Берём среднюю цену первых 10 офферов × 2 или максимальную цену среди офферов с income × 1.5
+        let dynamicMaxPrice = null;
+        let dynamicLimitSource = '';
+        
+        if (allPageOffers.length > 0) {
+            // Метод 1: средняя цена первых 10 офферов × 2
+            const first10 = allPageOffers.slice(0, 10);
+            const avgPrice = first10.reduce((sum, o) => sum + o.price, 0) / first10.length;
+            const limitFromAvg = Math.round(avgPrice * 2 * 100) / 100;
+            
+            // Метод 2: максимальная цена среди офферов с распарсенным income × 1.5
+            const offersWithIncome = allPageOffers.filter(o => o.income > 0);
+            let limitFromMax = limitFromAvg; // fallback
+            if (offersWithIncome.length > 0) {
+                const maxPriceWithIncome = Math.max(...offersWithIncome.map(o => o.price));
+                limitFromMax = Math.round(maxPriceWithIncome * 1.5 * 100) / 100;
+            }
+            
+            // Берём МЕНЬШИЙ из двух лимитов (более строгий)
+            dynamicMaxPrice = Math.min(limitFromAvg, limitFromMax);
+            
+            // Минимальный лимит $3 (чтобы не заблокировать дешёвые офферы)
+            dynamicMaxPrice = Math.max(dynamicMaxPrice, 3);
+            
+            dynamicLimitSource = `dynamic: avg×2=$${limitFromAvg.toFixed(2)}, max×1.5=$${limitFromMax.toFixed(2)} → limit=$${dynamicMaxPrice.toFixed(2)}`;
+            console.log(`📊 ${brainrotName} @ ${msRange}: ${dynamicLimitSource}`);
+        }
+        
+        // Fallback статические лимиты (если нет офферов для расчёта динамического)
+        const staticMaxPriceLimits = {
+            '0-24 M/s': 5,
+            '25-49 M/s': 8,
+            '50-99 M/s': 12,
+            '100-249 M/s': 15,
+            '250-499 M/s': 25,
+            '500-749 M/s': 40,
+            '750-999 M/s': 60,
+            '1+ B/s': 150
+        };
+        
+        // Используем динамический лимит если он есть, иначе статический
+        const maxAllowedPrice = dynamicMaxPrice || staticMaxPriceLimits[msRange] || 50;
+
         const result = {
             suggestedPrice,
             marketPrice: upperOffer?.price || competitorPrice,
@@ -679,6 +723,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             lowerPrice,
             lowerIncome,
             isInEldoradoList,
+            dynamicMaxPrice,
+            dynamicLimitSource,
             samples: allPageOffers.slice(0, 5).map(o => ({
                 income: o.income,
                 price: o.price,
@@ -686,28 +732,16 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }))
         };
 
-        // FINAL SANITY CHECK: абсолютный лимит цены по M/s диапазону
-        // Эти лимиты основаны на реальных рыночных ценах + запас
-        const maxPriceLimits = {
-            '0-24 M/s': 5,
-            '25-49 M/s': 8,
-            '50-99 M/s': 12,
-            '100-249 M/s': 15,
-            '250-499 M/s': 25,
-            '500-749 M/s': 40,
-            '750-999 M/s': 60,
-            '1+ B/s': 150
-        };
-        
-        const maxAllowedPrice = maxPriceLimits[msRange] || 50;
+        // FINAL SANITY CHECK: проверяем цену против динамического лимита
         if (result.suggestedPrice > maxAllowedPrice) {
-            console.error(`🚨 FINAL SANITY CHECK FAILED: suggestedPrice $${result.suggestedPrice} exceeds limit $${maxAllowedPrice} for ${msRange}`);
+            console.error(`🚨 SANITY CHECK FAILED: suggestedPrice $${result.suggestedPrice} exceeds dynamic limit $${maxAllowedPrice} for ${msRange}`);
             console.error(`   Original source: ${result.priceSource}`);
+            console.error(`   Limit source: ${dynamicLimitSource || 'static fallback'}`);
             
             // Возвращаем ошибку вместо неправильной цены
             result.originalSuggestedPrice = result.suggestedPrice;
             result.suggestedPrice = null;
-            result.error = `Price $${result.originalSuggestedPrice} exceeds sanity limit $${maxAllowedPrice} for ${msRange}`;
+            result.error = `Price $${result.originalSuggestedPrice} exceeds dynamic limit $${maxAllowedPrice} for ${msRange}`;
             result.priceSource = `BLOCKED: ${result.priceSource}`;
         }
 

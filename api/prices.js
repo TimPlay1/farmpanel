@@ -52,17 +52,22 @@ module.exports = async (req, res) => {
                     const prev = existingMap.get(cacheKey);
                     const prevPrice = prev?.suggestedPrice || null;
                     
-                    // Проверяем абсолютный лимит цены
-                    let msRangeKey = null;
-                    for (const key of Object.keys(maxPriceLimits)) {
-                        if (cacheKey.includes(key)) {
-                            msRangeKey = key;
-                            break;
-                        }
-                    }
-                    const maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 50;
+                    // ДИНАМИЧЕСКИЙ ЛИМИТ: используем dynamicMaxPrice если есть, иначе статический fallback
+                    let maxLimit = priceData.dynamicMaxPrice;
                     
-                    // SANITY CHECK: если цена превышает абсолютный лимит - отклоняем
+                    if (!maxLimit) {
+                        // Fallback на статический лимит
+                        let msRangeKey = null;
+                        for (const key of Object.keys(maxPriceLimits)) {
+                            if (cacheKey.includes(key)) {
+                                msRangeKey = key;
+                                break;
+                            }
+                        }
+                        maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 50;
+                    }
+                    
+                    // SANITY CHECK: если цена превышает лимит - отклоняем
                     if (priceData.suggestedPrice > maxLimit) {
                         console.error(`🚨 PRICES API: Rejecting price $${priceData.suggestedPrice} for ${cacheKey} - exceeds limit $${maxLimit}`);
                         continue; // Пропускаем эту цену
