@@ -40,11 +40,33 @@ module.exports = async (req, res) => {
             }).toArray();
             const existingMap = new Map(existing.map(e => [e.cacheKey, e]));
             
+            // Абсолютные лимиты цен по M/s диапазонам (защита от багов)
+            const maxPriceLimits = {
+                '0-24': 5, '25-49': 8, '50-99': 12, '100-249': 15,
+                '250-499': 25, '500-749': 40, '750-999': 60, '1+': 150
+            };
+            
             // Сохраняем каждую цену отдельно в глобальный кэш
             for (const [cacheKey, priceData] of Object.entries(prices)) {
                 if (priceData && priceData.suggestedPrice) {
                     const prev = existingMap.get(cacheKey);
                     const prevPrice = prev?.suggestedPrice || null;
+                    
+                    // Проверяем абсолютный лимит цены
+                    let msRangeKey = null;
+                    for (const key of Object.keys(maxPriceLimits)) {
+                        if (cacheKey.includes(key)) {
+                            msRangeKey = key;
+                            break;
+                        }
+                    }
+                    const maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 50;
+                    
+                    // SANITY CHECK: если цена превышает абсолютный лимит - отклоняем
+                    if (priceData.suggestedPrice > maxLimit) {
+                        console.error(`🚨 PRICES API: Rejecting price $${priceData.suggestedPrice} for ${cacheKey} - exceeds limit $${maxLimit}`);
+                        continue; // Пропускаем эту цену
+                    }
                     
                     // Детектим spike - если изменение > 100%
                     let isSpike = false;
@@ -70,6 +92,13 @@ module.exports = async (req, res) => {
                             // Нет spike - сбрасываем
                             spikeDetectedAt = null;
                         }
+                    } else if (!prevPrice && priceData.suggestedPrice > 10) {
+                        // НОВАЯ ЗАЩИТА: если нет предыдущей цены, но новая > $10 - подозрительно
+                        // Для большинства Secret брейнротов цена < $10
+                        console.warn(`⚠️ PRICES API: First price $${priceData.suggestedPrice} for ${cacheKey} is suspiciously high`);
+                        // Не блокируем, но помечаем
+                        isSpike = true;
+                        spikeDetectedAt = now;
                     }
                     
                     const updateData = { 

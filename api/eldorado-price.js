@@ -613,17 +613,43 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         } else if (allPageOffers.length > 0) {
             // Upper не найден - мы выше рынка
-            // Берём оффер с максимальным income, среди них - с максимальной ценой
-            const maxIncomeOffer = allPageOffers.reduce((max, o) => o.income > max.income ? o : max);
-            const sameIncomeOffers = allPageOffers.filter(o => o.income === maxIncomeOffer.income);
-            const maxPriceOffer = sameIncomeOffers.reduce((max, o) => o.price > max.price ? o : max);
+            // Но сначала проверяем - если у ВСЕХ офферов income = 0, значит парсинг сломался!
+            const offersWithIncome = allPageOffers.filter(o => o.income > 0);
             
-            competitorPrice = maxPriceOffer.price;
-            competitorIncome = maxIncomeOffer.income;
-            
-            // Выше рынка - ставим на $0.50 ниже max price
-            suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
-            priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
+            if (offersWithIncome.length === 0) {
+                // SANITY CHECK: парсинг income не сработал ни для одного оффера!
+                // Это ненормальная ситуация - не даём неправильную цену
+                console.error(`⚠️ SANITY CHECK FAILED: All ${allPageOffers.length} offers have income=0! Parsing broken?`);
+                
+                // Берём минимальную цену из первых 5 офферов как fallback
+                const minPriceOffer = allPageOffers.slice(0, 5).reduce((min, o) => o.price < min.price ? o : min);
+                suggestedPrice = Math.round((minPriceOffer.price - 0.5) * 100) / 100;
+                priceSource = `FALLBACK: income parsing failed, using min price from first offers: $${minPriceOffer.price.toFixed(2)} → -$0.50`;
+                competitorPrice = minPriceOffer.price;
+                competitorIncome = 0;
+            } else {
+                // Нормальная ситуация - берём оффер с максимальным income
+                const maxIncomeOffer = offersWithIncome.reduce((max, o) => o.income > max.income ? o : max);
+                const sameIncomeOffers = offersWithIncome.filter(o => o.income === maxIncomeOffer.income);
+                const maxPriceOffer = sameIncomeOffers.reduce((max, o) => o.price > max.price ? o : max);
+                
+                competitorPrice = maxPriceOffer.price;
+                competitorIncome = maxIncomeOffer.income;
+                
+                // SANITY CHECK: если maxPriceOffer.price сильно выше минимальной цены на странице - что-то не так
+                const minPriceOnPage = allPageOffers.reduce((min, o) => o.price < min.price ? o : min).price;
+                if (maxPriceOffer.price > minPriceOnPage * 3) {
+                    // Цена в 3+ раза выше минимальной - подозрительно!
+                    console.warn(`⚠️ SANITY CHECK: maxPrice $${maxPriceOffer.price.toFixed(2)} is 3x+ higher than minPrice $${minPriceOnPage.toFixed(2)}`);
+                    // Используем минимальную цену вместо максимальной
+                    suggestedPrice = Math.round((minPriceOnPage - 0.5) * 100) / 100;
+                    priceSource = `above market BUT sanity check triggered (max $${maxPriceOffer.price.toFixed(2)} vs min $${minPriceOnPage.toFixed(2)}), using min → -$0.50`;
+                } else {
+                    // Выше рынка - ставим на $0.50 ниже max price
+                    suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
+                    priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
+                }
+            }
         } else {
             // Нет офферов вообще - берём минимальную цену из mapping
             const minPrice = BRAINROT_MIN_PRICES.get(brainrotName.toLowerCase());
@@ -659,6 +685,31 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 title: o.title?.substring(0, 60)
             }))
         };
+
+        // FINAL SANITY CHECK: абсолютный лимит цены по M/s диапазону
+        // Эти лимиты основаны на реальных рыночных ценах + запас
+        const maxPriceLimits = {
+            '0-24 M/s': 5,
+            '25-49 M/s': 8,
+            '50-99 M/s': 12,
+            '100-249 M/s': 15,
+            '250-499 M/s': 25,
+            '500-749 M/s': 40,
+            '750-999 M/s': 60,
+            '1+ B/s': 150
+        };
+        
+        const maxAllowedPrice = maxPriceLimits[msRange] || 50;
+        if (result.suggestedPrice > maxAllowedPrice) {
+            console.error(`🚨 FINAL SANITY CHECK FAILED: suggestedPrice $${result.suggestedPrice} exceeds limit $${maxAllowedPrice} for ${msRange}`);
+            console.error(`   Original source: ${result.priceSource}`);
+            
+            // Возвращаем ошибку вместо неправильной цены
+            result.originalSuggestedPrice = result.suggestedPrice;
+            result.suggestedPrice = null;
+            result.error = `Price $${result.originalSuggestedPrice} exceeds sanity limit $${maxAllowedPrice} for ${msRange}`;
+            result.priceSource = `BLOCKED: ${result.priceSource}`;
+        }
 
         priceCache.set(cacheKey, { data: result, timestamp: Date.now() });
         return result;
