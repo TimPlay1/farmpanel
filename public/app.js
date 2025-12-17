@@ -2961,29 +2961,24 @@ async function renderCollection() {
             // Приоритет: source (новый AI-first API) > parsingSource (старый)
             const source = cachedPrice.source || cachedPrice.parsingSource || 'regex';
             let sourceBadge = '';
-            let aiPendingBadge = '';
             
             if (source === 'ai') {
-                sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI 🤖">🤖</span>`;
+                sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
             } else if (source === 'hybrid') {
-                sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
+                sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
             } else {
                 // Regex source
-                sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)">⚡ Bot</span>`;
-                // Показываем индикатор если AI ещё грузится
-                if (cachedPrice.aiPending) {
-                    aiPendingBadge = `<span class="ai-pending-badge" title="AI processing in background...">🔄</span>`;
-                }
+                sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
             }
             
             priceHtml = `
                 <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
-                    ${sourceBadge}${aiPendingBadge}
+                    ${sourceBadge}
                     ${isSpikePrice ? spikeHtml : changeHtml}
                     ${pendingInfo}
-                    ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
+                    ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
                 </div>`;
         } else if (cachedPrice && cachedPrice.error) {
             priceHtml = `
@@ -3228,17 +3223,13 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         // Приоритет: source (новый AI-first API) > parsingSource (старый)
         const source = priceData.source || priceData.parsingSource || 'regex';
         let sourceBadge = '';
-        let aiPendingBadge = '';
         
         if (source === 'ai') {
-            sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI 🤖">🤖</span>`;
+            sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
         } else if (source === 'hybrid') {
-            sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid parsing">🤖⚡</span>`;
+            sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
         } else {
-            sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)">⚡ Bot</span>`;
-            if (priceData.aiPending) {
-                aiPendingBadge = `<span class="ai-pending-badge" title="AI processing in background...">🔄</span>`;
-            }
+            sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
         }
         
         if (isSpikePrice) {
@@ -3250,10 +3241,10 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         priceEl.innerHTML = `
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
-            ${sourceBadge}${aiPendingBadge}
+            ${sourceBadge}
             ${isSpikePrice ? spikeHtml : changeHtml}
             ${pendingInfo}
-            ${competitorInfo && !isSpikePrice ? `<span class="price-market">${competitorInfo}</span>` : ''}
+            ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
         `;
         priceEl.title = priceData.priceSource || `Suggested: ${formatPrice(priceData.suggestedPrice)}`;
     } else {

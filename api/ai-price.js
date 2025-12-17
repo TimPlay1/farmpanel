@@ -1,25 +1,18 @@
 /**
  * AI-First Price API
  * 
- * Использует AI как PRIMARY источник цен
- * Regex только для мгновенного показа пока AI грузится
+ * ЛОГИКА:
+ * 1. Regex парсит сразу - показывает мгновенно
+ * 2. Если есть AI кэш - возвращает AI результат
+ * 3. При изменении цены regex → добавляет в очередь AI валидации
+ * 4. AI результат имеет приоритет над regex
  * 
  * Эндпоинт: /api/ai-price?name=BrainrotName&income=100
  */
 
-const https = require('https');
-
 // Импорты
-let priceService = null;
 let aiScanner = null;
 let eldoradoPrice = null;
-
-try {
-    priceService = require('./price-service.js');
-    console.log('✅ Price Service loaded');
-} catch (e) {
-    console.warn('⚠️ Price Service not available:', e.message);
-}
 
 try {
     aiScanner = require('./ai-scanner.js');
@@ -35,80 +28,90 @@ try {
     console.warn('⚠️ Eldorado Price not available:', e.message);
 }
 
-// Кэш AI результатов
+// Кэш AI результатов (brainrot_income -> {data, timestamp})
 const aiCache = new Map();
 const AI_CACHE_TTL = 10 * 60 * 1000; // 10 минут
 
-// Очередь для AI обработки
-const aiQueue = [];
-let isProcessingAI = false;
+// Кэш предыдущих regex цен для отслеживания изменений
+const previousPrices = new Map();
 
-// Rate limiting для Gemini
-const GEMINI_RATE_LIMIT = {
-    requestsPerMinute: 7,
-    tokensPerMinute: 14000,
+// Очередь брейнротов на AI валидацию
+const aiValidationQueue = [];
+let isProcessingQueue = false;
+
+// Rate limiting для Gemini (7 req/min, 14K tokens/min)
+const rateLimit = {
     requests: [],
-    lastReset: Date.now()
+    maxPerMinute: 7,
+    
+    canMakeRequest() {
+        const now = Date.now();
+        // Удаляем запросы старше минуты
+        this.requests = this.requests.filter(t => now - t < 60000);
+        return this.requests.length < this.maxPerMinute;
+    },
+    
+    recordRequest() {
+        this.requests.push(Date.now());
+    },
+    
+    getWaitTime() {
+        if (this.requests.length === 0) return 0;
+        const oldest = Math.min(...this.requests);
+        return Math.max(0, 60000 - (Date.now() - oldest));
+    }
 };
 
-function checkRateLimit() {
-    const now = Date.now();
-    
-    // Сброс счётчика каждую минуту
-    if (now - GEMINI_RATE_LIMIT.lastReset > 60000) {
-        GEMINI_RATE_LIMIT.requests = [];
-        GEMINI_RATE_LIMIT.lastReset = now;
-    }
-    
-    // Удаляем старые запросы (старше минуты)
-    GEMINI_RATE_LIMIT.requests = GEMINI_RATE_LIMIT.requests.filter(t => now - t < 60000);
-    
-    return GEMINI_RATE_LIMIT.requests.length < GEMINI_RATE_LIMIT.requestsPerMinute;
-}
-
-function recordRequest() {
-    GEMINI_RATE_LIMIT.requests.push(Date.now());
-}
-
 /**
- * Основной метод - получает AI цену
- * Если нет в кэше - возвращает regex и ставит в очередь на AI
+ * Основной метод - получает цену с AI приоритетом
  */
 async function getAIPrice(brainrotName, ourIncome) {
-    const cacheKey = `${brainrotName.toLowerCase()}_${ourIncome}`;
+    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
     // 1. Проверяем AI кэш
-    const cached = aiCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < AI_CACHE_TTL) {
-        console.log(`🤖 AI Cache HIT for ${brainrotName}`);
+    const aiCached = aiCache.get(cacheKey);
+    if (aiCached && Date.now() - aiCached.timestamp < AI_CACHE_TTL) {
         return {
-            ...cached.data,
+            ...aiCached.data,
             source: 'ai',
             fromCache: true,
-            cacheAge: Math.round((Date.now() - cached.timestamp) / 1000)
+            cacheAge: Math.round((Date.now() - aiCached.timestamp) / 1000)
         };
     }
     
-    // 2. Нет в кэше - получаем regex результат сразу
+    // 2. Получаем regex результат
     const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
     
-    // 3. Добавляем в очередь AI
-    queueForAI(brainrotName, ourIncome, regexResult);
+    // 3. Проверяем изменилась ли цена
+    const prevPrice = previousPrices.get(cacheKey);
+    const currentPrice = regexResult.suggestedPrice;
+    const priceChanged = prevPrice !== undefined && prevPrice !== currentPrice;
     
-    // 4. Возвращаем regex с флагом pending
+    // Сохраняем текущую цену
+    if (currentPrice !== null) {
+        previousPrices.set(cacheKey, currentPrice);
+    }
+    
+    // 4. Если цена изменилась - добавляем в очередь AI валидации
+    if (priceChanged && currentPrice !== null) {
+        console.log(`📊 Price changed for ${brainrotName}: $${prevPrice} → $${currentPrice}, queuing for AI validation`);
+        queueForAIValidation(brainrotName, ourIncome, regexResult);
+    }
+    
+    // 5. Возвращаем regex результат
     return {
         ...regexResult,
         source: 'regex',
-        aiPending: true,
-        aiQueuePosition: getQueuePosition(brainrotName, ourIncome)
+        priceChanged,
+        prevPrice: prevPrice || null
     };
 }
 
 /**
- * Принудительно получает AI цену (ждёт результат)
+ * Принудительный AI парсинг (для force mode)
  */
 async function forceAIPrice(brainrotName, ourIncome) {
-    const cacheKey = `${brainrotName.toLowerCase()}_${ourIncome}`;
+    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
     // Проверяем кэш
     const cached = aiCache.get(cacheKey);
@@ -117,60 +120,57 @@ async function forceAIPrice(brainrotName, ourIncome) {
     }
     
     // Проверяем rate limit
-    if (!checkRateLimit()) {
-        // Fallback на regex
+    if (!rateLimit.canMakeRequest()) {
+        console.log(`⏳ Rate limit, wait ${rateLimit.getWaitTime()}ms`);
+        // Возвращаем regex как fallback
         const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
         return {
             ...regexResult,
             source: 'regex',
             aiError: 'Rate limit exceeded',
-            waitTime: 60 - Math.round((Date.now() - GEMINI_RATE_LIMIT.lastReset) / 1000)
+            waitTime: Math.round(rateLimit.getWaitTime() / 1000)
         };
     }
     
-    console.log(`🤖 Force AI parsing for ${brainrotName}...`);
-    
     try {
-        recordRequest();
+        console.log(`🤖 Force AI parsing for ${brainrotName} @ ${ourIncome}M/s...`);
+        rateLimit.recordRequest();
         
-        // Получаем офферы
+        // Получаем офферы с Eldorado
         const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome);
         
         if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
-            throw new Error('No offers found');
+            throw new Error('No offers found on Eldorado');
         }
         
-        // AI парсинг
+        // AI парсинг через hybridParse
         const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
         const aiResults = await aiScanner.hybridParse(searchResult.allPageOffers, eldoradoLists);
         
-        // Считаем статистику
+        // Статистика
         const aiParsed = aiResults.filter(r => r.source === 'ai');
         const regexParsed = aiResults.filter(r => r.source === 'regex');
+        console.log(`   AI: ${aiParsed.length}, Regex: ${regexParsed.length}`);
         
-        console.log(`   AI: ${aiParsed.length}, Regex: ${regexParsed.length}, Total: ${aiResults.length}`);
+        // Находим upper/lower из AI результатов
+        const validOffers = aiResults.filter(r => r.income !== null && r.income > 0);
+        validOffers.sort((a, b) => a.price - b.price);
         
-        // Находим upper/lower
         let upperOffer = null;
         let lowerOffer = null;
         
-        // Сортируем по цене
-        const sortedByPrice = aiResults
-            .filter(r => r.income !== null && r.income > 0)
-            .sort((a, b) => a.price - b.price);
-        
-        for (const offer of sortedByPrice) {
+        for (const offer of validOffers) {
             if (!upperOffer && offer.income >= ourIncome) {
                 upperOffer = offer;
-            } else if (upperOffer && !lowerOffer && offer.income < ourIncome && offer.price <= upperOffer.price) {
+            }
+            if (upperOffer && !lowerOffer && offer.income < ourIncome && offer.price <= upperOffer.price) {
                 lowerOffer = offer;
             }
-            if (upperOffer && lowerOffer) break;
         }
         
         // Рассчитываем цену
         let suggestedPrice = null;
-        let priceSource = 'ai_calculated';
+        let priceSource = 'ai';
         
         if (upperOffer) {
             const upperPrice = upperOffer.price;
@@ -179,16 +179,16 @@ async function forceAIPrice(brainrotName, ourIncome) {
             
             if (diff >= 1) {
                 suggestedPrice = Math.round((upperPrice - 1) * 100) / 100;
-                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff >= $1 → -$1`;
+                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff >= $1`;
             } else {
                 suggestedPrice = Math.round((upperPrice - 0.5) * 100) / 100;
-                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff < $1 → -$0.50`;
+                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff < $1`;
             }
-        } else if (sortedByPrice.length > 0) {
+        } else if (validOffers.length > 0) {
             // Выше рынка
-            const maxIncomeOffer = sortedByPrice.reduce((max, o) => o.income > max.income ? o : max);
+            const maxIncomeOffer = validOffers.reduce((max, o) => o.income > max.income ? o : max);
             suggestedPrice = Math.round((maxIncomeOffer.price - 0.5) * 100) / 100;
-            priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s @ $${maxIncomeOffer.price.toFixed(2)} → -$0.50`;
+            priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s`;
         }
         
         const result = {
@@ -196,12 +196,14 @@ async function forceAIPrice(brainrotName, ourIncome) {
             priceSource,
             source: 'ai',
             brainrotName,
-            ourIncome,
+            targetMsRange: searchResult.targetMsRange,
             offersFound: aiResults.length,
             aiParsedCount: aiParsed.length,
             regexParsedCount: regexParsed.length,
-            upperOffer: upperOffer ? { income: upperOffer.income, price: upperOffer.price, source: upperOffer.source } : null,
-            lowerOffer: lowerOffer ? { income: lowerOffer.income, price: lowerOffer.price, source: lowerOffer.source } : null,
+            competitorPrice: upperOffer?.price || null,
+            competitorIncome: upperOffer?.income || null,
+            lowerPrice: lowerOffer?.price || null,
+            lowerIncome: lowerOffer?.income || null,
             samples: aiResults.slice(0, 5).map(r => ({
                 income: r.income,
                 price: r.price,
@@ -210,7 +212,7 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }))
         };
         
-        // Кэшируем
+        // Кэшируем AI результат
         aiCache.set(cacheKey, { data: result, timestamp: Date.now() });
         
         console.log(`✅ AI price for ${brainrotName}: $${suggestedPrice}`);
@@ -230,108 +232,100 @@ async function forceAIPrice(brainrotName, ourIncome) {
 }
 
 /**
- * Добавляет в очередь на AI обработку
+ * Добавляет брейнрота в очередь AI валидации
  */
-function queueForAI(brainrotName, ourIncome, regexResult) {
-    const existing = aiQueue.find(q => 
-        q.brainrotName.toLowerCase() === brainrotName.toLowerCase() && 
-        q.ourIncome === ourIncome
-    );
+function queueForAIValidation(brainrotName, ourIncome, regexResult) {
+    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
-    if (!existing) {
-        aiQueue.push({ brainrotName, ourIncome, regexResult, addedAt: Date.now() });
-        processAIQueue();
-    }
+    // Не добавляем дубликаты
+    const exists = aiValidationQueue.find(q => q.cacheKey === cacheKey);
+    if (exists) return;
+    
+    aiValidationQueue.push({
+        brainrotName,
+        ourIncome,
+        regexResult,
+        cacheKey,
+        addedAt: Date.now()
+    });
+    
+    console.log(`📋 Queued ${brainrotName} for AI validation (queue: ${aiValidationQueue.length})`);
+    
+    // Запускаем обработку очереди
+    processAIQueue();
 }
 
 /**
- * Возвращает позицию в очереди
- */
-function getQueuePosition(brainrotName, ourIncome) {
-    const idx = aiQueue.findIndex(q => 
-        q.brainrotName.toLowerCase() === brainrotName.toLowerCase() && 
-        q.ourIncome === ourIncome
-    );
-    return idx >= 0 ? idx + 1 : 0;
-}
-
-/**
- * Обрабатывает очередь AI
+ * Обрабатывает очередь AI валидации в фоне
  */
 async function processAIQueue() {
-    if (isProcessingAI || aiQueue.length === 0) return;
+    if (isProcessingQueue || aiValidationQueue.length === 0) return;
     
-    isProcessingAI = true;
+    isProcessingQueue = true;
+    console.log(`🤖 Processing AI queue: ${aiValidationQueue.length} items`);
     
-    while (aiQueue.length > 0 && checkRateLimit()) {
-        const item = aiQueue.shift();
-        
-        try {
-            await forceAIPrice(item.brainrotName, item.ourIncome);
-        } catch (e) {
-            console.error(`Queue processing error for ${item.brainrotName}:`, e.message);
+    while (aiValidationQueue.length > 0) {
+        // Проверяем rate limit
+        if (!rateLimit.canMakeRequest()) {
+            const waitTime = rateLimit.getWaitTime();
+            console.log(`⏳ Rate limit, waiting ${Math.round(waitTime/1000)}s...`);
+            await new Promise(r => setTimeout(r, waitTime + 1000));
+            continue;
         }
         
-        // Пауза между запросами
-        await new Promise(r => setTimeout(r, 9000)); // ~6.6 запросов в минуту
+        const item = aiValidationQueue.shift();
+        
+        try {
+            const aiResult = await forceAIPrice(item.brainrotName, item.ourIncome);
+            
+            if (aiResult.source === 'ai' && aiResult.suggestedPrice !== null) {
+                const regexPrice = item.regexResult?.suggestedPrice;
+                const aiPrice = aiResult.suggestedPrice;
+                
+                if (regexPrice !== aiPrice) {
+                    console.log(`🔄 AI validation: ${item.brainrotName} - regex $${regexPrice} vs AI $${aiPrice} → using AI`);
+                } else {
+                    console.log(`✅ AI confirmed: ${item.brainrotName} @ $${aiPrice}`);
+                }
+            }
+        } catch (e) {
+            console.error(`AI validation error for ${item.brainrotName}:`, e.message);
+            // Возвращаем в конец очереди для retry
+            aiValidationQueue.push(item);
+        }
+        
+        // Пауза между запросами (чтобы не превысить rate limit)
+        await new Promise(r => setTimeout(r, 9000));
     }
     
-    isProcessingAI = false;
-    
-    // Если остались в очереди - продолжим через минуту
-    if (aiQueue.length > 0) {
-        console.log(`⏳ ${aiQueue.length} items in AI queue, waiting for rate limit reset...`);
-        setTimeout(() => processAIQueue(), 60000);
-    }
+    isProcessingQueue = false;
+    console.log('✅ AI queue processing complete');
 }
 
 /**
- * Получает статус AI кэша
- */
-function getAIStatus(brainrotName, ourIncome) {
-    const cacheKey = `${brainrotName.toLowerCase()}_${ourIncome}`;
-    const cached = aiCache.get(cacheKey);
-    
-    if (!cached) {
-        const queuePos = getQueuePosition(brainrotName, ourIncome);
-        return { 
-            status: queuePos > 0 ? 'queued' : 'not_cached', 
-            queuePosition: queuePos,
-            source: 'regex' 
-        };
-    }
-    
-    const age = Date.now() - cached.timestamp;
-    return {
-        status: age < AI_CACHE_TTL ? 'cached' : 'expired',
-        source: 'ai',
-        age: Math.round(age / 1000),
-        price: cached.data.suggestedPrice
-    };
-}
-
-/**
- * Получает статистику
+ * Возвращает статус AI системы
  */
 function getStats() {
     return {
         cacheSize: aiCache.size,
-        queueLength: aiQueue.length,
-        isProcessing: isProcessingAI,
+        queueLength: aiValidationQueue.length,
+        isProcessing: isProcessingQueue,
         rateLimit: {
-            used: GEMINI_RATE_LIMIT.requests.length,
-            max: GEMINI_RATE_LIMIT.requestsPerMinute,
-            resetIn: Math.max(0, 60 - Math.round((Date.now() - GEMINI_RATE_LIMIT.lastReset) / 1000))
-        }
+            used: rateLimit.requests.length,
+            max: rateLimit.maxPerMinute,
+            waitTime: Math.round(rateLimit.getWaitTime() / 1000)
+        },
+        previousPricesTracked: previousPrices.size
     };
 }
 
 /**
- * Очищает кэш
+ * Очищает кэши
  */
 function clearCache() {
     aiCache.clear();
-    console.log('🗑️ AI Price cache cleared');
+    previousPrices.clear();
+    console.log('🗑️ AI cache cleared');
 }
 
 /**
@@ -347,24 +341,19 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
     
-    const { name, brainrot, income, force, status, stats: getStatsFlag, clear } = req.query;
+    const { name, brainrot, income, force, stats: getStatsFlag, clear } = req.query;
     const brainrotName = name || brainrot;
     const ourIncome = parseFloat(income) || 0;
     
-    // Эндпоинт статистики
+    // Статистика
     if (getStatsFlag !== undefined) {
         return res.status(200).json(getStats());
     }
     
-    // Эндпоинт очистки кэша
+    // Очистка кэша
     if (clear !== undefined) {
         clearCache();
         return res.status(200).json({ message: 'Cache cleared' });
-    }
-    
-    // Эндпоинт статуса
-    if (status !== undefined && brainrotName) {
-        return res.status(200).json(getAIStatus(brainrotName, ourIncome));
     }
     
     if (!brainrotName) {
@@ -378,7 +367,7 @@ module.exports = async (req, res) => {
             // Принудительный AI парсинг
             result = await forceAIPrice(brainrotName, ourIncome);
         } else {
-            // Обычный запрос (regex сразу, AI в фоне)
+            // Обычный запрос - regex сразу, AI в фоне при изменениях
             result = await getAIPrice(brainrotName, ourIncome);
         }
         
@@ -389,9 +378,9 @@ module.exports = async (req, res) => {
     }
 };
 
-// Экспорты
+// Экспорты для тестирования
 module.exports.getAIPrice = getAIPrice;
 module.exports.forceAIPrice = forceAIPrice;
-module.exports.getAIStatus = getAIStatus;
 module.exports.getStats = getStats;
 module.exports.clearCache = clearCache;
+module.exports.queueForAIValidation = queueForAIValidation;

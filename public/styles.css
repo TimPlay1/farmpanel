@@ -1727,48 +1727,46 @@ body {
 
 /* Parsing source badges (AI / Regex) */
 .parsing-source-badge {
-    font-size: 0.65rem;
-    margin-left: 0.25rem;
+    font-size: 0.7rem;
+    margin-left: 0.3rem;
     cursor: help;
-    opacity: 0.8;
-    transition: opacity 0.2s;
+    opacity: 0.85;
+    transition: opacity 0.2s, transform 0.2s;
 }
 
 .parsing-source-badge:hover {
     opacity: 1;
+    transform: scale(1.1);
 }
 
 .parsing-source-badge.regex {
     color: #60a5fa; /* blue for regex/bot */
-    font-size: 0.6rem;
-    padding: 0.1rem 0.3rem;
-    background: rgba(96, 165, 250, 0.15);
-    border-radius: 4px;
+}
+
+.parsing-source-badge.regex i {
+    font-size: 0.65rem;
 }
 
 .parsing-source-badge.ai {
     color: #a78bfa; /* purple for AI */
-    font-size: 0.8rem;
+}
+
+.parsing-source-badge.ai i {
+    font-size: 0.7rem;
 }
 
 .parsing-source-badge.hybrid {
-    background: linear-gradient(135deg, #a78bfa, #60a5fa);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #a78bfa;
 }
 
-/* AI pending indicator */
-.ai-pending-badge {
+.parsing-source-badge.hybrid i:first-child {
+    color: #a78bfa;
+}
+
+.parsing-source-badge.hybrid i:last-child {
+    color: #60a5fa;
+    margin-left: 0.1rem;
     font-size: 0.55rem;
-    margin-left: 0.15rem;
-    animation: spin 1.5s linear infinite;
-    opacity: 0.6;
-}
-
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
 }
 
 /* Price change indicators */
