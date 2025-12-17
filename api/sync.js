@@ -257,6 +257,52 @@ module.exports = async (req, res) => {
                 { $set: farmer },
                 { upsert: true }
             );
+            
+            // === АВТОМАТИЧЕСКОЕ СОХРАНЕНИЕ ИСТОРИИ БАЛАНСА ===
+            // Подсчитываем общий баланс из аккаунтов
+            let totalBalance = 0;
+            for (const account of accounts) {
+                if (account.balance !== undefined) {
+                    const bal = parseFloat(account.balance) || 0;
+                    totalBalance += bal;
+                }
+            }
+            
+            // Сохраняем в историю баланса если баланс > 0
+            if (totalBalance > 0) {
+                const balanceHistoryCollection = db.collection('balance_history');
+                const now = new Date();
+                
+                // Проверяем последнюю запись
+                const lastRecord = await balanceHistoryCollection.findOne(
+                    { farmKey },
+                    { sort: { timestamp: -1 } }
+                );
+                
+                let shouldSave = true;
+                if (lastRecord) {
+                    const timeDiff = now.getTime() - lastRecord.timestamp.getTime();
+                    // Не записываем чаще чем раз в 30 секунд
+                    if (timeDiff < 30000) {
+                        shouldSave = false;
+                    }
+                    // Не записываем если баланс не изменился существенно (< $0.1)
+                    if (Math.abs(lastRecord.value - totalBalance) < 0.1) {
+                        shouldSave = false;
+                    }
+                }
+                
+                if (shouldSave) {
+                    await balanceHistoryCollection.insertOne({
+                        farmKey,
+                        value: totalBalance,
+                        timestamp: now,
+                        createdAt: now,
+                        source: 'sync' // Помечаем что запись от sync
+                    });
+                    console.log(`Balance history saved: ${farmKey} = $${totalBalance.toFixed(2)}`);
+                }
+            }
 
             return res.status(200).json({ 
                 success: true, 
