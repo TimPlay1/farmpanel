@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.1
+// @version      9.8.2
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -428,6 +428,14 @@
         const h5 = item.querySelector('h5');
         if (h5) {
             const match = h5.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+            if (match) {
+                return match[0].toUpperCase().replace(/^#/, '');
+            }
+        }
+        // v9.8.2: Check tooltip (eld-tooltip) for sold orders page
+        const tooltip = item.querySelector('eld-tooltip .tooltip-inner');
+        if (tooltip) {
+            const match = tooltip.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
             if (match) {
                 return match[0].toUpperCase().replace(/^#/, '');
             }
@@ -1470,14 +1478,12 @@
         if (ordersContainer) {
             const orderRows = ordersContainer.querySelectorAll('.grid-row');
             orderRows.forEach(row => {
-                // Ищем tooltip-inner внутри row - там полное название оффера
+                // Ищем tooltip-inner внутри row - там полное название оффера с кодом
                 const tooltipInner = row.querySelector('.tooltip-inner');
                 const tooltipText = tooltipInner ? tooltipInner.textContent : '';
-                const rowText = row.textContent || '';
                 
-                // Ищем по коду оффера в tooltip или по "Glitched Store" в названии
-                if (containsOfferCode(tooltipText) || tooltipText.includes('Glitched Store') ||
-                    containsOfferCode(rowText) || rowText.includes('Glitched Store')) {
+                // v9.8.2: Проверяем ТОЛЬКО по коду оффера, не по названию "Glitched Store"
+                if (containsOfferCode(tooltipText)) {
                     row.classList.add('glitched-my-offer');
                     highlighted++;
                 }
