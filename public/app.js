@@ -1503,6 +1503,8 @@ async function fetchFarmerData() {
     // Создаём новый контроллер (не отменяя предыдущий - он завершится сам)
     currentFetchController = new AbortController();
     
+    console.log(`[FETCH] Starting fetch #${requestId} for key ${requestKey.slice(-8)}`);
+    
     try {
         const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`, {
             signal: currentFetchController.signal
@@ -1520,6 +1522,19 @@ async function fetchFarmerData() {
         }
         
         const data = await response.json();
+        
+        // === LOGGING: Show what we got from server ===
+        console.log(`[FETCH] Got data for ${requestKey.slice(-8)}:`, {
+            accountsCount: data.accounts?.length || 0,
+            lastUpdate: data.lastUpdate
+        });
+        
+        if (data.accounts) {
+            data.accounts.forEach(acc => {
+                console.log(`  [ACCOUNT] ${acc.playerName}: isOnline=${acc.isOnline}, lastUpdate=${acc.lastUpdate}, brainrots=${acc.brainrots?.length || 0}`);
+            });
+        }
+        // === END LOGGING ===
         
         // Ещё раз проверяем актуальность
         if (state.currentKey !== requestKey) {
@@ -1638,11 +1653,20 @@ function isAccountOnline(account) {
     
     // Primary: trust the isOnline flag from Lua script
     // This is the most reliable source as Lua checks Players:GetPlayers()
-    if (account.isOnline === true) return true;
-    if (account.isOnline === false) return false;
+    if (account.isOnline === true) {
+        console.log(`[ONLINE] ${account.playerName}: TRUE (isOnline flag = true)`);
+        return true;
+    }
+    if (account.isOnline === false) {
+        console.log(`[ONLINE] ${account.playerName}: FALSE (isOnline flag = false)`);
+        return false;
+    }
     
     // Fallback: check lastUpdate timestamp if isOnline flag is not set
-    if (!account.lastUpdate) return false;
+    if (!account.lastUpdate) {
+        console.log(`[ONLINE] ${account.playerName}: FALSE (no lastUpdate, no isOnline flag)`);
+        return false;
+    }
     
     try {
         // Support both ISO format (2024-12-18T12:00:00.000Z) and Lua format (2024-12-18 12:00:00)
@@ -1659,8 +1683,11 @@ function isAccountOnline(account) {
         const now = Date.now();
         const diffSeconds = (now - lastUpdateTime) / 1000;
         
+        const result = diffSeconds < 60;
+        console.log(`[ONLINE] ${account.playerName}: ${result} (fallback, lastUpdate=${account.lastUpdate}, diff=${diffSeconds.toFixed(0)}s)`);
+        
         // If updated within last 60 seconds, consider online
-        return diffSeconds < 60;
+        return result;
     } catch (e) {
         console.warn('Error parsing lastUpdate:', account.lastUpdate, e);
         return false;
@@ -1696,7 +1723,12 @@ function getAccountCardId(account) {
 
 // Smart update - only update changed elements in existing card
 function updateAccountCard(cardEl, account) {
-    if (!cardEl) return false;
+    if (!cardEl) {
+        console.log(`[UPDATE CARD] ${account.playerName}: NO CARD ELEMENT FOUND`);
+        return false;
+    }
+    
+    console.log(`[UPDATE CARD] ${account.playerName}: isOnline=${account._isOnline}, brainrots=${account.brainrots?.length || 0}`);
     
     const isOnline = account._isOnline;
     const statusClass = isOnline ? 'online' : 'offline';
@@ -1832,9 +1864,13 @@ function updateAccountCard(cardEl, account) {
 // UI Updates
 function updateUI() {
     const data = state.farmersData[state.currentKey];
-    if (!data) return;
+    if (!data) {
+        console.log('[UPDATE UI] No data for current key');
+        return;
+    }
     
     const accounts = data.accounts || [];
+    console.log(`[UPDATE UI] Processing ${accounts.length} accounts`);
     
     // Calculate _isOnline for each account based on lastUpdate
     accounts.forEach(account => {
@@ -2106,7 +2142,10 @@ async function renderAccountsGrid(accounts) {
         existingPlayerNames.size > 0 &&
         [...existingPlayerNames].every(name => newPlayerNames.has(name));
     
+    console.log(`[RENDER GRID] existingCards=${existingCards.length}, sameAccounts=${sameAccounts}`);
+    
     if (sameAccounts) {
+        console.log('[RENDER GRID] Using SMART UPDATE (updating existing cards)');
         // Smart update - just update values in existing cards
         accounts.forEach(account => {
             const cardId = getAccountCardId(account);
@@ -2115,6 +2154,8 @@ async function renderAccountsGrid(accounts) {
         });
         return;
     }
+    
+    console.log('[RENDER GRID] Using FULL RENDER (creating new cards)');
     
     // Full render (first time or accounts changed)
     accountsGridEl.innerHTML = accounts.map(account => {
