@@ -1995,6 +1995,17 @@ body {
     border-color: rgba(74, 222, 128, 0.5);
 }
 
+/* has-offer takes priority over brainrot-generated */
+.brainrot-card.brainrot-generated.has-offer {
+    border-color: rgba(59, 130, 246, 0.3);
+    border-left: 3px solid #3b82f6;
+}
+
+.brainrot-card.brainrot-generated.has-offer:hover {
+    border-color: rgba(96, 165, 250, 0.5);
+    border-left-color: #60a5fa;
+}
+
 /* Partially generated card styling */
 .brainrot-card.brainrot-partial {
     border-color: rgba(245, 158, 11, 0.3);
