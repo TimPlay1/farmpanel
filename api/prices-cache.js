@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
     }
     
     try {
-        const db = await connectToDatabase();
+        const { db } = await connectToDatabase();
         const collection = db.collection('price_cache');
         
         const { keys, all, since } = req.query;

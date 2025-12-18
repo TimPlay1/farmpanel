@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
 
-    const db = await connectToDatabase();
+    const { db } = await connectToDatabase();
     const collection = db.collection('user_colors');
 
     // GET - получить цвет пользователя
