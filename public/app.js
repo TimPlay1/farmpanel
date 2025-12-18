@@ -27,6 +27,7 @@ function showNotification(message, type = 'info') {
         box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         ${type === 'success' ? 'background: linear-gradient(135deg, #11998e, #38ef7d); color: white;' : ''}
         ${type === 'error' ? 'background: linear-gradient(135deg, #eb3349, #f45c43); color: white;' : ''}
+        ${type === 'warning' ? 'background: linear-gradient(135deg, #f59e0b, #f97316); color: white;' : ''}
         ${type === 'info' ? 'background: linear-gradient(135deg, #667eea, #764ba2); color: white;' : ''}
     `;
     notif.textContent = message;

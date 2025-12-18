@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.3
+// @version      9.4
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.3
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.3
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.4
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.4
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.3';
+    const VERSION = '9.4';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -50,8 +50,7 @@
         highlightEnabled: GM_getValue('highlightEnabled', true),
         autoFillEnabled: GM_getValue('autoFillEnabled', true),
         showPanel: GM_getValue('showPanel', true),
-        connectionError: false, // Для отслеживания ошибок авторизации
-        sleepMode: GM_getValue('sleepMode', false) // Sleep mode - pause all offers
+        connectionError: false // Для отслеживания ошибок авторизации
     };
     
     // Кэш офферов пользователя
@@ -321,6 +320,10 @@
             font-weight: 600;
             transition: all 0.2s;
             margin-left: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            min-width: 90px;
+            justify-content: center;
         }
         .glitched-sleep-btn.active {
             background: rgba(251, 146, 60, 0.2);
@@ -331,6 +334,11 @@
             background: rgba(74, 222, 128, 0.2);
             color: #4ade80;
             border: 1px solid #4ade80;
+        }
+        .glitched-sleep-btn.unknown {
+            background: rgba(156, 163, 175, 0.2);
+            color: #9ca3af;
+            border: 1px solid #9ca3af;
         }
         .glitched-sleep-btn:hover {
             transform: scale(1.05);
@@ -399,42 +407,125 @@
     }
     
     // ==================== SLEEP MODE ====================
-    async function toggleSleepMode() {
-        const newState = !CONFIG.sleepMode;
-        CONFIG.sleepMode = newState;
-        GM_setValue('sleepMode', newState);
+    
+    // Detect current sleep state from offers
+    function detectSleepState() {
+        const offerRows = document.querySelectorAll('.grid-row');
+        let pausedCount = 0;
+        let activeCount = 0;
+        let ourOffersCount = 0;
         
-        showNotification(newState ? '💤 Activating Sleep Mode...' : '⚡ Resuming offers...', 'info');
-        log(`Sleep mode: ${newState ? 'ON' : 'OFF'}`);
+        for (const row of offerRows) {
+            const isOurOffer = row.classList.contains('glitched-my-offer') || 
+                              containsOfferCode(row.textContent || '');
+            
+            if (!isOurOffer) continue;
+            ourOffersCount++;
+            
+            // Check if offer has pause button visible (means it's active)
+            const pauseBtn = row.querySelector('.icon-pause');
+            // Check if offer has resume button visible (means it's paused)
+            const resumeBtn = row.querySelector('.icon-chevron-right');
+            
+            if (pauseBtn) {
+                activeCount++;
+            } else if (resumeBtn) {
+                pausedCount++;
+            }
+        }
+        
+        log(`Sleep state detection: ${ourOffersCount} offers, ${pausedCount} paused, ${activeCount} active`);
+        
+        if (ourOffersCount === 0) return 'unknown';
+        if (pausedCount === ourOffersCount) return 'sleep';
+        if (activeCount === ourOffersCount) return 'active';
+        return 'unknown';
+    }
+    
+    // Update sleep button based on actual state
+    function updateSleepButton() {
+        const sleepBtn = document.querySelector('.glitched-sleep-btn');
+        if (!sleepBtn) return;
+        
+        const state = detectSleepState();
+        
+        sleepBtn.className = 'glitched-sleep-btn';
+        
+        if (state === 'sleep') {
+            sleepBtn.classList.add('active');
+            sleepBtn.innerHTML = '💤 Sleep';
+            sleepBtn.title = 'All offers paused. Click to resume.';
+        } else if (state === 'active') {
+            sleepBtn.classList.add('inactive');
+            sleepBtn.innerHTML = '⚡ Active';
+            sleepBtn.title = 'All offers active. Click to pause.';
+        } else {
+            sleepBtn.classList.add('unknown');
+            sleepBtn.innerHTML = '❓ Mixed';
+            sleepBtn.title = 'Some offers paused, some active. Click to sync.';
+        }
+    }
+    
+    async function toggleSleepMode() {
+        const currentState = detectSleepState();
+        const willPause = currentState !== 'sleep'; // If not sleeping, we'll pause
+        
+        // Show confirmation dialog
+        const confirmMessage = willPause 
+            ? '💤 Activate Sleep Mode?\n\nThis will PAUSE all your offers on Eldorado.\nBuyers won\'t see your offers until you resume.'
+            : '⚡ Resume all offers?\n\nThis will ACTIVATE all your paused offers.\nBuyers will see your offers again.';
+        
+        if (!confirm(confirmMessage)) {
+            log('Sleep mode toggle cancelled by user');
+            return;
+        }
+        
+        showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
+        log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
         
         // Find all offer rows on dashboard
         const offerRows = document.querySelectorAll('.grid-row');
         let processed = 0;
+        let skipped = 0;
         let failed = 0;
         
         for (const row of offerRows) {
-            // Check if this is our offer (has glitched-my-offer class or contains our code)
+            // Check if this is our offer
             const isOurOffer = row.classList.contains('glitched-my-offer') || 
                               containsOfferCode(row.textContent || '');
             
             if (!isOurOffer) continue;
             
             try {
-                if (newState) {
-                    // Sleep ON - click pause button
-                    const pauseBtn = row.querySelector('eld-button[iconbeforetext="pause"] button, button[aria-label="Pause"]');
-                    if (pauseBtn && !pauseBtn.disabled) {
-                        pauseBtn.click();
-                        processed++;
-                        await new Promise(r => setTimeout(r, 300));
+                if (willPause) {
+                    // Find pause button by icon
+                    const pauseIcon = row.querySelector('.icon-pause');
+                    if (pauseIcon) {
+                        const pauseBtn = pauseIcon.closest('button');
+                        if (pauseBtn && !pauseBtn.disabled) {
+                            pauseBtn.click();
+                            processed++;
+                            await new Promise(r => setTimeout(r, 500));
+                        } else {
+                            skipped++;
+                        }
+                    } else {
+                        skipped++; // Already paused
                     }
                 } else {
-                    // Sleep OFF - click resume button (chevron-right)
-                    const resumeBtn = row.querySelector('eld-button[iconbeforetext="chevron-right"] button, button[aria-label="Resume"]');
-                    if (resumeBtn && !resumeBtn.disabled) {
-                        resumeBtn.click();
-                        processed++;
-                        await new Promise(r => setTimeout(r, 300));
+                    // Find resume button by icon (chevron-right)
+                    const resumeIcon = row.querySelector('.icon-chevron-right');
+                    if (resumeIcon) {
+                        const resumeBtn = resumeIcon.closest('button');
+                        if (resumeBtn && !resumeBtn.disabled) {
+                            resumeBtn.click();
+                            processed++;
+                            await new Promise(r => setTimeout(r, 500));
+                        } else {
+                            skipped++;
+                        }
+                    } else {
+                        skipped++; // Already active
                     }
                 }
             } catch (e) {
@@ -443,14 +534,17 @@
             }
         }
         
-        // Update button
-        showMiniButton();
+        // Wait for UI to update
+        await new Promise(r => setTimeout(r, 1000));
         
-        const statusMsg = newState 
-            ? `💤 Sleep Mode ON - ${processed} offers paused`
-            : `⚡ Active - ${processed} offers resumed`;
-        showNotification(statusMsg, 'success');
-        log(`Sleep mode toggled: ${processed} processed, ${failed} failed`);
+        // Update button state
+        updateSleepButton();
+        
+        const statusMsg = willPause 
+            ? `💤 Sleep Mode - ${processed} offers paused${skipped > 0 ? ` (${skipped} already paused)` : ''}`
+            : `⚡ Active - ${processed} offers resumed${skipped > 0 ? ` (${skipped} already active)` : ''}`;
+        showNotification(statusMsg, processed > 0 ? 'success' : 'info');
+        log(`Sleep mode toggled: ${processed} processed, ${skipped} skipped, ${failed} failed`);
     }
     
     // ==================== REFRESH OFFERS ====================
@@ -614,7 +708,7 @@
     
     function showMiniButton() {
         // Удаляем существующие кнопки
-        document.querySelectorAll('.glitched-mini-btn, .glitched-inline-btn, .glitched-sleep-btn').forEach(el => el.remove());
+        document.querySelectorAll('.glitched-mini-btn, .glitched-navbar-container').forEach(el => el.remove());
         
         // Всегда ищем activities-area для встраивания
         const activitiesArea = document.querySelector('.activities-area.navbar-content');
@@ -623,7 +717,7 @@
             // Создаём контейнер для кнопок
             const container = document.createElement('div');
             container.className = 'glitched-navbar-container';
-            container.style.cssText = 'display: flex; align-items: center; margin-right: 8px;';
+            container.style.cssText = 'display: flex; align-items: center; margin-right: 8px; flex-shrink: 0;';
             
             // Кнопка панели
             const inlineBtn = document.createElement('div');
@@ -635,13 +729,24 @@
             
             // Sleep Mode кнопка (только на dashboard/offers)
             if (window.location.pathname.includes('/dashboard/offers')) {
+                const state = detectSleepState();
                 const sleepBtn = document.createElement('div');
-                sleepBtn.className = `glitched-sleep-btn ${CONFIG.sleepMode ? 'active' : 'inactive'}`;
-                sleepBtn.innerHTML = CONFIG.sleepMode 
-                    ? '💤 Sleep ON' 
-                    : '⚡ Active';
+                
+                if (state === 'sleep') {
+                    sleepBtn.className = 'glitched-sleep-btn active';
+                    sleepBtn.innerHTML = '💤 Sleep';
+                    sleepBtn.title = 'All offers paused. Click to resume.';
+                } else if (state === 'active') {
+                    sleepBtn.className = 'glitched-sleep-btn inactive';
+                    sleepBtn.innerHTML = '⚡ Active';
+                    sleepBtn.title = 'All offers active. Click to pause.';
+                } else {
+                    sleepBtn.className = 'glitched-sleep-btn unknown';
+                    sleepBtn.innerHTML = '❓ Mixed';
+                    sleepBtn.title = 'Some offers paused, some active. Click to sync.';
+                }
+                
                 sleepBtn.onclick = toggleSleepMode;
-                sleepBtn.title = CONFIG.sleepMode ? 'Click to resume all offers' : 'Click to pause all offers';
                 container.appendChild(sleepBtn);
             }
             
