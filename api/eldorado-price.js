@@ -697,6 +697,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     // ВАЖНО: если использовали фильтр "Other" или без фильтра - результаты менее надёжные
     // т.к. приходится полагаться на фильтрацию по title (которая может пропустить релевантные офферы)
     const searchWasReliable = filterMode === 'name' || allPageOffers.length > 0;
+    const usedNameFilter = filterMode === 'name' ? eldoradoName : (filterMode === 'other' ? 'Other' : null);
     
     console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable);
     
