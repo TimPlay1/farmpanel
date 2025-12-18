@@ -2730,15 +2730,25 @@ document.addEventListener('click', function(e) {
 // GENERATIONS TRACKING
 // ==========================================
 
-// Load generations data for current user
-async function loadGenerationsData() {
+// Track last loaded key to avoid repeated loads
+let lastLoadedGenerationsKey = null;
+let lastLoadedColorKey = null;
+
+// Load generations data for current user (with caching)
+async function loadGenerationsData(forceRefresh = false) {
     try {
         const farmKey = state.currentKey;
         if (!farmKey) return;
         
+        // Skip if already loaded for this key (unless forced)
+        if (!forceRefresh && lastLoadedGenerationsKey === farmKey && Object.keys(collectionState.generations).length > 0) {
+            return;
+        }
+        
         const response = await fetch(`/api/generations?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
         collectionState.generations = data.generations || {};
+        lastLoadedGenerationsKey = farmKey;
         console.log('Loaded generations:', Object.keys(collectionState.generations).length);
     } catch (err) {
         console.error('Error loading generations:', err);
@@ -2746,13 +2756,17 @@ async function loadGenerationsData() {
     }
 }
 
-// Load panel color (single color for entire panel based on farmKey)
-// Используем новый API user-color с fallback на старый
-async function loadPanelColor() {
+// Load panel color (single color for entire panel based on farmKey) - with caching
+async function loadPanelColor(forceRefresh = false) {
     try {
         const farmKey = state.currentKey;
         if (!farmKey) {
             collectionState.panelColor = '#4ade80';
+            return;
+        }
+        
+        // Skip if already loaded for this key (unless forced)
+        if (!forceRefresh && lastLoadedColorKey === farmKey && collectionState.panelColor) {
             return;
         }
         
@@ -2763,6 +2777,7 @@ async function loadPanelColor() {
                 const result = await response.json();
                 collectionState.panelColor = result.color || '#4ade80';
                 collectionState.colorPalette = result.palette || [];
+                lastLoadedColorKey = farmKey;
                 console.log('User color:', collectionState.panelColor, result.isCustom ? '(custom)' : '(default)');
                 return;
             }
@@ -2775,6 +2790,7 @@ async function loadPanelColor() {
         const result = await response.json();
         collectionState.panelColor = result.color || '#4ade80';
         collectionState.colorPalette = result.palette || [];
+        lastLoadedColorKey = farmKey;
         console.log('Panel color:', collectionState.panelColor);
     } catch (err) {
         console.error('Error loading panel color:', err);
@@ -4575,7 +4591,7 @@ async function startMassGeneration() {
             // Save generation record for each item in the group
             if (group.items) {
                 for (const item of group.items) {
-                    await saveGeneration(item.accountId, group.name, income, result.resultUrl);
+                    await saveGeneration(group.name, item.accountId, result.resultUrl, income);
                 }
             }
             
