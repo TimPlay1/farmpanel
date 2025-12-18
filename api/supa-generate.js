@@ -175,13 +175,13 @@ async function requestRender(brainrotData) {
         text: name || 'Unknown Brainrot'
     };
 
-    // Income - передаём чистый текст, стили настроены в шаблоне Supa
+    // Income - используем substyle для зелёного цвета #1BFF00
     let cleanIncome = income || '0/s';
     if (cleanIncome.startsWith('$')) {
         cleanIncome = cleanIncome.substring(1);
     }
     objectsOverrides[TEMPLATE_OBJECTS.INCOME] = {
-        text: cleanIncome
+        text: `<substyle color="#1BFF00">${cleanIncome}</substyle>`
     };
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));

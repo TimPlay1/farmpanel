@@ -5560,13 +5560,35 @@ function saveChartPeriod(period) {
     } catch (e) {}
 }
 
-// Update balance chart
+// Debounce timer for chart updates
+let chartUpdateTimer = null;
+
+// Update balance chart with debounce
 function updateBalanceChart(period = currentChartPeriod) {
+    // Clear pending update
+    if (chartUpdateTimer) {
+        clearTimeout(chartUpdateTimer);
+    }
+    
+    // Debounce chart updates to prevent flickering
+    chartUpdateTimer = setTimeout(() => {
+        _doUpdateBalanceChart(period);
+    }, 100);
+}
+
+// Actual chart update implementation
+function _doUpdateBalanceChart(period) {
     const chartContainer = document.getElementById('balanceChart');
     const chartEmpty = document.querySelector('.chart-empty');
     const chartStats = document.querySelector('.chart-stats');
     
     if (!chartContainer || !state.currentKey) return;
+    
+    // Check if canvas is properly sized
+    if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
+        console.log('Chart container not visible, skipping update');
+        return;
+    }
     
     // При ручном рефреше НЕ обновляем график - оставляем как есть
     if (state.isManualPriceRefresh) {

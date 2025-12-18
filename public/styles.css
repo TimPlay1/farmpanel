@@ -1902,6 +1902,13 @@ body {
     box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
     z-index: 6;
     cursor: help;
+    transition: top 0.2s ease;
+}
+
+/* Move quantity badge down when in selection mode to not overlap with checkbox */
+.brainrot-card.selectable .brainrot-quantity-badge {
+    top: calc(0.5rem + 24px + 0.5rem); /* Below the 24px checkbox: top + height + gap */
+    z-index: 12; /* Above checkbox (z-index: 10) */
 }
 
 /* Custom tooltip for quantity badge */
