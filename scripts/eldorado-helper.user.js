@@ -845,6 +845,7 @@
             log('No more items in queue');
             showNotification('✅ Очередь завершена!', 'success');
             clearQueue();
+            setTimeout(() => window.close(), 3000);
             return false;
         }
         log(`Processing queue item: ${item.name}`);
@@ -1476,6 +1477,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                             updateStatus('✅ Очередь завершена!', 'ready');
                             showNotification('🎉 Все офферы созданы!', 'success');
                             clearQueue();
+                            setTimeout(() => window.close(), 3000);
                         }
                     }, 2000);
                 } else {
