@@ -3218,8 +3218,12 @@ async function renderCollection() {
             !isGenerated(item.accountId, group.name, income)
         ).length;
         
-        // Selection mode variables
-        const isSelected = isSelectionMode && massSelectionState.selectedItems.includes(index);
+        // Selection mode variables - use group key for stable selection
+        const groupKey = getGroupKey(group);
+        const isSelected = isSelectionMode && massSelectionState.selectedItems.has(groupKey);
+        
+        // Check if brainrot has active offer
+        const hasOffer = hasActiveOffer(group.name, group.income);
         
         let priceHtml;
         
@@ -3301,6 +3305,7 @@ async function renderCollection() {
         if (partialGenerated) cardClasses.push('brainrot-partial');
         if (isSelectionMode) cardClasses.push('selectable');
         if (isSelected) cardClasses.push('selected');
+        if (hasOffer) cardClasses.push('has-offer');
         
         // Click handler for selection mode
         const clickHandler = isSelectionMode 
@@ -3312,8 +3317,10 @@ async function renderCollection() {
              data-brainrot-name="${group.name}" 
              data-brainrot-income="${income}" 
              data-brainrot-index="${index}"
+             data-brainrot-key="${groupKey}"
              data-quantity="${group.quantity}"
              ${clickHandler}>
+            ${hasOffer ? `<div class="brainrot-offer-badge" title="На продаже"><i class="fas fa-shopping-cart"></i></div>` : ''}
             <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
                 ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
             </div>
@@ -4144,10 +4151,38 @@ function postToEldorado() {
 // MASS SELECTION MODE
 // ==========================================
 
+/**
+ * Get unique key for a brainrot group (name + rounded income)
+ * Used for stable selection across search/filter operations
+ */
+function getGroupKey(group) {
+    if (!group) return '';
+    const income = normalizeIncomeForApi(group.income, group.incomeText);
+    const roundedIncome = Math.floor(income / 10) * 10;
+    return `${group.name.toLowerCase()}_${roundedIncome}`;
+}
+
+/**
+ * Check if brainrot has an active offer
+ */
+function hasActiveOffer(brainrotName, income) {
+    if (!offersState.offers || offersState.offers.length === 0) return false;
+    const normalizedIncome = normalizeIncomeForApi(income, null);
+    const roundedIncome = Math.floor(normalizedIncome / 10) * 10;
+    
+    return offersState.offers.some(offer => {
+        if (!offer.brainrotName) return false;
+        const offerIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
+        const offerRoundedIncome = Math.floor(offerIncome / 10) * 10;
+        return offer.brainrotName.toLowerCase() === brainrotName.toLowerCase() && 
+               offerRoundedIncome === roundedIncome;
+    });
+}
+
 // Mass selection state
 let massSelectionState = {
     isActive: false,
-    selectedItems: [], // Array of group indices
+    selectedItems: new Set(), // Set of group keys (stable across search/filter)
     isGenerating: false
 };
 
@@ -4163,29 +4198,33 @@ function toggleMassSelectionMode() {
         fab.innerHTML = '<i class="fas fa-times"></i>';
         fab.title = 'Выйти из режима выбора';
         indicator.classList.add('visible');
-        massSelectionState.selectedItems = [];
+        massSelectionState.selectedItems = new Set();
         updateMassSelectionUI();
     } else {
         fab.classList.remove('active');
         fab.innerHTML = '<i class="fas fa-layer-group"></i>';
         fab.title = 'Массовый выбор для генерации';
         indicator.classList.remove('visible');
-        massSelectionState.selectedItems = [];
+        massSelectionState.selectedItems = new Set();
     }
     
     // Re-render collection to show/hide checkboxes
     renderCollection();
 }
 
-// Toggle brainrot group selection
+// Toggle brainrot group selection (now uses group key instead of index)
 function toggleBrainrotSelection(index) {
     if (!massSelectionState.isActive) return;
     
-    const idx = massSelectionState.selectedItems.indexOf(index);
-    if (idx === -1) {
-        massSelectionState.selectedItems.push(index);
+    const group = collectionState.displayedGroups?.[index];
+    if (!group) return;
+    
+    const key = getGroupKey(group);
+    
+    if (massSelectionState.selectedItems.has(key)) {
+        massSelectionState.selectedItems.delete(key);
     } else {
-        massSelectionState.selectedItems.splice(idx, 1);
+        massSelectionState.selectedItems.add(key);
     }
     
     updateMassSelectionUI();
@@ -4193,7 +4232,7 @@ function toggleBrainrotSelection(index) {
     // Update card appearance
     const card = document.querySelector(`[data-brainrot-index="${index}"]`);
     if (card) {
-        card.classList.toggle('selected', massSelectionState.selectedItems.includes(index));
+        card.classList.toggle('selected', massSelectionState.selectedItems.has(key));
     }
 }
 
@@ -4201,14 +4240,14 @@ function toggleBrainrotSelection(index) {
 function updateMassSelectionUI() {
     const countEl = document.getElementById('massSelectCount');
     const btnEl = document.getElementById('massSelectGenerateBtn');
-    const selectedCount = massSelectionState.selectedItems.length;
+    const selectedCount = massSelectionState.selectedItems.size;
     
-    // Calculate total quantity (sum of all group quantities)
+    // Calculate total quantity by finding groups with matching keys
     let totalQuantity = 0;
     if (collectionState.displayedGroups) {
-        for (const idx of massSelectionState.selectedItems) {
-            const group = collectionState.displayedGroups[idx];
-            if (group) {
+        for (const group of collectionState.displayedGroups) {
+            const key = getGroupKey(group);
+            if (massSelectionState.selectedItems.has(key)) {
                 totalQuantity += group.quantity || 1;
             }
         }
@@ -4230,9 +4269,9 @@ function updateMassSelectionUI() {
 
 // Open mass generation modal
 function openMassGenerationModal() {
-    console.log('openMassGenerationModal called, selected items:', massSelectionState.selectedItems.length);
+    console.log('openMassGenerationModal called, selected items:', massSelectionState.selectedItems.size);
     
-    if (massSelectionState.selectedItems.length === 0) {
+    if (massSelectionState.selectedItems.size === 0) {
         console.warn('No items selected');
         return;
     }
@@ -4262,11 +4301,16 @@ function openMassGenerationModal() {
     if (startBtn) startBtn.disabled = false;
     massSelectionState.generationResults = [];
     
-    // Get selected groups
-    const selectedGroups = massSelectionState.selectedItems.map(idx => ({
-        ...collectionState.displayedGroups[idx],
-        groupIndex: idx
-    })).filter(g => g);
+    // Get selected groups by key (find in displayedGroups)
+    const selectedGroups = [];
+    if (collectionState.displayedGroups) {
+        for (const group of collectionState.displayedGroups) {
+            const key = getGroupKey(group);
+            if (massSelectionState.selectedItems.has(key)) {
+                selectedGroups.push({ ...group, groupKey: key });
+            }
+        }
+    }
     
     const totalItems = selectedGroups.reduce((sum, g) => sum + (g.quantity || 1), 0);
     

@@ -1877,6 +1877,36 @@ body {
     z-index: 5;
 }
 
+/* Has Offer Badge - Top Left Corner - shopping cart indicator */
+.brainrot-offer-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.5);
+    z-index: 7;
+}
+
+.brainrot-offer-badge i {
+    color: white;
+    font-size: 0.65rem;
+}
+
+/* Has offer card style - blue left border */
+.brainrot-card.has-offer {
+    border-left: 3px solid #3b82f6;
+}
+
+.brainrot-card.has-offer:hover {
+    border-left-color: #60a5fa;
+}
+
 .brainrot-generated-badge i {
     color: white;
     font-size: 0.65rem;
