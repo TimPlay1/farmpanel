@@ -73,6 +73,35 @@ function formatIncomeSec(num) {
     return sign + absNum.toFixed(0) + ' /s';
 }
 
+// Format income from M/s format (number in millions) to display format
+// API stores income as "390" meaning 390 M/s, need to convert to display "390 M/s"
+function formatIncomeFromMs(num) {
+    if (num === null || num === undefined || isNaN(num)) return '0 /s';
+    
+    const absNum = Math.abs(num);
+    const sign = num < 0 ? '-' : '';
+    
+    // Convert from M/s stored format back to raw, then format
+    // If number is small (< 10000), it's already in M/s format
+    // If large, it's raw format
+    if (absNum >= 10000) {
+        // Raw format - use formatIncomeSec directly
+        return formatIncomeSec(num);
+    }
+    
+    // M/s format - number represents millions per second
+    if (absNum >= 1e6) {
+        return sign + (absNum / 1e6).toFixed(2) + ' T/s';
+    } else if (absNum >= 1e3) {
+        return sign + (absNum / 1e3).toFixed(2) + ' B/s';
+    } else if (absNum >= 1) {
+        return sign + absNum.toFixed(1) + ' M/s';
+    } else if (absNum >= 0.001) {
+        return sign + (absNum * 1000).toFixed(0) + ' K/s';
+    }
+    return sign + (absNum * 1e6).toFixed(0) + ' /s';
+}
+
 // State
 let state = {
     currentKey: null,
@@ -5748,13 +5777,13 @@ function renderTopData(data, type) {
                             <div class="top-list-brainrot">${item.accountsCount} ${accountText}</div>
                         </div>
                         <div class="top-list-stats">
-                            <div class="top-list-value">${formatIncomeSec(item.value)}</div>
+                            <div class="top-list-value">${formatIncomeFromMs(item.value)}</div>
                         </div>
                     </div>
                 `;
             } else {
                 const valueDisplay = type === 'income' 
-                    ? formatIncomeSec(item.value)
+                    ? formatIncomeFromMs(item.value)
                     : `$${formatMoney(item.value)}`;
                     
                 html += `
@@ -5765,7 +5794,7 @@ function renderTopData(data, type) {
                         </div>
                         <div class="top-list-info">
                             <div class="top-list-name">${item.username}</div>
-                            <div class="top-list-brainrot">${item.brainrot?.name || 'Unknown'}${type === 'value' && item.brainrot?.income ? ` <span class="top-list-income">${formatIncomeSec(item.brainrot.income)}</span>` : ''}</div>
+                            <div class="top-list-brainrot">${item.brainrot?.name || 'Unknown'}${type === 'value' && item.brainrot?.income ? ` <span class="top-list-income">${formatIncomeFromMs(item.brainrot.income)}</span>` : ''}</div>
                         </div>
                         <div class="top-list-stats">
                             <div class="top-list-value">${valueDisplay}</div>
@@ -5809,14 +5838,14 @@ function renderTopPodium(top3, type) {
         const position = positions[index];
         const brainrotImg = getBrainrotImage(item.brainrot?.name);
         const valueDisplay = type === 'income' 
-            ? formatIncomeSec(item.value)
+            ? formatIncomeFromMs(item.value)
             : `$${formatMoney(item.value)}`;
         const avatarIcon = item.avatar?.icon || 'fa-user';
         const avatarColor = item.avatar?.color || '#6366f1';
         
         // Для вкладки Value показываем также income
         const incomeInfo = type === 'value' && item.brainrot?.income
-            ? `<div class="podium-income">${formatIncomeSec(item.brainrot.income)}</div>`
+            ? `<div class="podium-income">${formatIncomeFromMs(item.brainrot.income)}</div>`
             : '';
         
         // Брейнрот отображается в круглом аватаре сверху, аватар юзера слева от никнейма
@@ -5871,7 +5900,7 @@ function renderTopPodiumTotal(top3) {
                 <div class="podium-rank">#${index + 1}</div>
                 <div class="podium-name">${item.username}</div>
                 <div class="podium-brainrot-label">${item.accountsCount} ${accountText}</div>
-                <div class="podium-value">${formatIncomeSec(item.value)}</div>
+                <div class="podium-value">${formatIncomeFromMs(item.value)}</div>
             </div>
         `;
     });
@@ -5936,18 +5965,27 @@ function saveChartPeriod(period) {
 // Debounce timer for chart updates
 let chartUpdateTimer = null;
 let lastChartDataHash = null; // Track if data actually changed
+let isChartUpdating = false; // Prevent concurrent updates
 
-// Update balance chart with debounce
+// Update balance chart with debounce (non-blocking)
 function updateBalanceChart(period = currentChartPeriod) {
     // Clear pending update
     if (chartUpdateTimer) {
         clearTimeout(chartUpdateTimer);
     }
     
+    // Skip if already updating
+    if (isChartUpdating) {
+        return;
+    }
+    
     // Debounce chart updates to prevent flickering
     chartUpdateTimer = setTimeout(() => {
-        _doUpdateBalanceChart(period);
-    }, 150); // Increased debounce
+        // Use requestAnimationFrame for non-blocking UI
+        requestAnimationFrame(() => {
+            _doUpdateBalanceChart(period);
+        });
+    }, 100); // Reduced debounce for faster response
 }
 
 // Simple hash for chart data to detect changes
@@ -5965,17 +6003,26 @@ const MAX_CHART_RETRIES = 10;
 
 // Actual chart update implementation
 function _doUpdateBalanceChart(period) {
+    // Mark as updating to prevent concurrent calls
+    isChartUpdating = true;
+    
     const chartContainer = document.getElementById('balanceChart');
     const chartEmpty = document.querySelector('.chart-empty');
     const chartStats = document.querySelector('.chart-stats');
     
-    if (!chartContainer || !state.currentKey) return;
+    if (!chartContainer || !state.currentKey) {
+        isChartUpdating = false;
+        return;
+    }
     
     // Check if canvas is properly sized - retry later if not ready yet (with limit)
     if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
         if (chartRetryCount < MAX_CHART_RETRIES) {
             chartRetryCount++;
+            isChartUpdating = false;
             setTimeout(() => _doUpdateBalanceChart(period), 200);
+        } else {
+            isChartUpdating = false;
         }
         // Don't spam console - only log occasionally
         return;
@@ -5987,6 +6034,7 @@ function _doUpdateBalanceChart(period) {
     // При ручном рефреше НЕ обновляем график - оставляем как есть
     if (state.isManualPriceRefresh) {
         console.log('Skip chart update during manual price refresh');
+        isChartUpdating = false;
         return;
     }
     
@@ -6009,6 +6057,7 @@ function _doUpdateBalanceChart(period) {
     // Check if data actually changed - skip update if same
     const newHash = getChartDataHash(chartData);
     if (newHash === lastChartDataHash && balanceChart) {
+        isChartUpdating = false;
         return; // Data hasn't changed, skip redraw
     }
     lastChartDataHash = newHash;
@@ -6021,6 +6070,7 @@ function _doUpdateBalanceChart(period) {
         chartContainer.style.display = 'none';
         if (chartEmpty) chartEmpty.style.display = 'flex';
         if (chartStats) chartStats.innerHTML = '';
+        isChartUpdating = false;
         return;
     }
     
@@ -6143,6 +6193,8 @@ function _doUpdateBalanceChart(period) {
             }
         }
     });
+    
+    isChartUpdating = false;
 }
 
 // Initialize period tab listeners
