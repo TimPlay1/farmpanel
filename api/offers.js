@@ -26,6 +26,17 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'farmKey is required' });
             }
 
+            // Auto-delete paused offers older than 3 days
+            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+            const deleteResult = await offersCollection.deleteMany({
+                farmKey,
+                status: 'paused',
+                pausedAt: { $lt: threeDaysAgo }
+            });
+            if (deleteResult.deletedCount > 0) {
+                console.log(`Auto-deleted ${deleteResult.deletedCount} paused offers older than 3 days for farmKey: ${farmKey}`);
+            }
+
             if (offerId) {
                 // Получить конкретный оффер
                 const offer = await offersCollection.findOne({ farmKey, offerId });
@@ -96,7 +107,15 @@ module.exports = async (req, res) => {
             const update = { updatedAt: new Date() };
             if (currentPrice !== undefined) update.currentPrice = parseFloat(currentPrice);
             if (recommendedPrice !== undefined) update.recommendedPrice = parseFloat(recommendedPrice);
-            if (status !== undefined) update.status = status;
+            if (status !== undefined) {
+                update.status = status;
+                // Track when offer was paused for auto-deletion after 3 days
+                if (status === 'paused') {
+                    update.pausedAt = new Date();
+                } else if (status === 'active') {
+                    update.pausedAt = null; // Clear pausedAt when reactivated
+                }
+            }
 
             await offersCollection.updateOne(
                 { farmKey, offerId },

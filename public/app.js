@@ -4962,6 +4962,8 @@ function filterAndRenderOffers() {
     // Status filter
     if (offersState.statusFilter === 'active') {
         filtered = filtered.filter(o => o.status === 'active');
+    } else if (offersState.statusFilter === 'paused') {
+        filtered = filtered.filter(o => o.status === 'paused');
     } else if (offersState.statusFilter === 'needs-update') {
         filtered = filtered.filter(o => {
             const diff = calculatePriceDiff(o.currentPrice, o.recommendedPrice);
@@ -5065,6 +5067,19 @@ function renderOffers() {
         // v9.7: Better paused icon using FontAwesome
         const statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : (needsUpdate ? 'Needs Update' : 'Active');
         
+        // v9.7.6: Calculate days until auto-delete for paused offers
+        let pausedInfo = '';
+        if (isPaused && offer.pausedAt) {
+            const pausedDate = new Date(offer.pausedAt);
+            const deleteDate = new Date(pausedDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+            const daysLeft = Math.ceil((deleteDate - Date.now()) / (24 * 60 * 60 * 1000));
+            if (daysLeft > 0) {
+                pausedInfo = `<div class="offer-paused-info">Auto-delete in ${daysLeft} day${daysLeft > 1 ? 's' : ''}</div>`;
+            } else {
+                pausedInfo = `<div class="offer-paused-info urgent">Will be deleted soon</div>`;
+            }
+        }
+        
         return `
         <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''}" data-offer-id="${offer.offerId}">
             <div class="offer-card-checkbox">
@@ -5110,6 +5125,13 @@ function renderOffers() {
                     <i class="fas fa-edit"></i>
                     Adjust Price
                 </button>
+                ${isPaused ? `
+                <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
+                    <i class="fas fa-trash"></i>
+                    Delete
+                </button>
+                ${pausedInfo}
+                ` : ''}
             </div>
         </div>
         `;
@@ -5121,13 +5143,16 @@ function updateOffersStats() {
     if (!offersStatsEl) return;
     
     const total = offersState.offers.length;
+    const pausedCount = offersState.offers.filter(o => o.status === 'paused').length;
     const needsUpdate = offersState.offers.filter(o => {
+        if (o.status === 'paused') return false;
         const diff = Math.abs(calculatePriceDiff(o.currentPrice, o.recommendedPrice));
         return diff > 5;
     }).length;
     
     offersStatsEl.innerHTML = `
         <span><i class="fas fa-store"></i> ${total} total</span>
+        ${pausedCount > 0 ? `<span style="color: #9ca3af;"><i class="fas fa-pause-circle"></i> ${pausedCount} paused</span>` : ''}
         ${needsUpdate > 0 ? `<span style="color: #fbbf24;"><i class="fas fa-exclamation-triangle"></i> ${needsUpdate} need update</span>` : ''}
         ${offersState.selectedOffers.size > 0 ? `<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> ${offersState.selectedOffers.size} selected</span>` : ''}
     `;
@@ -5142,6 +5167,34 @@ function toggleOfferSelection(offerId) {
     }
     updateBulkActionsState();
     renderOffers();
+}
+
+// v9.7.6: Delete a paused offer from server
+async function deleteOffer(offerId, brainrotName) {
+    if (!confirm(`Delete offer "${brainrotName}" (${offerId}) from farmpanel?\n\nThis will remove it from tracking. The offer on Eldorado will NOT be affected.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}&offerId=${encodeURIComponent(offerId)}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to delete offer');
+        }
+        
+        // Remove from local state
+        offersState.offers = offersState.offers.filter(o => o.offerId !== offerId);
+        offersState.selectedOffers.delete(offerId);
+        
+        filterAndRenderOffers();
+        showToast(`Offer "${brainrotName}" deleted`, 'success');
+        
+    } catch (error) {
+        console.error('Delete offer error:', error);
+        showToast(`Failed to delete offer: ${error.message}`, 'error');
+    }
 }
 
 // Toggle select all offers

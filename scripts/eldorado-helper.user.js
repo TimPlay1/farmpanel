@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7.2
+// @version      9.7.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -433,6 +433,44 @@
         return userOfferCodes.has(code) || userOfferCodes.has('#' + code);
     }
     
+    // v9.7.4: Find offer element by code - needed because Angular recreates DOM
+    function findOfferElementByCode(offerCode) {
+        const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+        for (const item of items) {
+            const code = extractOfferCodeFromElement(item);
+            if (code === offerCode) return item;
+        }
+        return null;
+    }
+    
+    // v9.7.4: Reliable click for Angular - uses multiple methods
+    function reliableClick(element) {
+        if (!element) return false;
+        
+        // Method 1: Focus and click
+        try {
+            element.focus();
+            element.click();
+        } catch(e) {}
+        
+        // Method 2: Dispatch mouse events (without view property for Tampermonkey compatibility)
+        try {
+            const events = ['mousedown', 'mouseup', 'click'];
+            events.forEach(eventType => {
+                const event = new MouseEvent(eventType, {
+                    bubbles: true,
+                    cancelable: true,
+                    button: 0
+                });
+                element.dispatchEvent(event);
+            });
+        } catch(e) {
+            log('reliableClick fallback used');
+        }
+        
+        return true;
+    }
+    
     // Detect current sleep state from offers - v9.7: ONLY checks OUR offers!
     function detectSleepState() {
         // v9.7: CRITICAL FIX - only count offers with codes in userOfferCodes
@@ -730,53 +768,157 @@
                 
                 log(`Page ${page}: Found ${offerItems.length} offer items`);
                 
-                // Process offers on this page
+                // v9.7.4: Collect offer codes to process on this page
+                const codesToProcess = [];
                 for (const item of offerItems) {
-                    // Use saved codes to check ownership
-                    if (!isOurOfferSaved(item)) {
-                        continue;
-                    }
-                    
+                    if (!isOurOfferSaved(item)) continue;
+                    const code = extractOfferCodeFromElement(item);
+                    if (code) codesToProcess.push(code);
+                }
+                
+                log(`Page ${page}: ${codesToProcess.length} our offers to process: [${codesToProcess.join(', ')}]`);
+                
+                // v9.7.4: Process each offer by CODE (not by element reference!)
+                for (const offerCode of codesToProcess) {
                     try {
                         if (willPause) {
-                            const pauseIcon = item.querySelector('.icon-pause');
-                            if (pauseIcon) {
-                                const pauseBtn = pauseIcon.closest('button');
-                                if (pauseBtn && !pauseBtn.disabled) {
-                                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
-                                    await new Promise(r => setTimeout(r, 100));
-                                    pauseBtn.click();
-                                    totalProcessed++;
-                                    log(`Paused offer: ${extractOfferCodeFromElement(item)}`);
-                                    await new Promise(r => setTimeout(r, 600));
-                                } else {
+                            // v9.7.4: Retry logic for pausing - refind element each attempt
+                            let success = false;
+                            for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+                                // IMPORTANT: Find element FRESH each attempt (Angular recreates DOM)
+                                const item = findOfferElementByCode(offerCode);
+                                if (!item) {
+                                    log(`⚠ ${offerCode}: Element not found, may have been removed`);
                                     totalSkipped++;
+                                    break;
                                 }
-                            } else {
-                                totalSkipped++;
+                                
+                                const pauseIcon = item.querySelector('.icon-pause');
+                                if (!pauseIcon) {
+                                    // No pause icon = already paused or different state
+                                    const resumeIcon = item.querySelector('.icon-chevron-right');
+                                    if (resumeIcon) {
+                                        log(`✓ ${offerCode}: Already paused`);
+                                    }
+                                    success = true;
+                                    totalSkipped++;
+                                    break;
+                                }
+                                
+                                const pauseBtn = pauseIcon.closest('button');
+                                if (!pauseBtn || pauseBtn.disabled) {
+                                    log(`⚠ ${offerCode}: Button disabled or not found`);
+                                    success = true;
+                                    totalSkipped++;
+                                    break;
+                                }
+                                
+                                // Scroll element into view
+                                item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                await new Promise(r => setTimeout(r, 400));
+                                
+                                // v9.7.4: Use reliable click method
+                                log(`Pausing ${offerCode} (attempt ${attempt})...`);
+                                reliableClick(pauseBtn);
+                                
+                                // Wait longer for Angular to process
+                                await new Promise(r => setTimeout(r, 1200));
+                                
+                                // v9.7.4: Verify by finding element again (DOM may have changed)
+                                const freshItem = findOfferElementByCode(offerCode);
+                                if (!freshItem) {
+                                    // Element gone = probably success (removed from list after pause)
+                                    success = true;
+                                    totalProcessed++;
+                                    log(`✓ Paused ${offerCode} (element removed)`);
+                                    break;
+                                }
+                                
+                                const stillHasPauseIcon = freshItem.querySelector('.icon-pause');
+                                const hasResumeIcon = freshItem.querySelector('.icon-chevron-right');
+                                
+                                if (!stillHasPauseIcon || hasResumeIcon) {
+                                    success = true;
+                                    totalProcessed++;
+                                    log(`✓ Paused ${offerCode}`);
+                                } else if (attempt < 3) {
+                                    log(`⚠ Retry ${offerCode}: icon unchanged`);
+                                    await new Promise(r => setTimeout(r, 800));
+                                }
+                            }
+                            if (!success) {
+                                log(`✗ Failed to pause ${offerCode} after 3 attempts`);
+                                totalFailed++;
                             }
                         } else {
-                            const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
-                            if (resumeIcon) {
-                                const resumeBtn = resumeIcon.closest('button');
-                                if (resumeBtn && !resumeBtn.disabled) {
-                                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
-                                    await new Promise(r => setTimeout(r, 100));
-                                    resumeBtn.click();
-                                    totalProcessed++;
-                                    log(`Resumed offer: ${extractOfferCodeFromElement(item)}`);
-                                    await new Promise(r => setTimeout(r, 600));
-                                } else {
+                            // v9.7.4: Retry logic for resuming
+                            let success = false;
+                            for (let attempt = 1; attempt <= 3 && !success; attempt++) {
+                                const item = findOfferElementByCode(offerCode);
+                                if (!item) {
+                                    log(`⚠ ${offerCode}: Element not found`);
                                     totalSkipped++;
+                                    break;
                                 }
-                            } else {
-                                totalSkipped++;
+                                
+                                const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
+                                if (!resumeIcon) {
+                                    const pauseIcon = item.querySelector('.icon-pause');
+                                    if (pauseIcon) {
+                                        log(`✓ ${offerCode}: Already active`);
+                                    }
+                                    success = true;
+                                    totalSkipped++;
+                                    break;
+                                }
+                                
+                                const resumeBtn = resumeIcon.closest('button');
+                                if (!resumeBtn || resumeBtn.disabled) {
+                                    success = true;
+                                    totalSkipped++;
+                                    break;
+                                }
+                                
+                                item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                await new Promise(r => setTimeout(r, 400));
+                                
+                                log(`Resuming ${offerCode} (attempt ${attempt})...`);
+                                reliableClick(resumeBtn);
+                                
+                                await new Promise(r => setTimeout(r, 1200));
+                                
+                                const freshItem = findOfferElementByCode(offerCode);
+                                if (!freshItem) {
+                                    success = true;
+                                    totalProcessed++;
+                                    log(`✓ Resumed ${offerCode}`);
+                                    break;
+                                }
+                                
+                                const stillHasResumeIcon = freshItem.querySelector('.icon-chevron-right') || freshItem.querySelector('.icon-play');
+                                const hasPauseIcon = freshItem.querySelector('.icon-pause');
+                                
+                                if (!stillHasResumeIcon || hasPauseIcon) {
+                                    success = true;
+                                    totalProcessed++;
+                                    log(`✓ Resumed ${offerCode}`);
+                                } else if (attempt < 3) {
+                                    log(`⚠ Retry ${offerCode}: icon unchanged`);
+                                    await new Promise(r => setTimeout(r, 800));
+                                }
+                            }
+                            if (!success) {
+                                log(`✗ Failed to resume ${offerCode} after 3 attempts`);
+                                totalFailed++;
                             }
                         }
                     } catch (e) {
                         totalFailed++;
-                        log('Error toggling offer:', e);
+                        log(`Error toggling ${offerCode}:`, e);
                     }
+                    
+                    // v9.7.6: Re-apply highlighting after each offer (Angular may have removed it)
+                    highlightUserOffers();
                 }
             }
             
@@ -791,10 +933,15 @@
             // Update button state
             updateSleepButton();
             
+            // v9.7.4: Re-apply highlighting after toggle (Angular may have removed it)
+            setTimeout(() => {
+                highlightUserOffers();
+            }, 500);
+            
             const statusMsg = willPause 
-                ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} already paused)` : ''}`
-                : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} already active)` : ''}`;
-            showNotification(statusMsg, totalProcessed > 0 ? 'success' : 'info');
+                ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} already paused)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`
+                : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} already active)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
+            showNotification(statusMsg, totalFailed > 0 ? 'warning' : (totalProcessed > 0 ? 'success' : 'info'));
             log(`Sleep mode toggled: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalFailed} failed`);
             
             // v9.7: Trigger scan to update status in farmpanel DB
@@ -2386,8 +2533,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     // ==================== НАБЛЮДАТЕЛЬ ЗА ИЗМЕНЕНИЯМИ ====================
     function setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
-            // v9.7.2: Skip processing if toggle is in progress
-            if (isTogglingOffers) return;
+            // v9.7.6: DON'T skip highlighting during toggle - only skip sleep button update
             
             // Перепроверяем подсветку при изменениях DOM
             let shouldCheck = false;
@@ -2409,17 +2555,16 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             
             if (shouldCheck) {
-                // v9.7.2: Increased debounce to 1500ms to reduce spam
+                // v9.7.6: Shorter debounce for highlighting (500ms), always apply it
                 clearTimeout(window.glitchedHighlightTimeout);
                 window.glitchedHighlightTimeout = setTimeout(() => {
-                    // Double-check toggle is not in progress
-                    if (isTogglingOffers) return;
+                    // Always highlight - even during toggle
                     highlightUserOffers();
-                    // v9.7: Also update sleep button when DOM changes
-                    if (window.location.pathname.includes('/dashboard/offers')) {
+                    // v9.7.6: Only update sleep button if NOT toggling
+                    if (!isTogglingOffers && window.location.pathname.includes('/dashboard/offers')) {
                         updateSleepButton();
                     }
-                }, 1500);
+                }, 500);
             }
             
             // Re-insert button if navbar changed
