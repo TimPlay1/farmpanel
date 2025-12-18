@@ -668,9 +668,14 @@
         if (ordersContainer) {
             const orderRows = ordersContainer.querySelectorAll('.grid-row');
             orderRows.forEach(row => {
-                const text = row.textContent || '';
-                // Ищем по коду оффера или по "Glitched Store" в названии
-                if (containsOfferCode(text) || text.includes('Glitched Store')) {
+                // Ищем tooltip-inner внутри row - там полное название оффера
+                const tooltipInner = row.querySelector('.tooltip-inner');
+                const tooltipText = tooltipInner ? tooltipInner.textContent : '';
+                const rowText = row.textContent || '';
+                
+                // Ищем по коду оффера в tooltip или по "Glitched Store" в названии
+                if (containsOfferCode(tooltipText) || tooltipText.includes('Glitched Store') ||
+                    containsOfferCode(rowText) || rowText.includes('Glitched Store')) {
                     row.classList.add('glitched-my-offer');
                     highlighted++;
                 }

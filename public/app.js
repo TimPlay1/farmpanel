@@ -258,7 +258,12 @@ async function getAccountAvatar(userId, serverAvatars) {
  * Загрузить историю баланса из сервера (MongoDB)
  */
 async function loadBalanceHistory() {
-    if (!state.currentKey) return;
+    if (!state.currentKey) {
+        console.log('loadBalanceHistory: no currentKey, skipping');
+        return;
+    }
+    
+    console.log('loadBalanceHistory: loading for', state.currentKey);
     
     try {
         // Сначала пробуем загрузить из сервера
@@ -269,7 +274,11 @@ async function loadBalanceHistory() {
                 state.balanceHistory[state.currentKey] = data.history;
                 console.log(`Loaded ${data.history.length} balance history records from server`);
                 return;
+            } else {
+                console.log('Server returned empty history');
             }
+        } else {
+            console.warn('Balance history API returned', response.status);
         }
     } catch (e) {
         console.warn('Failed to load balance history from server:', e);
@@ -5619,9 +5628,11 @@ function _doUpdateBalanceChart(period) {
     });
     
     const chartData = getChartData(state.currentKey, period);
+    console.log(`Chart data for period ${period}:`, chartData.labels.length, 'points, history:', state.balanceHistory[state.currentKey]?.length || 0);
     
     if (chartData.labels.length < 2) {
         // Not enough data
+        console.log('Not enough chart data, showing empty state');
         chartContainer.style.display = 'none';
         if (chartEmpty) chartEmpty.style.display = 'flex';
         if (chartStats) chartStats.innerHTML = '';
