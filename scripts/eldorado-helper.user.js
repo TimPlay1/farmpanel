@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.3
+// @version      8.4
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.3';
+    const VERSION = '8.4';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -604,43 +604,43 @@
             return; // На dashboard не нужно искать текст
         }
         
-        // === СПОСОБ 2: Другие страницы (маркетплейс) - анимируем заголовки офферов ===
-        // Ищем заголовки/названия офферов
-        const offerTitles = document.querySelectorAll(
-            '[data-testid*="offer-title"], ' +
-            '[class*="offer-name"] h5, ' +
-            '[class*="offer-title"], ' +
-            '.listing-title, ' +
-            '.product-title, ' +
-            'h5.hyphenate'
-        );
+        // === СПОСОБ 2: Marketplace - ищем .offer-title и подсвечиваем карточку eld-offer-item ===
+        const offerTitles = document.querySelectorAll('.offer-title');
         
-        offerTitles.forEach(titleEl => {
-            const text = titleEl.textContent || '';
+        if (offerTitles.length > 0) {
+            offerTitles.forEach(titleEl => {
+                const text = titleEl.textContent || '';
+                
+                if (containsOfferCode(text)) {
+                    // Находим родительскую карточку eld-offer-item или eld-card
+                    const card = titleEl.closest('eld-offer-item') || titleEl.closest('eld-card') || titleEl.closest('a[href*="/oi/"]');
+                    if (card) {
+                        card.classList.add('glitched-my-offer');
+                        highlighted++;
+                    }
+                }
+            });
             
-            if (containsOfferCode(text)) {
-                titleEl.classList.add('glitched-my-offer-text');
-                highlighted++;
+            if (highlighted > 0) {
+                log(`Marketplace: Highlighted ${highlighted} offer cards`);
             }
-        });
+            return;
+        }
         
-        // Также ищем ссылки на офферы
+        // === СПОСОБ 3: Fallback - ищем ссылки на офферы ===
         document.querySelectorAll('a[href*="/oi/"]').forEach(link => {
             const text = link.textContent || '';
-            const h5 = link.querySelector('h5');
             
             if (containsOfferCode(text)) {
-                if (h5) {
-                    h5.classList.add('glitched-my-offer-text');
-                } else {
-                    link.classList.add('glitched-my-offer-text');
-                }
+                // Находим карточку
+                const card = link.closest('eld-offer-item') || link.closest('eld-card') || link;
+                card.classList.add('glitched-my-offer');
                 highlighted++;
             }
         });
         
         if (highlighted > 0) {
-            log(`Marketplace: Highlighted ${highlighted} offer titles with animation`);
+            log(`Fallback: Highlighted ${highlighted} offer cards`);
         }
     }
     
