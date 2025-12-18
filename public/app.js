@@ -5062,7 +5062,8 @@ function renderOffers() {
         // v9.6: Show paused status
         const isPaused = offer.status === 'paused';
         const statusBadgeClass = isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active');
-        const statusBadgeText = isPaused ? '⏸ Paused' : (needsUpdate ? 'Needs Update' : 'Active');
+        // v9.7: Better paused icon using FontAwesome
+        const statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : (needsUpdate ? 'Needs Update' : 'Active');
         
         return `
         <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''}" data-offer-id="${offer.offerId}">

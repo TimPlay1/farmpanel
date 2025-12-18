@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.6
-// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode
+// @version      9.7
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.6
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.6
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.6';
+    const VERSION = '9.7';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -408,20 +408,40 @@
     
     // ==================== SLEEP MODE ====================
     
-    // Detect current sleep state from offers
+    // v9.7: Extract offer code from element text (h5 title contains #GSXXXXXX)
+    function extractOfferCodeFromElement(item) {
+        // Look for h5 title which contains the code
+        const h5 = item.querySelector('h5');
+        if (h5) {
+            const match = h5.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+            if (match) {
+                return match[0].toUpperCase().replace(/^#/, '');
+            }
+        }
+        // Fallback: search entire text
+        const match = item.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+        if (match) {
+            return match[0].toUpperCase().replace(/^#/, '');
+        }
+        return null;
+    }
+    
+    // v9.7: Check if element contains OUR offer code (from userOfferCodes)
+    function isOurOffer(item) {
+        const code = extractOfferCodeFromElement(item);
+        if (!code) return false;
+        return userOfferCodes.has(code) || userOfferCodes.has('#' + code);
+    }
+    
+    // Detect current sleep state from offers - v9.7: ONLY checks OUR offers!
     function detectSleepState() {
-        const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
+        // v9.7: CRITICAL FIX - only count offers with codes in userOfferCodes
+        // Even on My Offers page, user may have multiple farmKeys or non-tracked offers
         
-        // v9.6: Use multiple selectors for My Offers page
-        // Primary: eld-dashboard-offers-list-item (Angular component)
-        // Secondary: .offer-list-item (inner div)
-        // Fallback: .grid-row (Orders page)
         let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
-        
         if (offerItems.length === 0) {
             offerItems = document.querySelectorAll('.offer-list-item');
         }
-        
         if (offerItems.length === 0) {
             offerItems = document.querySelectorAll('.grid-row');
         }
@@ -429,27 +449,31 @@
         let pausedCount = 0;
         let activeCount = 0;
         let totalOffersCount = 0;
+        let ourOfferCodes = []; // Track which offers we found
         
-        log(`detectSleepState: Found ${offerItems.length} items using selector, isMyOffersPage=${isMyOffersPage}`);
+        log(`detectSleepState: Found ${offerItems.length} items on page, userOfferCodes has ${userOfferCodes.size} codes`);
         
         for (const item of offerItems) {
-            // On My Offers page, all items are ours
-            if (!isMyOffersPage) {
-                const isOurOffer = item.classList.contains('glitched-my-offer') || 
-                                  item.querySelector('.glitched-my-offer') ||
-                                  containsOfferCode(item.textContent || '');
-                if (!isOurOffer) continue;
+            // v9.7: ALWAYS check if this is OUR offer by code - not just on non-dashboard pages
+            const code = extractOfferCodeFromElement(item);
+            
+            if (!code) {
+                continue; // No code found, skip
+            }
+            
+            // Check if this code belongs to us
+            if (!userOfferCodes.has(code) && !userOfferCodes.has('#' + code)) {
+                continue; // Not our offer, skip
             }
             
             totalOffersCount++;
+            ourOfferCodes.push(code);
             
-            // v9.6: Check status via multiple methods:
-            // 1. Icon: .icon-pause = active, .icon-chevron-right = paused
+            // v9.7: Check status via multiple methods:
+            // 1. Icon: .icon-pause = active (can pause), .icon-chevron-right = paused (can resume)
             // 2. Chip: aria-label="Active" or aria-label="Paused"
             const pauseIcon = item.querySelector('.icon-pause');
             const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
-            
-            // Also check the status chip (more reliable)
             const activeChip = item.querySelector('[aria-label="Active"]');
             const pausedChip = item.querySelector('[aria-label="Paused"]');
             
@@ -460,12 +484,149 @@
             }
         }
         
-        log(`Sleep state detection: ${totalOffersCount} offers, ${pausedCount} paused, ${activeCount} active`);
+        log(`Sleep state: Found ${totalOffersCount} OUR offers (${activeCount} active, ${pausedCount} paused)`);
+        log(`Our codes on page: [${ourOfferCodes.join(', ')}]`);
         
         if (totalOffersCount === 0) return 'unknown';
         if (pausedCount === totalOffersCount) return 'sleep';
         if (activeCount === totalOffersCount) return 'active';
         return 'mixed'; // Mixed state - some active, some paused
+    }
+    
+    // v9.7: Auto-scroll down to load all offers (lazy loading)
+    async function scrollToLoadAllOffers() {
+        const container = document.querySelector('.offer-list-wrapper') || 
+                          document.querySelector('eld-dashboard-offers-list') ||
+                          document.querySelector('.dashboard-content') ||
+                          document.documentElement;
+        
+        if (!container) return;
+        
+        let lastOfferCount = 0;
+        let sameCountTimes = 0;
+        const maxScrollAttempts = 20;
+        
+        for (let i = 0; i < maxScrollAttempts; i++) {
+            // Scroll down
+            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Check if more offers loaded
+            const currentCount = document.querySelectorAll('eld-dashboard-offers-list-item').length;
+            
+            if (currentCount === lastOfferCount) {
+                sameCountTimes++;
+                if (sameCountTimes >= 3) {
+                    log(`Scroll complete: ${currentCount} offers loaded after ${i + 1} scrolls`);
+                    break;
+                }
+            } else {
+                sameCountTimes = 0;
+                lastOfferCount = currentCount;
+            }
+        }
+        
+        // Scroll back to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        await new Promise(r => setTimeout(r, 300));
+    }
+    
+    // v9.7: Navigate to next page of offers
+    async function goToNextPage() {
+        // Look for pagination next arrow
+        const nextArrow = document.querySelector('.pagination-arrow:last-child div') ||
+                          document.querySelector('.pagination-arrow:not(.disable) .icon-sign-right')?.closest('div') ||
+                          document.querySelector('[aria-label="Next page"]');
+        
+        if (nextArrow && !nextArrow.closest('.disable')) {
+            nextArrow.click();
+            await new Promise(r => setTimeout(r, 1500)); // Wait for page load
+            return true;
+        }
+        return false;
+    }
+    
+    // v9.7: Get current page number
+    function getCurrentPageNumber() {
+        const activePage = document.querySelector('.pagination .active-page');
+        if (activePage) {
+            return parseInt(activePage.textContent?.trim(), 10) || 1;
+        }
+        return 1;
+    }
+    
+    // v9.7: Get total pages
+    function getTotalPages() {
+        const pagination = document.querySelector('.pagination[actpage]');
+        if (pagination) {
+            const pages = pagination.querySelectorAll('.pagination-item:not(.pagination-arrow)');
+            let maxPage = 1;
+            pages.forEach(p => {
+                const num = parseInt(p.textContent?.trim(), 10);
+                if (!isNaN(num) && num > maxPage) maxPage = num;
+            });
+            return maxPage;
+        }
+        return 1;
+    }
+    
+    // v9.7: Load all offers on current page (scroll) and across all pages
+    async function loadAllOffersOnPage() {
+        log('Loading all offers on page...');
+        
+        // First scroll to load lazy-loaded offers on current page
+        await scrollToLoadAllOffers();
+        
+        // Check how many of our offers are on this page vs total in userOfferCodes
+        const currentCount = countOurOffersOnPage();
+        const expectedCount = userOfferCodes.size;
+        
+        log(`Found ${currentCount} of ${expectedCount} offers on current page`);
+        
+        // If we have pagination and haven't found all offers, navigate pages
+        const totalPages = getTotalPages();
+        if (totalPages > 1 && currentCount < expectedCount) {
+            log(`Multiple pages detected (${totalPages}), checking for missing offers...`);
+            
+            // Track which offer codes we've processed
+            const foundCodes = new Set();
+            collectFoundCodesOnPage(foundCodes);
+            
+            // Find missing codes
+            const missingCodes = [...userOfferCodes].filter(c => {
+                const code = c.replace(/^#/, '');
+                return !foundCodes.has(code) && !foundCodes.has('#' + code);
+            });
+            
+            if (missingCodes.length > 0) {
+                log(`Missing ${missingCodes.length} offers: [${missingCodes.slice(0, 5).join(', ')}...]`);
+                // Note: For now we don't auto-navigate pages as it's complex
+                // User should manually ensure all pages are checked if needed
+                showNotification(`⚠️ ${missingCodes.length} offers may be on other pages`, 'warning');
+            }
+        }
+    }
+    
+    // v9.7: Count our offers currently visible on page
+    function countOurOffersOnPage() {
+        let count = 0;
+        const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+        items.forEach(item => {
+            if (isOurOffer(item)) count++;
+        });
+        return count;
+    }
+    
+    // v9.7: Collect found offer codes from current page
+    function collectFoundCodesOnPage(foundSet) {
+        const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+        items.forEach(item => {
+            const code = extractOfferCodeFromElement(item);
+            if (code) {
+                foundSet.add(code);
+                foundSet.add('#' + code);
+            }
+        });
     }
     
     // Update sleep button based on actual state
@@ -485,10 +646,14 @@
             sleepBtn.classList.add('inactive');
             sleepBtn.innerHTML = '⚡ Active';
             sleepBtn.title = 'All offers active. Click to pause.';
+        } else if (state === 'mixed') {
+            sleepBtn.classList.add('unknown');
+            sleepBtn.innerHTML = '⚡/💤 Mixed';
+            sleepBtn.title = 'Some offers active, some paused. Click to sync all.';
         } else {
             sleepBtn.classList.add('unknown');
-            sleepBtn.innerHTML = '❓ Mixed';
-            sleepBtn.title = 'Some offers paused, some active. Click to sync.';
+            sleepBtn.innerHTML = '❓ Unknown';
+            sleepBtn.title = 'Could not detect offer status. Make sure your offers are visible.';
         }
     }
     
@@ -509,7 +674,10 @@
         showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
         log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
         
-        // v9.6: Use multiple selectors for My Offers page
+        // v9.7: First scroll down to load all offers and handle pagination
+        await loadAllOffersOnPage();
+        
+        // v9.7: Use updated selectors
         let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
         if (offerItems.length === 0) {
             offerItems = document.querySelectorAll('.offer-list-item');
@@ -518,22 +686,16 @@
             offerItems = document.querySelectorAll('.grid-row');
         }
         
-        log(`toggleSleepMode: Found ${offerItems.length} offer items`);
+        log(`toggleSleepMode: Found ${offerItems.length} offer items after loading all`);
         
         let processed = 0;
         let skipped = 0;
         let failed = 0;
         
-        // On My Offers page (/dashboard/offers), all items are ours
-        const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
-        
         for (const item of offerItems) {
-            // Check if this is our offer (on other pages)
-            if (!isMyOffersPage) {
-                const isOurOffer = item.classList.contains('glitched-my-offer') || 
-                                  item.querySelector('.glitched-my-offer') ||
-                                  containsOfferCode(item.textContent || '');
-                if (!isOurOffer) continue;
+            // v9.7: ALWAYS check if this is OUR offer by code
+            if (!isOurOffer(item)) {
+                continue; // Not our offer, skip
             }
             
             try {
@@ -543,6 +705,9 @@
                     if (pauseIcon) {
                         const pauseBtn = pauseIcon.closest('button');
                         if (pauseBtn && !pauseBtn.disabled) {
+                            // Scroll element into view
+                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            await new Promise(r => setTimeout(r, 200));
                             pauseBtn.click();
                             processed++;
                             await new Promise(r => setTimeout(r, 500));
@@ -558,6 +723,9 @@
                     if (resumeIcon) {
                         const resumeBtn = resumeIcon.closest('button');
                         if (resumeBtn && !resumeBtn.disabled) {
+                            // Scroll element into view
+                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            await new Promise(r => setTimeout(r, 200));
                             resumeBtn.click();
                             processed++;
                             await new Promise(r => setTimeout(r, 500));
@@ -585,6 +753,75 @@
             : `⚡ Active - ${processed} offers resumed${skipped > 0 ? ` (${skipped} already active)` : ''}`;
         showNotification(statusMsg, processed > 0 ? 'success' : 'info');
         log(`Sleep mode toggled: ${processed} processed, ${skipped} skipped, ${failed} failed`);
+        
+        // v9.7: Trigger scan to update status in farmpanel DB
+        if (processed > 0) {
+            log('Triggering farmpanel scan to sync status...');
+            // Signal farmpanel to rescan
+            localStorage.setItem('glitched_refresh_offers', Date.now().toString());
+            // Also try to call scan API directly
+            syncOfferStatusToFarmpanel(willPause);
+        }
+    }
+    
+    // v9.7: Sync offer status to farmpanel after sleep mode toggle
+    async function syncOfferStatusToFarmpanel(isPaused) {
+        try {
+            const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+            if (!farmKey) return;
+            
+            // Collect current status of our offers on page
+            const statusUpdates = [];
+            const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+            
+            for (const item of items) {
+                const code = extractOfferCodeFromElement(item);
+                if (!code || !userOfferCodes.has(code)) continue;
+                
+                // Check actual status after toggle
+                const pausedChip = item.querySelector('[aria-label="Paused"]');
+                const activeChip = item.querySelector('[aria-label="Active"]');
+                const resumeIcon = item.querySelector('.icon-chevron-right');
+                const pauseIcon = item.querySelector('.icon-pause');
+                
+                const status = (pausedChip || resumeIcon) ? 'paused' : 'active';
+                statusUpdates.push({ offerId: '#' + code, status });
+            }
+            
+            log(`Syncing ${statusUpdates.length} offer statuses to farmpanel`);
+            
+            // Update each offer status via API
+            for (const update of statusUpdates) {
+                try {
+                    await new Promise((resolve, reject) => {
+                        GM_xmlhttpRequest({
+                            method: 'PUT',
+                            url: `${API_BASE}/offers`,
+                            headers: { 'Content-Type': 'application/json' },
+                            data: JSON.stringify({ 
+                                farmKey, 
+                                offerId: update.offerId, 
+                                status: update.status 
+                            }),
+                            onload: (response) => {
+                                if (response.status >= 200 && response.status < 300) {
+                                    resolve();
+                                } else {
+                                    reject(new Error(`HTTP ${response.status}`));
+                                }
+                            },
+                            onerror: reject
+                        });
+                    });
+                } catch (e) {
+                    log(`Failed to sync status for ${update.offerId}:`, e);
+                }
+            }
+            
+            log('Status sync complete');
+        } catch (e) {
+            log('Error syncing status to farmpanel:', e);
+        }
     }
     
     // ==================== REFRESH OFFERS ====================

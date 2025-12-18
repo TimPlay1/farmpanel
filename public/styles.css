@@ -3211,17 +3211,26 @@ body {
 
 /* v9.6: Paused offer status */
 .offer-status-badge.paused {
-    background: rgba(156, 163, 175, 0.2);
+    background: rgba(107, 114, 128, 0.2);
     color: #9ca3af;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.offer-status-badge.paused i {
+    font-size: 0.8rem;
 }
 
 .offer-card.paused {
-    opacity: 0.7;
-    border-color: rgba(156, 163, 175, 0.3);
+    opacity: 0.65;
+    border-color: rgba(107, 114, 128, 0.4);
+    filter: grayscale(30%);
 }
 
 .offer-card.paused:hover {
     opacity: 0.85;
+    filter: grayscale(10%);
 }
 
 @media (max-width: 768px) {
