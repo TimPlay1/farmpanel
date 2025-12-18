@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.0
+// @version      9.1
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -12,6 +12,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
+// @grant        window.close
 // @connect      farmpanel.vercel.app
 // @connect      api.supa.ru
 // @connect      storage.supa.ru
@@ -19,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.0
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.0
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.1
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.1
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.0';
+    const VERSION = '9.1';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -844,19 +845,38 @@
         log('Queue cleared');
     }
     
+    // Try to close window, fallback to redirect if not allowed
+    function closeWindowOrRedirect() {
+        // Try to close
+        try {
+            window.close();
+        } catch (e) {
+            log('window.close() failed: ' + e.message);
+        }
+        
+        // If still open after 500ms, redirect to panel
+        setTimeout(() => {
+            if (!window.closed) {
+                log('Window still open, redirecting to panel...');
+                window.location.href = 'https://farmpanel.vercel.app';
+            }
+        }, 500);
+    }
+    
     function processNextQueueItem() {
         const item = getCurrentQueueItem();
         if (!item) {
             log('No more items in queue');
-            showNotification('✅ Очередь завершена!', 'success');
+            showNotification('✅ Очередь завершена! Закрытие через 3 сек...', 'success');
             clearQueue();
-            setTimeout(() => window.close(), 3000);
+            setTimeout(() => closeWindowOrRedirect(), 3000);
             return false;
         }
-        log(`Processing queue item: ${item.name}`);
+        log(`Processing queue item: ${item.name} (qty: ${item.quantity || 1})`);
         const offerDataForUrl = {
             name: item.name, income: item.income, generatedImageUrl: item.imageUrl,
             maxPrice: parseFloat(item.price) || 0, minPrice: parseFloat(item.price) || 0,
+            quantity: item.quantity || 1,
             accountName: item.accountName, fromQueue: true,
             queueIndex: queueState.currentIndex, queueTotal: queueState.queue.length
         };
