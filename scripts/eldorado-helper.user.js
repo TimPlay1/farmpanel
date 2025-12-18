@@ -300,11 +300,9 @@
         .glitched-notification.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .glitched-notification.error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
         .glitched-notification.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .glitched-notification.transparent {
-            background: transparent !important;
-            color: #888;
-            box-shadow: none;
-            border: 1px solid rgba(255,255,255,0.1);
+        .glitched-notification.deleted { 
+            background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+            color: #e5e7eb;
         }
         @keyframes glitched-slide-in {
             from { transform: translateX(100%); opacity: 0; }
@@ -398,16 +396,6 @@
         document.body.appendChild(el);
         
         setTimeout(() => el.remove(), 4000);
-    }
-    
-    // Show transparent notification (for deleted offers etc)
-    function showTransparentNotification(message, duration = 3000) {
-        const el = document.createElement('div');
-        el.className = 'glitched-notification transparent';
-        el.textContent = message;
-        el.style.top = '150px'; // Lower position to not overlap other notifications
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), duration);
     }
     
     // ==================== SLEEP MODE ====================
@@ -505,7 +493,7 @@
                         const text = removed.textContent || '';
                         // Check if removed element was our offer
                         if (removed.classList?.contains('glitched-my-offer') || containsOfferCode(text)) {
-                            showTransparentNotification('🗑️ Offer deleted');
+                            showNotification('🗑️ Offer deleted', 'deleted');
                             triggerOffersRefresh();
                         }
                     }
