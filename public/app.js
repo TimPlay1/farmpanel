@@ -1096,6 +1096,7 @@ let editingKeyForUsername = null;
 document.addEventListener('DOMContentLoaded', async () => {
     await loadBrainrotMapping();
     loadState();
+    loadFarmersDataFromCache(); // Загружаем кэш данных фермеров для мгновенного отображения
     loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
     loadAvatarCache(); // Загружаем кэш аватаров
     loadBalanceHistory(); // Загружаем историю баланса
@@ -1103,6 +1104,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (state.currentKey && state.savedKeys.length > 0) {
         showMainApp();
+        // Сразу показываем данные из кэша
+        if (state.farmersData[state.currentKey]) {
+            updateUI();
+        }
         // Пробуем загрузить цены с сервера для быстрого отображения
         loadPricesFromServer().then(loaded => {
             if (loaded) {
@@ -1143,6 +1148,40 @@ function saveState() {
     } catch (e) {
         console.error('Failed to save state:', e);
     }
+}
+
+// Кэширование данных фермеров в localStorage
+const FARMERS_CACHE_KEY = 'farmerPanelFarmersCache';
+const FARMERS_CACHE_EXPIRY = 5 * 60 * 1000; // 5 минут
+
+function saveFarmersDataToCache() {
+    try {
+        const cache = {
+            timestamp: Date.now(),
+            data: state.farmersData
+        };
+        localStorage.setItem(FARMERS_CACHE_KEY, JSON.stringify(cache));
+    } catch (e) {
+        console.error('Failed to save farmers cache:', e);
+    }
+}
+
+function loadFarmersDataFromCache() {
+    try {
+        const cached = localStorage.getItem(FARMERS_CACHE_KEY);
+        if (cached) {
+            const { timestamp, data } = JSON.parse(cached);
+            // Проверяем что кэш не устарел
+            if (Date.now() - timestamp < FARMERS_CACHE_EXPIRY && data) {
+                state.farmersData = data;
+                console.log('Loaded farmers data from cache');
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error('Failed to load farmers cache:', e);
+    }
+    return false;
 }
 
 // Event Listeners
@@ -1378,6 +1417,8 @@ function restoreLastView() {
 
 // Polling
 let pollingInterval = null;
+let currentFetchController = null; // AbortController для отмены запросов
+let fetchRequestId = 0; // ID запроса для проверки актуальности
 
 function startPolling() {
     fetchFarmerData();
@@ -1391,11 +1432,34 @@ function stopPolling() {
     }
 }
 
+// Отменить текущий запрос (при переключении пользователя)
+function abortCurrentFetch() {
+    if (currentFetchController) {
+        currentFetchController.abort();
+        currentFetchController = null;
+    }
+}
+
 async function fetchFarmerData() {
     if (!state.currentKey) return;
     
+    // Отменяем предыдущий запрос если есть
+    abortCurrentFetch();
+    
+    const requestKey = state.currentKey;
+    const requestId = ++fetchRequestId;
+    currentFetchController = new AbortController();
+    
     try {
-        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`);
+        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`, {
+            signal: currentFetchController.signal
+        });
+        
+        // Проверяем что ключ не изменился пока ждали ответ
+        if (state.currentKey !== requestKey || fetchRequestId !== requestId) {
+            console.log('Ignoring stale response for', requestKey);
+            return;
+        }
         
         if (!response.ok) {
             console.error('Failed to fetch farmer data');
@@ -1403,7 +1467,17 @@ async function fetchFarmerData() {
         }
         
         const data = await response.json();
-        state.farmersData[state.currentKey] = data;
+        
+        // Ещё раз проверяем актуальность
+        if (state.currentKey !== requestKey) {
+            console.log('Key changed during fetch, ignoring');
+            return;
+        }
+        
+        state.farmersData[requestKey] = data;
+        
+        // Сохраняем в localStorage для быстрой загрузки
+        saveFarmersDataToCache();
         
         // Кэшируем base64 аватары в localStorage для офлайн доступа
         if (data.accountAvatars) {
@@ -2279,6 +2353,15 @@ async function handleEditUsername() {
 }
 
 window.selectFarmKey = function(farmKey) {
+    // Если уже выбран этот ключ - ничего не делаем
+    if (state.currentKey === farmKey) {
+        return;
+    }
+    
+    // Останавливаем текущий polling и отменяем запросы
+    stopPolling();
+    abortCurrentFetch();
+    
     state.currentKey = farmKey;
     saveState();
     
@@ -2291,8 +2374,8 @@ window.selectFarmKey = function(farmKey) {
     
     renderFarmKeys();
     
-    // Загружаем свежие данные в фоне
-    fetchFarmerData();
+    // Перезапускаем polling для нового пользователя
+    startPolling();
 };
 
 window.deleteFarmKey = function(farmKey) {
