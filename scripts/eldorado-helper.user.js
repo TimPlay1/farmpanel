@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.5
+// @version      8.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.5';
+    const VERSION = '8.6';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -47,11 +47,18 @@
     
     // ==================== СТИЛИ ====================
     GM_addStyle(`
-        /* Подсветка карточки оффера на dashboard */
+        /* Подсветка карточки оффера на dashboard и marketplace */
         .glitched-my-offer {
             position: relative;
             box-shadow: 0 0 0 3px ${CONFIG.highlightColor}, 0 0 20px ${CONFIG.highlightColor}66 !important;
             border-radius: 8px;
+        }
+        /* Фон для карточки - перезаписываем Tailwind классы */
+        .glitched-my-offer,
+        .glitched-my-offer > a,
+        .glitched-my-offer > eld-card > a,
+        .glitched-my-offer a[href*="/oi/"] {
+            background: linear-gradient(135deg, #1a1a3e 0%, #2d1b4e 100%) !important;
         }
         .glitched-my-offer::before {
             content: '✓ MY OFFER';
