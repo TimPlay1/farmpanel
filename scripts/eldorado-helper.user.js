@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7.8
+// @version      9.7.9
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -1139,9 +1139,12 @@
     
     // ==================== АВТОРИЗАЦИЯ ====================
     function showAuthPanel() {
-        // Удаляем существующую панель
+        // v9.7.8: Toggle - если панель уже открыта, закрываем её
         const existing = document.querySelector('.glitched-auth-panel');
-        if (existing) existing.remove();
+        if (existing) {
+            existing.remove();
+            return; // Просто закрываем, не открываем заново
+        }
         
         // Удаляем мини-кнопку
         const miniBtn = document.querySelector('.glitched-mini-btn');
