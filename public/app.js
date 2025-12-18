@@ -91,8 +91,9 @@ let state = {
     lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
-// Кэш цен Eldorado (время жизни 5 минут)
-const PRICE_CACHE_TTL = 5 * 60 * 1000;
+// Кэш цен Eldorado (время жизни 10 минут)
+const PRICE_CACHE_TTL = 10 * 60 * 1000;
+const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
@@ -1120,6 +1121,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Сначала загружаем данные, потом запускаем polling
         await fetchAllFarmersData();
         startPolling();
+        
+        // Автообновление цен каждые 10 минут
+        startAutoPriceRefresh();
     } else {
         showLoginScreen();
     }
@@ -3405,6 +3409,125 @@ function clearPriceCache() {
         state.frozenBalance = null;
         console.log('Manual price refresh completed - balance unfrozen');
     }, 30000); // 30 секунд на загрузку всех цен
+}
+
+/**
+ * Автоматическое обновление цен каждые 10 минут
+ * Постепенно обновляет цены для всех брейнротов в коллекции
+ */
+let autoPriceRefreshInterval = null;
+let isAutoRefreshing = false;
+
+function startAutoPriceRefresh() {
+    if (autoPriceRefreshInterval) {
+        clearInterval(autoPriceRefreshInterval);
+    }
+    
+    // Запускаем первое обновление через 10 минут
+    autoPriceRefreshInterval = setInterval(async () => {
+        if (!state.currentKey || isAutoRefreshing) return;
+        
+        console.log('🔄 Starting automatic price refresh...');
+        await refreshAllPricesGradually();
+    }, PRICE_AUTO_REFRESH_INTERVAL);
+    
+    console.log('⏰ Auto price refresh scheduled every 10 minutes');
+}
+
+function stopAutoPriceRefresh() {
+    if (autoPriceRefreshInterval) {
+        clearInterval(autoPriceRefreshInterval);
+        autoPriceRefreshInterval = null;
+    }
+}
+
+/**
+ * Постепенное обновление цен для всех уникальных брейнротов
+ * Обновляет по одному брейнроту с задержкой между запросами
+ */
+async function refreshAllPricesGradually() {
+    if (isAutoRefreshing) {
+        console.log('Auto refresh already in progress, skipping');
+        return;
+    }
+    
+    isAutoRefreshing = true;
+    
+    try {
+        // Собираем все уникальные брейнроты с income
+        const uniqueBrainrots = new Map();
+        const data = state.farmersData[state.currentKey];
+        
+        if (!data || !data.accounts) {
+            isAutoRefreshing = false;
+            return;
+        }
+        
+        for (const account of data.accounts) {
+            if (!account.brainrots) continue;
+            for (const b of account.brainrots) {
+                const income = normalizeIncomeForApi(b.income, b.incomeText);
+                const key = `${b.name.toLowerCase()}_${income}`;
+                if (!uniqueBrainrots.has(key)) {
+                    uniqueBrainrots.set(key, { name: b.name, income, incomeText: b.incomeText });
+                }
+            }
+        }
+        
+        const total = uniqueBrainrots.size;
+        let refreshed = 0;
+        
+        console.log(`🔄 Refreshing prices for ${total} unique brainrots...`);
+        
+        // Обновляем по одному с задержкой 500ms между запросами
+        for (const [key, brainrot] of uniqueBrainrots) {
+            try {
+                const cacheKey = getPriceCacheKey(brainrot.name, brainrot.income);
+                
+                // Проверяем возраст кэша
+                const cached = state.eldoradoPrices[cacheKey];
+                const cacheAge = cached?.timestamp ? Date.now() - cached.timestamp : Infinity;
+                
+                // Обновляем только если кэш старше 10 минут
+                if (cacheAge > PRICE_CACHE_TTL) {
+                    // Удаляем из кэша чтобы принудить новый запрос
+                    delete state.eldoradoPrices[cacheKey];
+                    delete state.brainrotPrices[cacheKey];
+                    
+                    // Запрашиваем новую цену
+                    const priceData = await fetchEldoradoPrice(brainrot.name, brainrot.income);
+                    
+                    if (priceData && priceData.suggestedPrice) {
+                        // Сохраняем в brainrotPrices для отображения
+                        state.brainrotPrices[cacheKey] = {
+                            ...priceData,
+                            timestamp: Date.now()
+                        };
+                        refreshed++;
+                        console.log(`   ${brainrot.name} (${brainrot.income}M/s): $${priceData.suggestedPrice} [${priceData.source || 'regex'}]`);
+                    }
+                    
+                    // Задержка между запросами чтобы не перегружать API
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            } catch (e) {
+                console.warn(`Failed to refresh price for ${brainrot.name}:`, e.message);
+            }
+        }
+        
+        console.log(`✅ Auto price refresh complete: ${refreshed}/${total} updated`);
+        
+        // Обновляем UI после всех обновлений
+        if (refreshed > 0) {
+            savePriceCacheToStorage();
+            updateUI();
+        }
+        
+    } catch (error) {
+        console.error('Auto price refresh error:', error);
+    } finally {
+        isAutoRefreshing = false;
+    }
 }
 
 // Update collection when data changes
