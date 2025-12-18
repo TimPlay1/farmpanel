@@ -4112,7 +4112,7 @@ function toggleBrainrotSelection(index) {
 function updateMassSelectionUI() {
     const countEl = document.getElementById('massSelectCount');
     const btnEl = document.getElementById('massSelectGenerateBtn');
-    const count = massSelectionState.selectedItems.length;
+    const selectedCount = massSelectionState.selectedItems.length;
     
     // Calculate total quantity (sum of all group quantities)
     let totalQuantity = 0;
@@ -4125,10 +4125,17 @@ function updateMassSelectionUI() {
         }
     }
     
-    if (countEl) countEl.textContent = totalQuantity > count ? `${count} / ${totalQuantity} шт` : count;
+    // Show: selected groups count (and total brainrots if different)
+    if (countEl) {
+        if (totalQuantity > selectedCount) {
+            countEl.textContent = `${selectedCount} групп (${totalQuantity} шт)`;
+        } else {
+            countEl.textContent = `${selectedCount} шт`;
+        }
+    }
     if (btnEl) {
-        btnEl.disabled = count === 0;
-        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать ${count} шт`;
+        btnEl.disabled = selectedCount === 0;
+        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать ${selectedCount} шт`;
     }
 }
 
@@ -5584,9 +5591,10 @@ function _doUpdateBalanceChart(period) {
     
     if (!chartContainer || !state.currentKey) return;
     
-    // Check if canvas is properly sized
+    // Check if canvas is properly sized - retry later if not ready yet
     if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
-        console.log('Chart container not visible, skipping update');
+        console.log('Chart container not visible, will retry in 200ms');
+        setTimeout(() => _doUpdateBalanceChart(period), 200);
         return;
     }
     
