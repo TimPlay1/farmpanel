@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7.6
+// @version      9.7.8
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -383,8 +383,22 @@
     `);
     
     // ==================== УТИЛИТЫ ====================
+    // v9.7.7: Minimal logging - only important events
+    const DEBUG_MODE = false; // Set to true for verbose logging
+    
     function log(...args) {
+        if (DEBUG_MODE) {
+            console.log('[Glitched]', ...args);
+        }
+    }
+    
+    // Important logs that always show
+    function logInfo(...args) {
         console.log('[Glitched]', ...args);
+    }
+    
+    function logError(...args) {
+        console.error('[Glitched]', ...args);
     }
     
     function updateStatus(message, className = '') {
@@ -734,7 +748,7 @@
         
         try {
             showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
-            log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
+            logInfo(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
             
             let totalProcessed = 0;
             let totalSkipped = 0;
@@ -847,7 +861,7 @@
                                 }
                             }
                             if (!success) {
-                                log(`✗ Failed to pause ${offerCode} after 3 attempts`);
+                                logInfo(`✗ Failed to pause ${offerCode}`);
                                 totalFailed++;
                             }
                         } else {
@@ -908,13 +922,13 @@
                                 }
                             }
                             if (!success) {
-                                log(`✗ Failed to resume ${offerCode} after 3 attempts`);
+                                logInfo(`✗ Failed to resume ${offerCode}`);
                                 totalFailed++;
                             }
                         }
                     } catch (e) {
                         totalFailed++;
-                        log(`Error toggling ${offerCode}:`, e);
+                        logError(`Error toggling ${offerCode}:`, e);
                     }
                     
                     // v9.7.6: Re-apply highlighting after each offer (Angular may have removed it)
@@ -942,7 +956,7 @@
                 ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} already paused)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`
                 : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} already active)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
             showNotification(statusMsg, totalFailed > 0 ? 'warning' : (totalProcessed > 0 ? 'success' : 'info'));
-            log(`Sleep mode toggled: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalFailed} failed`);
+            logInfo(`Sleep mode: ${totalProcessed} paused/resumed, ${totalSkipped} skipped, ${totalFailed} failed`);
             
             // v9.7: Trigger scan to update status in farmpanel DB
             if (totalProcessed > 0) {
@@ -1041,8 +1055,10 @@
             }
             
             log('Status sync complete');
+            // v9.7.8: Trigger panel refresh after status sync
+            triggerPanelRefresh();
         } catch (e) {
-            log('Error syncing status to farmpanel:', e);
+            logError('Error syncing status to farmpanel:', e);
         }
     }
     
@@ -1365,7 +1381,7 @@
                     log(`Loaded ${apiOffers.length} offers from API`);
                 }
             } catch (offersErr) {
-                log('Could not load offers from API:', offersErr);
+                logError('Could not load offers from API:', offersErr);
             }
             
             // Сохраняем в кэш для быстрой загрузки в следующий раз
@@ -1373,7 +1389,7 @@
                 localStorage.setItem('glitched_offer_codes', JSON.stringify([...userOfferCodes]));
             } catch (e) {}
             
-            log(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots, ${userOfferCodes.size} unique codes`);
+            logInfo(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots, ${userOfferCodes.size} unique codes`);
             CONFIG.connectionError = false;
             
             if (userOffers.length > 0) {
@@ -1392,7 +1408,7 @@
             
         } catch (e) {
             CONFIG.connectionError = true;
-            log('Error loading data:', e);
+            logError('Error loading data:', e);
             showNotification('Failed to connect: ' + e.message, 'error');
         }
     }
@@ -2432,8 +2448,22 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ farmKey, offerId, currentPrice: newPrice, status: 'active' })
             });
+            if (response.ok) {
+                // Trigger refresh in panel (cross-tab communication via localStorage)
+                triggerPanelRefresh();
+            }
             return response.ok;
         } catch (e) { return false; }
+    }
+    
+    // Trigger panel to refresh offers list
+    function triggerPanelRefresh() {
+        const timestamp = Date.now().toString();
+        localStorage.setItem('glitched_refresh_offers', timestamp);
+        // Force storage event by removing and re-adding (works better cross-tab)
+        localStorage.removeItem('glitched_refresh_offers');
+        localStorage.setItem('glitched_refresh_offers', timestamp);
+        log('Triggered panel refresh');
     }
 
     async function goToNextPage() {
@@ -2597,7 +2627,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     async function init() {
-        log(`Glitched Store v${VERSION} initialized`);
+        logInfo(`Glitched Store v${VERSION} initialized`);
         
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
