@@ -855,7 +855,7 @@
             queueIndex: queueState.currentIndex, queueTotal: queueState.queue.length
         };
         const encodedData = encodeURIComponent(JSON.stringify(offerDataForUrl));
-        const url = `https://www.eldorado.gg/sell/create/roblox/roblox-items/o/steal-a-brainrot/steal-a-brainrot-brainrots?glitched_data=${encodedData}`;
+        const url = `https://www.eldorado.gg/sell/offer/CustomItem/259?glitched_data=${encodedData}`;
         window.location.href = url;
         return true;
     }
