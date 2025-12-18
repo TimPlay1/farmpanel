@@ -4349,7 +4349,7 @@ function openMassGenerationModal() {
     list.innerHTML = selectedGroups.map((group, i) => {
         const accountsList = group.items ? group.items.map(item => item.accountName).join(', ') : 'Unknown';
         return `
-            <div class="mass-gen-item" data-item-index="${i}">
+            <div class="mass-gen-item" data-item-index="${i}" data-group-key="${group.groupKey}">
                 <img class="mass-gen-item-img" src="${group.imageUrl || ''}" alt="${group.name}" 
                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%231a1a2e%22 width=%2240%22 height=%2240%22/></svg>'">
                 <div class="mass-gen-item-info">
@@ -4443,17 +4443,20 @@ async function startMassGeneration() {
     // Disable remove buttons
     list.querySelectorAll('.mass-gen-item-remove').forEach(btn => btn.style.display = 'none');
     
-    // Get groups to generate from displayed groups
+    // Get groups to generate from DOM items using stored groupKey
     const groupsToGenerate = [];
     items.forEach((item, idx) => {
-        const name = item.querySelector('.mass-gen-item-name')?.textContent?.replace(/\s*x\d+\s*$/, '').trim() || '';
-        // Find the group in displayed groups by name
-        const group = collectionState.displayedGroups?.find(g => g.name === name);
+        const groupKey = item.dataset.groupKey;
+        // Find the group in displayed groups by groupKey (unique identifier)
+        const group = collectionState.displayedGroups?.find(g => getGroupKey(g) === groupKey);
         if (group) {
+            console.log('[MassGen] Found group:', group.name, 'quantity:', group.quantity);
             groupsToGenerate.push({
                 ...group,
                 itemIndex: idx
             });
+        } else {
+            console.warn('[MassGen] Group not found for key:', groupKey);
         }
     });
     
