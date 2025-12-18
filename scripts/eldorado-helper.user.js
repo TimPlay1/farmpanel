@@ -853,33 +853,51 @@
 
     async function trySelectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
+        
         try {
             closeAllDropdowns();
             await new Promise(r => setTimeout(r, 150));
+            
             const input = ngSelect.querySelector('input[role="combobox"]');
-            if (!input) return false;
+            if (!input) {
+                log('Input not found in ng-select', 'warn');
+                return false;
+            }
+            
             input.focus();
             await new Promise(r => setTimeout(r, 50));
+            
             input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
             await new Promise(r => setTimeout(r, 50));
             input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             await new Promise(r => setTimeout(r, 200));
-            if (input.getAttribute('aria-expanded') !== 'true') {
+            
+            let isOpen = input.getAttribute('aria-expanded') === 'true';
+            
+            if (!isOpen) {
                 input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
                 await new Promise(r => setTimeout(r, 200));
             }
+            
             let panel = null;
             for (let i = 0; i < 20; i++) {
                 panel = document.querySelector('ng-dropdown-panel');
                 if (panel) break;
                 await new Promise(r => setTimeout(r, 80));
             }
-            if (!panel) return false;
+            
+            if (!panel) {
+                log(`Dropdown panel not found for: ${optionText}`, 'warn');
+                return false;
+            }
+            
             const options = panel.querySelectorAll('.ng-option');
             const searchText = optionText.toLowerCase();
+            
+            // Exact match first
             for (const opt of options) {
                 const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
-                if (label.toLowerCase() === searchText || label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                if (label.toLowerCase() === searchText) {
                     opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
                     await new Promise(r => setTimeout(r, 30));
                     opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -887,9 +905,24 @@
                     return true;
                 }
             }
+            
+            // Partial match
+            for (const opt of options) {
+                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                if (label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 30));
+                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 250));
+                    return true;
+                }
+            }
+            
             closeAllDropdowns();
             return false;
+            
         } catch (e) {
+            log(`Error selecting: ${e.message}`, 'error');
             closeAllDropdowns();
             return false;
         }
@@ -897,19 +930,51 @@
 
     async function selectNgOption(ngSelect, optionText, maxRetries = 3) {
         if (!ngSelect) return false;
-        if (isValueSelected(ngSelect, optionText)) return true;
+        
+        log(`Selecting "${optionText}"...`);
+        
+        // Сначала проверяем - может уже выбрано
+        if (isValueSelected(ngSelect, optionText)) {
+            log(`Already selected: ${optionText}`, 'success');
+            return true;
+        }
+        
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            await trySelectNgOption(ngSelect, optionText);
+            log(`Attempt ${attempt}/${maxRetries} for "${optionText}"`);
+            
+            const clicked = await trySelectNgOption(ngSelect, optionText);
             await new Promise(r => setTimeout(r, 300));
-            if (isValueSelected(ngSelect, optionText)) return true;
+            
+            // Проверяем результат
+            if (isValueSelected(ngSelect, optionText)) {
+                log(`Selected: ${optionText}`, 'success');
+                return true;
+            }
+            
+            if (!clicked) {
+                log(`Option "${optionText}" not clicked`, 'warn');
+            } else {
+                log(`Clicked but not selected: ${optionText}`, 'warn');
+            }
+            
             await new Promise(r => setTimeout(r, 500));
         }
+        
+        log(`Failed to select "${optionText}" after ${maxRetries} attempts`, 'error');
         return false;
     }
 
     function findNgSelectByAriaLabel(label) {
-        const inputs = document.querySelectorAll('ng-select input[aria-label]');
+        // Сначала ищем в desktop версии
+        const inputs = document.querySelectorAll('.hidden.md\\:block input[aria-label]');
         for (const input of inputs) {
+            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
+                return input.closest('ng-select');
+            }
+        }
+        // Потом во всех ng-select
+        const allInputs = document.querySelectorAll('ng-select input[aria-label]');
+        for (const input of allInputs) {
             if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
                 return input.closest('ng-select');
             }
@@ -1012,115 +1077,300 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
     async function setTotalQuantity(quantity) {
         if (!quantity || quantity < 1) quantity = 1;
+        
         try {
+            // Ищем поле Total Quantity по aria-label
             let qtyInput = document.querySelector('input[aria-label="Numeric input field"]');
+            
+            // Если не нашли, ищем по контексту "Total Quantity"
             if (!qtyInput) {
-                const qtyLabel = [...document.querySelectorAll('span')].find(s => s.textContent?.toLowerCase().includes('total quantity'));
-                if (qtyLabel) qtyInput = qtyLabel.closest('div')?.querySelector('input');
+                const qtyLabel = [...document.querySelectorAll('span')].find(s => 
+                    s.textContent?.toLowerCase().includes('total quantity')
+                );
+                if (qtyLabel) {
+                    const container = qtyLabel.closest('.value-group') || qtyLabel.closest('div');
+                    qtyInput = container?.querySelector('input');
+                }
             }
+            
+            // Ещё один способ - ищем eld-numeric-input с aria-label="Total Quantity"
             if (!qtyInput) {
                 const qtyGroup = document.querySelector('[aria-label="Total Quantity"]');
-                if (qtyGroup) qtyInput = qtyGroup.querySelector('input');
+                if (qtyGroup) {
+                    qtyInput = qtyGroup.querySelector('input');
+                }
             }
-            if (!qtyInput) return false;
+            
+            // Пробуем найти по классу value-group
+            if (!qtyInput) {
+                const valueGroups = document.querySelectorAll('.value-group');
+                for (const group of valueGroups) {
+                    if (group.textContent?.toLowerCase().includes('quantity')) {
+                        qtyInput = group.querySelector('input');
+                        break;
+                    }
+                }
+            }
+            
+            if (!qtyInput) {
+                log('Total Quantity input not found', 'warn');
+                return false;
+            }
+            
+            log(`Found Total Quantity input, setting to ${quantity}`);
+            
+            // Устанавливаем значение
             qtyInput.focus();
             await new Promise(r => setTimeout(r, 100));
+            
+            // Очищаем поле
             qtyInput.value = '';
             qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
-            for (const char of String(quantity)) {
+            await new Promise(r => setTimeout(r, 50));
+            
+            // Вводим значение посимвольно для Angular
+            const qtyStr = String(quantity);
+            for (const char of qtyStr) {
                 qtyInput.value += char;
                 qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+                qtyInput.dispatchEvent(new KeyboardEvent('keydown', { key: char, bubbles: true }));
+                qtyInput.dispatchEvent(new KeyboardEvent('keyup', { key: char, bubbles: true }));
                 await new Promise(r => setTimeout(r, 30));
             }
+            
+            // Финальные события
             qtyInput.dispatchEvent(new Event('change', { bubbles: true }));
             qtyInput.dispatchEvent(new Event('blur', { bubbles: true }));
+            
+            log(`Total Quantity set to ${quantity}`, 'success');
             return true;
-        } catch (e) { return false; }
+            
+        } catch (e) {
+            log(`Error setting Total Quantity: ${e.message}`, 'error');
+            return false;
+        }
     }
 
     // ==================== ЗАПОЛНЕНИЕ ФОРМЫ ====================
     async function fillOfferForm() {
         if (!offerData) return;
+
         const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity } = offerData;
         const offerId = generateOfferId();
         const totalQuantity = quantity || 1;
+
         updateStatus('🔄 Заполняем форму...', 'working');
-        log(`Starting auto-fill for ${name} (qty: ${totalQuantity})`);
+        log(`Starting auto-fill v5.3... (quantity: ${totalQuantity})`);
 
         try {
             await waitForOfferPage();
             await new Promise(r => setTimeout(r, 1000));
+
             const expectedIncomeRange = getIncomeRange(income);
             const expectedRarity = rarity || 'Secret';
+            
+            // Track what we need to verify at the end
+            const verificationResults = {};
 
             // 1. Income range
-            let incomeSelect = findNgSelectByAriaLabel('M/s') || findNgSelectByPlaceholder('m/s');
-            if (!incomeSelect) incomeSelect = document.querySelector('.hidden.md\\:block ng-select');
-            if (incomeSelect) { await selectNgOption(incomeSelect, expectedIncomeRange); await new Promise(r => setTimeout(r, 300)); }
-
-            // 2. Mutations
+            log('Step 1: Income range -> ' + expectedIncomeRange);
+            let incomeSelect = findNgSelectByAriaLabel('M/s') || 
+                               findNgSelectByAriaLabel('Income') || 
+                               findNgSelectByPlaceholder('m/s') ||
+                               findNgSelectByPlaceholder('income');
+            
+            if (!incomeSelect) {
+                const firstDesktopSelect = document.querySelector('.hidden.md\\:block ng-select');
+                if (firstDesktopSelect) incomeSelect = firstDesktopSelect;
+            }
+            
+            if (incomeSelect) {
+                const selected = await selectNgOption(incomeSelect, expectedIncomeRange);
+                verificationResults.incomeRange = selected;
+                if (!selected) log('⚠️ Income range may not be selected correctly', 'warn');
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            // 2. Mutations - None
+            log('Step 2: Mutations -> None');
             const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
-            if (mutationSelect) { await selectNgOption(mutationSelect, 'None'); await new Promise(r => setTimeout(r, 300)); }
-
-            // 3. Item type
+            if (mutationSelect) {
+                const selected = await selectNgOption(mutationSelect, 'None');
+                verificationResults.mutations = selected;
+                if (!selected) log('⚠️ Mutations may not be selected correctly', 'warn');
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            // 3. Item type - Brainrot
+            log('Step 3: Item type -> Brainrot');
             const itemTypeSelect = findNgSelectByAriaLabel('Item type');
-            if (itemTypeSelect) { await selectNgOption(itemTypeSelect, 'Brainrot'); await new Promise(r => setTimeout(r, 500)); }
-
+            if (itemTypeSelect) {
+                const selected = await selectNgOption(itemTypeSelect, 'Brainrot');
+                verificationResults.itemType = selected;
+                if (!selected) log('⚠️ Item type may not be selected correctly', 'warn');
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
             // 4. Rarity
+            log('Step 4: Rarity -> ' + expectedRarity);
             let raritySelect = null;
-            for (let i = 0; i < 10; i++) { raritySelect = findNgSelectByAriaLabel('Rarity'); if (raritySelect) break; await new Promise(r => setTimeout(r, 150)); }
-            if (raritySelect) { await selectNgOption(raritySelect, expectedRarity); await new Promise(r => setTimeout(r, 500)); }
-
+            for (let i = 0; i < 10; i++) {
+                raritySelect = findNgSelectByAriaLabel('Rarity');
+                if (raritySelect) break;
+                await new Promise(r => setTimeout(r, 150));
+            }
+            if (raritySelect) {
+                const selected = await selectNgOption(raritySelect, expectedRarity);
+                verificationResults.rarity = selected;
+                if (!selected) log('⚠️ Rarity may not be selected correctly', 'warn');
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
             // 5. Brainrot name
+            log('Step 5: Brainrot -> ' + name);
             let brainrotSelect = null;
-            for (let i = 0; i < 10; i++) { brainrotSelect = findNgSelectByAriaLabel('Brainrot'); if (brainrotSelect) break; await new Promise(r => setTimeout(r, 150)); }
+            for (let i = 0; i < 10; i++) {
+                brainrotSelect = findNgSelectByAriaLabel('Brainrot');
+                if (brainrotSelect) break;
+                await new Promise(r => setTimeout(r, 150));
+            }
             if (brainrotSelect) {
                 let selected = await selectNgOption(brainrotSelect, name);
-                if (!selected) await selectNgOption(brainrotSelect, 'Other');
+                if (!selected) {
+                    log('Brainrot not found, selecting Other', 'warn');
+                    selected = await selectNgOption(brainrotSelect, 'Other');
+                }
+                verificationResults.brainrot = selected;
                 await new Promise(r => setTimeout(r, 300));
             }
 
-            // 6. Title
+            // 6. Title (с кодом оффера для поиска)
+            log('Step 6: Title');
             const titleInput = document.querySelector('textarea[maxlength="160"]');
-            if (titleInput) setInputValue(titleInput, generateOfferTitle(name, income, offerId));
+            if (titleInput) {
+                setInputValue(titleInput, generateOfferTitle(name, income, offerId));
+            }
+            await new Promise(r => setTimeout(r, 150));
 
             // 7. Image
-            if (generatedImageUrl) await uploadImage(generatedImageUrl);
+            log('Step 7: Image');
+            if (generatedImageUrl) {
+                await uploadImage(generatedImageUrl);
+            }
             await new Promise(r => setTimeout(r, 250));
 
             // 8. Description
+            log('Step 8: Description');
             const descInput = document.querySelector('textarea[maxlength="2000"]');
-            if (descInput) setInputValue(descInput, generateOfferDescription(offerId));
+            if (descInput) {
+                setInputValue(descInput, generateOfferDescription(offerId));
+            }
+            await new Promise(r => setTimeout(r, 150));
 
             // 9. Delivery time
+            log('Step 9: Delivery time');
             let deliverySelect = document.querySelector('.delivery-group ng-select');
             if (!deliverySelect) {
-                const deliveryLabel = [...document.querySelectorAll('span')].find(s => s.textContent?.toLowerCase().includes('delivery time'));
-                if (deliveryLabel) deliverySelect = deliveryLabel.closest('div')?.querySelector('ng-select');
+                const deliveryLabel = [...document.querySelectorAll('span')].find(s => 
+                    s.textContent?.toLowerCase().includes('delivery time')
+                );
+                if (deliveryLabel) {
+                    deliverySelect = deliveryLabel.closest('div')?.querySelector('ng-select');
+                }
             }
-            if (deliverySelect) await selectNgOption(deliverySelect, '20 min');
+            if (deliverySelect) {
+                const selected = await selectNgOption(deliverySelect, '20 min');
+                verificationResults.deliveryTime = selected;
+                if (!selected) log('⚠️ Delivery time may not be selected correctly', 'warn');
+            }
+            await new Promise(r => setTimeout(r, 150));
 
             // 10. Price
+            log('Step 10: Price');
             const price = maxPrice || minPrice || 10;
-            const priceInput = document.querySelector('input[formcontrolname="price"]') || document.querySelector('input[placeholder*="rice"]');
-            if (priceInput) setInputValue(priceInput, String(price));
+            const priceInput = document.querySelector('input[formcontrolname="price"]') ||
+                              document.querySelector('input[placeholder*="rice"]');
+            if (priceInput) {
+                setInputValue(priceInput, String(price));
+            }
+            await new Promise(r => setTimeout(r, 150));
 
-            // 11. Total Quantity
+            // 11. Total Quantity (from grouped brainrots)
+            log(`Step 11: Total Quantity -> ${totalQuantity}`);
             await setTotalQuantity(totalQuantity);
+            await new Promise(r => setTimeout(r, 150));
 
             // 12. Checkboxes
+            log('Step 12: Checkboxes');
             document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
-                if (!cb.checked) (cb.closest('label') || cb).click();
+                if (!cb.checked) {
+                    const label = cb.closest('label') || cb.parentElement?.querySelector('label');
+                    (label || cb).click();
+                }
             });
 
-            // 13. Setup auto-close
+            // 13. Final verification - re-check all dropdowns
+            log('Step 13: Final verification');
+            await new Promise(r => setTimeout(r, 500));
+            
+            let needsRecheck = false;
+            
+            // Re-check Income range
+            if (incomeSelect && !isValueSelected(incomeSelect, expectedIncomeRange)) {
+                log('⚠️ Income range lost, re-selecting...', 'warn');
+                await selectNgOption(incomeSelect, expectedIncomeRange);
+                needsRecheck = true;
+            }
+            
+            // Re-check Mutations
+            if (mutationSelect && !isValueSelected(mutationSelect, 'None')) {
+                log('⚠️ Mutations lost, re-selecting...', 'warn');
+                await selectNgOption(mutationSelect, 'None');
+                needsRecheck = true;
+            }
+            
+            // Re-check Item type
+            if (itemTypeSelect && !isValueSelected(itemTypeSelect, 'Brainrot')) {
+                log('⚠️ Item type lost, re-selecting...', 'warn');
+                await selectNgOption(itemTypeSelect, 'Brainrot');
+                needsRecheck = true;
+            }
+            
+            // Re-check Rarity
+            if (raritySelect && !isValueSelected(raritySelect, expectedRarity)) {
+                log('⚠️ Rarity lost, re-selecting...', 'warn');
+                await selectNgOption(raritySelect, expectedRarity);
+                needsRecheck = true;
+            }
+            
+            // Re-check Delivery time
+            if (deliverySelect && !isValueSelected(deliverySelect, '20 min')) {
+                log('⚠️ Delivery time lost, re-selecting...', 'warn');
+                await selectNgOption(deliverySelect, '20 min');
+                needsRecheck = true;
+            }
+            
+            if (needsRecheck) {
+                log('Some fields were re-selected', 'warn');
+            } else {
+                log('All fields verified ✓', 'success');
+            }
+
+            // 14. Setup auto-close and save offer
+            log('Step 14: Setting up auto-close');
             setupAutoCloseAndSave(offerId);
-            updateStatus('✅ Готово! Проверьте и нажмите Place offer', 'ready');
-            showNotification('✅ Форма заполнена!', 'success');
+
+            const statusMessage = needsRecheck 
+                ? '⚠️ Проверьте поля перед отправкой!'
+                : '✅ Готово! Проверьте и нажмите Place offer';
+            
+            updateStatus(statusMessage, needsRecheck ? 'working' : 'ready');
+            showNotification(needsRecheck ? '⚠️ Проверьте поля!' : '✅ Форма заполнена!', needsRecheck ? 'warning' : 'success');
 
         } catch (e) {
             log('Error: ' + e.message, 'error');
             updateStatus('❌ Ошибка: ' + e.message, 'error');
+            showNotification('Ошибка заполнения', 'error');
         }
     }
 
