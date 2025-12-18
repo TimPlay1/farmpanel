@@ -493,7 +493,17 @@ function getChartData(farmKey, periodMs, points = 30) {
     const periodStart = now - periodMs;
     
     // Фильтруем записи в периоде
-    const periodHistory = history.filter(e => e.timestamp >= periodStart);
+    let periodHistory = history.filter(e => e.timestamp >= periodStart);
+    
+    // Fallback: если для периода < 2 записей, берём последние записи
+    if (periodHistory.length < 2 && history.length >= 2) {
+        // Для realtime берём последние 50 записей, для остальных - 30
+        const isRealtime = periodMs <= PERIODS.realtime;
+        const fallbackCount = isRealtime ? Math.min(50, history.length) : Math.min(30, history.length);
+        periodHistory = history.slice(-fallbackCount);
+        console.log(`Chart fallback: using last ${periodHistory.length} records instead of period filter`);
+    }
+    
     if (periodHistory.length < 2) return { labels: [], values: [] };
     
     // Для realtime показываем все точки
