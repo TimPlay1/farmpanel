@@ -510,10 +510,36 @@ function formatBalanceChange(changePercent, compact = false) {
 }
 
 /**
- * Загрузить кэш цен из MongoDB
+ * Загрузить кэш цен из MongoDB (серверный централизованный кэш)
+ * Сначала пробуем новый prices-cache API (от cron сканера)
+ * Fallback на старый prices API
  */
 async function loadPricesFromServer() {
-    // Глобальный кэш - не привязан к farmKey
+    // Пробуем новый централизованный кэш
+    try {
+        const response = await fetch(`${API_BASE}/prices-cache?all=true`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.prices && Object.keys(data.prices).length > 0) {
+                // Сохраняем текущие цены как предыдущие перед загрузкой новых
+                savePreviousPrices();
+                
+                // Загружаем цены в state
+                for (const [key, priceData] of Object.entries(data.prices)) {
+                    state.brainrotPrices[key] = {
+                        ...priceData,
+                        timestamp: new Date(priceData.updatedAt).getTime()
+                    };
+                }
+                console.log(`Loaded ${Object.keys(data.prices).length} prices from centralized server cache`);
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load from centralized cache, trying fallback:', e.message);
+    }
+    
+    // Fallback на старый API (если cron не работает)
     try {
         const response = await fetch(`${API_BASE}/prices`);
         if (response.ok) {
@@ -526,7 +552,7 @@ async function loadPricesFromServer() {
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = priceData;
                 }
-                console.log(`Loaded ${Object.keys(data.prices).length} prices from global server cache`);
+                console.log(`Loaded ${Object.keys(data.prices).length} prices from global server cache (fallback)`);
                 return true;
             }
         }
