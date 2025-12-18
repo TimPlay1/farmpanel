@@ -4154,12 +4154,26 @@ function postToEldorado() {
 /**
  * Get unique key for a brainrot group (name + rounded income)
  * Used for stable selection across search/filter operations
+ * Can be called as getGroupKey(group) or getGroupKey(name, income)
  */
-function getGroupKey(group) {
-    if (!group) return '';
-    const income = normalizeIncomeForApi(group.income, group.incomeText);
+function getGroupKey(nameOrGroup, incomeArg) {
+    let name, income;
+    
+    // Support both signatures: getGroupKey(group) and getGroupKey(name, income)
+    if (typeof nameOrGroup === 'object' && nameOrGroup !== null) {
+        // Called with group object
+        if (!nameOrGroup.name) return '';
+        name = nameOrGroup.name;
+        income = normalizeIncomeForApi(nameOrGroup.income, nameOrGroup.incomeText);
+    } else {
+        // Called with name and income
+        if (!nameOrGroup) return '';
+        name = nameOrGroup;
+        income = incomeArg || 0;
+    }
+    
     const roundedIncome = Math.floor(income / 10) * 10;
-    return `${group.name.toLowerCase()}_${roundedIncome}`;
+    return `${name.toLowerCase()}_${roundedIncome}`;
 }
 
 /**
