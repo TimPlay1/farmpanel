@@ -1542,7 +1542,7 @@ let fetchRequestId = 0; // ID запроса для проверки актуа�
 
 function startPolling() {
     fetchFarmerData();
-    pollingInterval = setInterval(fetchFarmerData, 5000);
+    pollingInterval = setInterval(fetchFarmerData, 3000); // Быстрее обновление - 3 сек
 }
 
 function stopPolling() {
