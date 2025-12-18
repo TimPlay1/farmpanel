@@ -243,6 +243,12 @@ module.exports = async (req, res) => {
                 if (account.userId && account.playerName) {
                     playerUserIdMap[account.playerName] = String(account.userId);
                 }
+                
+                // ВАЖНО: Обновляем lastUpdate на СЕРВЕРНОЕ время для онлайн аккаунтов
+                // Это гарантирует корректную проверку онлайн статуса независимо от часового пояса клиента
+                if (account.isOnline) {
+                    account.lastUpdate = new Date().toISOString();
+                }
             }
 
             // Update farmer data

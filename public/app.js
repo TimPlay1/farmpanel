@@ -1638,14 +1638,24 @@ function isAccountOnline(account) {
     if (!account.lastUpdate) return account.isOnline || false;
     
     try {
-        const isoString = account.lastUpdate.replace(' ', 'T');
-        const lastUpdateTime = new Date(isoString).getTime();
+        // Support both ISO format (2024-12-18T12:00:00.000Z) and Lua format (2024-12-18 12:00:00)
+        let lastUpdateTime;
+        if (account.lastUpdate.includes('T') || account.lastUpdate.includes('Z')) {
+            // ISO format from server
+            lastUpdateTime = new Date(account.lastUpdate).getTime();
+        } else {
+            // Lua format: "2024-12-18 12:00:00"
+            const isoString = account.lastUpdate.replace(' ', 'T') + 'Z'; // Assume UTC
+            lastUpdateTime = new Date(isoString).getTime();
+        }
+        
         const now = Date.now();
         const diffSeconds = (now - lastUpdateTime) / 1000;
         
-        // If updated within last 60 seconds, consider online
-        return diffSeconds < 60;
+        // If updated within last 90 seconds, consider online (increased from 60 to account for network delay)
+        return diffSeconds < 90;
     } catch (e) {
+        console.warn('Error parsing lastUpdate:', account.lastUpdate, e);
         return account.isOnline || false;
     }
 }
