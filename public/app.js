@@ -1443,11 +1443,10 @@ function abortCurrentFetch() {
 async function fetchFarmerData() {
     if (!state.currentKey) return;
     
-    // Отменяем предыдущий запрос если есть
-    abortCurrentFetch();
-    
     const requestKey = state.currentKey;
     const requestId = ++fetchRequestId;
+    
+    // Создаём новый контроллер (не отменяя предыдущий - он завершится сам)
     currentFetchController = new AbortController();
     
     try {
@@ -1500,6 +1499,11 @@ async function fetchFarmerData() {
         updateUI();
         
     } catch (error) {
+        // Игнорируем AbortError - это нормально при переключении пользователя
+        if (error.name === 'AbortError') {
+            console.log('Fetch aborted for', requestKey);
+            return;
+        }
         console.error('Fetch error:', error);
     }
 }
