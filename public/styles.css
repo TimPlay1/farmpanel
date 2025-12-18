@@ -1898,13 +1898,15 @@ body {
     font-size: 0.65rem;
 }
 
-/* Has offer card style - blue left border */
+/* Has offer card style - blue border all around */
 .brainrot-card.has-offer {
-    border-left: 3px solid #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6, 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .brainrot-card.has-offer:hover {
-    border-left-color: #60a5fa;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 1px #60a5fa, 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .brainrot-generated-badge i {
@@ -1997,13 +1999,13 @@ body {
 
 /* has-offer takes priority over brainrot-generated */
 .brainrot-card.brainrot-generated.has-offer {
-    border-color: rgba(59, 130, 246, 0.3);
-    border-left: 3px solid #3b82f6;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 1px #3b82f6, 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
 .brainrot-card.brainrot-generated.has-offer:hover {
-    border-color: rgba(96, 165, 250, 0.5);
-    border-left-color: #60a5fa;
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 1px #60a5fa, 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Partially generated card styling */
