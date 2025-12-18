@@ -1498,26 +1498,21 @@ async function fetchFarmerData() {
     if (!state.currentKey) return;
     
     const requestKey = state.currentKey;
-    const requestId = ++fetchRequestId;
     
-    // Создаём новый контроллер (не отменяя предыдущий - он завершится сам)
-    currentFetchController = new AbortController();
-    
-    console.log(`[FETCH] Starting fetch #${requestId} for key ${requestKey.slice(-8)}`);
+    console.log(`[FETCH] Starting fetch for key ${requestKey.slice(-8)}`);
     
     try {
-        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`, {
-            signal: currentFetchController.signal
-        });
+        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`);
         
         // Проверяем что ключ не изменился пока ждали ответ
-        if (state.currentKey !== requestKey || fetchRequestId !== requestId) {
-            console.log('Ignoring stale response for', requestKey);
+        // НЕ проверяем requestId - это нормально если пришёл старый ответ, главное чтобы ключ совпадал
+        if (state.currentKey !== requestKey) {
+            console.log('[FETCH] Key changed during fetch, ignoring response');
             return;
         }
         
         if (!response.ok) {
-            console.error('Failed to fetch farmer data');
+            console.error('[FETCH] Failed to fetch farmer data, status:', response.status);
             return;
         }
         
@@ -1536,9 +1531,9 @@ async function fetchFarmerData() {
         }
         // === END LOGGING ===
         
-        // Ещё раз проверяем актуальность
+        // Ещё раз проверяем что ключ не изменился
         if (state.currentKey !== requestKey) {
-            console.log('Key changed during fetch, ignoring');
+            console.log('[FETCH] Key changed after parsing, ignoring');
             return;
         }
         
@@ -1565,15 +1560,11 @@ async function fetchFarmerData() {
             saveState();
         }
         
+        console.log('[FETCH] Calling updateUI()');
         updateUI();
         
     } catch (error) {
-        // Игнорируем AbortError - это нормально при переключении пользователя
-        if (error.name === 'AbortError') {
-            console.log('Fetch aborted for', requestKey);
-            return;
-        }
-        console.error('Fetch error:', error);
+        console.error('[FETCH] Error:', error);
     }
 }
 
