@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.1
+// @version      9.2
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -808,6 +808,10 @@
                 queueState.currentIndex = indexStr ? parseInt(indexStr, 10) : 0;
                 queueState.completed = completedStr ? JSON.parse(completedStr) : [];
                 log(`Queue loaded: ${queueState.queue.length} items, index: ${queueState.currentIndex}`);
+                // Log quantities for debugging
+                queueState.queue.forEach((item, i) => {
+                    log(`Queue item ${i}: ${item.name}, qty: ${item.quantity || 1}`);
+                });
                 return queueState.queue.length > 0;
             }
         } catch (e) { console.error('Failed to load queue:', e); }
@@ -1531,7 +1535,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 let icon = '⏳', className = '';
                 if (idx < queueState.currentIndex) { icon = '✅'; className = 'done'; }
                 else if (idx === queueState.currentIndex) { icon = '▶️'; className = 'current'; }
-                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name}</span></div>`;
+                const qtyBadge = item.quantity > 1 ? `<span style="color:#f59e0b;font-weight:bold;">x${item.quantity}</span>` : '';
+                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name} ${qtyBadge}</span></div>`;
             }).join('');
             queueHtml = `<div class="queue-info"><div class="queue-progress">📋 ${queueIndex + 1} / ${queueTotal}</div><div>Очередь Eldorado</div></div><div class="queue-list">${queueItems}</div>`;
         }
