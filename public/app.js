@@ -1145,6 +1145,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadFarmersDataFromCache(); // Загружаем кэш данных фермеров для мгновенного отображения
     loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
     loadAvatarCache(); // Загружаем кэш аватаров
+    loadOffersFromStorage(); // Загружаем кэш офферов из localStorage (для подсветки)
     await loadBalanceHistory(); // Загружаем историю баланса (await!)
     setupEventListeners();
     
@@ -1161,6 +1162,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.log('Loaded prices from server cache');
                 updateUI();
                 renderFarmKeys();
+            }
+        });
+        // Загружаем офферы в фоне (для подсветки в коллекции)
+        loadOffers(false, true).then(() => {
+            // После загрузки офферов перерисовываем коллекцию если она открыта
+            if (collectionState.allBrainrots.length > 0) {
+                renderCollection();
             }
         });
         // Запускаем polling сразу - данные будут обновляться в фоне
@@ -4776,9 +4784,44 @@ const offersState = {
 };
 
 const OFFERS_CACHE_TTL = 60 * 1000; // 1 minute cache
+const OFFERS_STORAGE_KEY = 'farmpanel_offers_cache';
 
-// Load offers from server (with caching)
-async function loadOffers(forceRefresh = false) {
+// Load offers from localStorage cache
+function loadOffersFromStorage() {
+    try {
+        const cached = localStorage.getItem(OFFERS_STORAGE_KEY);
+        if (cached) {
+            const data = JSON.parse(cached);
+            if (data.farmKey === state.currentKey && data.offers) {
+                offersState.offers = data.offers;
+                offersState.lastLoadedKey = data.farmKey;
+                offersState.lastLoadTime = data.timestamp || 0;
+                console.log('Loaded', data.offers.length, 'offers from localStorage cache');
+                return true;
+            }
+        }
+    } catch (e) {
+        console.error('Error loading offers from storage:', e);
+    }
+    return false;
+}
+
+// Save offers to localStorage cache
+function saveOffersToStorage() {
+    try {
+        const data = {
+            farmKey: state.currentKey,
+            offers: offersState.offers,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(OFFERS_STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+        console.error('Error saving offers to storage:', e);
+    }
+}
+
+// Load offers from server (with caching) - silent mode for background loading
+async function loadOffers(forceRefresh = false, silent = false) {
     try {
         const farmKey = state.currentKey;
         if (!farmKey) return;
@@ -4789,9 +4832,11 @@ async function loadOffers(forceRefresh = false) {
         
         // Use cache if same key and not expired (unless force refresh)
         if (!forceRefresh && isSameKey && cacheValid && offersState.offers.length > 0) {
-            // Just update recommended prices and re-render
+            // Just update recommended prices and re-render (only if not silent)
             await updateOffersRecommendedPrices();
-            filterAndRenderOffers();
+            if (!silent) {
+                filterAndRenderOffers();
+            }
             return;
         }
         
@@ -4801,10 +4846,15 @@ async function loadOffers(forceRefresh = false) {
         offersState.lastLoadedKey = farmKey;
         offersState.lastLoadTime = now;
         
+        // Save to localStorage for persistence
+        saveOffersToStorage();
+        
         // Update recommended prices for each offer
         await updateOffersRecommendedPrices();
         
-        filterAndRenderOffers();
+        if (!silent) {
+            filterAndRenderOffers();
+        }
         console.log('Loaded offers:', offersState.offers.length);
     } catch (err) {
         console.error('Error loading offers:', err);
@@ -5773,6 +5823,10 @@ function getChartDataHash(chartData) {
     return `${vals.length}_${vals[0]?.toFixed(2)}_${vals[vals.length-1]?.toFixed(2)}_${sum.toFixed(2)}`;
 }
 
+// Track chart retry count to avoid infinite loops
+let chartRetryCount = 0;
+const MAX_CHART_RETRIES = 10;
+
 // Actual chart update implementation
 function _doUpdateBalanceChart(period) {
     const chartContainer = document.getElementById('balanceChart');
@@ -5781,12 +5835,18 @@ function _doUpdateBalanceChart(period) {
     
     if (!chartContainer || !state.currentKey) return;
     
-    // Check if canvas is properly sized - retry later if not ready yet
+    // Check if canvas is properly sized - retry later if not ready yet (with limit)
     if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
-        console.log('Chart container not visible, will retry in 200ms');
-        setTimeout(() => _doUpdateBalanceChart(period), 200);
+        if (chartRetryCount < MAX_CHART_RETRIES) {
+            chartRetryCount++;
+            setTimeout(() => _doUpdateBalanceChart(period), 200);
+        }
+        // Don't spam console - only log occasionally
         return;
     }
+    
+    // Reset retry count on success
+    chartRetryCount = 0;
     
     // При ручном рефреше НЕ обновляем график - оставляем как есть
     if (state.isManualPriceRefresh) {
