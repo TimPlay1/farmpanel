@@ -1749,14 +1749,29 @@ body {
 
 .parsing-source-badge.ai {
     color: #a78bfa; /* purple for AI */
+    text-shadow: 0 0 8px rgba(167, 139, 250, 0.8), 0 0 16px rgba(167, 139, 250, 0.5);
+    filter: drop-shadow(0 0 4px rgba(167, 139, 250, 0.6));
 }
 
 .parsing-source-badge.ai i {
     font-size: 0.7rem;
+    animation: ai-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ai-pulse {
+    0%, 100% {
+        opacity: 0.85;
+        text-shadow: 0 0 8px rgba(167, 139, 250, 0.8), 0 0 16px rgba(167, 139, 250, 0.5);
+    }
+    50% {
+        opacity: 1;
+        text-shadow: 0 0 12px rgba(167, 139, 250, 1), 0 0 24px rgba(167, 139, 250, 0.7);
+    }
 }
 
 .parsing-source-badge.hybrid {
     color: #a78bfa;
+    text-shadow: 0 0 6px rgba(167, 139, 250, 0.6);
 }
 
 .parsing-source-badge.hybrid i:first-child {
