@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7
+// @version      9.7.1
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.1
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.1
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.7';
+    const VERSION = '9.7.1';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -1164,6 +1164,9 @@
             
             // Подсвечиваем офферы
             highlightUserOffers();
+            
+            // v9.7: Update sleep button after loading offers
+            updateSleepButton();
             
         } catch (e) {
             CONFIG.connectionError = true;
@@ -2328,10 +2331,14 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             
             if (shouldCheck) {
-                // Debounce highlight
+                // Debounce highlight and sleep button update
                 clearTimeout(window.glitchedHighlightTimeout);
                 window.glitchedHighlightTimeout = setTimeout(() => {
                     highlightUserOffers();
+                    // v9.7: Also update sleep button when DOM changes
+                    if (window.location.pathname.includes('/dashboard/offers')) {
+                        updateSleepButton();
+                    }
                 }, 500);
             }
             
