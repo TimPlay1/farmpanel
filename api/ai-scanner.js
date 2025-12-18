@@ -113,16 +113,83 @@ async function fetchEldoradoDynamicLists() {
 }
 
 /**
- * Извлекает уникальные названия брейнротов из офферов Eldorado
- * Источники:
- * 1. tradeEnvironmentValues - официальные фильтры Eldorado (name='Brainrot')
- * 2. offerAttributeIdValues - атрибуты оффера
+ * Извлекает уникальные значения для dropdown списков из офферов Eldorado
+ * Сканирует несколько страниц для получения полного списка
+ * 
+ * Источники из tradeEnvironmentValues:
+ * - name='Brainrot' → список брейнротов
+ * - name='Rarity' → список рарити
+ * 
+ * Источники из offerAttributeIdValues:
+ * - name='M/s' → диапазоны M/s
+ * - name='Mutations' → мутации
  */
-function fetchBrainrotsFromOffers() {
-    return new Promise((resolve) => {
+function fetchBrainrotsFromOffers(pagesToScan = 5) {
+    return new Promise(async (resolve) => {
+        const brainrotsSet = new Set();
+        const mutationsSet = new Set();
+        const raritiesSet = new Set();
+        const msRangesSet = new Set();
+        
+        // Сканируем несколько страниц для получения разнообразных данных
+        for (let page = 1; page <= pagesToScan; page++) {
+            try {
+                const pageData = await fetchEldoradoPage(page);
+                if (!pageData.results || pageData.results.length === 0) break;
+                
+                for (const item of pageData.results) {
+                    const offer = item.offer || item;
+                    
+                    // Из tradeEnvironmentValues (официальные фильтры Eldorado)
+                    const tradeEnvs = offer.tradeEnvironmentValues || [];
+                    for (const env of tradeEnvs) {
+                        if (env.name === 'Brainrot' && env.value) {
+                            brainrotsSet.add(env.value);
+                        } else if (env.name === 'Rarity' && env.value) {
+                            raritiesSet.add(env.value);
+                        }
+                    }
+                    
+                    // Из offerAttributeIdValues (атрибуты)
+                    const attrs = offer.offerAttributeIdValues || [];
+                    for (const attr of attrs) {
+                        if (attr.name === 'Mutations' && attr.value) {
+                            mutationsSet.add(attr.value);
+                        } else if (attr.name === 'M/s' && attr.value) {
+                            msRangesSet.add(attr.value);
+                        }
+                    }
+                }
+                
+                // Небольшая задержка между страницами
+                if (page < pagesToScan) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            } catch (e) {
+                console.warn(`Failed to fetch page ${page}:`, e.message);
+                break;
+            }
+        }
+        
+        console.log(`📋 Fetched from Eldorado API: ${brainrotsSet.size} brainrots, ${raritiesSet.size} rarities, ${mutationsSet.size} mutations, ${msRangesSet.size} M/s ranges`);
+        
+        resolve({
+            brainrots: Array.from(brainrotsSet),
+            mutations: mutationsSet.size > 0 ? Array.from(mutationsSet) : eldoradoDropdownLists.mutations,
+            rarities: raritiesSet.size > 0 ? Array.from(raritiesSet) : eldoradoDropdownLists.rarities,
+            msRanges: msRangesSet.size > 0 ? Array.from(msRangesSet) : eldoradoDropdownLists.msRanges
+        });
+    });
+}
+
+/**
+ * Fetch одной страницы офферов с Eldorado
+ */
+function fetchEldoradoPage(pageIndex) {
+    return new Promise((resolve, reject) => {
         const options = {
             hostname: 'www.eldorado.gg',
-            path: `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&tradeEnvironmentValue0=Brainrot&pageSize=100&pageIndex=1`,
+            path: `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&tradeEnvironmentValue0=Brainrot&pageSize=50&pageIndex=${pageIndex}`,
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
@@ -136,59 +203,17 @@ function fetchBrainrotsFromOffers() {
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 try {
-                    const parsed = JSON.parse(data);
-                    const results = parsed.results || [];
-                    
-                    // Извлекаем уникальные брейнроты из офферов
-                    const brainrotsSet = new Set();
-                    const mutationsSet = new Set();
-                    const raritiesSet = new Set();
-                    
-                    for (const item of results) {
-                        const offer = item.offer || item;
-                        
-                        // 1. Из tradeEnvironmentValues (официальные фильтры Eldorado)
-                        const tradeEnvs = offer.tradeEnvironmentValues || [];
-                        for (const env of tradeEnvs) {
-                            if (env.name === 'Brainrot' && env.value) {
-                                brainrotsSet.add(env.value);
-                            }
-                        }
-                        
-                        // 2. Из offerAttributeIdValues (атрибуты)
-                        const attrs = offer.offerAttributeIdValues || [];
-                        for (const attr of attrs) {
-                            if (attr.name === 'Brainrot' || attr.name === 'Name') {
-                                if (attr.value) brainrotsSet.add(attr.value);
-                            } else if (attr.name === 'Mutation') {
-                                if (attr.value) mutationsSet.add(attr.value);
-                            } else if (attr.name === 'Rarity') {
-                                if (attr.value) raritiesSet.add(attr.value);
-                            }
-                        }
-                    }
-                    
-                    console.log(`📋 Fetched from Eldorado API: ${brainrotsSet.size} brainrots from ${results.length} offers`);
-                    
-                    resolve({
-                        brainrots: Array.from(brainrotsSet),
-                        mutations: mutationsSet.size > 0 ? Array.from(mutationsSet) : eldoradoDropdownLists.mutations,
-                        rarities: raritiesSet.size > 0 ? Array.from(raritiesSet) : eldoradoDropdownLists.rarities
-                    });
+                    resolve(JSON.parse(data));
                 } catch (e) {
-                    console.warn('Failed to parse Eldorado API response:', e.message);
-                    resolve({ brainrots: [], mutations: [], rarities: [] });
+                    reject(e);
                 }
             });
         });
 
-        req.on('error', (e) => {
-            console.warn('Eldorado API request error:', e.message);
-            resolve({ brainrots: [], mutations: [], rarities: [] });
-        });
+        req.on('error', reject);
         req.setTimeout(10000, () => {
             req.destroy();
-            resolve({ brainrots: [], mutations: [], rarities: [] });
+            reject(new Error('Timeout'));
         });
         req.end();
     });
