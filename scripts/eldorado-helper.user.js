@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.2
-// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support
+// @version      9.3
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.1
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.1
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.3
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.3
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.1';
+    const VERSION = '9.3';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -50,7 +50,8 @@
         highlightEnabled: GM_getValue('highlightEnabled', true),
         autoFillEnabled: GM_getValue('autoFillEnabled', true),
         showPanel: GM_getValue('showPanel', true),
-        connectionError: false // Для отслеживания ошибок авторизации
+        connectionError: false, // Для отслеживания ошибок авторизации
+        sleepMode: GM_getValue('sleepMode', false) // Sleep mode - pause all offers
     };
     
     // Кэш офферов пользователя
@@ -299,9 +300,42 @@
         .glitched-notification.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .glitched-notification.error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
         .glitched-notification.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .glitched-notification.transparent {
+            background: transparent !important;
+            color: #888;
+            box-shadow: none;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
         @keyframes glitched-slide-in {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
+        }
+        
+        /* Sleep Mode Button */
+        .glitched-sleep-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-left: 8px;
+        }
+        .glitched-sleep-btn.active {
+            background: rgba(251, 146, 60, 0.2);
+            color: #fb923c;
+            border: 1px solid #fb923c;
+        }
+        .glitched-sleep-btn.inactive {
+            background: rgba(74, 222, 128, 0.2);
+            color: #4ade80;
+            border: 1px solid #4ade80;
+        }
+        .glitched-sleep-btn:hover {
+            transform: scale(1.05);
         }
         
         /* Мини-панель автозаполнения */
@@ -364,6 +398,126 @@
         document.body.appendChild(el);
         
         setTimeout(() => el.remove(), 4000);
+    }
+    
+    // Show transparent notification (for deleted offers etc)
+    function showTransparentNotification(message, duration = 3000) {
+        const el = document.createElement('div');
+        el.className = 'glitched-notification transparent';
+        el.textContent = message;
+        el.style.top = '150px'; // Lower position to not overlap other notifications
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), duration);
+    }
+    
+    // ==================== SLEEP MODE ====================
+    async function toggleSleepMode() {
+        const newState = !CONFIG.sleepMode;
+        CONFIG.sleepMode = newState;
+        GM_setValue('sleepMode', newState);
+        
+        showNotification(newState ? '💤 Activating Sleep Mode...' : '⚡ Resuming offers...', 'info');
+        log(`Sleep mode: ${newState ? 'ON' : 'OFF'}`);
+        
+        // Find all offer rows on dashboard
+        const offerRows = document.querySelectorAll('.grid-row');
+        let processed = 0;
+        let failed = 0;
+        
+        for (const row of offerRows) {
+            // Check if this is our offer (has glitched-my-offer class or contains our code)
+            const isOurOffer = row.classList.contains('glitched-my-offer') || 
+                              containsOfferCode(row.textContent || '');
+            
+            if (!isOurOffer) continue;
+            
+            try {
+                if (newState) {
+                    // Sleep ON - click pause button
+                    const pauseBtn = row.querySelector('eld-button[iconbeforetext="pause"] button, button[aria-label="Pause"]');
+                    if (pauseBtn && !pauseBtn.disabled) {
+                        pauseBtn.click();
+                        processed++;
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                } else {
+                    // Sleep OFF - click resume button (chevron-right)
+                    const resumeBtn = row.querySelector('eld-button[iconbeforetext="chevron-right"] button, button[aria-label="Resume"]');
+                    if (resumeBtn && !resumeBtn.disabled) {
+                        resumeBtn.click();
+                        processed++;
+                        await new Promise(r => setTimeout(r, 300));
+                    }
+                }
+            } catch (e) {
+                failed++;
+                log('Error toggling offer:', e);
+            }
+        }
+        
+        // Update button
+        showMiniButton();
+        
+        const statusMsg = newState 
+            ? `💤 Sleep Mode ON - ${processed} offers paused`
+            : `⚡ Active - ${processed} offers resumed`;
+        showNotification(statusMsg, 'success');
+        log(`Sleep mode toggled: ${processed} processed, ${failed} failed`);
+    }
+    
+    // ==================== REFRESH OFFERS ====================
+    async function triggerOffersRefresh() {
+        log('Triggering offers refresh...');
+        
+        // 1. Refresh in farmpanel (if we can communicate)
+        try {
+            const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+            if (farmKey) {
+                // Send message to refresh offers
+                localStorage.setItem('glitched_refresh_offers', Date.now().toString());
+            }
+        } catch (e) {}
+        
+        // 2. Reload user offers from API
+        await loadUserOffers();
+        
+        // 3. If on dashboard, trigger Eldorado page refresh
+        if (window.location.pathname.includes('/dashboard/offers')) {
+            // Try to find and click refresh button or just reload
+            const refreshBtn = document.querySelector('[aria-label="Refresh"], .refresh-btn, button[title*="refresh"]');
+            if (refreshBtn) {
+                refreshBtn.click();
+            } else {
+                // Soft refresh - reload offers section
+                log('No refresh button found, page will show updated offers on next navigation');
+            }
+        }
+        
+        log('Offers refresh triggered');
+    }
+    
+    // Watch for offer deletions
+    function watchForOfferDeletions() {
+        const observer = new MutationObserver((mutations) => {
+            for (const mutation of mutations) {
+                for (const removed of mutation.removedNodes) {
+                    if (removed.nodeType === 1) {
+                        const text = removed.textContent || '';
+                        // Check if removed element was our offer
+                        if (removed.classList?.contains('glitched-my-offer') || containsOfferCode(text)) {
+                            showTransparentNotification('🗑️ Offer deleted');
+                            triggerOffersRefresh();
+                        }
+                    }
+                }
+            }
+        });
+        
+        const offersContainer = document.querySelector('.orders-container, .offers-container, [class*="offers-list"]');
+        if (offersContainer) {
+            observer.observe(offersContainer, { childList: true, subtree: true });
+            log('Watching for offer deletions');
+        }
     }
     
     // ==================== АВТОРИЗАЦИЯ ====================
@@ -472,28 +626,41 @@
     
     function showMiniButton() {
         // Удаляем существующие кнопки
-        document.querySelectorAll('.glitched-mini-btn, .glitched-inline-btn').forEach(el => el.remove());
+        document.querySelectorAll('.glitched-mini-btn, .glitched-inline-btn, .glitched-sleep-btn').forEach(el => el.remove());
         
-        // Пытаемся встроить кнопку в navbar
-        const navbar = document.querySelector('.navbar-grid-layout.responsive-layout');
-        if (navbar) {
-            // Ищем правую часть navbar для вставки кнопки
-            const navbarRight = navbar.querySelector('.activities-area') || 
-                               navbar.querySelector('.navbar-content') ||
-                               navbar.querySelector('[class*="activities"]');
+        // Всегда ищем activities-area для встраивания
+        const activitiesArea = document.querySelector('.activities-area.navbar-content');
+        
+        if (activitiesArea) {
+            // Создаём контейнер для кнопок
+            const container = document.createElement('div');
+            container.className = 'glitched-navbar-container';
+            container.style.cssText = 'display: flex; align-items: center; margin-right: 8px;';
             
-            if (navbarRight) {
-                const inlineBtn = document.createElement('div');
-                inlineBtn.className = 'glitched-inline-btn';
-                inlineBtn.innerHTML = '<span style="font-size: 18px;">🔮</span>';
-                inlineBtn.onclick = showAuthPanel;
-                inlineBtn.title = 'Glitched Store Panel';
-                
-                // Вставляем в начало правой части navbar
-                navbarRight.insertBefore(inlineBtn, navbarRight.firstChild);
-                log('Panel button inserted into navbar');
-                return;
+            // Кнопка панели
+            const inlineBtn = document.createElement('div');
+            inlineBtn.className = 'glitched-inline-btn';
+            inlineBtn.innerHTML = '<span style="font-size: 18px;">🔮</span>';
+            inlineBtn.onclick = showAuthPanel;
+            inlineBtn.title = 'Glitched Store Panel';
+            container.appendChild(inlineBtn);
+            
+            // Sleep Mode кнопка (только на dashboard/offers)
+            if (window.location.pathname.includes('/dashboard/offers')) {
+                const sleepBtn = document.createElement('div');
+                sleepBtn.className = `glitched-sleep-btn ${CONFIG.sleepMode ? 'active' : 'inactive'}`;
+                sleepBtn.innerHTML = CONFIG.sleepMode 
+                    ? '💤 Sleep ON' 
+                    : '⚡ Active';
+                sleepBtn.onclick = toggleSleepMode;
+                sleepBtn.title = CONFIG.sleepMode ? 'Click to resume all offers' : 'Click to pause all offers';
+                container.appendChild(sleepBtn);
             }
+            
+            // Вставляем в начало activities-area
+            activitiesArea.insertBefore(container, activitiesArea.firstChild);
+            log('Panel buttons inserted into navbar activities-area');
+            return;
         }
         
         // Fallback - фиксированная кнопка под navbar
@@ -503,7 +670,7 @@
         btn.onclick = showAuthPanel;
         btn.title = 'Glitched Store Panel';
         document.body.appendChild(btn);
-        log('Panel button added as fixed position');
+        log('Panel button added as fixed position (fallback)');
     }
     
     // ==================== ЗАГРУЗКА ДАННЫХ ФЕРМЕРА ====================
@@ -1487,6 +1654,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                             })
                         });
                         log(`Offer ${offerId} saved to panel`);
+                        
+                        // Trigger offers refresh in panel
+                        localStorage.setItem('glitched_refresh_offers', Date.now().toString());
                     }
                 } catch (e) { log('Failed to save offer: ' + e.message); }
 
@@ -1750,19 +1920,39 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         const observer = new MutationObserver((mutations) => {
             // Перепроверяем подсветку при изменениях DOM
             let shouldCheck = false;
+            let navbarChanged = false;
+            
             for (const mutation of mutations) {
                 if (mutation.addedNodes.length > 0) {
                     shouldCheck = true;
-                    break;
+                    // Check if navbar changed
+                    for (const node of mutation.addedNodes) {
+                        if (node.nodeType === 1 && (
+                            node.classList?.contains('activities-area') ||
+                            node.closest?.('.navbar-grid-layout')
+                        )) {
+                            navbarChanged = true;
+                        }
+                    }
                 }
             }
             
             if (shouldCheck) {
-                // Debounce
+                // Debounce highlight
                 clearTimeout(window.glitchedHighlightTimeout);
                 window.glitchedHighlightTimeout = setTimeout(() => {
                     highlightUserOffers();
                 }, 500);
+            }
+            
+            // Re-insert button if navbar changed
+            if (navbarChanged) {
+                clearTimeout(window.glitchedButtonTimeout);
+                window.glitchedButtonTimeout = setTimeout(() => {
+                    if (!document.querySelector('.glitched-inline-btn, .glitched-navbar-container')) {
+                        showMiniButton();
+                    }
+                }, 300);
             }
         });
         
@@ -1781,6 +1971,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         highlightUserOffers();
         showNotification(`Highlighting ${CONFIG.highlightEnabled ? 'enabled' : 'disabled'}`, 'info');
     });
+    GM_registerMenuCommand('💤 Toggle Sleep Mode', toggleSleepMode);
     
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     async function init() {
@@ -1866,6 +2057,11 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
         
         setupMutationObserver();
+        
+        // Watch for offer deletions on dashboard
+        if (isDashboard) {
+            setTimeout(watchForOfferDeletions, 2000);
+        }
     }
     
     // Запуск - быстрая инициализация

@@ -1180,6 +1180,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Автообновление цен каждые 10 минут
         startAutoPriceRefresh();
+        
+        // Слушаем события обновления офферов от Tampermonkey скрипта
+        setupOffersRefreshListener();
     } else {
         showLoginScreen();
     }
@@ -4865,6 +4868,36 @@ async function loadOffers(forceRefresh = false, silent = false) {
         console.error('Error loading offers:', err);
         offersState.offers = [];
     }
+}
+
+// Setup listener for offers refresh from Tampermonkey script
+function setupOffersRefreshListener() {
+    // Listen for storage changes (cross-tab communication)
+    window.addEventListener('storage', (e) => {
+        if (e.key === 'glitched_refresh_offers') {
+            console.log('Received offers refresh signal from Tampermonkey');
+            // Force refresh offers
+            setTimeout(() => {
+                loadOffers(true, false).then(() => {
+                    console.log('Offers refreshed after signal');
+                    showNotification('✅ Офферы обновлены', 'success');
+                });
+            }, 2000); // Wait 2 seconds for Eldorado to process the offer
+        }
+    });
+    
+    // Also check on focus (when user switches back to panel)
+    window.addEventListener('focus', () => {
+        const lastRefresh = localStorage.getItem('glitched_refresh_offers');
+        if (lastRefresh) {
+            const age = Date.now() - parseInt(lastRefresh, 10);
+            if (age < 30000) { // Within 30 seconds
+                console.log('Detected recent offers update on focus');
+                loadOffers(true, false);
+                localStorage.removeItem('glitched_refresh_offers');
+            }
+        }
+    });
 }
 
 // Update recommended prices for offers
