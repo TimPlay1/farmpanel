@@ -4043,7 +4043,7 @@ function postToEldorado() {
     const encodedData = encodeURIComponent(JSON.stringify(offerData));
     
     // Открываем страницу Eldorado с данными
-    const eldoradoUrl = `https://www.eldorado.gg/sell/offer/CustomItem/259?glitched_data=${encodedData}`;
+    const eldoradoUrl = `https://www.eldorado.gg/sell/create/roblox/roblox-items/o/steal-a-brainrot/steal-a-brainrot-brainrots?glitched_data=${encodedData}`;
     
     // Открываем в новой вкладке
     window.open(eldoradoUrl, '_blank');
