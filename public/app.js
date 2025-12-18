@@ -4658,12 +4658,16 @@ async function loadOffers() {
 
 // Update recommended prices for offers
 async function updateOffersRecommendedPrices() {
+    let updated = 0;
+    let notFound = 0;
+    
     for (const offer of offersState.offers) {
         if (offer.brainrotName && offer.income) {
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.income);
             const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
             const priceData = state.brainrotPrices[priceKey];
-            if (priceData && priceData.suggestedPrice) {
+            
+            if (priceData && priceData.suggestedPrice && priceData.suggestedPrice > 0) {
                 // Store previous recommended price before updating
                 if (offer.recommendedPrice && offer.recommendedPrice !== priceData.suggestedPrice) {
                     offer.previousRecommendedPrice = offer.recommendedPrice;
@@ -4671,8 +4675,17 @@ async function updateOffersRecommendedPrices() {
                 offer.recommendedPrice = priceData.suggestedPrice;
                 offer.isSpike = priceData.isSpike || false;
                 offer.pendingPrice = priceData.pendingPrice || null;
+                updated++;
+            } else {
+                // Keep existing recommendedPrice from DB if price not in cache
+                // Don't overwrite with 0
+                notFound++;
             }
         }
+    }
+    
+    if (notFound > 0) {
+        console.log(`Offers prices: ${updated} updated, ${notFound} not found in cache`);
     }
 }
 
@@ -4789,15 +4802,16 @@ function renderOffers() {
     }
     
     offersGridEl.innerHTML = offersState.filteredOffers.map(offer => {
-        const diff = calculatePriceDiff(offer.currentPrice, offer.recommendedPrice);
+        const hasRecommendedPrice = offer.recommendedPrice && offer.recommendedPrice > 0;
+        const diff = hasRecommendedPrice ? calculatePriceDiff(offer.currentPrice, offer.recommendedPrice) : 0;
         // Use isSpike from API data if available, otherwise calculate locally
         const isSpike = offer.isSpike || isPriceSpike(offer.currentPrice, offer.recommendedPrice, offer.previousRecommendedPrice);
         // Green (up) = can raise price (recommended > current, diff > 0)
         // Red (down) = need to lower price (recommended < current, diff < 0)
-        const diffClass = isSpike ? 'spike' : (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same');
-        const diffText = isSpike ? '⚠️ Spike' : (diff === 0 ? '0%' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`);
+        const diffClass = !hasRecommendedPrice ? 'unknown' : (isSpike ? 'spike' : (diff > 0 ? 'up' : diff < 0 ? 'down' : 'same'));
+        const diffText = !hasRecommendedPrice ? '—' : (isSpike ? '⚠️ Spike' : (diff === 0 ? '0%' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}%`));
         const isSelected = offersState.selectedOffers.has(offer.offerId);
-        const needsUpdate = !isSpike && Math.abs(diff) > 5;
+        const needsUpdate = hasRecommendedPrice && !isSpike && Math.abs(diff) > 5;
         
         return `
         <div class="offer-card ${isSelected ? 'selected' : ''}" data-offer-id="${offer.offerId}">
@@ -4821,7 +4835,7 @@ function renderOffers() {
                     <div class="offer-card-info">
                         <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
                         <div class="offer-card-id">${offer.offerId}</div>
-                        <div class="offer-card-income">${offer.income || '0/s'}</div>
+                        <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>
                 </div>
             </div>
@@ -4836,7 +4850,7 @@ function renderOffers() {
                 </div>
                 <div class="offer-price-item">
                     <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}</div>
-                    <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''}">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
+                    <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                 </div>
             </div>
             <div class="offer-card-actions">
