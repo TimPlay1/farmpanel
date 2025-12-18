@@ -1028,9 +1028,17 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
     function getIncomeRange(income) {
         if (!income) return '0-24 M/s';
-        const match = income.match(/[\d.]+/);
+        const incomeStr = String(income).toUpperCase();
+        
+        // Если есть B (Billion) в строке - это 1+ B/s
+        if (incomeStr.includes('B')) {
+            return '1+ B/s';
+        }
+        
+        const match = incomeStr.match(/[\d.]+/);
         if (!match) return '0-24 M/s';
         const value = parseFloat(match[0]);
+        
         if (value < 25) return '0-24 M/s';
         if (value < 50) return '25-49 M/s';
         if (value < 100) return '50-99 M/s';
