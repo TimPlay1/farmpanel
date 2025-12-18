@@ -316,16 +316,31 @@ async function scanUserOffers(farmKey, db) {
                 status: 'active'
             });
         } else {
-            // Оффер не найден на Eldorado - удаляем из БД
-            console.log(`  Offer ${offerCode} not found on Eldorado - DELETING from database`);
+            // v9.6 FIX: Оффер не найден на Eldorado - НЕ удаляем!
+            // Возможные причины:
+            // 1. Оффер на паузе (не виден на маркетплейсе)
+            // 2. Оффер продан (временно не виден)
+            // 3. Оффер заблокирован модерацией
+            // Помечаем как "paused" вместо удаления
+            console.log(`  Offer ${offerCode} not found on Eldorado - marking as PAUSED (not deleting)`);
             
-            await offersCollection.deleteOne({ farmKey, offerId: offerCode });
+            await offersCollection.updateOne(
+                { farmKey, offerId: offerCode },
+                { 
+                    $set: {
+                        status: 'paused', // не найден = на паузе (или продан)
+                        lastScannedAt: new Date(),
+                        updatedAt: new Date()
+                    }
+                }
+            );
             
             notFound.push({
                 code: offerCode,
                 brainrotName: brainrotName,
-                reason: 'not_found_on_eldorado',
-                deleted: true
+                reason: 'not_visible_on_marketplace',
+                deleted: false,
+                status: 'paused'
             });
         }
         
@@ -333,8 +348,9 @@ async function scanUserOffers(farmKey, db) {
         await new Promise(r => setTimeout(r, 200));
     }
     
-    const deleted = notFound.filter(o => o.deleted);
-    return { found, notFound, deleted, total: userOffers.length };
+    // v9.6: больше не удаляем, только помечаем как paused
+    const paused = notFound.filter(o => o.status === 'paused');
+    return { found, notFound, paused, deleted: [], total: userOffers.length };
 }
 
 /**

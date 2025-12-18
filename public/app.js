@@ -5059,8 +5059,13 @@ function renderOffers() {
         const isSelected = offersState.selectedOffers.has(offer.offerId);
         const needsUpdate = hasRecommendedPrice && !isSpike && Math.abs(diff) > 5;
         
+        // v9.6: Show paused status
+        const isPaused = offer.status === 'paused';
+        const statusBadgeClass = isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active');
+        const statusBadgeText = isPaused ? '⏸ Paused' : (needsUpdate ? 'Needs Update' : 'Active');
+        
         return `
-        <div class="offer-card ${isSelected ? 'selected' : ''}" data-offer-id="${offer.offerId}">
+        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''}" data-offer-id="${offer.offerId}">
             <div class="offer-card-checkbox">
                 <label class="checkbox-wrapper">
                     <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleOfferSelection('${offer.offerId}')">
@@ -5068,8 +5073,8 @@ function renderOffers() {
                 </label>
             </div>
             <div class="offer-card-header">
-                <span class="offer-status-badge ${needsUpdate ? 'needs-update' : 'active'}">
-                    ${needsUpdate ? 'Needs Update' : 'Active'}
+                <span class="offer-status-badge ${statusBadgeClass}">
+                    ${statusBadgeText}
                 </span>
                 <div class="offer-card-header-content">
                     <div class="offer-card-image">
@@ -5438,20 +5443,20 @@ async function scanEldoradoOffers() {
         if (data.success) {
             const foundCount = data.found || 0;
             const notFoundCount = data.notFound || 0;
-            const deletedCount = data.deleted || 0;
+            const pausedCount = data.paused?.length || 0;
             const total = data.total || 0;
             
             let message = '';
             let type = 'info';
             
-            if (foundCount > 0 && deletedCount > 0) {
-                message = `Found ${foundCount} offers, deleted ${deletedCount} not found on Eldorado`;
-                type = 'warning';
+            if (foundCount > 0 && pausedCount > 0) {
+                message = `Found ${foundCount} active, ${pausedCount} paused/not visible on marketplace`;
+                type = 'success';
             } else if (foundCount > 0) {
                 message = `Found ${foundCount} of ${total} offers on Eldorado!`;
                 type = 'success';
-            } else if (deletedCount > 0) {
-                message = `Deleted ${deletedCount} offers not found on Eldorado`;
+            } else if (pausedCount > 0) {
+                message = `${pausedCount} offers not visible on Eldorado (paused or sold?)`;
                 type = 'warning';
             } else if (total > 0) {
                 message = `Scanned ${total} offers, none found on Eldorado yet`;
@@ -5462,11 +5467,6 @@ async function scanEldoradoOffers() {
             }
             
             showNotification(message, type);
-            
-            // Log deleted offers
-            if (data.deletedOffers?.length > 0) {
-                console.log('Deleted offers:', data.deletedOffers);
-            }
             
             // Reload offers (force refresh after scan)
             await loadOffers(true);

@@ -3209,6 +3209,21 @@ body {
     color: #fbbf24;
 }
 
+/* v9.6: Paused offer status */
+.offer-status-badge.paused {
+    background: rgba(156, 163, 175, 0.2);
+    color: #9ca3af;
+}
+
+.offer-card.paused {
+    opacity: 0.7;
+    border-color: rgba(156, 163, 175, 0.3);
+}
+
+.offer-card.paused:hover {
+    opacity: 0.85;
+}
+
 @media (max-width: 768px) {
     .offers-controls {
         flex-direction: column;

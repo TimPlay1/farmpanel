@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.5
+// @version      9.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.5
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.5
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.6
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.6
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.5';
+    const VERSION = '9.6';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -410,10 +410,18 @@
     
     // Detect current sleep state from offers
     function detectSleepState() {
-        // Try multiple selectors: My Offers page uses .offer-list-item, Orders page uses .grid-row
-        let offerItems = document.querySelectorAll('.offer-list-item');
+        const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
         
-        // Fallback to .grid-row for orders page
+        // v9.6: Use multiple selectors for My Offers page
+        // Primary: eld-dashboard-offers-list-item (Angular component)
+        // Secondary: .offer-list-item (inner div)
+        // Fallback: .grid-row (Orders page)
+        let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
+        
+        if (offerItems.length === 0) {
+            offerItems = document.querySelectorAll('.offer-list-item');
+        }
+        
         if (offerItems.length === 0) {
             offerItems = document.querySelectorAll('.grid-row');
         }
@@ -422,28 +430,32 @@
         let activeCount = 0;
         let totalOffersCount = 0;
         
+        log(`detectSleepState: Found ${offerItems.length} items using selector, isMyOffersPage=${isMyOffersPage}`);
+        
         for (const item of offerItems) {
-            // On My Offers page, we don't need to filter by "our" offers - they're all ours
-            // But we can still check if it's highlighted as our offer
-            const isOurOffer = item.classList.contains('glitched-my-offer') || 
-                              item.querySelector('.glitched-my-offer') ||
-                              containsOfferCode(item.textContent || '');
-            
-            // On My Offers page (/dashboard/offers), all items are ours
-            const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
-            
-            if (!isMyOffersPage && !isOurOffer) continue;
+            // On My Offers page, all items are ours
+            if (!isMyOffersPage) {
+                const isOurOffer = item.classList.contains('glitched-my-offer') || 
+                                  item.querySelector('.glitched-my-offer') ||
+                                  containsOfferCode(item.textContent || '');
+                if (!isOurOffer) continue;
+            }
             
             totalOffersCount++;
             
-            // Check if offer has pause button visible (means it's active)
+            // v9.6: Check status via multiple methods:
+            // 1. Icon: .icon-pause = active, .icon-chevron-right = paused
+            // 2. Chip: aria-label="Active" or aria-label="Paused"
             const pauseIcon = item.querySelector('.icon-pause');
-            // Check if offer has resume/play button visible (means it's paused)
             const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
             
-            if (pauseIcon) {
+            // Also check the status chip (more reliable)
+            const activeChip = item.querySelector('[aria-label="Active"]');
+            const pausedChip = item.querySelector('[aria-label="Paused"]');
+            
+            if (pauseIcon || activeChip) {
                 activeCount++;
-            } else if (resumeIcon) {
+            } else if (resumeIcon || pausedChip) {
                 pausedCount++;
             }
         }
@@ -453,7 +465,7 @@
         if (totalOffersCount === 0) return 'unknown';
         if (pausedCount === totalOffersCount) return 'sleep';
         if (activeCount === totalOffersCount) return 'active';
-        return 'unknown'; // Mixed state
+        return 'mixed'; // Mixed state - some active, some paused
     }
     
     // Update sleep button based on actual state
@@ -497,11 +509,16 @@
         showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
         log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
         
-        // Find all offer items - support both My Offers page (.offer-list-item) and Orders page (.grid-row)
-        let offerItems = document.querySelectorAll('.offer-list-item');
+        // v9.6: Use multiple selectors for My Offers page
+        let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
+        if (offerItems.length === 0) {
+            offerItems = document.querySelectorAll('.offer-list-item');
+        }
         if (offerItems.length === 0) {
             offerItems = document.querySelectorAll('.grid-row');
         }
+        
+        log(`toggleSleepMode: Found ${offerItems.length} offer items`);
         
         let processed = 0;
         let skipped = 0;
