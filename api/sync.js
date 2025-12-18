@@ -257,8 +257,27 @@ module.exports = async (req, res) => {
                 }
             }
 
+            // MERGE accounts: сохраняем существующих фермеров, обновляем тех кто пришёл в sync
+            const existingAccounts = farmer.accounts || [];
+            const existingByName = {};
+            for (const acc of existingAccounts) {
+                if (acc.playerName) {
+                    existingByName[acc.playerName] = acc;
+                }
+            }
+            
+            // Обновляем/добавляем пришедшие аккаунты
+            for (const acc of accounts) {
+                if (acc.playerName) {
+                    existingByName[acc.playerName] = acc;
+                }
+            }
+            
+            // Собираем обратно в массив
+            const mergedAccounts = Object.values(existingByName);
+
             // Update farmer data
-            farmer.accounts = accounts;
+            farmer.accounts = mergedAccounts;
             farmer.accountAvatars = accountAvatars;
             farmer.playerUserIdMap = playerUserIdMap; // Сохраняем маппинг
             farmer.lastUpdate = new Date();
