@@ -1126,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadFarmersDataFromCache(); // Загружаем кэш данных фермеров для мгновенного отображения
     loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
     loadAvatarCache(); // Загружаем кэш аватаров
-    loadBalanceHistory(); // Загружаем историю баланса
+    await loadBalanceHistory(); // Загружаем историю баланса (await!)
     setupEventListeners();
     
     if (state.currentKey && state.savedKeys.length > 0) {
