@@ -1117,8 +1117,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderFarmKeys();
             }
         });
-        // Загружаем данные всех фермеров для отображения в Farm Keys
-        fetchAllFarmersData();
+        // Сначала загружаем данные, потом запускаем polling
+        await fetchAllFarmersData();
         startPolling();
     } else {
         showLoginScreen();
