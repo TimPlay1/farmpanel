@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.4
+// @version      8.5
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.4';
+    const VERSION = '8.5';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -612,7 +612,10 @@
                 const text = titleEl.textContent || '';
                 
                 if (containsOfferCode(text)) {
-                    // Находим родительскую карточку eld-offer-item или eld-card
+                    // Анимируем текст заголовка
+                    titleEl.classList.add('glitched-my-offer-text');
+                    
+                    // Находим родительскую карточку eld-offer-item или eld-card для фона
                     const card = titleEl.closest('eld-offer-item') || titleEl.closest('eld-card') || titleEl.closest('a[href*="/oi/"]');
                     if (card) {
                         card.classList.add('glitched-my-offer');
