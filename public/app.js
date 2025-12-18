@@ -2281,8 +2281,18 @@ async function handleEditUsername() {
 window.selectFarmKey = function(farmKey) {
     state.currentKey = farmKey;
     saveState();
-    fetchFarmerData();
+    
+    // Сразу показываем данные из кэша если есть
+    const cachedData = state.farmersData[farmKey];
+    if (cachedData) {
+        console.log('Using cached data for', farmKey);
+        updateUI();
+    }
+    
     renderFarmKeys();
+    
+    // Загружаем свежие данные в фоне
+    fetchFarmerData();
 };
 
 window.deleteFarmKey = function(farmKey) {
@@ -3298,15 +3308,20 @@ function clearPriceCache() {
 
 // Update collection when data changes
 async function updateCollection() {
-    // Load generations and panel color
-    await Promise.all([
-        loadGenerationsData(),
-        loadPanelColor()
-    ]);
-    
-    // НЕ сбрасываем кэш цен - они загружаются отдельно
+    // Собираем брейнроты и рендерим СРАЗУ (без ожидания)
     collectAllBrainrots();
     filterAndRenderCollection();
+    
+    // Загружаем generations и panel color в фоне (не блокируем)
+    Promise.all([
+        loadGenerationsData(),
+        loadPanelColor()
+    ]).then(() => {
+        // Перерендериваем с badges если они изменились
+        if (collectionState.filteredBrainrots.length > 0) {
+            renderCollection();
+        }
+    }).catch(err => console.warn('Background load error:', err));
 }
 
 // Handle generate button click (for individual brainrots - deprecated, use handleGroupGenerateClick)
