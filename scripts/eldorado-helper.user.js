@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.0
+// @version      8.1
 // @description  Auto-fill Eldorado.gg offer form + highlight your offers + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.0';
+    const VERSION = '8.1';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -36,7 +36,8 @@
         highlightColor: GM_getValue('highlightColor', '#a78bfa'), // Фиолетовый по умолчанию
         highlightEnabled: GM_getValue('highlightEnabled', true),
         autoFillEnabled: GM_getValue('autoFillEnabled', true),
-        showPanel: GM_getValue('showPanel', true)
+        showPanel: GM_getValue('showPanel', true),
+        connectionError: false // Для отслеживания ошибок авторизации
     };
     
     // Кэш офферов пользователя
@@ -252,7 +253,7 @@
         const panel = document.createElement('div');
         panel.className = 'glitched-auth-panel';
         
-        const isConnected = CONFIG.farmKey && userOffers.length > 0;
+        const isConnected = CONFIG.farmKey && userOffers.length >= 0 && !CONFIG.connectionError;
         
         panel.innerHTML = `
             <div class="header">
@@ -268,7 +269,7 @@
                     ✓ Connected to Farmer Panel
                 </div>
                 <div class="offers-count">
-                    ${userOffers.length} offers tracked • Highlighting ${CONFIG.highlightEnabled ? 'ON' : 'OFF'}
+                    ${userOffers.length} brainrots tracked • Highlighting ${CONFIG.highlightEnabled ? 'ON' : 'OFF'}
                 </div>
             ` : `
                 <div class="status disconnected">
@@ -354,49 +355,83 @@
         document.body.appendChild(btn);
     }
     
-    // ==================== ЗАГРУЗКА ОФФЕРОВ ====================
+    // ==================== ЗАГРУЗКА ДАННЫХ ФЕРМЕРА ====================
     async function loadUserOffers() {
         if (!CONFIG.farmKey) return;
         
         try {
-            const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
-            if (!response.ok) throw new Error('Failed to fetch offers');
+            // Загружаем данные фермера с аккаунтами и brainrots
+            const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(CONFIG.farmKey)}`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    throw new Error('Farm Key not found. Please check your key.');
+                }
+                throw new Error('Failed to fetch data');
+            }
             
-            const data = await response.json();
-            userOffers = data.offers || [];
+            const farmer = await response.json();
+            const accounts = farmer.accounts || [];
             
-            // Собираем коды офферов
+            // Собираем все brainrots со всех аккаунтов
+            userOffers = [];
             userOfferCodes.clear();
-            for (const offer of userOffers) {
-                if (offer.offerId) {
-                    userOfferCodes.add(offer.offerId.toUpperCase());
+            
+            for (const account of accounts) {
+                const brainrots = account.brainrots || [];
+                for (const br of brainrots) {
+                    // Создаём объект оффера
+                    const offer = {
+                        name: br.name || br.Name,
+                        income: br.income || br.Income,
+                        imageId: br.imageId || br.ImageId,
+                        accountName: account.playerName || account.name,
+                        accountId: account.userId
+                    };
+                    userOffers.push(offer);
+                    
+                    // Добавляем имя для поиска на странице
+                    if (offer.name) {
+                        userOfferCodes.add(offer.name.toUpperCase());
+                    }
                 }
             }
             
-            log(`Loaded ${userOffers.length} offers, ${userOfferCodes.size} codes`);
+            log(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots`);
+            CONFIG.connectionError = false;
             
             if (userOffers.length > 0) {
-                showNotification(`✓ Connected! ${userOffers.length} offers loaded`, 'success');
+                showNotification(`✓ Connected! ${accounts.length} accounts, ${userOffers.length} brainrots`, 'success');
+            } else if (accounts.length > 0) {
+                showNotification(`✓ Connected! ${accounts.length} accounts (no brainrots)`, 'success');
             } else {
-                showNotification('Connected but no offers found', 'warning');
+                showNotification('Connected but no accounts found', 'warning');
             }
             
             // Подсвечиваем офферы
             highlightUserOffers();
             
         } catch (e) {
-            log('Error loading offers:', e);
+            CONFIG.connectionError = true;
+            log('Error loading data:', e);
             showNotification('Failed to connect: ' + e.message, 'error');
         }
     }
     
     // ==================== ПОДСВЕТКА ОФФЕРОВ ====================
-    function extractOfferCode(text) {
-        if (!text) return null;
-        
-        // Ищем код в формате #XXXXXXXX
-        const match = text.match(/#([A-Z0-9]{6,12})/i);
-        return match ? match[1].toUpperCase() : null;
+    function normalizeText(text) {
+        if (!text) return '';
+        // Убираем лишние пробелы и приводим к верхнему регистру
+        return text.replace(/\s+/g, ' ').trim().toUpperCase();
+    }
+    
+    function containsBrainrotName(text) {
+        const normalizedText = normalizeText(text);
+        for (const name of userOfferCodes) {
+            if (normalizedText.includes(name)) {
+                return true;
+            }
+        }
+        return false;
     }
     
     function highlightUserOffers() {
@@ -409,21 +444,16 @@
         
         // Ищем офферы на странице
         // Eldorado использует разные структуры на разных страницах
-        const offerCards = document.querySelectorAll('[class*="offer"], [class*="Offer"], .item-card, .listing-card, [data-offer-id]');
+        const offerCards = document.querySelectorAll('[class*="offer"], [class*="Offer"], .item-card, .listing-card, [data-offer-id], .product-card, .listing');
         
         let highlighted = 0;
         
         offerCards.forEach(card => {
             const text = card.textContent || '';
-            const title = card.querySelector('[class*="title"], h3, h4')?.textContent || '';
+            const title = card.querySelector('[class*="title"], [class*="name"], h3, h4, h5')?.textContent || '';
             
-            // Проверяем есть ли наш код в карточке
-            const codeFromText = extractOfferCode(text);
-            const codeFromTitle = extractOfferCode(title);
-            
-            const code = codeFromText || codeFromTitle;
-            
-            if (code && userOfferCodes.has(code)) {
+            // Проверяем есть ли имя нашего brainrot в карточке
+            if (containsBrainrotName(title) || containsBrainrotName(text)) {
                 card.classList.add('glitched-my-offer');
                 highlighted++;
             }
@@ -432,9 +462,8 @@
         // Также проверяем таблицы
         document.querySelectorAll('tr, .table-row').forEach(row => {
             const text = row.textContent || '';
-            const code = extractOfferCode(text);
             
-            if (code && userOfferCodes.has(code)) {
+            if (containsBrainrotName(text)) {
                 row.classList.add('glitched-my-offer');
                 highlighted++;
             }

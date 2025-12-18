@@ -62,10 +62,34 @@ module.exports = async (req, res) => {
             const saved = await collection.findOne({ _id: farmKey });
             
             if (saved && saved.color) {
+                // Проверяем, находится ли сохранённый цвет в новой палитре
+                let color = saved.color;
+                let needsMigration = false;
+                
+                if (!DISTINCT_COLORS.includes(color.toUpperCase())) {
+                    // Старый цвет не в новой палитре - мигрируем
+                    color = getDefaultColorForFarmKey(farmKey);
+                    needsMigration = true;
+                    
+                    // Обновляем в базе
+                    await collection.updateOne(
+                        { _id: farmKey },
+                        { 
+                            $set: { 
+                                color: color,
+                                migratedFrom: saved.color,
+                                migratedAt: new Date()
+                            }
+                        }
+                    );
+                    console.log(`Migrated color for ${farmKey}: ${saved.color} -> ${color}`);
+                }
+                
                 return res.json({
                     farmKey,
-                    color: saved.color,
-                    isCustom: true,
+                    color: color.toUpperCase(),
+                    isCustom: !needsMigration,
+                    migrated: needsMigration,
                     palette: DISTINCT_COLORS
                 });
             }
