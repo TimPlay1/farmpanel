@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.4
+// @version      9.5
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.4
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.4
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.5
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.5
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.4';
+    const VERSION = '9.5';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -410,36 +410,50 @@
     
     // Detect current sleep state from offers
     function detectSleepState() {
-        const offerRows = document.querySelectorAll('.grid-row');
+        // Try multiple selectors: My Offers page uses .offer-list-item, Orders page uses .grid-row
+        let offerItems = document.querySelectorAll('.offer-list-item');
+        
+        // Fallback to .grid-row for orders page
+        if (offerItems.length === 0) {
+            offerItems = document.querySelectorAll('.grid-row');
+        }
+        
         let pausedCount = 0;
         let activeCount = 0;
-        let ourOffersCount = 0;
+        let totalOffersCount = 0;
         
-        for (const row of offerRows) {
-            const isOurOffer = row.classList.contains('glitched-my-offer') || 
-                              containsOfferCode(row.textContent || '');
+        for (const item of offerItems) {
+            // On My Offers page, we don't need to filter by "our" offers - they're all ours
+            // But we can still check if it's highlighted as our offer
+            const isOurOffer = item.classList.contains('glitched-my-offer') || 
+                              item.querySelector('.glitched-my-offer') ||
+                              containsOfferCode(item.textContent || '');
             
-            if (!isOurOffer) continue;
-            ourOffersCount++;
+            // On My Offers page (/dashboard/offers), all items are ours
+            const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
+            
+            if (!isMyOffersPage && !isOurOffer) continue;
+            
+            totalOffersCount++;
             
             // Check if offer has pause button visible (means it's active)
-            const pauseBtn = row.querySelector('.icon-pause');
-            // Check if offer has resume button visible (means it's paused)
-            const resumeBtn = row.querySelector('.icon-chevron-right');
+            const pauseIcon = item.querySelector('.icon-pause');
+            // Check if offer has resume/play button visible (means it's paused)
+            const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
             
-            if (pauseBtn) {
+            if (pauseIcon) {
                 activeCount++;
-            } else if (resumeBtn) {
+            } else if (resumeIcon) {
                 pausedCount++;
             }
         }
         
-        log(`Sleep state detection: ${ourOffersCount} offers, ${pausedCount} paused, ${activeCount} active`);
+        log(`Sleep state detection: ${totalOffersCount} offers, ${pausedCount} paused, ${activeCount} active`);
         
-        if (ourOffersCount === 0) return 'unknown';
-        if (pausedCount === ourOffersCount) return 'sleep';
-        if (activeCount === ourOffersCount) return 'active';
-        return 'unknown';
+        if (totalOffersCount === 0) return 'unknown';
+        if (pausedCount === totalOffersCount) return 'sleep';
+        if (activeCount === totalOffersCount) return 'active';
+        return 'unknown'; // Mixed state
     }
     
     // Update sleep button based on actual state
@@ -483,23 +497,32 @@
         showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
         log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
         
-        // Find all offer rows on dashboard
-        const offerRows = document.querySelectorAll('.grid-row');
+        // Find all offer items - support both My Offers page (.offer-list-item) and Orders page (.grid-row)
+        let offerItems = document.querySelectorAll('.offer-list-item');
+        if (offerItems.length === 0) {
+            offerItems = document.querySelectorAll('.grid-row');
+        }
+        
         let processed = 0;
         let skipped = 0;
         let failed = 0;
         
-        for (const row of offerRows) {
-            // Check if this is our offer
-            const isOurOffer = row.classList.contains('glitched-my-offer') || 
-                              containsOfferCode(row.textContent || '');
-            
-            if (!isOurOffer) continue;
+        // On My Offers page (/dashboard/offers), all items are ours
+        const isMyOffersPage = window.location.pathname.includes('/dashboard/offers');
+        
+        for (const item of offerItems) {
+            // Check if this is our offer (on other pages)
+            if (!isMyOffersPage) {
+                const isOurOffer = item.classList.contains('glitched-my-offer') || 
+                                  item.querySelector('.glitched-my-offer') ||
+                                  containsOfferCode(item.textContent || '');
+                if (!isOurOffer) continue;
+            }
             
             try {
                 if (willPause) {
                     // Find pause button by icon
-                    const pauseIcon = row.querySelector('.icon-pause');
+                    const pauseIcon = item.querySelector('.icon-pause');
                     if (pauseIcon) {
                         const pauseBtn = pauseIcon.closest('button');
                         if (pauseBtn && !pauseBtn.disabled) {
@@ -513,8 +536,8 @@
                         skipped++; // Already paused
                     }
                 } else {
-                    // Find resume button by icon (chevron-right)
-                    const resumeIcon = row.querySelector('.icon-chevron-right');
+                    // Find resume button by icon (chevron-right or play)
+                    const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
                     if (resumeIcon) {
                         const resumeBtn = resumeIcon.closest('button');
                         if (resumeBtn && !resumeBtn.disabled) {
@@ -578,27 +601,47 @@
         log('Offers refresh triggered');
     }
     
-    // Watch for offer deletions
+    // Watch for offer deletions (only real deletions, not pauses)
     function watchForOfferDeletions() {
-        const observer = new MutationObserver((mutations) => {
-            for (const mutation of mutations) {
-                for (const removed of mutation.removedNodes) {
-                    if (removed.nodeType === 1) {
-                        const text = removed.textContent || '';
-                        // Check if removed element was our offer
-                        if (removed.classList?.contains('glitched-my-offer') || containsOfferCode(text)) {
-                            showNotification('🗑️ Offer deleted', 'deleted');
-                            triggerOffersRefresh();
-                        }
+        // Track known offer elements to detect real deletions vs UI changes
+        let knownOfferCount = 0;
+        
+        const checkForDeletions = () => {
+            const offerItems = document.querySelectorAll('.offer-list-item, eld-dashboard-offers-list-item');
+            const currentCount = offerItems.length;
+            
+            // Only notify if count decreased significantly (real deletion, not UI update)
+            if (knownOfferCount > 0 && currentCount < knownOfferCount) {
+                // Check if any of our offers are gone
+                let ourOffersNow = 0;
+                offerItems.forEach(item => {
+                    const text = item.textContent || '';
+                    if (item.classList?.contains('glitched-my-offer') || 
+                        item.querySelector?.('.glitched-my-offer') ||
+                        containsOfferCode(text)) {
+                        ourOffersNow++;
                     }
-                }
+                });
+                
+                // Don't show notification for every DOM change - let API refresh handle it
+                log(`Offer count changed: ${knownOfferCount} -> ${currentCount}`);
             }
+            
+            knownOfferCount = currentCount;
+        };
+        
+        const observer = new MutationObserver((mutations) => {
+            // Debounce - wait for DOM to settle
+            clearTimeout(observer._timeout);
+            observer._timeout = setTimeout(checkForDeletions, 500);
         });
         
-        const offersContainer = document.querySelector('.orders-container, .offers-container, [class*="offers-list"]');
+        // Find the offers container - try multiple selectors
+        const offersContainer = document.querySelector('.offers-list, .orders-container, .offers-container, [class*="offers-list"]');
         if (offersContainer) {
             observer.observe(offersContainer, { childList: true, subtree: true });
             log('Watching for offer deletions');
+            checkForDeletions(); // Initial count
         }
     }
     
