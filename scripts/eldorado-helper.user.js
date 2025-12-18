@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.2
+// @version      8.3
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.2';
+    const VERSION = '8.3';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -47,7 +47,7 @@
     
     // ==================== СТИЛИ ====================
     GM_addStyle(`
-        /* Подсветка офферов пользователя */
+        /* Подсветка карточки оффера на dashboard */
         .glitched-my-offer {
             position: relative;
             box-shadow: 0 0 0 3px ${CONFIG.highlightColor}, 0 0 20px ${CONFIG.highlightColor}66 !important;
@@ -66,6 +66,32 @@
             border-radius: 4px;
             z-index: 100;
             box-shadow: 0 2px 8px ${CONFIG.highlightColor}88;
+        }
+        
+        /* Анимация текста оффера на других страницах (маркетплейс и т.д.) */
+        .glitched-my-offer-text {
+            position: relative;
+            display: inline;
+            background: linear-gradient(90deg, ${CONFIG.highlightColor}, #667eea, ${CONFIG.highlightColor});
+            background-size: 200% auto;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: glitched-text-shine 2s linear infinite;
+            font-weight: bold !important;
+        }
+        .glitched-my-offer-text::after {
+            content: ' ✓';
+            -webkit-text-fill-color: ${CONFIG.highlightColor};
+            animation: glitched-pulse 1s ease-in-out infinite;
+        }
+        @keyframes glitched-text-shine {
+            0% { background-position: 200% center; }
+            100% { background-position: -200% center; }
+        }
+        @keyframes glitched-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
         }
         
         /* Панель авторизации - позиция под navbar */
@@ -404,6 +430,18 @@
     async function loadUserOffers() {
         if (!CONFIG.farmKey) return;
         
+        // Сначала загружаем из кэша для мгновенного отображения
+        const cached = localStorage.getItem('glitched_offer_codes');
+        if (cached) {
+            try {
+                const cachedCodes = JSON.parse(cached);
+                cachedCodes.forEach(code => userOfferCodes.add(code));
+                log(`Loaded ${cachedCodes.length} codes from cache`);
+                // Сразу подсвечиваем из кэша
+                highlightUserOffers();
+            } catch (e) {}
+        }
+        
         try {
             // Загружаем данные фермера с аккаунтами и brainrots
             const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(CONFIG.farmKey)}`);
@@ -471,6 +509,11 @@
                 log('Could not load offers from API:', offersErr);
             }
             
+            // Сохраняем в кэш для быстрой загрузки в следующий раз
+            try {
+                localStorage.setItem('glitched_offer_codes', JSON.stringify([...userOfferCodes]));
+            } catch (e) {}
+            
             log(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots, ${userOfferCodes.size} unique codes`);
             CONFIG.connectionError = false;
             
@@ -533,39 +576,71 @@
         document.querySelectorAll('.glitched-my-offer').forEach(el => {
             el.classList.remove('glitched-my-offer');
         });
+        document.querySelectorAll('.glitched-my-offer-text').forEach(el => {
+            el.classList.remove('glitched-my-offer-text');
+        });
         
         if (!CONFIG.highlightEnabled || userOfferCodes.size === 0) return;
         
-        // Ищем офферы на странице
-        // Eldorado использует разные структуры на разных страницах
-        const offerCards = document.querySelectorAll('[class*="offer"], [class*="Offer"], .item-card, .listing-card, [data-offer-id], .product-card, .listing, eld-dashboard-offers-list-item');
-        
         let highlighted = 0;
         
-        offerCards.forEach(card => {
-            const text = card.textContent || '';
-            const title = card.querySelector('[class*="title"], [class*="name"], h3, h4, h5')?.textContent || '';
+        // === СПОСОБ 1: Dashboard страница с карточками офферов (.offer-info) ===
+        const offerInfoCards = document.querySelectorAll('.offer-info');
+        
+        if (offerInfoCards.length > 0) {
+            // Мы на dashboard странице - подсвечиваем карточки
+            offerInfoCards.forEach(card => {
+                const text = card.textContent || '';
+                
+                if (containsOfferCode(text)) {
+                    card.classList.add('glitched-my-offer');
+                    highlighted++;
+                }
+            });
             
-            // ГЛАВНАЯ ПРОВЕРКА: ищем уникальный код оффера #GSXXXXXX
-            // Это гарантирует, что подсвечиваются только офферы авторизованного пользователя
-            if (containsOfferCode(title) || containsOfferCode(text)) {
-                card.classList.add('glitched-my-offer');
+            if (highlighted > 0) {
+                log(`Dashboard: Highlighted ${highlighted} offer cards`);
+            }
+            return; // На dashboard не нужно искать текст
+        }
+        
+        // === СПОСОБ 2: Другие страницы (маркетплейс) - анимируем заголовки офферов ===
+        // Ищем заголовки/названия офферов
+        const offerTitles = document.querySelectorAll(
+            '[data-testid*="offer-title"], ' +
+            '[class*="offer-name"] h5, ' +
+            '[class*="offer-title"], ' +
+            '.listing-title, ' +
+            '.product-title, ' +
+            'h5.hyphenate'
+        );
+        
+        offerTitles.forEach(titleEl => {
+            const text = titleEl.textContent || '';
+            
+            if (containsOfferCode(text)) {
+                titleEl.classList.add('glitched-my-offer-text');
                 highlighted++;
             }
         });
         
-        // Также проверяем таблицы
-        document.querySelectorAll('tr, .table-row').forEach(row => {
-            const text = row.textContent || '';
+        // Также ищем ссылки на офферы
+        document.querySelectorAll('a[href*="/oi/"]').forEach(link => {
+            const text = link.textContent || '';
+            const h5 = link.querySelector('h5');
             
             if (containsOfferCode(text)) {
-                row.classList.add('glitched-my-offer');
+                if (h5) {
+                    h5.classList.add('glitched-my-offer-text');
+                } else {
+                    link.classList.add('glitched-my-offer-text');
+                }
                 highlighted++;
             }
         });
         
         if (highlighted > 0) {
-            log(`Highlighted ${highlighted} offers by unique codes`);
+            log(`Marketplace: Highlighted ${highlighted} offer titles with animation`);
         }
     }
     
@@ -640,11 +715,13 @@
         
         // Загружаем офферы если есть ключ
         if (CONFIG.farmKey) {
-            await loadUserOffers();
+            // Сначала показываем кнопку сразу
             showMiniButton();
+            // Затем загружаем офферы асинхронно
+            loadUserOffers();
         } else {
-            // Показываем панель для первой настройки
-            setTimeout(showAuthPanel, 2000);
+            // Показываем панель для первой настройки быстро
+            setTimeout(showAuthPanel, 500);
         }
         
         // Наблюдаем за изменениями DOM
@@ -660,10 +737,10 @@
         }
     }
     
-    // Запуск
+    // Запуск - быстрая инициализация
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => setTimeout(init, 1000));
+        document.addEventListener('DOMContentLoaded', () => setTimeout(init, 100));
     } else {
-        setTimeout(init, 1000);
+        setTimeout(init, 100);
     }
 })();
