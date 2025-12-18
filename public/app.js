@@ -4134,10 +4134,24 @@ function updateMassSelectionUI() {
 
 // Open mass generation modal
 function openMassGenerationModal() {
-    if (massSelectionState.selectedItems.length === 0) return;
+    console.log('openMassGenerationModal called, selected items:', massSelectionState.selectedItems.length);
+    
+    if (massSelectionState.selectedItems.length === 0) {
+        console.warn('No items selected');
+        return;
+    }
     
     const modal = document.getElementById('massGenerationModal');
+    if (!modal) {
+        console.error('Mass generation modal not found!');
+        return;
+    }
+    
+    console.log('Modal found:', modal);
+    console.log('displayedGroups:', collectionState.displayedGroups?.length);
+    
     const list = document.getElementById('massGenList');
+    const countEl = document.getElementById('massGenCount');
     const progressEl = document.getElementById('massGenProgress');
     const errorEl = document.getElementById('massGenError');
     const startBtn = document.getElementById('startMassGen');
@@ -4145,11 +4159,11 @@ function openMassGenerationModal() {
     const footerInfo = document.getElementById('massGenFooterInfo');
     
     // Reset state
-    progressEl.classList.add('hidden');
-    errorEl.classList.add('hidden');
+    if (progressEl) progressEl.classList.add('hidden');
+    if (errorEl) errorEl.classList.add('hidden');
     if (actionsEl) actionsEl.classList.add('hidden');
     if (footerInfo) footerInfo.classList.remove('hidden');
-    startBtn.disabled = false;
+    if (startBtn) startBtn.disabled = false;
     massSelectionState.generationResults = [];
     
     // Get selected groups
@@ -4191,7 +4205,10 @@ function openMassGenerationModal() {
         `;
     }).join('');
     
-    countEl.textContent = selectedGroups.length;
+    // Update count in modal (if element exists)
+    if (countEl) {
+        countEl.textContent = selectedGroups.length;
+    }
     modal.classList.remove('hidden');
 }
 
