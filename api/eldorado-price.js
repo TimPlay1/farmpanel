@@ -18,7 +18,7 @@ const CACHE_TTL = 15 * 60 * 1000; // 15 минут
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
 
-// Загружаем mapping брейнротов -> ID из Eldorado
+// Загружаем mapping брейнротов -> ID из Eldorado (статический, для fallback)
 let BRAINROT_ID_MAP = new Map();
 let BRAINROT_MIN_PRICES = new Map();
 try {
@@ -28,9 +28,77 @@ try {
         BRAINROT_ID_MAP.set(item.name.toLowerCase(), { id: item.id, name: item.name });
         BRAINROT_MIN_PRICES.set(item.name.toLowerCase(), item.price);
     });
-    console.log('Loaded', BRAINROT_ID_MAP.size, 'Eldorado brainrot IDs');
+    console.log('Loaded', BRAINROT_ID_MAP.size, 'Eldorado brainrot IDs (static fallback)');
 } catch (e) {
     console.error('Failed to load eldorado-brainrot-ids.json:', e.message);
+}
+
+// Динамический кэш брейнротов из API Eldorado
+let dynamicBrainrotsCache = new Set();
+let dynamicBrainrotsCacheTime = 0;
+const DYNAMIC_CACHE_TTL = 30 * 60 * 1000; // 30 минут
+
+/**
+ * Получает актуальный список брейнротов из Eldorado API
+ * Использует кэш чтобы не спамить API
+ */
+async function getAvailableBrainrots() {
+    // Проверяем кэш
+    if (dynamicBrainrotsCache.size > 0 && Date.now() - dynamicBrainrotsCacheTime < DYNAMIC_CACHE_TTL) {
+        return dynamicBrainrotsCache;
+    }
+    
+    // Пробуем получить из AI Scanner (если доступен)
+    if (aiScanner && aiScanner.fetchEldoradoDynamicLists) {
+        try {
+            const lists = await aiScanner.fetchEldoradoDynamicLists();
+            if (lists.brainrots && lists.brainrots.length > 0) {
+                dynamicBrainrotsCache = new Set(lists.brainrots.map(b => b.toLowerCase()));
+                dynamicBrainrotsCacheTime = Date.now();
+                console.log(`📋 Updated dynamic brainrots from API: ${dynamicBrainrotsCache.size} items`);
+                return dynamicBrainrotsCache;
+            }
+        } catch (e) {
+            console.warn('Could not fetch dynamic brainrots:', e.message);
+        }
+    }
+    
+    // Fallback: используем статический mapping
+    return new Set(BRAINROT_ID_MAP.keys());
+}
+
+/**
+ * Проверяет существует ли брейнрот в системе Eldorado
+ * Сначала проверяет динамический кэш (API), потом статический файл
+ */
+async function isBrainrotInEldorado(brainrotName) {
+    const nameLower = brainrotName.toLowerCase();
+    
+    // 1. Проверяем динамический кэш из API
+    const dynamicList = await getAvailableBrainrots();
+    if (dynamicList.has(nameLower)) {
+        return true;
+    }
+    
+    // 2. Проверяем статический mapping
+    if (BRAINROT_ID_MAP.has(nameLower)) {
+        return true;
+    }
+    
+    // 3. Частичное совпадение (для случаев типа "La Taco" vs "La Taco Combinasion")
+    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+    for (const key of dynamicList) {
+        if (words.every(w => key.includes(w))) {
+            return true;
+        }
+    }
+    for (const key of BRAINROT_ID_MAP.keys()) {
+        if (words.every(w => key.includes(w))) {
+            return true;
+        }
+    }
+    
+    return false;
 }
 
 // Загружаем предзаготовленные диапазоны цен
@@ -253,7 +321,7 @@ function parseIncomeFromMsRange(msRange) {
  * - offerAttributeIdsCsv = ID атрибута M/s range
  * @param {number} pageIndex - номер страницы
  * @param {string} msRangeAttrId - ID атрибута M/s range (например "0-8" для 1+ B/s)
- * @param {string} brainrotName - имя брейнрота для фильтрации (опционально)
+ * @param {string} brainrotName - имя брейнрота для фильтрации (опционально, "Other" для неизвестных)
  */
 function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null) {
     return new Promise((resolve) => {
@@ -274,6 +342,7 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null)
         }
         
         // Добавляем фильтр по имени брейнрота
+        // Если brainrotName = "Other" - это специальный фильтр для неизвестных брейнротов
         if (brainrotName) {
             params.set('tradeEnvironmentValue2', brainrotName);
         }
@@ -400,11 +469,13 @@ function generateSearchVariants(name) {
  * Ищет офферы брейнрота в конкретном M/s диапазоне Eldorado
  * 
  * ЛОГИКА:
- * 1. Устанавливаем offerAttributeIdsCsv фильтр для M/s диапазона
- * 2. Устанавливаем tradeEnvironmentValue2 фильтр для брейнрота
- * 3. Сортировка ascending (low to high по цене)
- * 4. Ищем upper (income >= наш) на ВСЕХ страницах
- * 5. Lower ищем на ТОЙ ЖЕ странице что и upper
+ * 1. Проверяем есть ли брейнрот в системе Eldorado (динамически через API)
+ * 2. Устанавливаем offerAttributeIdsCsv фильтр для M/s диапазона
+ * 3. Устанавливаем tradeEnvironmentValue2 фильтр для брейнрота
+ * 4. Если брейнрота нет в системе Eldorado → используем фильтр "Other" + поиск по title
+ * 5. Сортировка ascending (low to high по цене)
+ * 6. Ищем upper (income >= наш) на ВСЕХ страницах
+ * 7. Lower ищем на ТОЙ ЖЕ странице что и upper
  * 
  * @param {string} brainrotName - имя брейнрота
  * @param {number} targetIncome - целевой income
@@ -413,17 +484,15 @@ function generateSearchVariants(name) {
  */
 async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50) {
     const eldoradoInfo = findEldoradoBrainrot(brainrotName);
-    // Используем точное имя из mapping или оригинальное имя (Eldorado API сам разберётся)
+    // Используем точное имя из mapping или оригинальное имя
     const eldoradoName = eldoradoInfo?.name || brainrotName;
     const targetMsRange = getMsRange(targetIncome);
     const msRangeAttrId = getMsRangeAttrId(targetMsRange);
     
-    // ВСЕГДА пробуем использовать имя брейнрота как фильтр
-    // Eldorado API сам вернёт результаты если брейнрот существует в их системе
-    // Это позволяет работать с новыми брейнротами без обновления mapping
-    const isInEldoradoList = !!eldoradoInfo;
+    // Проверяем динамически есть ли брейнрот в системе Eldorado
+    const isInEldoradoList = await isBrainrotInEldorado(brainrotName);
     
-    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In mapping:', isInEldoradoList);
+    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In Eldorado:', isInEldoradoList);
     
     let upperOffer = null;
     let lowerOffer = null;
@@ -431,24 +500,41 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
-    let usedNameFilter = true; // Флаг использования фильтра по имени
+    let filterMode = 'name'; // 'name' | 'other' | 'none'
+    let currentFilter = eldoradoName; // Имя для фильтра
     
     for (let page = 1; page <= maxPages; page++) {
-        // ВСЕГДА передаём имя брейнрота как фильтр - Eldorado API автоматически 
-        // найдёт совпадение если брейнрот существует в их системе
-        let response = await fetchEldorado(page, msRangeAttrId, usedNameFilter ? eldoradoName : null);
+        // Определяем какой фильтр использовать
+        let filterName = null;
+        if (filterMode === 'name') {
+            filterName = eldoradoName;
+        } else if (filterMode === 'other') {
+            filterName = 'Other';  // Специальный фильтр для неизвестных брейнротов
+        }
+        // filterMode === 'none' → filterName = null
+        
+        let response = await fetchEldorado(page, msRangeAttrId, filterName);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Name filter:', usedNameFilter);
+            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName);
             
-            // Если с фильтром по имени 0 результатов - пробуем без него (fallback для новых брейнротов)
-            if (totalPages === 0 && usedNameFilter) {
-                console.log('No results with name filter, trying without...');
-                usedNameFilter = false;
-                response = await fetchEldorado(page, msRangeAttrId, null);
+            // Если с фильтром по имени 0 результатов - пробуем "Other" (для брейнротов не в списке Eldorado)
+            if (totalPages === 0 && filterMode === 'name') {
+                console.log('No results with name filter "' + eldoradoName + '", trying "Other" category...');
+                filterMode = 'other';
+                response = await fetchEldorado(page, msRangeAttrId, 'Other');
                 totalPages = response.totalPages || 0;
-                console.log('Without name filter - total pages:', totalPages);
+                console.log('With "Other" filter - total pages:', totalPages);
+                
+                // Если и "Other" не дал результатов - пробуем без фильтра
+                if (totalPages === 0) {
+                    console.log('No results in "Other" category, trying without name filter...');
+                    filterMode = 'none';
+                    response = await fetchEldorado(page, msRangeAttrId, null);
+                    totalPages = response.totalPages || 0;
+                    console.log('Without name filter - total pages:', totalPages);
+                }
             }
         }
         
@@ -483,6 +569,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             // ВСЕГДА проверяем соответствие названия брейнрота в title
             // Eldorado API иногда возвращает офферы других брейнротов (продавцы пишут чужие названия в title)
+            // ЭТО ОСОБЕННО ВАЖНО для фильтра "Other" - там смешаны все неизвестные брейнроты!
             const titleLower = offerTitle.toLowerCase();
             const nameLower = brainrotName.toLowerCase();
             
@@ -496,6 +583,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 
                 // 3. Для комбинированных имён проверяем ключевые слова
                 // "Garama and Madundung" → ["garama", "madundung"]
+                // "La Taco Combinasion" → ["taco", "combinasion"]
                 const nameWords = nameLower
                     .replace(/\s+(and|the|of|los|la|las)\s+/gi, ' ')
                     .split(/\s+/)
@@ -516,7 +604,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     'chilin chili', 'chillin chili', 'esok sekolah', 'los mobilis', 
                     'mieteteira', 'bicicleteira', 'tictac sahur', 'skibidi toilet',
                     'los planitos', 'los 67', 'la ginger', 'secret combinasion',
-                    'garama', 'madundung', 'dragon cannelloni', 'eviledon'
+                    'garama', 'madundung', 'dragon cannelloni', 'eviledon',
+                    'la taco', 'taco combinasion'  // Добавляем La Taco
                 ];
                 
                 for (const otherBrainrot of knownBrainrots) {
@@ -605,11 +694,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         console.log('No upper found, will use above-market logic');
     }
     
-    // ВАЖНО: если не использовали фильтр по имени и не нашли совпадений - 
-    // allPageOffers пустой или содержит только отфильтрованные офферы этого брейнрота
-    const searchWasReliable = usedNameFilter || allPageOffers.length > 0;
+    // ВАЖНО: если использовали фильтр "Other" или без фильтра - результаты менее надёжные
+    // т.к. приходится полагаться на фильтрацию по title (которая может пропустить релевантные офферы)
+    const searchWasReliable = filterMode === 'name' || allPageOffers.length > 0;
     
-    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| Reliable:', searchWasReliable);
+    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable);
     
     // AI RE-PARSING: для офферов где regex не справился - пробуем AI
     const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
