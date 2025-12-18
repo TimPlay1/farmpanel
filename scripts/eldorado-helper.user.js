@@ -88,6 +88,28 @@
             box-shadow: 0 2px 8px ${CONFIG.highlightColor}88;
         }
         
+        /* Подсветка строк в orders-container (страница заказов) */
+        .orders-container .grid-row.glitched-my-offer {
+            position: relative;
+            box-shadow: 0 0 0 2px ${CONFIG.highlightColor}, 0 0 15px ${CONFIG.highlightColor}44 !important;
+            border-radius: 8px !important;
+            background: linear-gradient(135deg, #1a1a3e 0%, #2d1b4e 100%) !important;
+        }
+        .orders-container .grid-row.glitched-my-offer::before {
+            content: '✓ MY';
+            position: absolute;
+            top: 50%;
+            left: -35px;
+            transform: translateY(-50%);
+            background: ${CONFIG.highlightColor};
+            color: white;
+            font-size: 9px;
+            font-weight: bold;
+            padding: 2px 4px;
+            border-radius: 3px;
+            z-index: 100;
+        }
+        
         /* Анимация текста заголовка оффера */
         .offer-title.glitched-my-offer-text {
             background: linear-gradient(90deg, ${CONFIG.highlightColor}, #667eea, #a78bfa, ${CONFIG.highlightColor}) !important;
@@ -640,6 +662,25 @@
         if (!CONFIG.highlightEnabled || userOfferCodes.size === 0) return;
         
         let highlighted = 0;
+        
+        // === СПОСОБ 0: Orders страница (dashboard/orders) - строки .grid-row ===
+        const ordersContainer = document.querySelector('.orders-container');
+        if (ordersContainer) {
+            const orderRows = ordersContainer.querySelectorAll('.grid-row');
+            orderRows.forEach(row => {
+                const text = row.textContent || '';
+                // Ищем по коду оффера или по "Glitched Store" в названии
+                if (containsOfferCode(text) || text.includes('Glitched Store')) {
+                    row.classList.add('glitched-my-offer');
+                    highlighted++;
+                }
+            });
+            
+            if (highlighted > 0) {
+                log(`Orders: Highlighted ${highlighted} order rows`);
+            }
+            return;
+        }
         
         // === СПОСОБ 1: Dashboard страница с карточками офферов (.offer-info) ===
         const offerInfoCards = document.querySelectorAll('.offer-info');
