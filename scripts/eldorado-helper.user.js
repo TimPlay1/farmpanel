@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7.9
+// @version      9.8.0
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -2564,9 +2564,25 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     }
 
     // ==================== НАБЛЮДАТЕЛЬ ЗА ИЗМЕНЕНИЯМИ ====================
+    let lastPathname = window.location.pathname; // Track URL changes for SPA navigation
+    
     function setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
             // v9.7.6: DON'T skip highlighting during toggle - only skip sleep button update
+            
+            // Check for URL change (SPA navigation)
+            const currentPathname = window.location.pathname;
+            const urlChanged = currentPathname !== lastPathname;
+            if (urlChanged) {
+                lastPathname = currentPathname;
+                // Re-show button with/without sleep mode depending on new URL
+                setTimeout(() => {
+                    showMiniButton();
+                    if (currentPathname.includes('/dashboard/offers')) {
+                        highlightUserOffers();
+                    }
+                }, 500);
+            }
             
             // Перепроверяем подсветку при изменениях DOM
             let shouldCheck = false;
