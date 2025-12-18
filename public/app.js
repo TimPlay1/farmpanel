@@ -5472,6 +5472,26 @@ function setupOffersListeners() {
     document.getElementById('closeOfferPriceModal')?.addEventListener('click', () => closeModalFn(offerPriceModal));
     document.getElementById('cancelOfferPrice')?.addEventListener('click', () => closeModalFn(offerPriceModal));
     document.getElementById('confirmOfferPrice')?.addEventListener('click', confirmOfferPriceAdjustment);
+    
+    // Auto-select custom radio when user starts typing in custom price input
+    document.getElementById('customPriceInput')?.addEventListener('input', () => {
+        const customRadio = document.querySelector('input[name="priceType"][value="custom"]');
+        if (customRadio) customRadio.checked = true;
+    });
+    
+    // Auto-select custom-single radio when user types in single custom price
+    document.getElementById('singleCustomPrice')?.addEventListener('input', () => {
+        const customSingleRadio = document.querySelector('input[name="bulkPriceType"][value="custom-single"]');
+        if (customSingleRadio) customSingleRadio.checked = true;
+    });
+    
+    // Auto-select custom-each radio when user types in individual custom inputs
+    document.getElementById('bulkOffersList')?.addEventListener('input', (e) => {
+        if (e.target.matches('.custom-price-input input')) {
+            const customEachRadio = document.querySelector('input[name="bulkPriceType"][value="custom-each"]');
+            if (customEachRadio) customEachRadio.checked = true;
+        }
+    });
 }
 
 // Scan Eldorado for offers with panel codes
