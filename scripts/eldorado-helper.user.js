@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.0
+// @version      9.8.1
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -1599,6 +1599,48 @@
     }
     
     // ==================== УПРАВЛЕНИЕ ОЧЕРЕДЬЮ ====================
+    
+    // v9.8.1: Try to load queue from farmpanel API (cross-domain support)
+    async function tryLoadQueueFromAPI(farmKey) {
+        try {
+            const key = farmKey || CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+            if (!key) {
+                log('No farm key for queue fetch');
+                return false;
+            }
+            
+            return new Promise((resolve) => {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url: `${API_BASE}/queue?farmKey=${encodeURIComponent(key)}`,
+                    onload: (response) => {
+                        if (response.status === 200) {
+                            try {
+                                const data = JSON.parse(response.responseText);
+                                if (data.success && data.queue && data.queue.length > 0) {
+                                    log(`Loaded queue from API: ${data.queue.length} items`);
+                                    localStorage.setItem('eldoradoQueue', JSON.stringify(data.queue));
+                                    localStorage.setItem('eldoradoQueueIndex', '0');
+                                    localStorage.setItem('eldoradoQueueCompleted', '[]');
+                                    localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+                                    resolve(true);
+                                    return;
+                                }
+                            } catch (e) {
+                                log('Failed to parse queue response:', e);
+                            }
+                        }
+                        resolve(false);
+                    },
+                    onerror: () => resolve(false)
+                });
+            });
+        } catch (e) {
+            log('Error loading queue from API:', e);
+            return false;
+        }
+    }
+    
     function getQueueFromStorage() {
         try {
             const queueStr = localStorage.getItem('eldoradoQueue');
@@ -2676,7 +2718,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             // Режим создания оффера
             offerData = getOfferDataFromURL();
             
-            // Если есть данные с fullQueue - синхронизируем localStorage (cross-domain)
+            // Если есть данные с fullQueue - синхронизируем localStorage (cross-domain) - legacy support
             if (offerData?.fullQueue && Array.isArray(offerData.fullQueue)) {
                 log(`Syncing queue from URL: ${offerData.fullQueue.length} items`);
                 localStorage.setItem('eldoradoQueue', JSON.stringify(offerData.fullQueue));
@@ -2685,6 +2727,15 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
                 // Reload queue state
                 getQueueFromStorage();
+            }
+            
+            // v9.8.1: If fromQueue but no fullQueue and no local queue, try to fetch from API
+            if (offerData?.fromQueue && offerData?.queueTotal > 0 && queueState.queue.length === 0) {
+                log('Queue mode detected but no local queue, trying to fetch from API...');
+                const queueLoaded = await tryLoadQueueFromAPI(offerData.farmKey);
+                if (queueLoaded) {
+                    getQueueFromStorage();
+                }
             }
             
             // Если нет данных в URL, но есть очередь - продолжаем обработку

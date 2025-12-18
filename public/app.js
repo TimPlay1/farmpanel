@@ -4718,7 +4718,7 @@ async function downloadAllMassGenImages() {
 }
 
 // Start Eldorado queue from mass generation
-function startMassEldoradoQueue() {
+async function startMassEldoradoQueue() {
     const queue = localStorage.getItem('eldoradoQueue');
     if (!queue) {
         showNotification('Очередь пуста. Сначала выполните генерацию с включённой опцией "Создать очередь для Eldorado"', 'error');
@@ -4734,7 +4734,22 @@ function startMassEldoradoQueue() {
     // Get first item
     const firstItem = queueData[0];
     
-    // Build offer data for URL - include full queue for cross-domain support
+    // Save queue to API for cross-domain access
+    try {
+        await fetch(`${API_BASE}/queue`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                farmKey: state.currentKey,
+                queue: queueData
+            })
+        });
+        console.log('Queue saved to API for cross-domain access');
+    } catch (e) {
+        console.warn('Failed to save queue to API:', e);
+    }
+    
+    // Build offer data for URL - minimal data only, queue is in API
     const offerData = {
         name: firstItem.name,
         income: firstItem.income,
@@ -4746,9 +4761,8 @@ function startMassEldoradoQueue() {
         farmKey: state.currentKey,
         fromQueue: true,
         queueIndex: 0,
-        queueTotal: queueData.length,
-        // Pass full queue in URL for cross-domain localStorage sync
-        fullQueue: queueData
+        queueTotal: queueData.length
+        // fullQueue removed - too long for URL, using API instead
     };
     
     const encodedData = encodeURIComponent(JSON.stringify(offerData));
