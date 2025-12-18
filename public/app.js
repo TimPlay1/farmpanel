@@ -1171,6 +1171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 renderCollection();
             }
         });
+        // Предзагружаем данные топа в фоне
+        preloadTopData();
         // Запускаем polling сразу - данные будут обновляться в фоне
         startPolling();
         // Загружаем данные всех фермеров в фоне (не блокируя UI)
@@ -5492,6 +5494,29 @@ let topState = {
     },
     loading: false
 };
+
+// Preload top data in background (silent, no UI updates)
+async function preloadTopData() {
+    const types = ['income', 'value', 'total'];
+    
+    for (const type of types) {
+        // Skip if already cached
+        if (topState.cache[type]) continue;
+        
+        try {
+            const response = await fetch(`${API_BASE}/top?type=${type}`);
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.data) {
+                    topState.cache[type] = result.data;
+                }
+            }
+        } catch (error) {
+            // Silent fail - will load on demand
+        }
+    }
+    console.log('Preloaded top data');
+}
 
 function initTopView() {
     if (!topState.initialized) {
