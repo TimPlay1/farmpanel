@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.8
-// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
+// @version      9.0
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
@@ -19,16 +19,28 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.8
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.8
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.0
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.0
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '8.8';
+    const VERSION = '9.0';
     const API_BASE = 'https://farmpanel.vercel.app/api';
+    
+    // ==================== СОСТОЯНИЕ ====================
+    let offerData = null;
+    let adjustmentData = null;
+    let statusEl = null;
+    
+    // Queue state
+    let queueState = {
+        queue: [],
+        currentIndex: 0,
+        completed: []
+    };
     
     // ==================== КОНФИГУРАЦИЯ ====================
     let CONFIG = {
@@ -268,6 +280,43 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+        
+        /* Мини-панель автозаполнения */
+        .glitched-mini {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            width: 300px;
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 12px;
+            z-index: 999998;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+        }
+        .glitched-mini .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .glitched-mini .title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+        .glitched-mini .close { cursor: pointer; opacity: 0.6; font-size: 16px; }
+        .glitched-mini .close:hover { opacity: 1; }
+        .glitched-mini .info { display: flex; gap: 10px; align-items: center; background: #2a2a4a; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
+        .glitched-mini .info img { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; }
+        .glitched-mini .info .name { font-weight: 600; font-size: 12px; }
+        .glitched-mini .info .details { font-size: 11px; color: #888; }
+        .glitched-mini .info .income { color: #1BFF00; background: #000; border: 1px solid #27C902; padding: 2px 6px; border-radius: 4px; }
+        .glitched-mini .info .price { color: #ffc950; }
+        .glitched-mini .status { font-size: 11px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px; color: #888; text-align: center; }
+        .glitched-mini .status.working { color: #ffc950; background: rgba(255, 201, 80, 0.1); }
+        .glitched-mini .status.ready { color: #38ef7d; background: rgba(56, 239, 125, 0.1); }
+        .glitched-mini .status.error { color: #f45c43; background: rgba(244, 92, 67, 0.1); }
+        .glitched-mini .queue-info { background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 8px; border-radius: 8px; margin-bottom: 8px; text-align: center; font-size: 12px; }
+        .glitched-mini .queue-info .queue-progress { font-weight: 600; }
+        .glitched-mini .queue-list { max-height: 150px; overflow-y: auto; margin-top: 8px; font-size: 11px; }
+        .glitched-mini .queue-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: #2a2a4a; border-radius: 4px; margin-bottom: 3px; }
+        .glitched-mini .queue-item.current { background: rgba(99, 102, 241, 0.3); border: 1px solid #6366f1; }
+        .glitched-mini .queue-item.done { opacity: 0.5; text-decoration: line-through; }
+        .glitched-mini .queue-item .q-icon { width: 16px; text-align: center; }
+        .glitched-mini .queue-item .q-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     `);
     
     // ==================== УТИЛИТЫ ====================
@@ -275,6 +324,13 @@
         console.log('[Glitched]', ...args);
     }
     
+    function updateStatus(message, className = '') {
+        if (statusEl) {
+            statusEl.textContent = message;
+            statusEl.className = `status ${className}`;
+        }
+    }
+
     function showNotification(message, type = 'info') {
         const existing = document.querySelector('.glitched-notification');
         if (existing) existing.remove();
@@ -664,6 +720,24 @@
         return null;
     }
     
+    function getAdjustmentDataFromURL() {
+        const url = new URL(window.location.href);
+        const data = url.searchParams.get('glitched_adjust');
+        if (data) {
+            try {
+                return JSON.parse(decodeURIComponent(data));
+            } catch (e) {}
+        }
+        // Также проверяем localStorage
+        const stored = localStorage.getItem('glitched_price_adjustment');
+        if (stored) {
+            try {
+                return JSON.parse(stored);
+            } catch (e) {}
+        }
+        return null;
+    }
+
     function getPriceAdjustmentData() {
         const data = localStorage.getItem('glitched_price_adjustment');
         if (data) {
@@ -676,6 +750,670 @@
         return null;
     }
     
+    // ==================== УПРАВЛЕНИЕ ОЧЕРЕДЬЮ ====================
+    function getQueueFromStorage() {
+        try {
+            const queueStr = localStorage.getItem('eldoradoQueue');
+            const indexStr = localStorage.getItem('eldoradoQueueIndex');
+            const completedStr = localStorage.getItem('eldoradoQueueCompleted');
+            if (queueStr) {
+                queueState.queue = JSON.parse(queueStr);
+                queueState.currentIndex = indexStr ? parseInt(indexStr, 10) : 0;
+                queueState.completed = completedStr ? JSON.parse(completedStr) : [];
+                log(`Queue loaded: ${queueState.queue.length} items, index: ${queueState.currentIndex}`);
+                return queueState.queue.length > 0;
+            }
+        } catch (e) { console.error('Failed to load queue:', e); }
+        return false;
+    }
+    
+    function saveQueueState() {
+        localStorage.setItem('eldoradoQueueIndex', queueState.currentIndex.toString());
+        localStorage.setItem('eldoradoQueueCompleted', JSON.stringify(queueState.completed));
+    }
+    
+    function getCurrentQueueItem() {
+        if (queueState.queue.length === 0 || queueState.currentIndex >= queueState.queue.length) return null;
+        return queueState.queue[queueState.currentIndex];
+    }
+    
+    function markCurrentAsDone() {
+        const current = getCurrentQueueItem();
+        if (current) {
+            queueState.completed.push({ ...current, completedAt: Date.now() });
+            queueState.currentIndex++;
+            saveQueueState();
+            log(`Marked item ${queueState.currentIndex - 1} as done`);
+        }
+    }
+    
+    function hasMoreInQueue() { return queueState.currentIndex < queueState.queue.length; }
+    
+    function clearQueue() {
+        localStorage.removeItem('eldoradoQueue');
+        localStorage.removeItem('eldoradoQueueIndex');
+        localStorage.removeItem('eldoradoQueueCompleted');
+        localStorage.removeItem('eldoradoQueueTimestamp');
+        queueState = { queue: [], currentIndex: 0, completed: [] };
+        log('Queue cleared');
+    }
+    
+    function processNextQueueItem() {
+        const item = getCurrentQueueItem();
+        if (!item) {
+            log('No more items in queue');
+            showNotification('✅ Очередь завершена!', 'success');
+            clearQueue();
+            return false;
+        }
+        log(`Processing queue item: ${item.name}`);
+        const offerDataForUrl = {
+            name: item.name, income: item.income, generatedImageUrl: item.imageUrl,
+            maxPrice: parseFloat(item.price) || 0, minPrice: parseFloat(item.price) || 0,
+            accountName: item.accountName, fromQueue: true,
+            queueIndex: queueState.currentIndex, queueTotal: queueState.queue.length
+        };
+        const encodedData = encodeURIComponent(JSON.stringify(offerDataForUrl));
+        const url = `https://www.eldorado.gg/sell/create/roblox/roblox-items/o/steal-a-brainrot/steal-a-brainrot-brainrots?glitched_data=${encodedData}`;
+        window.location.href = url;
+        return true;
+    }
+    
+    // ==================== ANGULAR HELPERS ====================
+    function setInputValue(input, value) {
+        if (!input) return false;
+        input.focus();
+        const setter = Object.getOwnPropertyDescriptor(
+            input.tagName === 'TEXTAREA' ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype, 'value'
+        )?.set;
+        if (setter) setter.call(input, value);
+        else input.value = value;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        input.dispatchEvent(new Event('blur', { bubbles: true }));
+        return true;
+    }
+
+    function closeAllDropdowns() {
+        document.querySelectorAll('ng-dropdown-panel').forEach(p => p.remove());
+        document.querySelectorAll('ng-select.ng-select-opened').forEach(s => s.classList.remove('ng-select-opened'));
+    }
+
+    function getNgSelectValue(ngSelect) {
+        if (!ngSelect) return null;
+        return ngSelect.querySelector('.ng-value-label')?.textContent?.trim() || null;
+    }
+
+    function isValueSelected(ngSelect, expectedText) {
+        const currentValue = getNgSelectValue(ngSelect);
+        if (!currentValue) return false;
+        return currentValue.toLowerCase().includes(expectedText.toLowerCase()) ||
+               expectedText.toLowerCase().includes(currentValue.toLowerCase());
+    }
+
+    async function trySelectNgOption(ngSelect, optionText) {
+        if (!ngSelect) return false;
+        try {
+            closeAllDropdowns();
+            await new Promise(r => setTimeout(r, 150));
+            const input = ngSelect.querySelector('input[role="combobox"]');
+            if (!input) return false;
+            input.focus();
+            await new Promise(r => setTimeout(r, 50));
+            input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 50));
+            input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 200));
+            if (input.getAttribute('aria-expanded') !== 'true') {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await new Promise(r => setTimeout(r, 200));
+            }
+            let panel = null;
+            for (let i = 0; i < 20; i++) {
+                panel = document.querySelector('ng-dropdown-panel');
+                if (panel) break;
+                await new Promise(r => setTimeout(r, 80));
+            }
+            if (!panel) return false;
+            const options = panel.querySelectorAll('.ng-option');
+            const searchText = optionText.toLowerCase();
+            for (const opt of options) {
+                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                if (label.toLowerCase() === searchText || label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 30));
+                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 250));
+                    return true;
+                }
+            }
+            closeAllDropdowns();
+            return false;
+        } catch (e) {
+            closeAllDropdowns();
+            return false;
+        }
+    }
+
+    async function selectNgOption(ngSelect, optionText, maxRetries = 3) {
+        if (!ngSelect) return false;
+        if (isValueSelected(ngSelect, optionText)) return true;
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            await trySelectNgOption(ngSelect, optionText);
+            await new Promise(r => setTimeout(r, 300));
+            if (isValueSelected(ngSelect, optionText)) return true;
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return false;
+    }
+
+    function findNgSelectByAriaLabel(label) {
+        const inputs = document.querySelectorAll('ng-select input[aria-label]');
+        for (const input of inputs) {
+            if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
+                return input.closest('ng-select');
+            }
+        }
+        return null;
+    }
+
+    function findNgSelectByPlaceholder(text) {
+        const selects = document.querySelectorAll('ng-select');
+        for (const s of selects) {
+            const placeholder = s.querySelector('.ng-placeholder')?.textContent?.toLowerCase() || '';
+            const value = s.querySelector('.ng-value-label')?.textContent?.toLowerCase() || '';
+            if (placeholder.includes(text.toLowerCase()) || value.includes(text.toLowerCase())) return s;
+        }
+        return null;
+    }
+
+    // ==================== ГЕНЕРАТОРЫ ====================
+    function generateOfferId() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+        return `GS${code}`;
+    }
+
+    function generateOfferTitle(brainrotName, income, offerId) {
+        const base = `🔥${brainrotName} l ${income || '0/s'}🔥 Fast Delivery🚚 👾Glitched Store👾`;
+        return (base + ` #${offerId}`).substring(0, 160);
+    }
+
+    function generateOfferDescription(offerId) {
+        return `📦 How We Delivery
+1️⃣ After purchase, send your Roblox username in live chat.
+2️⃣ I will send you a private sever's link to join or direct add if cant join by link.
+3️⃣ Once join sever I will give you Brainrot you purchased.
+
+NOTE: please read before buy
+💥 Give me EXACTLY your @Username (not display name). If you gave me wrong spelling, we NOT take any responsibility if you gave me a wrong @Username.
+💥 Every Private sever we sent to you is 100% New Generated which mean ONLY you and me know that link. If I saw any other person than you (@username given) and me join the room → WE WILL CANCEL THE ORDER IMMEDIATELY.
+💥 If you cant join link. We will add you by your @username given by you. WE NOT ACCEPT ADDING FROM YOUR SIDE so please dont buy if you can't give us your @username to add.
+
+❤️ Why Choosing Us - 👾Glitched Store👾
+1️⃣ Fast Delivery and Respond
+2️⃣ All brainrot/item are clean. (No dupe/exploit)
+3️⃣ Safe for information
+
+Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
+
+#${offerId}`;
+    }
+
+    function getIncomeRange(income) {
+        if (!income) return '0-24 M/s';
+        const match = income.match(/[\d.]+/);
+        if (!match) return '0-24 M/s';
+        const value = parseFloat(match[0]);
+        if (value < 25) return '0-24 M/s';
+        if (value < 50) return '25-49 M/s';
+        if (value < 100) return '50-99 M/s';
+        if (value < 250) return '100-249 M/s';
+        if (value < 500) return '250-499 M/s';
+        if (value < 750) return '500-749 M/s';
+        if (value < 1000) return '750-999 M/s';
+        return '1+ B/s';
+    }
+
+    async function waitForOfferPage(timeout = 30000) {
+        const start = Date.now();
+        while (Date.now() - start < timeout) {
+            if (document.querySelectorAll('ng-select').length >= 3) return true;
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return false;
+    }
+
+    async function uploadImage(imageUrl) {
+        try {
+            updateStatus('📥 Загрузка изображения...', 'working');
+            const blob = await new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'GET', url: imageUrl, responseType: 'blob',
+                    onload: r => r.status === 200 ? resolve(r.response) : reject(new Error(`${r.status}`)),
+                    onerror: reject
+                });
+            });
+            const fileInput = document.querySelector('input[type="file"]');
+            if (!fileInput) return false;
+            const file = new File([blob], 'brainrot.png', { type: 'image/png' });
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            fileInput.files = dt.files;
+            fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+            log('Image uploaded', 'success');
+            return true;
+        } catch (e) {
+            log('Image upload failed: ' + e.message, 'error');
+            return false;
+        }
+    }
+
+    async function setTotalQuantity(quantity) {
+        if (!quantity || quantity < 1) quantity = 1;
+        try {
+            let qtyInput = document.querySelector('input[aria-label="Numeric input field"]');
+            if (!qtyInput) {
+                const qtyLabel = [...document.querySelectorAll('span')].find(s => s.textContent?.toLowerCase().includes('total quantity'));
+                if (qtyLabel) qtyInput = qtyLabel.closest('div')?.querySelector('input');
+            }
+            if (!qtyInput) {
+                const qtyGroup = document.querySelector('[aria-label="Total Quantity"]');
+                if (qtyGroup) qtyInput = qtyGroup.querySelector('input');
+            }
+            if (!qtyInput) return false;
+            qtyInput.focus();
+            await new Promise(r => setTimeout(r, 100));
+            qtyInput.value = '';
+            qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+            for (const char of String(quantity)) {
+                qtyInput.value += char;
+                qtyInput.dispatchEvent(new Event('input', { bubbles: true }));
+                await new Promise(r => setTimeout(r, 30));
+            }
+            qtyInput.dispatchEvent(new Event('change', { bubbles: true }));
+            qtyInput.dispatchEvent(new Event('blur', { bubbles: true }));
+            return true;
+        } catch (e) { return false; }
+    }
+
+    // ==================== ЗАПОЛНЕНИЕ ФОРМЫ ====================
+    async function fillOfferForm() {
+        if (!offerData) return;
+        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity } = offerData;
+        const offerId = generateOfferId();
+        const totalQuantity = quantity || 1;
+        updateStatus('🔄 Заполняем форму...', 'working');
+        log(`Starting auto-fill for ${name} (qty: ${totalQuantity})`);
+
+        try {
+            await waitForOfferPage();
+            await new Promise(r => setTimeout(r, 1000));
+            const expectedIncomeRange = getIncomeRange(income);
+            const expectedRarity = rarity || 'Secret';
+
+            // 1. Income range
+            let incomeSelect = findNgSelectByAriaLabel('M/s') || findNgSelectByPlaceholder('m/s');
+            if (!incomeSelect) incomeSelect = document.querySelector('.hidden.md\\:block ng-select');
+            if (incomeSelect) { await selectNgOption(incomeSelect, expectedIncomeRange); await new Promise(r => setTimeout(r, 300)); }
+
+            // 2. Mutations
+            const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
+            if (mutationSelect) { await selectNgOption(mutationSelect, 'None'); await new Promise(r => setTimeout(r, 300)); }
+
+            // 3. Item type
+            const itemTypeSelect = findNgSelectByAriaLabel('Item type');
+            if (itemTypeSelect) { await selectNgOption(itemTypeSelect, 'Brainrot'); await new Promise(r => setTimeout(r, 500)); }
+
+            // 4. Rarity
+            let raritySelect = null;
+            for (let i = 0; i < 10; i++) { raritySelect = findNgSelectByAriaLabel('Rarity'); if (raritySelect) break; await new Promise(r => setTimeout(r, 150)); }
+            if (raritySelect) { await selectNgOption(raritySelect, expectedRarity); await new Promise(r => setTimeout(r, 500)); }
+
+            // 5. Brainrot name
+            let brainrotSelect = null;
+            for (let i = 0; i < 10; i++) { brainrotSelect = findNgSelectByAriaLabel('Brainrot'); if (brainrotSelect) break; await new Promise(r => setTimeout(r, 150)); }
+            if (brainrotSelect) {
+                let selected = await selectNgOption(brainrotSelect, name);
+                if (!selected) await selectNgOption(brainrotSelect, 'Other');
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // 6. Title
+            const titleInput = document.querySelector('textarea[maxlength="160"]');
+            if (titleInput) setInputValue(titleInput, generateOfferTitle(name, income, offerId));
+
+            // 7. Image
+            if (generatedImageUrl) await uploadImage(generatedImageUrl);
+            await new Promise(r => setTimeout(r, 250));
+
+            // 8. Description
+            const descInput = document.querySelector('textarea[maxlength="2000"]');
+            if (descInput) setInputValue(descInput, generateOfferDescription(offerId));
+
+            // 9. Delivery time
+            let deliverySelect = document.querySelector('.delivery-group ng-select');
+            if (!deliverySelect) {
+                const deliveryLabel = [...document.querySelectorAll('span')].find(s => s.textContent?.toLowerCase().includes('delivery time'));
+                if (deliveryLabel) deliverySelect = deliveryLabel.closest('div')?.querySelector('ng-select');
+            }
+            if (deliverySelect) await selectNgOption(deliverySelect, '20 min');
+
+            // 10. Price
+            const price = maxPrice || minPrice || 10;
+            const priceInput = document.querySelector('input[formcontrolname="price"]') || document.querySelector('input[placeholder*="rice"]');
+            if (priceInput) setInputValue(priceInput, String(price));
+
+            // 11. Total Quantity
+            await setTotalQuantity(totalQuantity);
+
+            // 12. Checkboxes
+            document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                if (!cb.checked) (cb.closest('label') || cb).click();
+            });
+
+            // 13. Setup auto-close
+            setupAutoCloseAndSave(offerId);
+            updateStatus('✅ Готово! Проверьте и нажмите Place offer', 'ready');
+            showNotification('✅ Форма заполнена!', 'success');
+
+        } catch (e) {
+            log('Error: ' + e.message, 'error');
+            updateStatus('❌ Ошибка: ' + e.message, 'error');
+        }
+    }
+
+    function setupAutoCloseAndSave(offerId) {
+        const findPlaceOfferButton = () => {
+            const buttons = document.querySelectorAll('button');
+            for (const btn of buttons) {
+                const text = btn.textContent?.toLowerCase() || '';
+                if (text.includes('place offer') || text.includes('place')) return btn;
+            }
+            return document.querySelector('button[type="submit"]');
+        };
+
+        const placeOfferBtn = findPlaceOfferButton();
+        if (placeOfferBtn) {
+            log('Found Place offer button');
+            placeOfferBtn.addEventListener('click', async () => {
+                log('Place offer clicked');
+                updateStatus('🚀 Создаём оффер...', 'working');
+                
+                // Save offer to panel
+                try {
+                    const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+                    if (farmKey && offerData) {
+                        await fetch(`${API_BASE}/offers`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                farmKey, offerId,
+                                brainrotName: offerData.name,
+                                income: offerData.income,
+                                currentPrice: offerData.maxPrice || offerData.minPrice || 0,
+                                imageUrl: offerData.generatedImageUrl,
+                                status: 'pending'
+                            })
+                        });
+                        log(`Offer ${offerId} saved to panel`);
+                    }
+                } catch (e) { log('Failed to save offer: ' + e.message); }
+
+                const isFromQueue = offerData?.fromQueue;
+                if (isFromQueue && getQueueFromStorage()) {
+                    markCurrentAsDone();
+                    updateStatus('✅ Оффер создан!', 'ready');
+                    showNotification(`Оффер #${offerId} создан!`, 'success');
+                    
+                    setTimeout(() => {
+                        if (hasMoreInQueue()) {
+                            const nextItem = getCurrentQueueItem();
+                            updateStatus(`📋 Следующий: ${nextItem?.name}...`, 'working');
+                            showNotification(`⏭️ Следующий: ${nextItem?.name}`, 'info');
+                            setTimeout(() => processNextQueueItem(), 1000);
+                        } else {
+                            updateStatus('✅ Очередь завершена!', 'ready');
+                            showNotification('🎉 Все офферы созданы!', 'success');
+                            clearQueue();
+                        }
+                    }, 2000);
+                } else {
+                    updateStatus('✅ Оффер создан!', 'ready');
+                    showNotification(`Оффер #${offerId} создан!`, 'success');
+                    setTimeout(() => window.close(), 3000);
+                }
+            });
+        }
+    }
+
+    function createOfferPanel() {
+        const existing = document.querySelector('.glitched-mini');
+        if (existing) existing.remove();
+        if (!offerData) return;
+
+        const price = offerData.maxPrice || offerData.minPrice || 0;
+        const qty = offerData.quantity || 1;
+        const isFromQueue = offerData?.fromQueue;
+        const queueIndex = offerData?.queueIndex || 0;
+        const queueTotal = offerData?.queueTotal || 0;
+
+        let queueHtml = '';
+        if (isFromQueue && queueState.queue.length > 0) {
+            const queueItems = queueState.queue.map((item, idx) => {
+                let icon = '⏳', className = '';
+                if (idx < queueState.currentIndex) { icon = '✅'; className = 'done'; }
+                else if (idx === queueState.currentIndex) { icon = '▶️'; className = 'current'; }
+                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name}</span></div>`;
+            }).join('');
+            queueHtml = `<div class="queue-info"><div class="queue-progress">📋 ${queueIndex + 1} / ${queueTotal}</div><div>Очередь Eldorado</div></div><div class="queue-list">${queueItems}</div>`;
+        }
+
+        const panel = document.createElement('div');
+        panel.className = 'glitched-mini';
+        panel.innerHTML = `
+            <div class="header">
+                <div class="title">👾 Glitched Store${isFromQueue ? ' - Queue' : ''}</div>
+                <span class="close" id="g-close">✕</span>
+            </div>
+            ${queueHtml}
+            <div class="info">
+                ${offerData.generatedImageUrl ? `<img src="${offerData.generatedImageUrl}" alt="">` : ''}
+                <div>
+                    <div class="name">${offerData.name || 'Unknown'}${qty > 1 ? ` <span style="color:#f59e0b;">x${qty}</span>` : ''}</div>
+                    <div class="details">
+                        <span class="income">💰 ${offerData.income || '0/s'}</span>
+                        ${price > 0 ? `<span class="price">💵 $${price.toFixed(2)}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="status" id="g-status">⏳ Авто-заполнение через 2 сек...</div>
+        `;
+        document.body.appendChild(panel);
+        statusEl = document.getElementById('g-status');
+        document.getElementById('g-close').onclick = () => {
+            panel.remove();
+            if (isFromQueue && confirm('Остановить обработку очереди?')) clearQueue();
+        };
+    }
+
+    // ==================== КОРРЕКТИРОВКА ЦЕН ====================
+    function findOfferCardByOfferId(offerId) {
+        const cards = document.querySelectorAll('eld-offer-item, .offer-card, [class*="offer-item"]');
+        for (const card of cards) {
+            const title = card.querySelector('.offer-title')?.textContent || '';
+            if (title.includes(`#${offerId}`) || title.includes(offerId)) return card;
+            const text = card.textContent || '';
+            if (text.includes(`#${offerId}`)) return card;
+        }
+        return null;
+    }
+
+    function findMatchingOfferCards(brainrotName, currentPrice) {
+        const cards = [];
+        const allCards = document.querySelectorAll('.offer-card, [class*="offer-item"], .offers-list > div');
+        for (const card of allCards) {
+            const text = card.textContent || '';
+            if (text.toLowerCase().includes(brainrotName.toLowerCase()) && 
+                (text.includes(`$${currentPrice}`) || text.includes(currentPrice.toString()))) {
+                cards.push(card);
+            }
+        }
+        return cards;
+    }
+
+    async function changeOfferPrice(card, newPrice) {
+        try {
+            const priceForm = card.querySelector('.offer-price-input, form.offer-price-input');
+            if (!priceForm) return false;
+            const priceInput = priceForm.querySelector('eld-numeric-input input.input') ||
+                              priceForm.querySelector('input[inputmode="decimal"]') ||
+                              priceForm.querySelector('input.input');
+            if (!priceInput) return false;
+            
+            priceInput.focus();
+            await new Promise(r => setTimeout(r, 100));
+            priceInput.value = '';
+            priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 50));
+            
+            for (const char of String(newPrice)) {
+                priceInput.value += char;
+                priceInput.dispatchEvent(new Event('input', { bubbles: true }));
+                await new Promise(r => setTimeout(r, 30));
+            }
+            priceInput.dispatchEvent(new Event('change', { bubbles: true }));
+            priceInput.dispatchEvent(new Event('blur', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 300));
+            
+            const checkButton = priceForm.querySelector('.check-button') ||
+                               priceForm.querySelector('[aria-label="Confirm price"]') ||
+                               priceForm.querySelector('[role="button"].control');
+            if (!checkButton) return false;
+            
+            let attempts = 0;
+            while (checkButton.classList.contains('disabled') && attempts < 20) {
+                await new Promise(r => setTimeout(r, 100));
+                attempts++;
+            }
+            checkButton.click();
+            await new Promise(r => setTimeout(r, 500));
+            log(`Price changed to ${newPrice}`, 'success');
+            return true;
+        } catch (e) {
+            log(`Error changing price: ${e.message}`, 'error');
+            return false;
+        }
+    }
+
+    async function updatePriceInPanel(offerId, newPrice) {
+        try {
+            const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+            if (!farmKey) return false;
+            const response = await fetch(`${API_BASE}/offers`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ farmKey, offerId, currentPrice: newPrice, status: 'active' })
+            });
+            return response.ok;
+        } catch (e) { return false; }
+    }
+
+    async function goToNextPage() {
+        const pagination = document.querySelector('eld-pagination, .pagination');
+        if (!pagination) return false;
+        const nextBtn = pagination.querySelector('.pagination-arrow, [class*="sign-right"]');
+        if (nextBtn) { nextBtn.click(); await new Promise(r => setTimeout(r, 1500)); return true; }
+        const currentPage = pagination.querySelector('.active-page, .pagination-item.active');
+        if (currentPage?.nextElementSibling?.classList.contains('pagination-item')) {
+            currentPage.nextElementSibling.click();
+            await new Promise(r => setTimeout(r, 1500));
+            return true;
+        }
+        return false;
+    }
+
+    async function adjustPrices() {
+        if (!adjustmentData?.offers?.length) return;
+        updateStatus('🔄 Корректируем цены...', 'working');
+        log(`Starting price adjustment for ${adjustmentData.offers.length} offers`);
+
+        const results = [];
+        let currentPage = 1;
+        const maxPages = 10;
+
+        for (const offer of adjustmentData.offers) {
+            let found = false;
+            for (let page = currentPage; page <= maxPages && !found; page++) {
+                updateStatus(`🔍 Ищем оффер ${offer.offerId} (стр. ${page})...`, 'working');
+                await new Promise(r => setTimeout(r, 500));
+                
+                let card = findOfferCardByOfferId(offer.offerId);
+                if (!card) {
+                    const matchingCards = findMatchingOfferCards(offer.brainrotName, offer.currentPrice);
+                    if (matchingCards.length > 0) card = matchingCards[0];
+                }
+                
+                if (card) {
+                    const success = await changeOfferPrice(card, offer.newPrice);
+                    if (success) await updatePriceInPanel(offer.offerId, offer.newPrice);
+                    results.push({ offerId: offer.offerId, success, newPrice: offer.newPrice });
+                    found = true;
+                    currentPage = page;
+                } else {
+                    const hasNext = await goToNextPage();
+                    if (!hasNext) {
+                        results.push({ offerId: offer.offerId, success: false, error: 'Not found' });
+                        break;
+                    }
+                    currentPage = page + 1;
+                }
+            }
+            if (!found) results.push({ offerId: offer.offerId, success: false, error: 'Not found' });
+        }
+
+        localStorage.setItem('glitched_price_result', JSON.stringify({
+            success: true, adjusted: results.filter(r => r.success),
+            failed: results.filter(r => !r.success), timestamp: Date.now()
+        }));
+        localStorage.removeItem('glitched_price_adjustment');
+
+        const successCount = results.filter(r => r.success).length;
+        updateStatus(`✅ Готово! ${successCount}/${results.length} цен изменено`, 'ready');
+        showNotification(`Изменено ${successCount} из ${results.length} цен`, successCount === results.length ? 'success' : 'warning');
+        
+        setTimeout(() => adjustmentData.returnUrl ? (window.location.href = adjustmentData.returnUrl) : window.close(), 2000);
+    }
+
+    function createAdjustmentPanel() {
+        const existing = document.querySelector('.glitched-mini');
+        if (existing) existing.remove();
+        if (!adjustmentData?.offers) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'glitched-mini';
+        panel.innerHTML = `
+            <div class="header">
+                <div class="title">👾 Price Adjustment</div>
+                <span class="close" id="g-close">✕</span>
+            </div>
+            <div class="status" id="g-status">⏳ Начинаем корректировку...</div>
+            <div class="progress-list" id="g-progress">
+                ${adjustmentData.offers.map(o => `
+                    <div class="progress-item" data-offer-id="${o.offerId}">
+                        <span class="icon">⏳</span>
+                        <span class="name">${o.brainrotName || o.offerId}</span>
+                        <span class="price">→ $${o.newPrice}</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        document.body.appendChild(panel);
+        statusEl = document.getElementById('g-status');
+        document.getElementById('g-close').onclick = () => panel.remove();
+    }
+
     // ==================== НАБЛЮДАТЕЛЬ ЗА ИЗМЕНЕНИЯМИ ====================
     function setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
@@ -717,28 +1455,75 @@
     async function init() {
         log(`Glitched Store v${VERSION} initialized`);
         
-        // Загружаем офферы если есть ключ
+        const isDashboard = window.location.pathname.includes('/dashboard/offers');
+        const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
+        
+        // Загружаем состояние очереди
+        getQueueFromStorage();
+        
+        // Сохраняем farm key для последующего использования
         if (CONFIG.farmKey) {
-            // Сначала показываем кнопку сразу
+            localStorage.setItem('glitched_farm_key', CONFIG.farmKey);
+        }
+        
+        // Режим корректировки цен на dashboard
+        if (isDashboard) {
+            adjustmentData = getAdjustmentDataFromURL();
+            if (adjustmentData) {
+                log(`Price adjustment mode: ${adjustmentData.offers?.length || 0} offers`);
+                await new Promise(r => setTimeout(r, 2000));
+                createAdjustmentPanel();
+                await new Promise(r => setTimeout(r, 1000));
+                await adjustPrices();
+                return;
+            }
+        }
+        
+        if (isCreatePage) {
+            // Режим создания оффера
+            offerData = getOfferDataFromURL();
+            
+            // Если нет данных в URL, но есть очередь - продолжаем обработку
+            if (!offerData && queueState.queue.length > 0 && hasMoreInQueue()) {
+                const timestamp = localStorage.getItem('eldoradoQueueTimestamp');
+                const age = timestamp ? Date.now() - parseInt(timestamp, 10) : Infinity;
+                if (age < 3600000) { // 1 час
+                    showNotification(`📋 Продолжаем очередь: ${queueState.currentIndex + 1}/${queueState.queue.length}`, 'info');
+                    await new Promise(r => setTimeout(r, 1500));
+                    processNextQueueItem();
+                    return;
+                } else {
+                    clearQueue();
+                }
+            }
+            
+            if (offerData) {
+                log('Offer creation mode' + (offerData.fromQueue ? ` (queue ${offerData.queueIndex + 1}/${offerData.queueTotal})` : ''));
+                if (offerData.farmKey) localStorage.setItem('glitched_farm_key', offerData.farmKey);
+                if (offerData.fromQueue) queueState.currentIndex = offerData.queueIndex || 0;
+                
+                // Очищаем URL
+                const url = new URL(window.location.href);
+                url.searchParams.delete('glitched_data');
+                window.history.replaceState({}, '', url.toString());
+                
+                await new Promise(r => setTimeout(r, 1500));
+                createOfferPanel();
+                await new Promise(r => setTimeout(r, 1000));
+                await fillOfferForm();
+                return; // Не показываем обычную панель
+            }
+        }
+        
+        // Обычный режим - подсветка и панель
+        if (CONFIG.farmKey) {
             showMiniButton();
-            // Затем загружаем офферы асинхронно
             loadUserOffers();
         } else {
-            // Показываем панель для первой настройки быстро
             setTimeout(showAuthPanel, 500);
         }
         
-        // Наблюдаем за изменениями DOM
         setupMutationObserver();
-        
-        // Проверяем данные для автозаполнения
-        const offerData = getOfferDataFromURL();
-        const priceData = getPriceAdjustmentData();
-        
-        if (offerData || priceData) {
-            log('Found form data, starting auto-fill...');
-            // TODO: интегрировать полный код автозаполнения из eldoradobot.js
-        }
     }
     
     // Запуск - быстрая инициализация
