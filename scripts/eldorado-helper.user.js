@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.6
+// @version      8.7
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -19,15 +19,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.7
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.7
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '8.6';
+    const VERSION = '8.7';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
