@@ -4271,6 +4271,7 @@ function hasActiveOffer(brainrotName, income) {
 }
 
 // Mass selection state
+const MASS_SELECTION_MAX = 10; // Maximum items for mass generation
 let massSelectionState = {
     isActive: false,
     selectedItems: new Set(), // Set of group keys (stable across search/filter)
@@ -4315,6 +4316,11 @@ function toggleBrainrotSelection(index) {
     if (massSelectionState.selectedItems.has(key)) {
         massSelectionState.selectedItems.delete(key);
     } else {
+        // Check limit before adding
+        if (massSelectionState.selectedItems.size >= MASS_SELECTION_MAX) {
+            showNotification(`Максимум ${MASS_SELECTION_MAX} брейнротов для массовой генерации`, 'warning');
+            return;
+        }
         massSelectionState.selectedItems.add(key);
     }
     

@@ -2150,6 +2150,15 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // 5. Brainrot name
             log('Step 5: Brainrot -> ' + name);
+            
+            // Маппинг исправлений опечаток на Eldorado
+            const brainrotNameFixes = {
+                'chimnino': 'chimino',  // Опечатка на Eldorado
+                'Chimnino': 'Chimino'
+            };
+            let searchName = brainrotNameFixes[name] || name;
+            log('Searching for brainrot: ' + searchName);
+            
             let brainrotSelect = null;
             for (let i = 0; i < 10; i++) {
                 brainrotSelect = findNgSelectByAriaLabel('Brainrot');
@@ -2157,7 +2166,13 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 await new Promise(r => setTimeout(r, 150));
             }
             if (brainrotSelect) {
-                let selected = await selectNgOption(brainrotSelect, name);
+                let selected = await selectNgOption(brainrotSelect, searchName);
+                // Если не нашли с исправленным именем, пробуем оригинальное
+                if (!selected && searchName !== name) {
+                    log('Trying original name: ' + name, 'warn');
+                    selected = await selectNgOption(brainrotSelect, name);
+                }
+                // Если всё ещё не нашли - выбираем Other
                 if (!selected) {
                     log('Brainrot not found, selecting Other', 'warn');
                     selected = await selectNgOption(brainrotSelect, 'Other');
