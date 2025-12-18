@@ -1512,8 +1512,10 @@ async function fetchFarmerData() {
  * Загрузить данные всех сохранённых фермеров для отображения в Farm Keys
  */
 async function fetchAllFarmersData() {
+    let currentKeyLoaded = false;
+    
     const promises = state.savedKeys.map(async (key) => {
-        // Пропускаем текущий ключ - он уже загружен
+        // Пропускаем текущий ключ если данные уже есть
         if (key.farmKey === state.currentKey && state.farmersData[key.farmKey]) {
             return;
         }
@@ -1523,6 +1525,11 @@ async function fetchAllFarmersData() {
             if (response.ok) {
                 const data = await response.json();
                 state.farmersData[key.farmKey] = data;
+                
+                // Отмечаем что загрузили данные для текущего ключа
+                if (key.farmKey === state.currentKey) {
+                    currentKeyLoaded = true;
+                }
                 
                 // Кэшируем base64 аватары для офлайн доступа
                 if (data.accountAvatars) {
@@ -1561,7 +1568,14 @@ async function fetchAllFarmersData() {
     
     await Promise.all(promises);
     saveState();
+    saveFarmersDataToCache(); // Сохраняем в кэш
     renderFarmKeys();
+    
+    // Если загрузили данные для текущего ключа - обновляем UI
+    if (currentKeyLoaded) {
+        console.log('Current key data loaded via fetchAllFarmersData, updating UI');
+        updateUI();
+    }
 }
 
 // Check if account is online based on lastUpdate timestamp
