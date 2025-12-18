@@ -1333,14 +1333,29 @@ async function handleLogin(e) {
             return;
         }
         
+        // Проверяем новый ли это ключ
+        const isNewKey = !state.savedKeys.find(k => k.farmKey === key);
+        
         // Add key to saved keys if not exists
-        if (!state.savedKeys.find(k => k.farmKey === key)) {
+        if (isNewKey) {
             state.savedKeys.push({
                 farmKey: key,
                 username: data.username,
                 avatar: data.avatar,
                 addedAt: new Date().toISOString()
             });
+            
+            // Автоматически назначаем цвет рамки для нового пользователя
+            try {
+                await fetch(`${API_BASE}/user-color`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ farmKey: key })
+                });
+                console.log('Default color assigned for new user');
+            } catch (e) {
+                console.warn('Failed to assign default color:', e);
+            }
         }
         
         state.currentKey = key;
@@ -2590,6 +2605,7 @@ async function loadGenerationsData() {
 }
 
 // Load panel color (single color for entire panel based on farmKey)
+// Используем новый API user-color с fallback на старый
 async function loadPanelColor() {
     try {
         const farmKey = state.currentKey;
@@ -2598,15 +2614,54 @@ async function loadPanelColor() {
             return;
         }
         
-        const response = await fetch(`/api/account-colors?accountIds=${encodeURIComponent(farmKey)}`);
+        // Пробуем новый API
+        try {
+            const response = await fetch(`${API_BASE}/user-color?farmKey=${encodeURIComponent(farmKey)}`);
+            if (response.ok) {
+                const result = await response.json();
+                collectionState.panelColor = result.color || '#4ade80';
+                collectionState.colorPalette = result.palette || [];
+                console.log('User color:', collectionState.panelColor, result.isCustom ? '(custom)' : '(default)');
+                return;
+            }
+        } catch (e) {
+            console.warn('New color API failed, using fallback');
+        }
+        
+        // Fallback на старый API
+        const response = await fetch(`${API_BASE}/account-colors?farmKey=${encodeURIComponent(farmKey)}`);
         const result = await response.json();
-        // Use the color generated for farmKey
-        collectionState.panelColor = result.colors?.[farmKey] || '#4ade80';
+        collectionState.panelColor = result.color || '#4ade80';
+        collectionState.colorPalette = result.palette || [];
         console.log('Panel color:', collectionState.panelColor);
     } catch (err) {
         console.error('Error loading panel color:', err);
         collectionState.panelColor = '#4ade80';
     }
+}
+
+// Сохранить цвет пользователя
+async function saveUserColor(color) {
+    try {
+        const farmKey = state.currentKey;
+        if (!farmKey) return false;
+        
+        const response = await fetch(`${API_BASE}/user-color`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey, color })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            collectionState.panelColor = result.color;
+            console.log('User color saved:', result.color);
+            return true;
+        }
+    } catch (err) {
+        console.error('Error saving user color:', err);
+    }
+    return false;
 }
 
 // Save generation record
