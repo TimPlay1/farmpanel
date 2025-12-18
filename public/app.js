@@ -5691,6 +5691,7 @@ function saveChartPeriod(period) {
 
 // Debounce timer for chart updates
 let chartUpdateTimer = null;
+let lastChartDataHash = null; // Track if data actually changed
 
 // Update balance chart with debounce
 function updateBalanceChart(period = currentChartPeriod) {
@@ -5702,7 +5703,16 @@ function updateBalanceChart(period = currentChartPeriod) {
     // Debounce chart updates to prevent flickering
     chartUpdateTimer = setTimeout(() => {
         _doUpdateBalanceChart(period);
-    }, 100);
+    }, 150); // Increased debounce
+}
+
+// Simple hash for chart data to detect changes
+function getChartDataHash(chartData) {
+    if (!chartData || !chartData.values) return '';
+    const vals = chartData.values;
+    // Use first, last, length and sum for quick comparison
+    const sum = vals.reduce((a, b) => a + b, 0);
+    return `${vals.length}_${vals[0]?.toFixed(2)}_${vals[vals.length-1]?.toFixed(2)}_${sum.toFixed(2)}`;
 }
 
 // Actual chart update implementation
@@ -5741,6 +5751,14 @@ function _doUpdateBalanceChart(period) {
     });
     
     const chartData = getChartData(state.currentKey, period);
+    
+    // Check if data actually changed - skip update if same
+    const newHash = getChartDataHash(chartData);
+    if (newHash === lastChartDataHash && balanceChart) {
+        return; // Data hasn't changed, skip redraw
+    }
+    lastChartDataHash = newHash;
+    
     console.log(`Chart data for period ${period}:`, chartData.labels.length, 'points, history:', state.balanceHistory[state.currentKey]?.length || 0);
     
     if (chartData.labels.length < 2) {
@@ -5813,6 +5831,8 @@ function _doUpdateBalanceChart(period) {
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            animation: false, // Disable animation to prevent jumping
+            resizeDelay: 100, // Delay resize recalculation
             plugins: {
                 legend: {
                     display: false
