@@ -1148,14 +1148,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadPricesFromServer().then(loaded => {
             if (loaded) {
                 console.log('Loaded prices from server cache');
-                // Обновляем UI с загруженными ценами
                 updateUI();
                 renderFarmKeys();
             }
         });
-        // Сначала загружаем данные, потом запускаем polling
-        await fetchAllFarmersData();
+        // Запускаем polling сразу - данные будут обновляться в фоне
         startPolling();
+        // Загружаем данные всех фермеров в фоне (не блокируя UI)
+        fetchAllFarmersData();
         
         // Автообновление цен каждые 10 минут
         startAutoPriceRefresh();
@@ -1499,41 +1499,23 @@ async function fetchFarmerData() {
     
     const requestKey = state.currentKey;
     
-    console.log(`[FETCH] Starting fetch for key ${requestKey.slice(-8)}`);
-    
     try {
         const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`);
         
         // Проверяем что ключ не изменился пока ждали ответ
-        // НЕ проверяем requestId - это нормально если пришёл старый ответ, главное чтобы ключ совпадал
         if (state.currentKey !== requestKey) {
-            console.log('[FETCH] Key changed during fetch, ignoring response');
             return;
         }
         
         if (!response.ok) {
-            console.error('[FETCH] Failed to fetch farmer data, status:', response.status);
+            console.error('Failed to fetch farmer data, status:', response.status);
             return;
         }
         
         const data = await response.json();
         
-        // === LOGGING: Show what we got from server ===
-        console.log(`[FETCH] Got data for ${requestKey.slice(-8)}:`, {
-            accountsCount: data.accounts?.length || 0,
-            lastUpdate: data.lastUpdate
-        });
-        
-        if (data.accounts) {
-            data.accounts.forEach(acc => {
-                console.log(`  [ACCOUNT] ${acc.playerName}: isOnline=${acc.isOnline}, lastUpdate=${acc.lastUpdate}, brainrots=${acc.brainrots?.length || 0}`);
-            });
-        }
-        // === END LOGGING ===
-        
         // Ещё раз проверяем что ключ не изменился
         if (state.currentKey !== requestKey) {
-            console.log('[FETCH] Key changed after parsing, ignoring');
             return;
         }
         
@@ -1560,11 +1542,10 @@ async function fetchFarmerData() {
             saveState();
         }
         
-        console.log('[FETCH] Calling updateUI()');
         updateUI();
         
     } catch (error) {
-        console.error('[FETCH] Error:', error);
+        console.error('Fetch error:', error);
     }
 }
 
@@ -1643,44 +1624,25 @@ function isAccountOnline(account) {
     if (!account) return false;
     
     // Primary: trust the isOnline flag from Lua script
-    // This is the most reliable source as Lua checks Players:GetPlayers()
-    if (account.isOnline === true) {
-        console.log(`[ONLINE] ${account.playerName}: TRUE (isOnline flag = true)`);
-        return true;
-    }
-    if (account.isOnline === false) {
-        console.log(`[ONLINE] ${account.playerName}: FALSE (isOnline flag = false)`);
-        return false;
-    }
+    if (account.isOnline === true) return true;
+    if (account.isOnline === false) return false;
     
     // Fallback: check lastUpdate timestamp if isOnline flag is not set
-    if (!account.lastUpdate) {
-        console.log(`[ONLINE] ${account.playerName}: FALSE (no lastUpdate, no isOnline flag)`);
-        return false;
-    }
+    if (!account.lastUpdate) return false;
     
     try {
-        // Support both ISO format (2024-12-18T12:00:00.000Z) and Lua format (2024-12-18 12:00:00)
         let lastUpdateTime;
         if (account.lastUpdate.includes('T') || account.lastUpdate.includes('Z')) {
-            // ISO format from server
             lastUpdateTime = new Date(account.lastUpdate).getTime();
         } else {
-            // Lua format: "2024-12-18 12:00:00"
-            const isoString = account.lastUpdate.replace(' ', 'T') + 'Z'; // Assume UTC
+            const isoString = account.lastUpdate.replace(' ', 'T') + 'Z';
             lastUpdateTime = new Date(isoString).getTime();
         }
         
         const now = Date.now();
         const diffSeconds = (now - lastUpdateTime) / 1000;
-        
-        const result = diffSeconds < 60;
-        console.log(`[ONLINE] ${account.playerName}: ${result} (fallback, lastUpdate=${account.lastUpdate}, diff=${diffSeconds.toFixed(0)}s)`);
-        
-        // If updated within last 60 seconds, consider online
-        return result;
+        return diffSeconds < 60;
     } catch (e) {
-        console.warn('Error parsing lastUpdate:', account.lastUpdate, e);
         return false;
     }
 }
@@ -1714,12 +1676,7 @@ function getAccountCardId(account) {
 
 // Smart update - only update changed elements in existing card
 function updateAccountCard(cardEl, account) {
-    if (!cardEl) {
-        console.log(`[UPDATE CARD] ${account.playerName}: NO CARD ELEMENT FOUND`);
-        return false;
-    }
-    
-    console.log(`[UPDATE CARD] ${account.playerName}: isOnline=${account._isOnline}, brainrots=${account.brainrots?.length || 0}`);
+    if (!cardEl) return false;
     
     const isOnline = account._isOnline;
     const statusClass = isOnline ? 'online' : 'offline';
@@ -1855,15 +1812,11 @@ function updateAccountCard(cardEl, account) {
 // UI Updates
 function updateUI() {
     const data = state.farmersData[state.currentKey];
-    if (!data) {
-        console.log('[UPDATE UI] No data for current key');
-        return;
-    }
+    if (!data) return;
     
     const accounts = data.accounts || [];
-    console.log(`[UPDATE UI] Processing ${accounts.length} accounts`);
     
-    // Calculate _isOnline for each account based on lastUpdate
+    // Calculate _isOnline for each account
     accounts.forEach(account => {
         account._isOnline = isAccountOnline(account);
     });
@@ -2133,10 +2086,7 @@ async function renderAccountsGrid(accounts) {
         existingPlayerNames.size > 0 &&
         [...existingPlayerNames].every(name => newPlayerNames.has(name));
     
-    console.log(`[RENDER GRID] existingCards=${existingCards.length}, sameAccounts=${sameAccounts}`);
-    
     if (sameAccounts) {
-        console.log('[RENDER GRID] Using SMART UPDATE (updating existing cards)');
         // Smart update - just update values in existing cards
         accounts.forEach(account => {
             const cardId = getAccountCardId(account);
@@ -2145,8 +2095,6 @@ async function renderAccountsGrid(accounts) {
         });
         return;
     }
-    
-    console.log('[RENDER GRID] Using FULL RENDER (creating new cards)');
     
     // Full render (first time or accounts changed)
     accountsGridEl.innerHTML = accounts.map(account => {
@@ -4751,18 +4699,36 @@ const offersState = {
     searchQuery: '',
     sortBy: 'newest',
     statusFilter: 'all',
-    currentOffer: null
+    currentOffer: null,
+    lastLoadedKey: null,  // Track which key offers were loaded for
+    lastLoadTime: 0       // Track when offers were loaded
 };
 
-// Load offers from server
-async function loadOffers() {
+const OFFERS_CACHE_TTL = 60 * 1000; // 1 minute cache
+
+// Load offers from server (with caching)
+async function loadOffers(forceRefresh = false) {
     try {
         const farmKey = state.currentKey;
         if (!farmKey) return;
         
+        const now = Date.now();
+        const isSameKey = offersState.lastLoadedKey === farmKey;
+        const cacheValid = now - offersState.lastLoadTime < OFFERS_CACHE_TTL;
+        
+        // Use cache if same key and not expired (unless force refresh)
+        if (!forceRefresh && isSameKey && cacheValid && offersState.offers.length > 0) {
+            // Just update recommended prices and re-render
+            await updateOffersRecommendedPrices();
+            filterAndRenderOffers();
+            return;
+        }
+        
         const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
         offersState.offers = data.offers || [];
+        offersState.lastLoadedKey = farmKey;
+        offersState.lastLoadTime = now;
         
         // Update recommended prices for each offer
         await updateOffersRecommendedPrices();
@@ -4782,7 +4748,8 @@ async function updateOffersRecommendedPrices() {
     
     for (const offer of offersState.offers) {
         if (offer.brainrotName && offer.income) {
-            const normalizedIncome = normalizeIncomeForApi(offer.income, offer.income);
+            // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
+            const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
             const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
             const priceData = state.brainrotPrices[priceKey];
             
@@ -5341,8 +5308,8 @@ async function scanEldoradoOffers() {
                 console.log('Deleted offers:', data.deletedOffers);
             }
             
-            // Reload offers
-            await loadOffers();
+            // Reload offers (force refresh after scan)
+            await loadOffers(true);
         } else {
             showNotification('Error scanning: ' + (data.error || 'Unknown error'), 'error');
         }
