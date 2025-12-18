@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.1
-// @description  Auto-fill Eldorado.gg offer form + highlight your offers + price adjustment from Farmer Panel
+// @version      8.2
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '8.1';
+    const VERSION = '8.2';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -42,7 +42,8 @@
     
     // Кэш офферов пользователя
     let userOffers = [];
-    let userOfferCodes = new Set();
+    let userOfferCodes = new Set(); // Уникальные коды офферов типа #GSXXXXXX
+    let userBrainrotNames = new Set(); // Имена brainrots для справки
     
     // ==================== СТИЛИ ====================
     GM_addStyle(`
@@ -67,10 +68,10 @@
             box-shadow: 0 2px 8px ${CONFIG.highlightColor}88;
         }
         
-        /* Панель авторизации */
+        /* Панель авторизации - позиция под navbar */
         .glitched-auth-panel {
             position: fixed;
-            top: 20px;
+            top: 100px; /* Под navbar (navbar ~88px + отступ) */
             right: 20px;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border-radius: 12px;
@@ -173,10 +174,10 @@
             margin-top: 8px;
         }
         
-        /* Мини-кнопка для открытия панели */
+        /* Мини-кнопка для открытия панели - позиция под navbar */
         .glitched-mini-btn {
             position: fixed;
-            top: 20px;
+            top: 100px; /* Под navbar (navbar ~88px + отступ) */
             right: 20px;
             width: 40px;
             height: 40px;
@@ -190,6 +191,25 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
             transition: transform 0.2s;
         }
+        
+        /* Под navbar для встраивания в страницу */
+        .glitched-inline-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 8px;
+            cursor: pointer;
+            margin-left: 10px;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .glitched-inline-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
+        }
         .glitched-mini-btn:hover {
             transform: scale(1.1);
         }
@@ -198,10 +218,10 @@
             height: 24px;
         }
         
-        /* Уведомления */
+        /* Уведомления - позиция под navbar */
         .glitched-notification {
             position: fixed;
-            top: 80px;
+            top: 100px; /* Под navbar */
             right: 20px;
             padding: 12px 20px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -345,14 +365,39 @@
     }
     
     function showMiniButton() {
-        const existing = document.querySelector('.glitched-mini-btn');
-        if (existing) return;
+        // Удаляем существующие кнопки
+        document.querySelectorAll('.glitched-mini-btn, .glitched-inline-btn').forEach(el => el.remove());
         
+        // Пытаемся встроить кнопку в navbar
+        const navbar = document.querySelector('.navbar-grid-layout.responsive-layout');
+        if (navbar) {
+            // Ищем правую часть navbar для вставки кнопки
+            const navbarRight = navbar.querySelector('.activities-area') || 
+                               navbar.querySelector('.navbar-content') ||
+                               navbar.querySelector('[class*="activities"]');
+            
+            if (navbarRight) {
+                const inlineBtn = document.createElement('div');
+                inlineBtn.className = 'glitched-inline-btn';
+                inlineBtn.innerHTML = '<span style="font-size: 18px;">🔮</span>';
+                inlineBtn.onclick = showAuthPanel;
+                inlineBtn.title = 'Glitched Store Panel';
+                
+                // Вставляем в начало правой части navbar
+                navbarRight.insertBefore(inlineBtn, navbarRight.firstChild);
+                log('Panel button inserted into navbar');
+                return;
+            }
+        }
+        
+        // Fallback - фиксированная кнопка под navbar
         const btn = document.createElement('div');
         btn.className = 'glitched-mini-btn';
         btn.innerHTML = '<span style="font-size: 20px;">🔮</span>';
         btn.onclick = showAuthPanel;
+        btn.title = 'Glitched Store Panel';
         document.body.appendChild(btn);
+        log('Panel button added as fixed position');
     }
     
     // ==================== ЗАГРУЗКА ДАННЫХ ФЕРМЕРА ====================
@@ -375,6 +420,7 @@
             // Собираем все brainrots со всех аккаунтов
             userOffers = [];
             userOfferCodes.clear();
+            userBrainrotNames.clear();
             
             for (const account of accounts) {
                 const brainrots = account.brainrots || [];
@@ -384,19 +430,48 @@
                         name: br.name || br.Name,
                         income: br.income || br.Income,
                         imageId: br.imageId || br.ImageId,
+                        offerId: br.offerId || br.OfferId, // Уникальный код оффера #GSXXXXXX
                         accountName: account.playerName || account.name,
                         accountId: account.userId
                     };
                     userOffers.push(offer);
                     
-                    // Добавляем имя для поиска на странице
+                    // Добавляем уникальный код оффера для подсветки
+                    if (offer.offerId) {
+                        // Код может быть с # или без
+                        const code = offer.offerId.toUpperCase().replace(/^#/, '');
+                        userOfferCodes.add(code);
+                        userOfferCodes.add('#' + code); // Добавляем и с #
+                    }
+                    
+                    // Сохраняем имя brainrot для справки
                     if (offer.name) {
-                        userOfferCodes.add(offer.name.toUpperCase());
+                        userBrainrotNames.add(offer.name.toUpperCase());
                     }
                 }
             }
             
-            log(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots`);
+            // Также загружаем офферы из /api/offers если есть
+            try {
+                const offersResponse = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
+                if (offersResponse.ok) {
+                    const offersData = await offersResponse.json();
+                    const apiOffers = offersData.offers || [];
+                    
+                    for (const offer of apiOffers) {
+                        if (offer.offerId) {
+                            const code = offer.offerId.toUpperCase().replace(/^#/, '');
+                            userOfferCodes.add(code);
+                            userOfferCodes.add('#' + code);
+                        }
+                    }
+                    log(`Loaded ${apiOffers.length} offers from API`);
+                }
+            } catch (offersErr) {
+                log('Could not load offers from API:', offersErr);
+            }
+            
+            log(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots, ${userOfferCodes.size} unique codes`);
             CONFIG.connectionError = false;
             
             if (userOffers.length > 0) {
@@ -424,16 +499,35 @@
         return text.replace(/\s+/g, ' ').trim().toUpperCase();
     }
     
-    function containsBrainrotName(text) {
+    // Проверяем наличие уникального кода оффера (#GSXXXXXX) в тексте
+    function containsOfferCode(text) {
+        if (!text) return false;
         const normalizedText = normalizeText(text);
-        for (const name of userOfferCodes) {
-            if (normalizedText.includes(name)) {
+        
+        // Ищем паттерн #GS + 6-8 символов (буквы/цифры)
+        const codeMatches = normalizedText.match(/#?GS[A-Z0-9]{5,8}/g);
+        if (!codeMatches) return false;
+        
+        for (const match of codeMatches) {
+            const code = match.replace(/^#/, '');
+            if (userOfferCodes.has(code) || userOfferCodes.has('#' + code)) {
                 return true;
             }
         }
         return false;
     }
     
+    // Старая функция для совместимости - проверка по имени brainrot
+    function containsBrainrotName(text) {
+        const normalizedText = normalizeText(text);
+        for (const name of userBrainrotNames) {
+            if (normalizedText.includes(name)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function highlightUserOffers() {
         // Убираем старую подсветку
         document.querySelectorAll('.glitched-my-offer').forEach(el => {
@@ -444,7 +538,7 @@
         
         // Ищем офферы на странице
         // Eldorado использует разные структуры на разных страницах
-        const offerCards = document.querySelectorAll('[class*="offer"], [class*="Offer"], .item-card, .listing-card, [data-offer-id], .product-card, .listing');
+        const offerCards = document.querySelectorAll('[class*="offer"], [class*="Offer"], .item-card, .listing-card, [data-offer-id], .product-card, .listing, eld-dashboard-offers-list-item');
         
         let highlighted = 0;
         
@@ -452,8 +546,9 @@
             const text = card.textContent || '';
             const title = card.querySelector('[class*="title"], [class*="name"], h3, h4, h5')?.textContent || '';
             
-            // Проверяем есть ли имя нашего brainrot в карточке
-            if (containsBrainrotName(title) || containsBrainrotName(text)) {
+            // ГЛАВНАЯ ПРОВЕРКА: ищем уникальный код оффера #GSXXXXXX
+            // Это гарантирует, что подсвечиваются только офферы авторизованного пользователя
+            if (containsOfferCode(title) || containsOfferCode(text)) {
                 card.classList.add('glitched-my-offer');
                 highlighted++;
             }
@@ -463,14 +558,14 @@
         document.querySelectorAll('tr, .table-row').forEach(row => {
             const text = row.textContent || '';
             
-            if (containsBrainrotName(text)) {
+            if (containsOfferCode(text)) {
                 row.classList.add('glitched-my-offer');
                 highlighted++;
             }
         });
         
         if (highlighted > 0) {
-            log(`Highlighted ${highlighted} offers`);
+            log(`Highlighted ${highlighted} offers by unique codes`);
         }
     }
     
