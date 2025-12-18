@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      8.7
+// @version      8.8
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -19,15 +19,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.7
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.7
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.8
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=8.8
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '8.7';
+    const VERSION = '8.8';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== КОНФИГУРАЦИЯ ====================
@@ -48,19 +48,20 @@
     // ==================== СТИЛИ ====================
     GM_addStyle(`
         /* Подсветка карточки оффера на dashboard и marketplace */
-        .glitched-my-offer {
+        eld-offer-item.glitched-my-offer {
             position: relative;
-            box-shadow: 0 0 0 3px ${CONFIG.highlightColor}, 0 0 20px ${CONFIG.highlightColor}66 !important;
-            border-radius: 8px;
+            display: block;
         }
-        /* Фон для карточки - перезаписываем Tailwind классы */
-        .glitched-my-offer,
-        .glitched-my-offer > a,
-        .glitched-my-offer > eld-card > a,
-        .glitched-my-offer a[href*="/oi/"] {
+        /* Обводка и фон для внутренней ссылки */
+        eld-offer-item.glitched-my-offer > eld-card > a,
+        .offer-info.glitched-my-offer {
+            box-shadow: 0 0 0 3px ${CONFIG.highlightColor}, 0 0 20px ${CONFIG.highlightColor}66 !important;
+            border-radius: 8px !important;
             background: linear-gradient(135deg, #1a1a3e 0%, #2d1b4e 100%) !important;
         }
-        .glitched-my-offer::before {
+        /* Бейдж MY OFFER */
+        eld-offer-item.glitched-my-offer::before,
+        .offer-info.glitched-my-offer::before {
             content: '✓ MY OFFER';
             position: absolute;
             top: -8px;
@@ -75,22 +76,15 @@
             box-shadow: 0 2px 8px ${CONFIG.highlightColor}88;
         }
         
-        /* Анимация текста оффера на других страницах (маркетплейс и т.д.) */
-        .glitched-my-offer-text {
-            position: relative;
-            display: inline;
-            background: linear-gradient(90deg, ${CONFIG.highlightColor}, #667eea, ${CONFIG.highlightColor});
-            background-size: 200% auto;
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: glitched-text-shine 2s linear infinite;
+        /* Анимация текста заголовка оффера */
+        .offer-title.glitched-my-offer-text {
+            background: linear-gradient(90deg, ${CONFIG.highlightColor}, #667eea, #a78bfa, ${CONFIG.highlightColor}) !important;
+            background-size: 300% auto !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            animation: glitched-text-shine 2s linear infinite !important;
             font-weight: bold !important;
-        }
-        .glitched-my-offer-text::after {
-            content: ' ✓';
-            -webkit-text-fill-color: ${CONFIG.highlightColor};
-            animation: glitched-pulse 1s ease-in-out infinite;
         }
         @keyframes glitched-text-shine {
             0% { background-position: 200% center; }
