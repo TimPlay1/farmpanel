@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.7.1
+// @version      9.7.2
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -20,15 +20,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.1
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.1
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.2
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.7.2
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.7.1';
+    const VERSION = '9.7.2';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -657,7 +657,17 @@
         }
     }
     
+    // v9.7.2: Flag to prevent concurrent toggle operations
+    let isTogglingOffers = false;
+    
     async function toggleSleepMode() {
+        // Prevent concurrent toggles
+        if (isTogglingOffers) {
+            log('Toggle already in progress, ignoring');
+            showNotification('⏳ Please wait, operation in progress...', 'warning');
+            return;
+        }
+        
         const currentState = detectSleepState();
         const willPause = currentState !== 'sleep'; // If not sleeping, we'll pause
         
@@ -671,104 +681,170 @@
             return;
         }
         
-        showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
-        log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
+        isTogglingOffers = true;
         
-        // v9.7: First scroll down to load all offers and handle pagination
-        await loadAllOffersOnPage();
+        // v9.7.2: Save a COPY of userOfferCodes to prevent race conditions
+        const ourCodes = new Set([...userOfferCodes]);
+        log(`Saved ${ourCodes.size} offer codes for toggle operation`);
         
-        // v9.7: Use updated selectors
-        let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
-        if (offerItems.length === 0) {
-            offerItems = document.querySelectorAll('.offer-list-item');
-        }
-        if (offerItems.length === 0) {
-            offerItems = document.querySelectorAll('.grid-row');
-        }
+        // Helper to check if item is ours using saved codes
+        const isOurOfferSaved = (item) => {
+            const code = extractOfferCodeFromElement(item);
+            if (!code) return false;
+            return ourCodes.has(code) || ourCodes.has('#' + code);
+        };
         
-        log(`toggleSleepMode: Found ${offerItems.length} offer items after loading all`);
-        
-        let processed = 0;
-        let skipped = 0;
-        let failed = 0;
-        
-        for (const item of offerItems) {
-            // v9.7: ALWAYS check if this is OUR offer by code
-            if (!isOurOffer(item)) {
-                continue; // Not our offer, skip
-            }
+        try {
+            showNotification(willPause ? '💤 Pausing all offers...' : '⚡ Resuming all offers...', 'info');
+            log(`Sleep mode: ${willPause ? 'PAUSING' : 'RESUMING'} offers`);
             
-            try {
-                if (willPause) {
-                    // Find pause button by icon
-                    const pauseIcon = item.querySelector('.icon-pause');
-                    if (pauseIcon) {
-                        const pauseBtn = pauseIcon.closest('button');
-                        if (pauseBtn && !pauseBtn.disabled) {
-                            // Scroll element into view
-                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            await new Promise(r => setTimeout(r, 200));
-                            pauseBtn.click();
-                            processed++;
-                            await new Promise(r => setTimeout(r, 500));
-                        } else {
-                            skipped++;
-                        }
-                    } else {
-                        skipped++; // Already paused
+            let totalProcessed = 0;
+            let totalSkipped = 0;
+            let totalFailed = 0;
+            
+            // v9.7.2: Process all pages
+            const totalPages = getTotalPages();
+            log(`Total pages to process: ${totalPages}`);
+            
+            for (let page = 1; page <= totalPages; page++) {
+                // Navigate to page if not first
+                if (page > 1) {
+                    log(`Navigating to page ${page}...`);
+                    const navigated = await goToPage(page);
+                    if (!navigated) {
+                        log(`Failed to navigate to page ${page}, stopping`);
+                        break;
                     }
-                } else {
-                    // Find resume button by icon (chevron-right or play)
-                    const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
-                    if (resumeIcon) {
-                        const resumeBtn = resumeIcon.closest('button');
-                        if (resumeBtn && !resumeBtn.disabled) {
-                            // Scroll element into view
-                            item.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            await new Promise(r => setTimeout(r, 200));
-                            resumeBtn.click();
-                            processed++;
-                            await new Promise(r => setTimeout(r, 500));
+                    // Wait for page to load
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+                
+                // Scroll to load all offers on this page
+                await scrollToLoadAllOffers();
+                
+                // Get offers on this page
+                let offerItems = document.querySelectorAll('eld-dashboard-offers-list-item');
+                if (offerItems.length === 0) {
+                    offerItems = document.querySelectorAll('.offer-list-item');
+                }
+                
+                log(`Page ${page}: Found ${offerItems.length} offer items`);
+                
+                // Process offers on this page
+                for (const item of offerItems) {
+                    // Use saved codes to check ownership
+                    if (!isOurOfferSaved(item)) {
+                        continue;
+                    }
+                    
+                    try {
+                        if (willPause) {
+                            const pauseIcon = item.querySelector('.icon-pause');
+                            if (pauseIcon) {
+                                const pauseBtn = pauseIcon.closest('button');
+                                if (pauseBtn && !pauseBtn.disabled) {
+                                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                    await new Promise(r => setTimeout(r, 100));
+                                    pauseBtn.click();
+                                    totalProcessed++;
+                                    log(`Paused offer: ${extractOfferCodeFromElement(item)}`);
+                                    await new Promise(r => setTimeout(r, 600));
+                                } else {
+                                    totalSkipped++;
+                                }
+                            } else {
+                                totalSkipped++;
+                            }
                         } else {
-                            skipped++;
+                            const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
+                            if (resumeIcon) {
+                                const resumeBtn = resumeIcon.closest('button');
+                                if (resumeBtn && !resumeBtn.disabled) {
+                                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                                    await new Promise(r => setTimeout(r, 100));
+                                    resumeBtn.click();
+                                    totalProcessed++;
+                                    log(`Resumed offer: ${extractOfferCodeFromElement(item)}`);
+                                    await new Promise(r => setTimeout(r, 600));
+                                } else {
+                                    totalSkipped++;
+                                }
+                            } else {
+                                totalSkipped++;
+                            }
                         }
-                    } else {
-                        skipped++; // Already active
+                    } catch (e) {
+                        totalFailed++;
+                        log('Error toggling offer:', e);
                     }
                 }
-            } catch (e) {
-                failed++;
-                log('Error toggling offer:', e);
             }
-        }
-        
-        // Wait for UI to update
-        await new Promise(r => setTimeout(r, 1000));
-        
-        // Update button state
-        updateSleepButton();
-        
-        const statusMsg = willPause 
-            ? `💤 Sleep Mode - ${processed} offers paused${skipped > 0 ? ` (${skipped} already paused)` : ''}`
-            : `⚡ Active - ${processed} offers resumed${skipped > 0 ? ` (${skipped} already active)` : ''}`;
-        showNotification(statusMsg, processed > 0 ? 'success' : 'info');
-        log(`Sleep mode toggled: ${processed} processed, ${skipped} skipped, ${failed} failed`);
-        
-        // v9.7: Trigger scan to update status in farmpanel DB
-        if (processed > 0) {
-            log('Triggering farmpanel scan to sync status...');
-            // Signal farmpanel to rescan
-            localStorage.setItem('glitched_refresh_offers', Date.now().toString());
-            // Also try to call scan API directly
-            syncOfferStatusToFarmpanel(willPause);
+            
+            // Return to first page if we navigated
+            if (totalPages > 1) {
+                await goToPage(1);
+            }
+            
+            // Wait for UI to update
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Update button state
+            updateSleepButton();
+            
+            const statusMsg = willPause 
+                ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} already paused)` : ''}`
+                : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} already active)` : ''}`;
+            showNotification(statusMsg, totalProcessed > 0 ? 'success' : 'info');
+            log(`Sleep mode toggled: ${totalProcessed} processed, ${totalSkipped} skipped, ${totalFailed} failed`);
+            
+            // v9.7: Trigger scan to update status in farmpanel DB
+            if (totalProcessed > 0) {
+                log('Triggering farmpanel scan to sync status...');
+                localStorage.setItem('glitched_refresh_offers', Date.now().toString());
+                syncOfferStatusToFarmpanel(willPause, ourCodes);
+            }
+        } finally {
+            isTogglingOffers = false;
         }
     }
     
-    // v9.7: Sync offer status to farmpanel after sleep mode toggle
-    async function syncOfferStatusToFarmpanel(isPaused) {
+    // v9.7.2: Navigate to specific page
+    async function goToPage(pageNum) {
+        const currentPage = getCurrentPageNumber();
+        if (currentPage === pageNum) return true;
+        
+        // Find page button
+        const pageButtons = document.querySelectorAll('.pagination .pagination-item:not(.pagination-arrow)');
+        for (const btn of pageButtons) {
+            const btnPage = parseInt(btn.textContent?.trim(), 10);
+            if (btnPage === pageNum) {
+                btn.click();
+                await new Promise(r => setTimeout(r, 1500));
+                return true;
+            }
+        }
+        
+        // Try next/prev arrows
+        if (pageNum > currentPage) {
+            const nextArrow = document.querySelector('.pagination-arrow:last-child div');
+            if (nextArrow) {
+                nextArrow.click();
+                await new Promise(r => setTimeout(r, 1500));
+                return getCurrentPageNumber() === pageNum || getCurrentPageNumber() > currentPage;
+            }
+        }
+        
+        return false;
+    }
+    
+    // v9.7.2: Sync offer status to farmpanel after sleep mode toggle
+    async function syncOfferStatusToFarmpanel(isPaused, savedCodes) {
         try {
             const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
             if (!farmKey) return;
+            
+            // Use saved codes if provided, otherwise use current userOfferCodes
+            const codesToCheck = savedCodes || userOfferCodes;
             
             // Collect current status of our offers on page
             const statusUpdates = [];
@@ -776,13 +852,12 @@
             
             for (const item of items) {
                 const code = extractOfferCodeFromElement(item);
-                if (!code || !userOfferCodes.has(code)) continue;
+                if (!code) continue;
+                if (!codesToCheck.has(code) && !codesToCheck.has('#' + code)) continue;
                 
                 // Check actual status after toggle
                 const pausedChip = item.querySelector('[aria-label="Paused"]');
-                const activeChip = item.querySelector('[aria-label="Active"]');
                 const resumeIcon = item.querySelector('.icon-chevron-right');
-                const pauseIcon = item.querySelector('.icon-pause');
                 
                 const status = (pausedChip || resumeIcon) ? 'paused' : 'active';
                 statusUpdates.push({ offerId: '#' + code, status });
@@ -2311,6 +2386,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     // ==================== НАБЛЮДАТЕЛЬ ЗА ИЗМЕНЕНИЯМИ ====================
     function setupMutationObserver() {
         const observer = new MutationObserver((mutations) => {
+            // v9.7.2: Skip processing if toggle is in progress
+            if (isTogglingOffers) return;
+            
             // Перепроверяем подсветку при изменениях DOM
             let shouldCheck = false;
             let navbarChanged = false;
@@ -2331,15 +2409,17 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             
             if (shouldCheck) {
-                // Debounce highlight and sleep button update
+                // v9.7.2: Increased debounce to 1500ms to reduce spam
                 clearTimeout(window.glitchedHighlightTimeout);
                 window.glitchedHighlightTimeout = setTimeout(() => {
+                    // Double-check toggle is not in progress
+                    if (isTogglingOffers) return;
                     highlightUserOffers();
                     // v9.7: Also update sleep button when DOM changes
                     if (window.location.pathname.includes('/dashboard/offers')) {
                         updateSleepButton();
                     }
-                }, 500);
+                }, 1500);
             }
             
             // Re-insert button if navbar changed
