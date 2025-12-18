@@ -1632,10 +1632,17 @@ async function fetchAllFarmersData() {
     }
 }
 
-// Check if account is online based on lastUpdate timestamp
+// Check if account is online based on isOnline flag (primary) and lastUpdate (secondary)
 function isAccountOnline(account) {
     if (!account) return false;
-    if (!account.lastUpdate) return account.isOnline || false;
+    
+    // Primary: trust the isOnline flag from Lua script
+    // This is the most reliable source as Lua checks Players:GetPlayers()
+    if (account.isOnline === true) return true;
+    if (account.isOnline === false) return false;
+    
+    // Fallback: check lastUpdate timestamp if isOnline flag is not set
+    if (!account.lastUpdate) return false;
     
     try {
         // Support both ISO format (2024-12-18T12:00:00.000Z) and Lua format (2024-12-18 12:00:00)
@@ -1652,11 +1659,11 @@ function isAccountOnline(account) {
         const now = Date.now();
         const diffSeconds = (now - lastUpdateTime) / 1000;
         
-        // If updated within last 90 seconds, consider online (increased from 60 to account for network delay)
-        return diffSeconds < 90;
+        // If updated within last 60 seconds, consider online
+        return diffSeconds < 60;
     } catch (e) {
         console.warn('Error parsing lastUpdate:', account.lastUpdate, e);
-        return account.isOnline || false;
+        return false;
     }
 }
 

@@ -239,15 +239,21 @@ module.exports = async (req, res) => {
 
             // Создаём/обновляем маппинг playerName -> userId для фронтенда
             const playerUserIdMap = farmer.playerUserIdMap || {};
+            const now = new Date();
             for (const account of accounts) {
                 if (account.userId && account.playerName) {
                     playerUserIdMap[account.playerName] = String(account.userId);
                 }
                 
-                // ВАЖНО: Обновляем lastUpdate на СЕРВЕРНОЕ время для онлайн аккаунтов
-                // Это гарантирует корректную проверку онлайн статуса независимо от часового пояса клиента
+                // ВАЖНО: Явно устанавливаем серверное время для определения онлайн статуса
+                // Если isOnline=true - ставим текущее время
+                // Если isOnline=false - ставим время 5 минут назад чтобы гарантированно показывался offline
                 if (account.isOnline) {
-                    account.lastUpdate = new Date().toISOString();
+                    account.lastUpdate = now.toISOString();
+                } else {
+                    // Для offline аккаунтов ставим старое время чтобы frontend не показал их online
+                    const oldTime = new Date(now.getTime() - 5 * 60 * 1000); // 5 минут назад
+                    account.lastUpdate = oldTime.toISOString();
                 }
             }
 
