@@ -1746,6 +1746,76 @@ function updateAccountCard(cardEl, account) {
         }
     }
     
+    // Update account value stat
+    const accountValue = calculateAccountValue(account);
+    let valueStat = cardEl.querySelector('.account-stat.account-value');
+    if (accountValue > 0) {
+        if (valueStat) {
+            const valueEl = valueStat.querySelector('.account-stat-value');
+            if (valueEl) valueEl.textContent = '$' + accountValue.toFixed(2);
+        } else {
+            // Create value stat if it doesn't exist
+            const statsContainer = cardEl.querySelector('.account-stats');
+            if (statsContainer) {
+                const newValueStat = document.createElement('div');
+                newValueStat.className = 'account-stat account-value';
+                newValueStat.innerHTML = `
+                    <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
+                    <div class="account-stat-label">Value</div>
+                `;
+                statsContainer.appendChild(newValueStat);
+            }
+        }
+    } else if (valueStat) {
+        valueStat.remove();
+    }
+    
+    // Update brainrots section
+    const brainrotsContainer = cardEl.querySelector('.account-brainrots');
+    if (account.brainrots && account.brainrots.length > 0) {
+        const brainrotsHtml = account.brainrots.slice(0, 10).map(b => {
+            const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
+            return `
+                <div class="brainrot-mini" title="${b.name}\n${b.incomeText || ''}">
+                    <div class="brainrot-mini-img">
+                        ${imageUrl 
+                            ? `<img src="${imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                            : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
+                        }
+                    </div>
+                    <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
+                    <div class="brainrot-mini-income">${b.incomeText || ''}</div>
+                </div>
+            `;
+        }).join('');
+        
+        if (brainrotsContainer) {
+            const scrollEl = brainrotsContainer.querySelector('.brainrots-scroll');
+            if (scrollEl) scrollEl.innerHTML = brainrotsHtml;
+        } else {
+            // Create brainrots section if it doesn't exist
+            const footer = cardEl.querySelector('.account-footer');
+            const newBrainrots = document.createElement('div');
+            newBrainrots.className = 'account-brainrots';
+            newBrainrots.innerHTML = `
+                <div class="brainrots-title">
+                    <i class="fas fa-brain"></i>
+                    Top Brainrots
+                </div>
+                <div class="brainrots-scroll">
+                    ${brainrotsHtml}
+                </div>
+            `;
+            if (footer) {
+                cardEl.insertBefore(newBrainrots, footer);
+            } else {
+                cardEl.appendChild(newBrainrots);
+            }
+        }
+    } else if (brainrotsContainer) {
+        brainrotsContainer.remove();
+    }
+    
     // Update footer time
     const footer = cardEl.querySelector('.account-footer');
     if (footer) {
