@@ -1128,6 +1128,16 @@ const confirmEditUsername = document.getElementById('confirmEditUsername');
 
 let editingKeyForUsername = null;
 
+// Loading screen element
+const loadingScreen = document.getElementById('loadingScreen');
+
+// Hide loading screen
+function hideLoadingScreen() {
+    if (loadingScreen) {
+        loadingScreen.classList.add('hidden');
+    }
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', async () => {
     await loadBrainrotMapping();
@@ -1140,6 +1150,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     if (state.currentKey && state.savedKeys.length > 0) {
         showMainApp();
+        hideLoadingScreen(); // Скрываем loading screen после показа приложения
         // Сразу показываем данные из кэша
         if (state.farmersData[state.currentKey]) {
             updateUI();
@@ -1389,6 +1400,7 @@ function handleLogout() {
 
 // Views
 function showLoginScreen() {
+    hideLoadingScreen(); // Скрываем loading screen
     loginScreen.classList.remove('hidden');
     mainApp.classList.add('hidden');
     farmKeyInput.value = '';
@@ -1396,6 +1408,7 @@ function showLoginScreen() {
 }
 
 function showMainApp() {
+    hideLoadingScreen(); // Скрываем loading screen
     loginScreen.classList.add('hidden');
     mainApp.classList.remove('hidden');
     updateCurrentFarmer();
