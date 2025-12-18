@@ -1782,6 +1782,17 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             // Режим создания оффера
             offerData = getOfferDataFromURL();
             
+            // Если есть данные с fullQueue - синхронизируем localStorage (cross-domain)
+            if (offerData?.fullQueue && Array.isArray(offerData.fullQueue)) {
+                log(`Syncing queue from URL: ${offerData.fullQueue.length} items`);
+                localStorage.setItem('eldoradoQueue', JSON.stringify(offerData.fullQueue));
+                localStorage.setItem('eldoradoQueueIndex', '0');
+                localStorage.setItem('eldoradoQueueCompleted', '[]');
+                localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+                // Reload queue state
+                getQueueFromStorage();
+            }
+            
             // Если нет данных в URL, но есть очередь - продолжаем обработку
             if (!offerData && queueState.queue.length > 0 && hasMoreInQueue()) {
                 const timestamp = localStorage.getItem('eldoradoQueueTimestamp');

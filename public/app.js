@@ -4521,15 +4521,10 @@ function startMassEldoradoQueue() {
         return;
     }
     
-    // Reset queue index to start from beginning
-    localStorage.setItem('eldoradoQueueIndex', '0');
-    localStorage.setItem('eldoradoQueueCompleted', '[]');
-    localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
-    
     // Get first item
     const firstItem = queueData[0];
     
-    // Build offer data for URL
+    // Build offer data for URL - include full queue for cross-domain support
     const offerData = {
         name: firstItem.name,
         income: firstItem.income,
@@ -4541,7 +4536,9 @@ function startMassEldoradoQueue() {
         farmKey: state.currentKey,
         fromQueue: true,
         queueIndex: 0,
-        queueTotal: queueData.length
+        queueTotal: queueData.length,
+        // Pass full queue in URL for cross-domain localStorage sync
+        fullQueue: queueData
     };
     
     const encodedData = encodeURIComponent(JSON.stringify(offerData));
