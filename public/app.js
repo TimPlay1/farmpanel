@@ -2591,9 +2591,13 @@ function setupCollectionListeners() {
 // Collect all brainrots from all accounts
 function collectAllBrainrots() {
     const data = state.farmersData[state.currentKey];
+    console.log('[collectAllBrainrots] data:', data);
+    console.log('[collectAllBrainrots] accounts:', data?.accounts?.length);
+    
     if (!data || !data.accounts) {
         collectionState.allBrainrots = [];
         collectionState.groupedBrainrots = [];
+        console.log('[collectAllBrainrots] No data or accounts, returning empty');
         return;
     }
 
@@ -2615,6 +2619,7 @@ function collectAllBrainrots() {
         }
     }
 
+    console.log('[collectAllBrainrots] collected', brainrots.length, 'brainrots');
     collectionState.allBrainrots = brainrots;
     
     // Группируем одинаковые брейнроты (по имени + income)
@@ -3298,6 +3303,10 @@ function clearPriceCache() {
 
 // Update collection when data changes
 async function updateCollection() {
+    console.log('[Collection] updateCollection called');
+    console.log('[Collection] currentKey:', state.currentKey);
+    console.log('[Collection] farmersData:', state.farmersData[state.currentKey]);
+    
     // Load generations and panel color
     await Promise.all([
         loadGenerationsData(),
@@ -3306,6 +3315,7 @@ async function updateCollection() {
     
     // НЕ сбрасываем кэш цен - они загружаются отдельно
     collectAllBrainrots();
+    console.log('[Collection] allBrainrots:', collectionState.allBrainrots.length);
     filterAndRenderCollection();
 }
 
