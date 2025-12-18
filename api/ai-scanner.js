@@ -554,13 +554,19 @@ function createWaves(batches, maxTokens = MAX_TOKENS_PER_MINUTE, maxRequests = M
 }
 
 /**
- * Гибридный парсинг: сначала Regex, потом AI валидация
- * Возвращает: { income, source: 'ai'|'regex'|'hybrid', confidence }
+ * Гибридный парсинг: Regex сразу + AI параллельно
+ * AI имеет ПРИОРИТЕТ над regex если нашёл значение
+ * 
+ * ЛОГИКА по схеме:
+ * 1. Regex парсит ВСЕ офферы → мгновенный результат
+ * 2. AI парсит ВСЕ офферы параллельно (волнами)
+ * 3. Сравниваем результаты: AI приоритет если найден
+ * 4. Если AI ошибка → используем regex
  */
 async function hybridParse(offers, eldoradoLists) {
-    const results = [];
+    console.log(`🔄 hybridParse: ${offers.length} offers`);
     
-    // Шаг 1: Быстрый Regex парсинг для всех
+    // Шаг 1: Быстрый Regex парсинг для ВСЕХ офферов
     const regexResults = offers.map((offer, i) => {
         const title = offer.title || offer.offerTitle || '';
         const regex = parseIncomeRegex(title);
@@ -568,34 +574,25 @@ async function hybridParse(offers, eldoradoLists) {
             index: i,
             offer,
             regex,
-            needsAI: regex.income === null && regex.reason === 'no_pattern'
+            // AI нужен для ВСЕХ - чтобы валидировать regex результат
+            needsAI: true
         };
     });
     
-    // Шаг 2: Собираем офферы для AI (где Regex не справился)
-    const needAI = regexResults.filter(r => r.needsAI);
+    console.log(`   Regex: ${regexResults.filter(r => r.regex.income !== null).length}/${offers.length} parsed`);
     
-    if (needAI.length === 0) {
-        // Regex справился со всеми
-        return regexResults.map(r => ({
-            ...r.offer,
-            income: r.regex.income,
-            reason: r.regex.reason,
-            source: 'regex',
-            confidence: 0.9
-        }));
-    }
-    
-    // Шаг 3: AI парсинг для проблемных
-    // Важно: передаём оригинальный индекс из regexResults
-    const offersForAI = needAI.map(r => ({ ...r.offer, originalIndex: r.index }));
+    // Шаг 2: AI парсинг для ВСЕХ офферов (параллельно с отображением regex)
+    const offersForAI = regexResults.map(r => ({ ...r.offer, originalIndex: r.index }));
     const batches = createTokenAwareBatches(offersForAI, 2000);
     const waves = createWaves(batches);
+    
+    console.log(`   AI: ${batches.length} batches, ${waves.length} waves`);
     
     const aiResultsMap = new Map();
     
     for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
         const wave = waves[waveIndex];
+        console.log(`   Wave ${waveIndex + 1}/${waves.length}: ${wave.batches.length} batches`);
         
         // Параллельная обработка батчей в волне
         const wavePromises = wave.batches.map(async (batch, batchIndex) => {
@@ -615,62 +612,91 @@ async function hybridParse(offers, eldoradoLists) {
                     }
                 }
             } catch (e) {
-                console.error(`Batch ${batchIndex} error:`, e.message);
-                // При ошибке оставляем regex результат
+                console.error(`   Batch ${batchIndex} error:`, e.message);
+                // При ошибке - помечаем как failed, будет использован regex
+                for (const offer of batch.offers) {
+                    if (offer.originalIndex !== undefined) {
+                        aiResultsMap.set(offer.originalIndex, {
+                            income: null,
+                            reason: 'ai_error',
+                            source: 'ai_failed',
+                            error: e.message
+                        });
+                    }
+                }
             }
         });
         
         await Promise.all(wavePromises);
         
-        // Пауза между волнами
+        // Пауза между волнами для rate limit
         if (waveIndex < waves.length - 1) {
-            await new Promise(r => setTimeout(r, 1000));
+            console.log(`   Waiting 9s before next wave...`);
+            await new Promise(r => setTimeout(r, 9000));
         }
     }
     
-    // Шаг 4: Объединяем результаты
-    return regexResults.map(r => {
-        // AI результат только для тех, кому он нужен
-        const ai = r.needsAI ? aiResultsMap.get(r.index) : null;
+    // Шаг 3: Объединяем результаты - AI ПРИОРИТЕТ
+    const finalResults = regexResults.map(r => {
+        const ai = aiResultsMap.get(r.index);
         
-        if (r.regex.income !== null) {
-            // Regex нашёл income - используем его
+        // Логика по схеме: AI приоритет если нашёл значение
+        if (ai && ai.income !== null && ai.source === 'ai') {
+            // AI нашёл income - используем AI (даже если regex тоже нашёл)
+            const regexIncome = r.regex.income;
+            const aiIncome = ai.income;
+            
+            // Логируем если отличается
+            if (regexIncome !== null && regexIncome !== aiIncome) {
+                console.log(`   📊 Difference: "${r.offer.title?.substring(0, 40)}..." - Regex: ${regexIncome}, AI: ${aiIncome}`);
+            }
+            
+            return {
+                ...r.offer,
+                income: aiIncome,
+                reason: ai.reason,
+                source: 'ai',
+                regexIncome: regexIncome, // сохраняем для сравнения
+                confidence: 0.95
+            };
+        } else if (ai && ai.source === 'ai_failed') {
+            // AI упал - используем regex как fallback
             return {
                 ...r.offer,
                 income: r.regex.income,
                 reason: r.regex.reason,
                 source: 'regex',
-                confidence: 0.9
+                aiError: ai.error,
+                confidence: 0.7
             };
-        } else if (ai && ai.income !== null) {
-            // AI нашёл income
+        } else if (r.regex.income !== null) {
+            // AI не нашёл, но Regex нашёл - используем Regex
             return {
                 ...r.offer,
-                income: ai.income,
-                reason: ai.reason,
-                source: 'ai',
-                confidence: 0.95
-            };
-        } else if (ai) {
-            // AI вернул reason (range/random/no_value)
-            return {
-                ...r.offer,
-                income: null,
-                reason: ai.reason || r.regex.reason,
-                source: 'ai',
+                income: r.regex.income,
+                reason: r.regex.reason,
+                source: 'regex',
                 confidence: 0.85
             };
         } else {
-            // Fallback на regex результат
+            // Никто не нашёл
             return {
                 ...r.offer,
-                income: r.regex.income,
-                reason: r.regex.reason,
-                source: 'regex',
-                confidence: 0.7
+                income: null,
+                reason: ai?.reason || r.regex.reason || 'no_pattern',
+                source: ai ? 'ai' : 'regex',
+                confidence: 0.5
             };
         }
     });
+    
+    // Статистика
+    const aiCount = finalResults.filter(r => r.source === 'ai').length;
+    const regexCount = finalResults.filter(r => r.source === 'regex').length;
+    const nullCount = finalResults.filter(r => r.income === null).length;
+    console.log(`   Final: AI=${aiCount}, Regex=${regexCount}, Null=${nullCount}`);
+    
+    return finalResults;
 }
 
 /**

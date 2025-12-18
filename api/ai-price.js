@@ -63,14 +63,21 @@ const rateLimit = {
 };
 
 /**
- * Основной метод - получает цену с AI приоритетом
+ * Основной метод - получает цену
+ * 
+ * ЛОГИКА ПО СХЕМЕ:
+ * 1. Проверяем AI кэш → если есть свежий AI результат, возвращаем его
+ * 2. Regex парсит сразу → показываем пользователю мгновенно
+ * 3. AI добавляется в очередь → парсит параллельно
+ * 4. Когда AI готов → кэшируем, следующий запрос получит AI цену
  */
 async function getAIPrice(brainrotName, ourIncome) {
     const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
-    // 1. Проверяем AI кэш
+    // 1. Проверяем AI кэш - если есть свежий AI результат, возвращаем его
     const aiCached = aiCache.get(cacheKey);
     if (aiCached && Date.now() - aiCached.timestamp < AI_CACHE_TTL) {
+        console.log(`🤖 AI cache HIT for ${brainrotName}: $${aiCached.data.suggestedPrice}`);
         return {
             ...aiCached.data,
             source: 'ai',
@@ -79,31 +86,29 @@ async function getAIPrice(brainrotName, ourIncome) {
         };
     }
     
-    // 2. Получаем regex результат
+    // 2. Нет AI кэша - получаем regex результат СРАЗУ
     const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
     
-    // 3. Проверяем изменилась ли цена
+    // 3. Сохраняем regex цену для сравнения
     const prevPrice = previousPrices.get(cacheKey);
     const currentPrice = regexResult.suggestedPrice;
-    const priceChanged = prevPrice !== undefined && prevPrice !== currentPrice;
-    
-    // Сохраняем текущую цену
     if (currentPrice !== null) {
         previousPrices.set(cacheKey, currentPrice);
     }
     
-    // 4. Если цена изменилась - добавляем в очередь AI валидации
-    if (priceChanged && currentPrice !== null) {
-        console.log(`📊 Price changed for ${brainrotName}: $${prevPrice} → $${currentPrice}, queuing for AI validation`);
+    // 4. ВСЕГДА добавляем в очередь AI валидации (не только при изменении)
+    // Но только если нет в очереди уже
+    const alreadyQueued = aiValidationQueue.some(q => q.cacheKey === cacheKey);
+    if (!alreadyQueued && currentPrice !== null) {
         queueForAIValidation(brainrotName, ourIncome, regexResult);
     }
     
-    // 5. Возвращаем regex результат
+    // 5. Возвращаем regex результат сразу (AI обновит кэш позже)
     return {
         ...regexResult,
         source: 'regex',
-        priceChanged,
-        prevPrice: prevPrice || null
+        aiQueued: !alreadyQueued,
+        queueLength: aiValidationQueue.length
     };
 }
 
@@ -241,15 +246,22 @@ function queueForAIValidation(brainrotName, ourIncome, regexResult) {
     const exists = aiValidationQueue.find(q => q.cacheKey === cacheKey);
     if (exists) return;
     
+    // Лимит очереди - не более 100 элементов
+    if (aiValidationQueue.length >= 100) {
+        console.log(`⚠️ AI queue full (100), skipping ${brainrotName}`);
+        return;
+    }
+    
     aiValidationQueue.push({
         brainrotName,
         ourIncome,
         regexResult,
         cacheKey,
-        addedAt: Date.now()
+        addedAt: Date.now(),
+        retries: 0
     });
     
-    console.log(`📋 Queued ${brainrotName} for AI validation (queue: ${aiValidationQueue.length})`);
+    console.log(`📋 Queued ${brainrotName} @ ${ourIncome}M/s for AI (queue: ${aiValidationQueue.length})`);
     
     // Запускаем обработку очереди
     processAIQueue();
@@ -257,18 +269,19 @@ function queueForAIValidation(brainrotName, ourIncome, regexResult) {
 
 /**
  * Обрабатывает очередь AI валидации в фоне
+ * Волнами по схеме: 7 запросов в минуту
  */
 async function processAIQueue() {
     if (isProcessingQueue || aiValidationQueue.length === 0) return;
     
     isProcessingQueue = true;
-    console.log(`🤖 Processing AI queue: ${aiValidationQueue.length} items`);
+    console.log(`🤖 Starting AI queue processing: ${aiValidationQueue.length} items`);
     
     while (aiValidationQueue.length > 0) {
         // Проверяем rate limit
         if (!rateLimit.canMakeRequest()) {
             const waitTime = rateLimit.getWaitTime();
-            console.log(`⏳ Rate limit, waiting ${Math.round(waitTime/1000)}s...`);
+            console.log(`⏳ Rate limit hit, waiting ${Math.round(waitTime/1000)}s...`);
             await new Promise(r => setTimeout(r, waitTime + 1000));
             continue;
         }
@@ -276,6 +289,7 @@ async function processAIQueue() {
         const item = aiValidationQueue.shift();
         
         try {
+            console.log(`🔍 AI processing: ${item.brainrotName} @ ${item.ourIncome}M/s`);
             const aiResult = await forceAIPrice(item.brainrotName, item.ourIncome);
             
             if (aiResult.source === 'ai' && aiResult.suggestedPrice !== null) {
@@ -283,23 +297,32 @@ async function processAIQueue() {
                 const aiPrice = aiResult.suggestedPrice;
                 
                 if (regexPrice !== aiPrice) {
-                    console.log(`🔄 AI validation: ${item.brainrotName} - regex $${regexPrice} vs AI $${aiPrice} → using AI`);
+                    console.log(`   📊 DIFFERENT: regex $${regexPrice} vs AI $${aiPrice} → using AI`);
                 } else {
-                    console.log(`✅ AI confirmed: ${item.brainrotName} @ $${aiPrice}`);
+                    console.log(`   ✅ CONFIRMED: $${aiPrice}`);
                 }
+            } else {
+                console.log(`   ⚠️ AI returned no price, using regex $${item.regexResult?.suggestedPrice}`);
             }
         } catch (e) {
-            console.error(`AI validation error for ${item.brainrotName}:`, e.message);
-            // Возвращаем в конец очереди для retry
-            aiValidationQueue.push(item);
+            console.error(`   ❌ AI error for ${item.brainrotName}:`, e.message);
+            
+            // Retry максимум 2 раза
+            if (item.retries < 2) {
+                item.retries++;
+                aiValidationQueue.push(item); // В конец очереди
+                console.log(`   🔄 Retry ${item.retries}/2 queued`);
+            } else {
+                console.log(`   ⛔ Max retries reached, skipping`);
+            }
         }
         
-        // Пауза между запросами (чтобы не превысить rate limit)
+        // Пауза между запросами (9 сек = ~6.6 req/min < 7 limit)
         await new Promise(r => setTimeout(r, 9000));
     }
     
     isProcessingQueue = false;
-    console.log('✅ AI queue processing complete');
+    console.log('✅ AI queue empty, processing complete');
 }
 
 /**

@@ -481,37 +481,56 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
             const offerMsRange = msAttr?.value || targetMsRange; // "100-249 M/s", "500-749 M/s", etc
             
-            // Если использовали фильтр по имени - API уже отфильтровал, доверяем результатам
-            // Если НЕ использовали фильтр - нужно проверить title (fallback режим)
-            let matches = true;
+            // ВСЕГДА проверяем соответствие названия брейнрота в title
+            // Eldorado API иногда возвращает офферы других брейнротов (продавцы пишут чужие названия в title)
+            const titleLower = offerTitle.toLowerCase();
+            const nameLower = brainrotName.toLowerCase();
             
-            if (!usedNameFilter) {
-                // Fallback: фильтруем по title вручную
-                // Улучшенный matching для комбинированных брейнротов (например "Los Nooo My Hotspotsitos")
-                const titleLower = offerTitle.toLowerCase();
-                const nameLower = brainrotName.toLowerCase();
+            // Функция проверки соответствия названия
+            const checkBrainrotMatch = () => {
+                // 1. Точное совпадение имени в title
+                if (titleLower.includes(nameLower)) return true;
                 
-                // 1. Точное совпадение имени
-                let titleContainsName = titleLower.includes(nameLower);
+                // 2. Проверяем tradeEnvironmentValue (брейнрот из атрибутов Eldorado)
+                if (envValue && (envValue.includes(nameLower) || nameLower.includes(envValue))) return true;
                 
-                // 2. Для комбинированных имён (содержащих "Los" или "La") пробуем компоненты
-                if (!titleContainsName && (nameLower.includes('los ') || nameLower.includes('la '))) {
-                    // Разбиваем на значимые слова (минимум 4 символа)
-                    const nameWords = nameLower.split(/\s+/).filter(w => w.length >= 4);
+                // 3. Для комбинированных имён проверяем ключевые слова
+                // "Garama and Madundung" → ["garama", "madundung"]
+                const nameWords = nameLower
+                    .replace(/\s+(and|the|of|los|la|las)\s+/gi, ' ')
+                    .split(/\s+/)
+                    .filter(w => w.length >= 4);
+                
+                if (nameWords.length >= 2) {
                     // Требуем минимум 2 совпадения из значимых слов
                     const matchCount = nameWords.filter(w => titleLower.includes(w)).length;
-                    titleContainsName = matchCount >= 2;
+                    if (matchCount >= 2) return true;
+                } else if (nameWords.length === 1) {
+                    // Для коротких имён требуем точное слово
+                    if (titleLower.includes(nameWords[0])) return true;
                 }
                 
-                // 3. Также проверяем tradeEnvironmentValue (если есть)
-                if (!titleContainsName && envValue) {
-                    titleContainsName = envValue.includes(nameLower) || nameLower.includes(envValue);
+                // 4. Проверяем что title НЕ содержит другой известный брейнрот
+                // Если в title есть "CHILIN CHILI" а мы ищем "Garama" - это не наш оффер
+                const knownBrainrots = [
+                    'chilin chili', 'chillin chili', 'esok sekolah', 'los mobilis', 
+                    'mieteteira', 'bicicleteira', 'tictac sahur', 'skibidi toilet',
+                    'los planitos', 'los 67', 'la ginger', 'secret combinasion',
+                    'garama', 'madundung', 'dragon cannelloni', 'eviledon'
+                ];
+                
+                for (const otherBrainrot of knownBrainrots) {
+                    // Если title содержит другой брейнрот, а мы ищем не его
+                    if (titleLower.includes(otherBrainrot) && !nameLower.includes(otherBrainrot)) {
+                        console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
+                        return false;
+                    }
                 }
                 
-                matches = titleContainsName;
-            }
+                return false;
+            };
             
-            if (!matches) continue;
+            if (!checkBrainrotMatch()) continue;
             
             // НЕ проверяем M/s атрибут - API уже отфильтровал по offerAttributeIdsCsv
             
