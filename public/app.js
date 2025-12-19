@@ -4919,38 +4919,27 @@ function saveOfferImagesCache() {
     }
 }
 
-// Get cached image or load and cache it
+// Get cached image or return original URL
+// Note: External images (like Eldorado's Azure Blob) don't support CORS,
+// so we can't fetch them to convert to base64. Just return the URL and let <img> display it.
 function getCachedOfferImage(imageUrl, offerId) {
     if (!imageUrl) return null;
     
     // Use offerId as cache key
     const cacheKey = offerId || imageUrl;
     
-    // Return cached base64 if available
+    // Return cached base64 if available (for previously cached images)
     if (offerImagesCache[cacheKey]) {
         return offerImagesCache[cacheKey];
     }
     
-    // Load image and cache it (async, returns original URL for now)
-    cacheOfferImage(imageUrl, cacheKey);
+    // Don't try to fetch external images - they block CORS
+    // Just return the original URL for <img> tag to display
     return imageUrl;
 }
 
-// Cache image as base64
-async function cacheOfferImage(imageUrl, cacheKey) {
-    try {
-        const response = await fetch(imageUrl);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            offerImagesCache[cacheKey] = reader.result;
-            saveOfferImagesCache();
-        };
-        reader.readAsDataURL(blob);
-    } catch (e) {
-        // Silently fail - will use original URL
-    }
-}
+// Disabled: External images don't support CORS, can't fetch to convert to base64
+// async function cacheOfferImage(imageUrl, cacheKey) { ... }
 
 // Initialize offer images cache
 loadOfferImagesCache();
