@@ -102,7 +102,7 @@ async function scanGlitchedStore(db) {
     let debugInfo = { pages: [], errors: [] };
     
     while (page <= maxPages) {
-        const response = await fetchEldoradoOffers(STORE_SEARCH_QUERY, page, 100);
+        const response = await fetchEldoradoOffers(STORE_SEARCH_QUERY, page, 50); // pageSize=50 более надёжно
         
         if (response.error) {
             console.error(`Error fetching page ${page}:`, response.error);
