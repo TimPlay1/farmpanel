@@ -2879,12 +2879,7 @@ function getGenerationKey(accountId, name, income) {
     return `${accountId}_${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
 }
 
-// Генерация ключа для группы одинаковых брейнротов (name + income)
-function getGroupKey(name, income) {
-    if (!name) return null;
-    const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
-    return `${name.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
-}
+// NOTE: getGroupKey is defined later in MASS SELECTION MODE section
 
 // Check if specific brainrot was generated (by accountId + name + income)
 function isGenerated(accountId, name, income) {
@@ -3000,11 +2995,6 @@ function groupBrainrots(brainrots) {
     for (const b of brainrots) {
         const income = normalizeIncomeForApi(b.income, b.incomeText);
         const groupKey = getGroupKey(b.name, income);
-        
-        // DEBUG: log Chimnino grouping
-        if (b.name && b.name.toLowerCase().includes('chimn')) {
-            console.log(`[DEBUG] Chimnino: raw=${b.income}, text=${b.incomeText}, normalized=${income}, key=${groupKey}`);
-        }
         
         if (!groups.has(groupKey)) {
             groups.set(groupKey, {
@@ -4248,9 +4238,10 @@ function postToEldorado() {
 // ==========================================
 
 /**
- * Get unique key for a brainrot group (name + rounded income)
+ * Get unique key for a brainrot group (name + income)
  * Used for stable selection across search/filter operations
  * Can be called as getGroupKey(group) or getGroupKey(name, income)
+ * Note: income is NOT rounded - each unique income value creates a separate group
  */
 function getGroupKey(nameOrGroup, incomeArg) {
     let name, income;
@@ -4268,8 +4259,10 @@ function getGroupKey(nameOrGroup, incomeArg) {
         income = incomeArg || 0;
     }
     
-    const roundedIncome = Math.floor(income / 10) * 10;
-    return `${name.toLowerCase()}_${roundedIncome}`;
+    // Use exact income (with dots replaced by underscores) - NO rounding!
+    // Each unique income value should be a separate group
+    const incomeStr = String(income).replace(/\./g, '_');
+    return `${name.toLowerCase()}_${incomeStr}`;
 }
 
 /**
