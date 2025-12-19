@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.15
+// @version      9.8.16
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
+// @match        https://*.talkjs.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_deleteValue
@@ -20,16 +21,133 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.15
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.15
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.16
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.16
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.15';
+    const VERSION = '9.8.16';
     const API_BASE = 'https://farmpanel.vercel.app/api';
+    
+    // ==================== TALKJS IFRAME HANDLER ====================
+    // If running inside TalkJS iframe, handle messages from parent
+    const isInsideTalkJSIframe = window.location.hostname.includes('talkjs.com');
+    
+    if (isInsideTalkJSIframe) {
+        console.log('[Glitched] Running inside TalkJS iframe');
+        
+        // Listen for messages from parent window
+        window.addEventListener('message', async (event) => {
+            // Only accept messages from Eldorado
+            if (!event.origin.includes('eldorado.gg')) return;
+            
+            const data = event.data;
+            if (!data || data.source !== 'glitched-quick-chat') return;
+            
+            console.log('[Glitched TalkJS] Received message:', data.action);
+            
+            if (data.action === 'sendMessage') {
+                const result = await sendMessageInIframe(data.message);
+                event.source.postMessage({
+                    source: 'glitched-talkjs',
+                    action: 'messageSent',
+                    success: result
+                }, event.origin);
+            } else if (data.action === 'attachImage') {
+                const result = await attachImageInIframe(data.imageUrl);
+                event.source.postMessage({
+                    source: 'glitched-talkjs',
+                    action: 'imageAttached',
+                    success: result
+                }, event.origin);
+            }
+        });
+        
+        /**
+         * Send message inside TalkJS iframe
+         */
+        async function sendMessageInIframe(message) {
+            const chatInput = document.querySelector('.ProseMirror[contenteditable="true"], .test__entry-field, div[contenteditable="true"][role="textbox"]');
+            if (!chatInput) {
+                console.error('[Glitched TalkJS] Chat input not found');
+                return false;
+            }
+            
+            chatInput.focus();
+            chatInput.innerHTML = `<p>${message.replace(/\n/g, '</p><p>')}</p>`;
+            chatInput.dispatchEvent(new InputEvent('input', { bubbles: true, cancelable: true, inputType: 'insertText', data: message }));
+            
+            await new Promise(r => setTimeout(r, 300));
+            
+            const sendBtn = document.querySelector('.test__send-button, .MessageField__send-button, button[aria-label="Send"]');
+            if (sendBtn) {
+                sendBtn.click();
+                console.log('[Glitched TalkJS] Message sent');
+                return true;
+            }
+            
+            console.error('[Glitched TalkJS] Send button not found');
+            return false;
+        }
+        
+        /**
+         * Attach image inside TalkJS iframe
+         */
+        async function attachImageInIframe(imageUrl) {
+            const fileInput = document.querySelector('.test__fileupload-input, input[type="file"]');
+            if (!fileInput) {
+                console.error('[Glitched TalkJS] File input not found');
+                return false;
+            }
+            
+            try {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const file = new File([blob], 'enddelivery.jpg', { type: 'image/jpeg' });
+                
+                const dataTransfer = new DataTransfer();
+                dataTransfer.items.add(file);
+                fileInput.files = dataTransfer.files;
+                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                console.log('[Glitched TalkJS] Image attached, waiting for confirm button...');
+                
+                // Wait for confirm button
+                const confirmClicked = await waitForConfirmButton();
+                return confirmClicked;
+            } catch (e) {
+                console.error('[Glitched TalkJS] Failed to attach image:', e);
+                return false;
+            }
+        }
+        
+        /**
+         * Wait for confirm button in image preview
+         */
+        async function waitForConfirmButton(timeout = 5000) {
+            const startTime = Date.now();
+            
+            while (Date.now() - startTime < timeout) {
+                const confirmBtn = document.querySelector('.confirm-send, .test__confirm-upload-button, .preview .send-row button:not(.cancel)');
+                if (confirmBtn && confirmBtn.offsetParent !== null) {
+                    await new Promise(r => setTimeout(r, 300));
+                    confirmBtn.click();
+                    console.log('[Glitched TalkJS] Confirm button clicked');
+                    return true;
+                }
+                await new Promise(r => setTimeout(r, 200));
+            }
+            
+            console.error('[Glitched TalkJS] Timeout waiting for confirm button');
+            return false;
+        }
+        
+        // Don't run the rest of the script in iframe
+        return;
+    }
     
     // ==================== СОСТОЯНИЕ ====================
     let offerData = null;
@@ -380,7 +498,132 @@
         .glitched-mini .queue-item.done { opacity: 0.5; text-decoration: line-through; }
         .glitched-mini .queue-item .q-icon { width: 16px; text-align: center; }
         .glitched-mini .queue-item .q-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        
+        /* ============ QUICK CHAT PANEL FOR ORDER PAGE ============ */
+        .glitched-quick-chat {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 16px;
+            padding: 16px;
+            z-index: 999999;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.5);
+            font-family: 'Segoe UI', sans-serif;
+            color: white;
+            min-width: 320px;
+            border: 1px solid #333;
+        }
+        .glitched-quick-chat .qc-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        .glitched-quick-chat .qc-title {
+            font-size: 14px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .glitched-quick-chat .qc-close {
+            cursor: pointer;
+            opacity: 0.6;
+            font-size: 18px;
+            transition: opacity 0.2s;
+        }
+        .glitched-quick-chat .qc-close:hover { opacity: 1; }
+        .glitched-quick-chat .qc-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .glitched-quick-chat .qc-btn {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            text-align: left;
+        }
+        .glitched-quick-chat .qc-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+        .glitched-quick-chat .qc-btn.welcome {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .glitched-quick-chat .qc-btn.sorry {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .glitched-quick-chat .qc-btn.friend {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+        .glitched-quick-chat .qc-btn.wait {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333;
+        }
+        .glitched-quick-chat .qc-btn.end-delivery {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            font-size: 14px;
+            padding: 14px 16px;
+        }
+        .glitched-quick-chat .qc-btn .qc-icon {
+            font-size: 18px;
+            min-width: 24px;
+            text-align: center;
+        }
+        .glitched-quick-chat .qc-btn .qc-label {
+            flex: 1;
+        }
+        .glitched-quick-chat .qc-btn.sent {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+        .glitched-quick-chat .qc-btn.sent::after {
+            content: ' ✓';
+            color: #38ef7d;
+        }
+        .glitched-quick-chat .qc-divider {
+            height: 1px;
+            background: #333;
+            margin: 8px 0;
+        }
+        .glitched-quick-chat .qc-status {
+            font-size: 11px;
+            color: #888;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .glitched-quick-chat .qc-status.delivered {
+            color: #38ef7d;
+            background: rgba(56, 239, 125, 0.1);
+            padding: 8px;
+            border-radius: 8px;
+        }
     `);
+    
+    // ==================== QUICK CHAT MESSAGES ====================
+    const QUICK_MESSAGES = {
+        welcome: "Welcome to 👾Glitched Store👾!\nPlease give us a couple of minutes to get your brainrot from our stock!",
+        sorry: "Our store sincerely apologizes for any inconvenience caused!",
+        friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list.",
+        wait: "We apologize! Please wait a few more minutes, we are rushing to get your order ready!",
+        endDelivery: "Thank you❤️! Pls make review for fast deliver!) Have a good day and dont forget to mark order as \"Received\"!🔥   👾GLITCHED STORE👾",
+        endDeliveryImage: "https://raw.githubusercontent.com/TimPlay1/farmpanel/main/public/enddelivery.jpg"
+    };
     
     // ==================== УТИЛИТЫ ====================
     // v9.7.7: Minimal logging - only important events
@@ -2977,6 +3220,261 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         });
     }
     
+    // ==================== QUICK CHAT FOR ORDER PAGE ====================
+    let quickChatPanel = null;
+    let deliveredWatcher = null;
+    let orderDelivered = false;
+    
+    /**
+     * Check if current page is an order delivery page
+     */
+    function isOrderPage() {
+        return window.location.pathname.includes('/order/');
+    }
+    
+    /**
+     * Get TalkJS iframe window for postMessage
+     */
+    function getTalkJSIframe() {
+        const iframe = document.querySelector('iframe[name="____talkjs__chat__ui_internal"]') ||
+                       document.querySelector('#talkjs-container iframe') ||
+                       document.querySelector('iframe[src*="talkjs"]');
+        return iframe;
+    }
+    
+    /**
+     * Send a message to the chat via postMessage to TalkJS iframe
+     */
+    async function sendChatMessage(message, buttonEl = null) {
+        const iframe = getTalkJSIframe();
+        if (!iframe || !iframe.contentWindow) {
+            showNotification('❌ TalkJS chat not found', 'error');
+            return false;
+        }
+        
+        return new Promise((resolve) => {
+            // Listen for response from iframe
+            const handler = (event) => {
+                if (event.data?.source === 'glitched-talkjs' && event.data?.action === 'messageSent') {
+                    window.removeEventListener('message', handler);
+                    if (event.data.success) {
+                        if (buttonEl) buttonEl.classList.add('sent');
+                        showNotification('✅ Message sent!', 'success');
+                    } else {
+                        showNotification('❌ Failed to send message', 'error');
+                    }
+                    resolve(event.data.success);
+                }
+            };
+            window.addEventListener('message', handler);
+            
+            // Send message to iframe
+            iframe.contentWindow.postMessage({
+                source: 'glitched-quick-chat',
+                action: 'sendMessage',
+                message: message
+            }, '*');
+            
+            // Timeout after 5 seconds
+            setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve(false);
+            }, 5000);
+        });
+    }
+    
+    /**
+     * Upload and send image to chat via postMessage to TalkJS iframe
+     */
+    async function sendChatImage(imageUrl, buttonEl = null) {
+        const iframe = getTalkJSIframe();
+        if (!iframe || !iframe.contentWindow) {
+            showNotification('📷 TalkJS chat not found, sending as link', 'warning');
+            return await sendChatMessage(imageUrl, buttonEl);
+        }
+        
+        return new Promise((resolve) => {
+            // Listen for response from iframe
+            const handler = (event) => {
+                if (event.data?.source === 'glitched-talkjs' && event.data?.action === 'imageAttached') {
+                    window.removeEventListener('message', handler);
+                    if (event.data.success) {
+                        if (buttonEl) buttonEl.classList.add('sent');
+                        showNotification('📷 Image sent!', 'success');
+                    } else {
+                        showNotification('❌ Failed to send image', 'error');
+                    }
+                    resolve(event.data.success);
+                }
+            };
+            window.addEventListener('message', handler);
+            
+            // Send message to iframe
+            iframe.contentWindow.postMessage({
+                source: 'glitched-quick-chat',
+                action: 'attachImage',
+                imageUrl: imageUrl
+            }, '*');
+            
+            // Timeout after 10 seconds (image upload takes longer)
+            setTimeout(() => {
+                window.removeEventListener('message', handler);
+                resolve(false);
+            }, 10000);
+        });
+    }
+    
+    /**
+     * Check if "Mark as received" button exists (order not delivered yet)
+     */
+    function checkDeliveryStatus() {
+        // Look for "Mark as received" button or "Delivered" status
+        const buttons = document.querySelectorAll('button, eld-button');
+        for (const btn of buttons) {
+            const text = btn.textContent?.toLowerCase() || '';
+            if (text.includes('mark as received')) {
+                return 'pending'; // Still waiting for buyer to confirm
+            }
+            if (text.includes('delivered')) {
+                return 'delivered';
+            }
+        }
+        
+        // Check for "Order completed" or similar text
+        const pageText = document.body.innerText.toLowerCase();
+        if (pageText.includes('order completed') || pageText.includes('order finished')) {
+            return 'completed';
+        }
+        
+        return 'unknown';
+    }
+    
+    /**
+     * Create Quick Chat panel for order page
+     */
+    function createQuickChatPanel() {
+        if (quickChatPanel) {
+            quickChatPanel.remove();
+        }
+        
+        const status = checkDeliveryStatus();
+        const showEndDelivery = orderDelivered || status === 'delivered' || status === 'completed';
+        
+        quickChatPanel = document.createElement('div');
+        quickChatPanel.className = 'glitched-quick-chat';
+        quickChatPanel.innerHTML = `
+            <div class="qc-header">
+                <div class="qc-title">
+                    <span>👾</span>
+                    <span>Glitched Quick Chat</span>
+                </div>
+                <span class="qc-close" id="qc-close">✕</span>
+            </div>
+            <div class="qc-buttons">
+                <button class="qc-btn welcome" data-msg="welcome">
+                    <span class="qc-icon">👋</span>
+                    <span class="qc-label">Greet Customer</span>
+                </button>
+                <button class="qc-btn friend" data-msg="friend">
+                    <span class="qc-icon">🤝</span>
+                    <span class="qc-label">Friend Request</span>
+                </button>
+                <button class="qc-btn wait" data-msg="wait">
+                    <span class="qc-icon">⏳</span>
+                    <span class="qc-label">Please Wait</span>
+                </button>
+                <button class="qc-btn sorry" data-msg="sorry">
+                    <span class="qc-icon">🙏</span>
+                    <span class="qc-label">Apologize</span>
+                </button>
+                ${showEndDelivery ? `
+                <div class="qc-divider"></div>
+                <div class="qc-status delivered">✅ Order Delivered!</div>
+                <button class="qc-btn end-delivery" data-msg="endDelivery">
+                    <span class="qc-icon">🎉</span>
+                    <span class="qc-label">End Delivery (Thank + Screenshot)</span>
+                </button>
+                ` : ''}
+            </div>
+            <div class="qc-status">Click a button to send message</div>
+        `;
+        
+        document.body.appendChild(quickChatPanel);
+        
+        // Close button
+        document.getElementById('qc-close').onclick = () => {
+            quickChatPanel.remove();
+            quickChatPanel = null;
+        };
+        
+        // Message buttons
+        quickChatPanel.querySelectorAll('.qc-btn').forEach(btn => {
+            btn.addEventListener('click', async function() {
+                const msgKey = this.dataset.msg;
+                if (msgKey === 'endDelivery') {
+                    // Send thank you message first
+                    await sendChatMessage(QUICK_MESSAGES.endDelivery, this);
+                    // Wait a bit then try to send/attach image
+                    await new Promise(r => setTimeout(r, 1000));
+                    // Upload and send image (with confirmation button handling)
+                    await sendChatImage(QUICK_MESSAGES.endDeliveryImage, this);
+                } else {
+                    const message = QUICK_MESSAGES[msgKey];
+                    if (message) {
+                        await sendChatMessage(message, this);
+                    }
+                }
+            });
+        });
+    }
+    
+    /**
+     * Watch for delivery button to appear/disappear
+     */
+    function watchDeliveryStatus() {
+        if (deliveredWatcher) {
+            deliveredWatcher.disconnect();
+        }
+        
+        let lastStatus = checkDeliveryStatus();
+        
+        deliveredWatcher = new MutationObserver(() => {
+            const newStatus = checkDeliveryStatus();
+            if (newStatus !== lastStatus) {
+                lastStatus = newStatus;
+                if (newStatus === 'delivered' || newStatus === 'completed') {
+                    orderDelivered = true;
+                    showNotification('✅ Order delivered! End Delivery button available', 'success');
+                    // Recreate panel to show End Delivery button
+                    if (quickChatPanel) {
+                        createQuickChatPanel();
+                    }
+                }
+            }
+        });
+        
+        deliveredWatcher.observe(document.body, {
+            childList: true,
+            subtree: true,
+            characterData: true
+        });
+    }
+    
+    /**
+     * Initialize Quick Chat on order page
+     */
+    function initQuickChat() {
+        if (!isOrderPage()) return;
+        
+        logInfo('Order page detected, initializing Quick Chat...');
+        
+        // Wait for page to load
+        setTimeout(() => {
+            createQuickChatPanel();
+            watchDeliveryStatus();
+        }, 2000);
+    }
+
     // ==================== МЕНЮ TAMPERMONKEY ====================
     GM_registerMenuCommand('🔮 Open Panel', showAuthPanel);
     GM_registerMenuCommand('🔄 Refresh Offers', loadUserOffers);
@@ -3088,6 +3586,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         if (isDashboard) {
             setTimeout(watchForOfferDeletions, 2000);
         }
+        
+        // Initialize Quick Chat on order pages
+        initQuickChat();
     }
     
     // Запуск - быстрая инициализация
