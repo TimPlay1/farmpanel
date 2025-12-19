@@ -5372,7 +5372,13 @@ async function deleteOffer(offerId, brainrotName) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}&offerId=${encodeURIComponent(offerId)}`, {
+        const currentFarmKey = state.currentKey;
+        if (!currentFarmKey) {
+            showNotification('❌ No farm key selected', 'error');
+            return;
+        }
+        
+        const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(currentFarmKey)}&offerId=${encodeURIComponent(offerId)}`, {
             method: 'DELETE'
         });
         
@@ -5391,11 +5397,11 @@ async function deleteOffer(offerId, brainrotName) {
         // Update UI immediately
         updateOffersStats();
         renderOffers();
-        showToast(`Offer "${brainrotName}" deleted`, 'success');
+        showNotification(`✅ Offer "${brainrotName}" deleted`, 'success');
         
     } catch (error) {
         console.error('Delete offer error:', error);
-        showToast(`Failed to delete offer: ${error.message}`, 'error');
+        showNotification(`❌ Failed to delete offer: ${error.message}`, 'error');
     }
 }
 

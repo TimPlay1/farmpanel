@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.2
+// @version      9.8.3
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -28,7 +28,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.7.2';
+    const VERSION = '9.8.3';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -1784,23 +1784,39 @@
                 return false;
             }
             
+            // v9.8.3: More robust dropdown opening sequence
             input.focus();
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 100));
             
+            // Try multiple methods to open the dropdown
             input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
-            await new Promise(r => setTimeout(r, 50));
+            await new Promise(r => setTimeout(r, 80));
             input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
             await new Promise(r => setTimeout(r, 200));
             
             let isOpen = input.getAttribute('aria-expanded') === 'true';
             
+            // If not open yet, try ArrowDown key
             if (!isOpen) {
                 input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
                 await new Promise(r => setTimeout(r, 200));
+                isOpen = input.getAttribute('aria-expanded') === 'true';
+            }
+            
+            // v9.8.3: If still not open, try clicking the ng-select container itself
+            if (!isOpen) {
+                log('Dropdown not opening, trying container click', 'warn');
+                const container = ngSelect.querySelector('.ng-select-container');
+                if (container) {
+                    container.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 80));
+                    container.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 300));
+                }
             }
             
             let panel = null;
-            for (let i = 0; i < 20; i++) {
+            for (let i = 0; i < 25; i++) {
                 panel = document.querySelector('ng-dropdown-panel');
                 if (panel) break;
                 await new Promise(r => setTimeout(r, 80));
@@ -2178,10 +2194,33 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     log('Trying original name: ' + name, 'warn');
                     selected = await selectNgOption(brainrotSelect, name);
                 }
-                // Если всё ещё не нашли - выбираем Other
+                // v9.8.3: Если всё ещё не нашли - выбираем Other с дополнительной задержкой
                 if (!selected) {
                     log('Brainrot not found, selecting Other', 'warn');
-                    selected = await selectNgOption(brainrotSelect, 'Other');
+                    // Даём время на сброс состояния dropdown после предыдущих попыток
+                    await new Promise(r => setTimeout(r, 500));
+                    closeAllDropdowns();
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    // Пробуем открыть dropdown заново и выбрать Other
+                    for (let otherAttempt = 1; otherAttempt <= 3; otherAttempt++) {
+                        log(`Attempting to select Other (attempt ${otherAttempt}/3)`);
+                        
+                        // Находим ng-select заново (Angular мог пересоздать элемент)
+                        brainrotSelect = findNgSelectByAriaLabel('Brainrot');
+                        if (!brainrotSelect) {
+                            await new Promise(r => setTimeout(r, 200));
+                            continue;
+                        }
+                        
+                        selected = await selectNgOption(brainrotSelect, 'Other');
+                        if (selected) {
+                            log('Successfully selected Other', 'success');
+                            break;
+                        }
+                        
+                        await new Promise(r => setTimeout(r, 400));
+                    }
                 }
                 verificationResults.brainrot = selected;
                 await new Promise(r => setTimeout(r, 300));
