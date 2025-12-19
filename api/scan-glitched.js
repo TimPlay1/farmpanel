@@ -245,7 +245,7 @@ async function scanGlitchedStore(db) {
 // Кэш последнего сканирования (чтобы не сканировать слишком часто)
 let lastScanTime = 0;
 let lastScanResult = null;
-const SCAN_COOLDOWN = 30000; // 30 секунд между сканами
+const SCAN_COOLDOWN = 15000; // 15 секунд между сканами
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');

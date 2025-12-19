@@ -4931,6 +4931,15 @@ async function loadOffers(forceRefresh = false, silent = false) {
             return;
         }
         
+        // Trigger server scan first (non-blocking for silent mode)
+        if (forceRefresh && typeof triggerServerScan === 'function') {
+            if (silent) {
+                triggerServerScan(); // Don't await in silent mode
+            } else {
+                await triggerServerScan();
+            }
+        }
+        
         const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
         
@@ -5684,9 +5693,25 @@ function startOffersAutoRefresh() {
         // Only refresh if we have a key and offers tab might be visible
         if (state.currentKey && offersState.offers.length > 0) {
             console.log('🔄 Auto-refreshing offers...');
+            // First trigger server scan to update DB
+            await triggerServerScan();
+            // Then load updated offers
             await loadOffers(true, true); // Force refresh, silent mode
         }
     }, 15000); // Every 15 seconds
+}
+
+// Trigger server-side scan of Glitched Store offers
+async function triggerServerScan() {
+    try {
+        const response = await fetch(`${API_BASE}/scan-glitched`);
+        const data = await response.json();
+        if (data.success && !data.cached) {
+            console.log(`📡 Server scan: ${data.updated} updated, ${data.markedPaused} paused`);
+        }
+    } catch (err) {
+        console.warn('Server scan failed:', err.message);
+    }
 }
 
 function stopOffersAutoRefresh() {
