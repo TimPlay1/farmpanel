@@ -3001,10 +3001,15 @@ function groupBrainrots(brainrots) {
         const income = normalizeIncomeForApi(b.income, b.incomeText);
         const groupKey = getGroupKey(b.name, income);
         
+        // DEBUG: log Chimnino grouping
+        if (b.name && b.name.toLowerCase().includes('chimn')) {
+            console.log(`[DEBUG] Chimnino: raw=${b.income}, text=${b.incomeText}, normalized=${income}, key=${groupKey}`);
+        }
+        
         if (!groups.has(groupKey)) {
             groups.set(groupKey, {
                 name: b.name,
-                income: b.income,
+                income: income, // Use normalized income, not raw
                 incomeText: b.incomeText,
                 imageUrl: b.imageUrl,
                 items: [],
