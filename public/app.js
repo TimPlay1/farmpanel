@@ -5103,8 +5103,7 @@ async function updateOffersRecommendedPrices() {
                     offer.previousRecommendedPrice = offer.recommendedPrice;
                 }
                 offer.recommendedPrice = priceData.suggestedPrice;
-                offer.isSpike = priceData.isSpike || false;
-                offer.pendingPrice = priceData.pendingPrice || null;
+                // Spike logic removed - centralized cache has verified prices
                 updated++;
             } else {
                 // Keep existing recommendedPrice from DB if price not in cache

@@ -69,7 +69,8 @@ module.exports = async (req, res) => {
     try {
         const { db } = await connectToDatabase();
         const offersCollection = db.collection('offers');
-        const globalPricesCollection = db.collection('global_brainrot_prices');
+        // Use price_cache from centralized cron scanner (no spike logic needed)
+        const priceCacheCollection = db.collection('price_cache');
 
         // GET - получить офферы для farmKey с recommendedPrice из глобального кэша
         if (req.method === 'GET') {
@@ -109,15 +110,15 @@ module.exports = async (req, res) => {
                 if (key) priceKeys.push(key);
             }
             
-            // Получаем все цены одним запросом
+            // Получаем все цены одним запросом из centralized price_cache
             const pricesMap = new Map();
             if (priceKeys.length > 0) {
-                const prices = await globalPricesCollection.find({
-                    cacheKey: { $in: priceKeys }
+                const prices = await priceCacheCollection.find({
+                    _id: { $in: priceKeys }
                 }).toArray();
                 
                 for (const p of prices) {
-                    pricesMap.set(p.cacheKey, p);
+                    pricesMap.set(p._id, p);
                 }
             }
             
@@ -128,9 +129,8 @@ module.exports = async (req, res) => {
                 
                 if (priceData && priceData.suggestedPrice) {
                     offer.recommendedPrice = priceData.suggestedPrice;
-                    offer.isSpike = priceData.isSpike || false;
-                    offer.pendingPrice = priceData.pendingPrice || null;
-                    offer.priceSource = priceData.priceSource || null;
+                    // No spike logic in centralized cache - prices are verified by cron
+                    offer.priceSource = priceData.priceSource || priceData.source || null;
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
             }
