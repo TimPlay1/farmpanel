@@ -1506,9 +1506,12 @@ function switchView(viewName) {
         fetchAllFarmersData();
     }
     
-    // При переключении на Offers - загружаем офферы
+    // При переключении на Offers - загружаем офферы и запускаем auto-refresh
     if (viewName === 'offers') {
         initOffersView();
+    } else {
+        // Останавливаем auto-refresh офферов при выходе с вкладки
+        stopOffersAutoRefresh();
     }
     
     // При переключении на Top - инициализируем раздел
@@ -5718,15 +5721,15 @@ function stopOffersAutoRefresh() {
     if (offersAutoRefreshInterval) {
         clearInterval(offersAutoRefreshInterval);
         offersAutoRefreshInterval = null;
+        console.log('⏹️ Offers auto-refresh stopped');
     }
 }
 
-// Start auto-refresh when page loads
-startOffersAutoRefresh();
-
 // Initialize offers when view is shown
 function initOffersView() {
+    console.log('📋 Offers view opened - starting auto-refresh');
     loadOffers();
+    startOffersAutoRefresh();
 }
 
 // Setup offers listeners on DOM ready
