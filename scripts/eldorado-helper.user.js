@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.17
+// @version      9.8.18
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -193,39 +193,48 @@
         /**
          * Wait for confirm button in image preview
          */
-        async function waitForConfirmButton(timeout = 8000) {
+        async function waitForConfirmButton(timeout = 15000) {
             const startTime = Date.now();
+            console.log('[Glitched TalkJS] Looking for Send button...');
             
             while (Date.now() - startTime < timeout) {
-                // Try multiple selectors for the confirm button
-                const selectors = [
-                    '.confirm-send',
-                    '.test__confirm-upload-button', 
-                    '.preview .send-row button:not(.cancel)',
-                    '.preview button.confirm-send',
-                    'button.confirm-send',
-                    '.send-row button:last-child'
-                ];
+                // Find all buttons and look specifically for one with "Send" text
+                const allButtons = document.querySelectorAll('button');
                 
-                for (const sel of selectors) {
-                    const confirmBtn = document.querySelector(sel);
-                    if (confirmBtn && confirmBtn.offsetParent !== null) {
-                        console.log('[Glitched TalkJS] Found confirm button:', sel);
+                for (const btn of allButtons) {
+                    const btnText = btn.textContent.trim().toLowerCase();
+                    const isVisible = btn.offsetParent !== null;
+                    
+                    // Must be visible and have "send" text (not cancel, not close)
+                    if (isVisible && btnText === 'send' && !btn.classList.contains('cancel')) {
+                        console.log('[Glitched TalkJS] Found Send button:', btn.className, 'text:', btn.textContent);
                         
                         // IMPORTANT: Wait for image to upload BEFORE clicking confirm
                         await waitForImageUpload();
                         
                         await new Promise(r => setTimeout(r, 500)); // Extra safety delay
-                        confirmBtn.click();
-                        console.log('[Glitched TalkJS] Confirm button clicked after upload complete');
+                        btn.click();
+                        console.log('[Glitched TalkJS] Send button clicked after upload complete');
                         return true;
                     }
                 }
                 
-                await new Promise(r => setTimeout(r, 200));
+                // Also try specific selectors as fallback
+                const confirmBtn = document.querySelector('button.confirm-send.test__confirm-upload-button');
+                if (confirmBtn && confirmBtn.offsetParent !== null && confirmBtn.textContent.trim().toLowerCase() === 'send') {
+                    console.log('[Glitched TalkJS] Found confirm-send button');
+                    
+                    await waitForImageUpload();
+                    await new Promise(r => setTimeout(r, 500));
+                    confirmBtn.click();
+                    console.log('[Glitched TalkJS] Confirm-send button clicked');
+                    return true;
+                }
+                
+                await new Promise(r => setTimeout(r, 300));
             }
             
-            console.error('[Glitched TalkJS] Timeout waiting for confirm button');
+            console.error('[Glitched TalkJS] Timeout waiting for Send button');
             return false;
         }
         
