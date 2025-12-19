@@ -151,7 +151,8 @@ async function scanGlitchedStore(db) {
         
         console.log(`  Page ${page}: found ${response.results.length} offers, ${allEldoradoOffers.length} total Glitched`);
         
-        if (response.results.length < 100) break;
+        // v9.8.8: Fixed pagination - was comparing with 100 but pageSize is 50
+        if (response.results.length < 50) break;
         page++;
         
         // Небольшая задержка между страницами
@@ -226,11 +227,18 @@ async function scanGlitchedStore(db) {
                     }
                 );
                 markedPaused++;
+                console.log(`  ⏸️ Marked paused: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
             }
         }
     }
     
     console.log(`✅ Scan complete: ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
+    
+    // v9.8.8: Log not found offers for debugging
+    const notFoundCount = dbOffers.length - updated;
+    if (notFoundCount > 0) {
+        console.log(`  ⚠️ ${notFoundCount} offers not found on Eldorado (already paused or sold)`);
+    }
     
     return {
         eldoradoCount: allEldoradoOffers.length,
