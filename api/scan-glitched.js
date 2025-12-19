@@ -9,10 +9,11 @@ const { connectToDatabase } = require('./_lib/db');
 
 const ELDORADO_GAME_ID = '259';
 const STORE_SEARCH_QUERY = 'Glitched Store'; // Название магазина в title офферов
-const ELDORADO_IMAGE_BASE = 'https://offerimages.eldorado.gg/'; // Базовый URL для изображений офферов
+const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/'; // Правильный CDN для изображений офферов
 
 /**
  * Строит полный URL изображения из имени файла
+ * Eldorado хранит изображения офферов в Azure Blob Storage
  */
 function buildImageUrl(imageName) {
     if (!imageName) return null;
