@@ -832,19 +832,13 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 competitorPrice = maxPriceOffer.price;
                 competitorIncome = maxIncomeOffer.income;
                 
-                // SANITY CHECK: если maxPriceOffer.price сильно выше минимальной цены на странице - что-то не так
-                const minPriceOnPage = allPageOffers.reduce((min, o) => o.price < min.price ? o : min).price;
-                if (maxPriceOffer.price > minPriceOnPage * 3) {
-                    // Цена в 3+ раза выше минимальной - подозрительно!
-                    console.warn(`⚠️ SANITY CHECK: maxPrice $${maxPriceOffer.price.toFixed(2)} is 3x+ higher than minPrice $${minPriceOnPage.toFixed(2)}`);
-                    // Используем минимальную цену вместо максимальной
-                    suggestedPrice = Math.round((minPriceOnPage - 0.5) * 100) / 100;
-                    priceSource = `above market BUT sanity check triggered (max $${maxPriceOffer.price.toFixed(2)} vs min $${minPriceOnPage.toFixed(2)}), using min → -$0.50`;
-                } else {
-                    // Выше рынка - ставим на $0.50 ниже max price
-                    suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
-                    priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
-                }
+                // v9.8.11: Removed bad sanity check that was comparing max income price with min price on page
+                // The old check (maxPrice > minPrice * 3) caused issues because low income offers 
+                // naturally have much lower prices than high income offers
+                
+                // Выше рынка - ставим на $0.50 ниже max price
+                suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
+                priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
             }
         } else {
             // Нет офферов вообще - берём минимальную цену из mapping
