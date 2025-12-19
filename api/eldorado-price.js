@@ -126,6 +126,73 @@ function getMsRangeForIncome(income) {
 }
 
 /**
+ * v9.8.12: Получает следующий (более высокий) диапазон M/s
+ * Для проверки конкурентов на границе диапазонов
+ */
+function getNextMsRange(currentRange) {
+    const rangeOrder = [
+        '0-24 M/s',
+        '25-49 M/s', 
+        '50-99 M/s',
+        '100-249 M/s',
+        '250-499 M/s',
+        '500-749 M/s',
+        '750-999 M/s',
+        '1+ B/s'
+    ];
+    const currentIndex = rangeOrder.indexOf(currentRange);
+    if (currentIndex >= 0 && currentIndex < rangeOrder.length - 1) {
+        return rangeOrder[currentIndex + 1];
+    }
+    return null; // Нет следующего диапазона
+}
+
+/**
+ * v9.8.12: Получает нижнюю границу диапазона в M/s
+ */
+function getRangeLowerBound(msRange) {
+    const bounds = {
+        '0-24 M/s': 0,
+        '25-49 M/s': 25,
+        '50-99 M/s': 50,
+        '100-249 M/s': 100,
+        '250-499 M/s': 250,
+        '500-749 M/s': 500,
+        '750-999 M/s': 750,
+        '1+ B/s': 1000
+    };
+    return bounds[msRange] || 0;
+}
+
+/**
+ * v9.8.12: Получает верхнюю границу диапазона в M/s  
+ */
+function getRangeUpperBound(msRange) {
+    const bounds = {
+        '0-24 M/s': 24,
+        '25-49 M/s': 49,
+        '50-99 M/s': 99,
+        '100-249 M/s': 249,
+        '250-499 M/s': 499,
+        '500-749 M/s': 749,
+        '750-999 M/s': 999,
+        '1+ B/s': 9999
+    };
+    return bounds[msRange] || 9999;
+}
+
+/**
+ * v9.8.12: Проверяет находится ли income близко к верхней границе диапазона
+ * Близко = в пределах 10% от верхней границы
+ * Например: 96.2 M/s близко к 99 (граница 50-99)
+ */
+function isNearRangeUpperBound(income, msRange) {
+    const upperBound = getRangeUpperBound(msRange);
+    const threshold = upperBound * 0.1; // 10% от верхней границы
+    return (upperBound - income) <= threshold;
+}
+
+/**
  * Проверяет является ли оффер от нашего магазина Glitched Store
  * По коду #GS или по названию магазина в title
  */
@@ -857,6 +924,83 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
         }
 
+        // ==================== v9.8.12: ПРОВЕРКА СЛЕДУЮЩЕГО ДИАПАЗОНА ====================
+        // Для brainrot'ов близких к верхней границе диапазона, проверяем конкурентов в следующем диапазоне
+        // Например: 96.2 M/s близок к 99 (граница 50-99), смотрим также в 100-249
+        // Если там есть более дешёвый конкурент с income чуть выше нашего - используем его
+        
+        let nextRangeChecked = false;
+        let nextRangeCompetitor = null;
+        
+        if (competitorPrice && suggestedPrice && isNearRangeUpperBound(ourIncome, msRange)) {
+            const nextRange = getNextMsRange(msRange);
+            
+            if (nextRange) {
+                console.log(`🔍 ${brainrotName} @ ${ourIncome}M/s: near upper bound of ${msRange}, checking ${nextRange}...`);
+                
+                try {
+                    // Ищем офферы в следующем диапазоне
+                    const nextRangeLowerBound = getRangeLowerBound(nextRange);
+                    // Ищем с income чуть выше границы (начало следующего диапазона)
+                    const searchIncomeForNextRange = nextRangeLowerBound + 5; // например 105 для диапазона 100-249
+                    
+                    const nextRangeResult = await searchBrainrotOffers(brainrotName, searchIncomeForNextRange);
+                    
+                    if (nextRangeResult.allPageOffers && nextRangeResult.allPageOffers.length > 0) {
+                        // Ищем офферы с income близким к началу следующего диапазона
+                        // (income >= нижняя граница И income <= нижняя граница + 30%)
+                        const maxCheckIncome = nextRangeLowerBound * 1.3;
+                        const nearBoundaryOffers = nextRangeResult.allPageOffers.filter(o => 
+                            o.income >= nextRangeLowerBound && 
+                            o.income <= maxCheckIncome &&
+                            o.income > ourIncome // Должен быть больше нашего income
+                        );
+                        
+                        if (nearBoundaryOffers.length > 0) {
+                            // Берём самый дешёвый из близких к границе
+                            const cheapestNearBoundary = nearBoundaryOffers.reduce((min, o) => 
+                                o.price < min.price ? o : min
+                            );
+                            
+                            console.log(`   Found ${nearBoundaryOffers.length} offers near boundary in ${nextRange}`);
+                            console.log(`   Cheapest: ${cheapestNearBoundary.income}M/s @ $${cheapestNearBoundary.price.toFixed(2)}`);
+                            console.log(`   Current competitor: ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}`);
+                            
+                            // Если цена в следующем диапазоне НИЖЕ нашего текущего конкурента
+                            // И income там выше нашего - это лучший конкурент!
+                            if (cheapestNearBoundary.price < competitorPrice) {
+                                nextRangeChecked = true;
+                                nextRangeCompetitor = cheapestNearBoundary;
+                                
+                                const oldCompetitorPrice = competitorPrice;
+                                const oldSuggestedPrice = suggestedPrice;
+                                
+                                // Обновляем конкурента
+                                competitorPrice = cheapestNearBoundary.price;
+                                competitorIncome = cheapestNearBoundary.income;
+                                
+                                // Пересчитываем suggestedPrice (конкурент из следующего диапазона всегда upper)
+                                // Так как его income > нашего, он является upper, и мы ставим -$0.50
+                                suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                                
+                                priceSource = `NEXT RANGE CHECK: ${nextRange} has cheaper competitor ` +
+                                    `(${cheapestNearBoundary.income}M/s @ $${cheapestNearBoundary.price.toFixed(2)}) ` +
+                                    `vs current (${msRange}: $${oldCompetitorPrice.toFixed(2)}) → using next range → -$0.50`;
+                                
+                                console.log(`   ✅ Switching to next range competitor! $${oldSuggestedPrice.toFixed(2)} → $${suggestedPrice.toFixed(2)}`);
+                            } else {
+                                console.log(`   ❌ Next range competitor is more expensive, keeping current`);
+                            }
+                        } else {
+                            console.log(`   No offers near boundary in ${nextRange}`);
+                        }
+                    }
+                } catch (nextRangeError) {
+                    console.warn(`   Failed to check next range ${nextRange}:`, nextRangeError.message);
+                }
+            }
+        }
+
         // ДИНАМИЧЕСКИЙ ЛИМИТ: вычисляем максимальную разумную цену на основе реального рынка
         // ВАЖНО: учитываем только офферы с ПОХОЖИМ income (±50%), чтобы не блокировать высокий income
         let dynamicMaxPrice = null;
@@ -944,6 +1088,13 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             isInEldoradoList,
             dynamicMaxPrice,
             dynamicLimitSource,
+            // v9.8.12: Next range check info
+            nextRangeChecked,
+            nextRangeCompetitor: nextRangeCompetitor ? {
+                income: nextRangeCompetitor.income,
+                price: nextRangeCompetitor.price,
+                range: getNextMsRange(msRange)
+            } : null,
             samples: allPageOffers.slice(0, 5).map(o => ({
                 income: o.income,
                 price: o.price,
