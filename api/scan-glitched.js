@@ -185,13 +185,30 @@ async function scanGlitchedStore(db) {
     for (const dbOffer of dbOffers) {
         const code = dbOffer.offerId?.replace(/^#/, '').toUpperCase();
         
-        // Ищем сначала по коду, потом по eldoradoId
+        // v9.8.9: Improved matching logic
+        // 1. First try to find by code (most reliable)
+        // 2. If not found by code, try by eldoradoId BUT only if codes match
         let eldoradoOffer = null;
+        let matchedByCode = false;
+        
         if (code) {
             eldoradoOffer = eldoradoByCode.get(code);
+            if (eldoradoOffer) matchedByCode = true;
         }
+        
+        // If not found by code, try by eldoradoId
         if (!eldoradoOffer && dbOffer.eldoradoOfferId) {
-            eldoradoOffer = eldoradoById.get(dbOffer.eldoradoOfferId);
+            const byId = eldoradoById.get(dbOffer.eldoradoOfferId);
+            if (byId) {
+                // v9.8.9: Only match by eldoradoId if the code on Eldorado matches DB code
+                // OR if there's no code on Eldorado (title was edited to remove code)
+                if (!byId.code || byId.code === code) {
+                    eldoradoOffer = byId;
+                } else {
+                    // Code on Eldorado changed - this DB entry is stale/duplicate
+                    console.log(`  🔄 Code mismatch: DB has ${code}, Eldorado has ${byId.code} for same eldoradoId`);
+                }
+            }
         }
         
         if (eldoradoOffer) {
