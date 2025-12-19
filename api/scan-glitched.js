@@ -9,6 +9,17 @@ const { connectToDatabase } = require('./_lib/db');
 
 const ELDORADO_GAME_ID = '259';
 const STORE_SEARCH_QUERY = 'Glitched Store'; // Название магазина в title офферов
+const ELDORADO_IMAGE_BASE = 'https://offerimages.eldorado.gg/'; // Базовый URL для изображений офферов
+
+/**
+ * Строит полный URL изображения из имени файла
+ */
+function buildImageUrl(imageName) {
+    if (!imageName) return null;
+    // Если уже полный URL - возвращаем как есть
+    if (imageName.startsWith('http')) return imageName;
+    return ELDORADO_IMAGE_BASE + imageName;
+}
 
 /**
  * Получает все офферы с Eldorado по searchQuery
@@ -121,13 +132,16 @@ async function scanGlitchedStore(db) {
                 const code = extractOfferCode(title);
                 const eldoradoId = offer.id;
                 
+                // Строим полный URL изображения
+                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                
                 // Добавляем все офферы магазина (с кодом или без)
                 allEldoradoOffers.push({
                     code: code, // может быть null
                     title: title,
                     price: offer.pricePerUnitInUSD?.amount || 0,
                     income: parseIncomeFromTitle(title),
-                    imageUrl: offer.mainOfferImage?.originalSizeImage || null,
+                    imageUrl: buildImageUrl(imageName),
                     eldoradoId: eldoradoId,
                     sellerName: item.user?.username || null
                 });
