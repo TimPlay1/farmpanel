@@ -99,23 +99,14 @@ async function scanGlitchedStore(db) {
     const allEldoradoOffers = [];
     let page = 1;
     const maxPages = 10;
-    let debugInfo = { pages: [], errors: [] };
     
     while (page <= maxPages) {
         const response = await fetchEldoradoOffers(STORE_SEARCH_QUERY, page, 50); // pageSize=50 более надёжно
         
         if (response.error) {
             console.error(`Error fetching page ${page}:`, response.error);
-            debugInfo.errors.push({ page, error: response.error });
             break;
         }
-        
-        debugInfo.pages.push({ 
-            page, 
-            resultsCount: response.results?.length || 0,
-            totalCount: response.totalCount,
-            firstTitle: response.results?.[0]?.offer?.offerTitle || 'N/A'
-        });
         
         if (!response.results || response.results.length === 0) {
             break;
@@ -227,8 +218,6 @@ async function scanGlitchedStore(db) {
     console.log(`✅ Scan complete: ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
     
     return {
-        version: 3, // Версия для проверки деплоя
-        debugInfo, // Отладочная информация
         eldoradoCount: allEldoradoOffers.length,
         dbCount: dbOffers.length,
         updated,
