@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.18
+// @version      9.8.19
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -146,22 +146,17 @@
             await new Promise(r => setTimeout(r, 500));
             
             while (Date.now() - startTime < timeout) {
-                // Check for loading indicators
-                const loadingSelectors = [
-                    '.loading',
-                    '.uploading', 
-                    '.spinner',
-                    '.progress',
-                    '[class*="loading"]',
-                    '[class*="upload"]',
-                    '.test__uploading'
-                ];
+                // Check for actual loading indicators (NOT buttons!)
+                // Look for progress bars, spinners, etc.
+                const loadingIndicators = document.querySelectorAll('.loading, .uploading, .spinner, .progress, [class*="loading"], [class*="progress"]');
                 
                 let isLoading = false;
-                for (const sel of loadingSelectors) {
-                    const loader = document.querySelector(sel);
-                    if (loader && loader.offsetParent !== null) {
-                        console.log('[Glitched TalkJS] Upload in progress...', sel);
+                for (const loader of loadingIndicators) {
+                    // Skip if it's a button - buttons are not loading indicators!
+                    if (loader.tagName === 'BUTTON') continue;
+                    
+                    if (loader.offsetParent !== null) {
+                        console.log('[Glitched TalkJS] Upload in progress...', loader.className);
                         isLoading = true;
                         break;
                     }
@@ -177,13 +172,13 @@
                     }
                 }
                 
-                // If no loading indicator and we've waited at least 2 seconds, assume ready
-                if (!isLoading && (Date.now() - startTime) > 2000) {
-                    console.log('[Glitched TalkJS] No loading indicator detected, assuming upload complete');
+                // If no loading indicator and we've waited at least 1 second, assume ready
+                if (!isLoading && (Date.now() - startTime) > 1000) {
+                    console.log('[Glitched TalkJS] No loading indicator detected, upload complete');
                     return true;
                 }
                 
-                await new Promise(r => setTimeout(r, 300));
+                await new Promise(r => setTimeout(r, 200));
             }
             
             console.log('[Glitched TalkJS] Upload wait timeout, proceeding anyway');
