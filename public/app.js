@@ -1197,9 +1197,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateUI();
         }
         // Пробуем загрузить цены с сервера для быстрого отображения
-        loadPricesFromServer().then(loaded => {
+        loadPricesFromServer().then(async loaded => {
             if (loaded) {
                 console.log('Loaded prices from server cache');
+                // v9.8.10: Also update offers prices
+                if (offersState.offers.length > 0) {
+                    await updateOffersRecommendedPrices();
+                    filterAndRenderOffers();
+                }
                 updateUI();
                 renderFarmKeys();
             }
@@ -3534,6 +3539,12 @@ async function loadBrainrotPrices(brainrots) {
         savePriceCacheToStorage();
         savePricesToServer(); // Также сохраняем на сервер
         
+        // v9.8.10: Update offers with new prices from collection
+        if (offersState.offers.length > 0) {
+            await updateOffersRecommendedPrices();
+            filterAndRenderOffers();
+        }
+        
         // Обновляем UI для отображения обновленных значений
         updateUI();
         renderFarmKeys();
@@ -5016,6 +5027,9 @@ async function loadOffers(forceRefresh = false, silent = false) {
         offersState.offers = data.offers || [];
         offersState.lastLoadedKey = farmKey;
         offersState.lastLoadTime = data.timestamp || now;
+        
+        // v9.8.10: Update with local price cache (may be fresher than server DB)
+        await updateOffersRecommendedPrices();
         
         // Save to localStorage for persistence
         saveOffersToStorage();
