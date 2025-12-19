@@ -4924,8 +4924,7 @@ async function loadOffers(forceRefresh = false, silent = false) {
         
         // Use cache if same key and not expired (unless force refresh)
         if (!forceRefresh && isSameKey && cacheValid && offersState.offers.length > 0) {
-            // Just update recommended prices and re-render (only if not silent)
-            await updateOffersRecommendedPrices();
+            // Just re-render from cache
             if (!silent) {
                 filterAndRenderOffers();
             }
@@ -4934,20 +4933,19 @@ async function loadOffers(forceRefresh = false, silent = false) {
         
         const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
+        
+        // Server already includes recommendedPrice from global_brainrot_prices
         offersState.offers = data.offers || [];
         offersState.lastLoadedKey = farmKey;
-        offersState.lastLoadTime = now;
+        offersState.lastLoadTime = data.timestamp || now;
         
         // Save to localStorage for persistence
         saveOffersToStorage();
         
-        // Update recommended prices for each offer
-        await updateOffersRecommendedPrices();
-        
         if (!silent) {
             filterAndRenderOffers();
         }
-        console.log('Loaded offers:', offersState.offers.length);
+        console.log('Loaded offers from server:', offersState.offers.length, 'with prices from global cache');
     } catch (err) {
         console.error('Error loading offers:', err);
         offersState.offers = [];
@@ -5577,7 +5575,7 @@ function setupOffersListeners() {
     });
 }
 
-// Scan Eldorado for offers with panel codes
+// Refresh offers from server (data already contains recommendedPrice from global cache)
 async function scanEldoradoOffers() {
     const scanBtn = document.getElementById('scanOffersBtn');
     const progressEl = document.getElementById('offersScanProgress');
@@ -5608,84 +5606,42 @@ async function scanEldoradoOffers() {
     };
     
     try {
-        updateProgress(10, 'Загрузка...');
+        updateProgress(30, 'Загрузка...');
         
-        // Start scan and price refresh in parallel
-        const scanPromise = fetch(`${API_BASE}/scan-offers?farmKey=${encodeURIComponent(state.currentKey)}`);
-        const pricesPromise = refreshAllPricesGradually(); // Parallel price refresh
+        // Just reload offers from server - they already include recommendedPrice
+        await loadOffers(true);
         
-        updateProgress(30, 'Сканирование...');
+        updateProgress(100, 'Готово!');
         
-        const response = await scanPromise;
-        updateProgress(60, 'Обработка...');
+        const activeCount = offersState.offers.filter(o => o.status === 'active').length;
+        const pausedCount = offersState.offers.filter(o => o.status === 'paused').length;
+        const total = offersState.offers.length;
         
-        const data = await response.json();
+        // Build message
+        let message = '';
+        let type = 'success';
         
-        if (!response.ok) {
-            throw new Error(data.error || `HTTP ${response.status}`);
-        }
-        
-        if (data.success) {
-            updateProgress(80, 'Загрузка цен...');
-            
-            // Wait for prices to finish
-            await pricesPromise;
-            
-            updateProgress(90, 'Обновление...');
-            
-            const foundCount = data.found || 0;
-            const notFoundCount = data.notFound || 0;
-            const pausedCount = data.paused?.length || 0;
-            const total = data.total || 0;
-            
-            // Reload offers with new prices
-            await loadOffers(true);
-            
-            updateProgress(100, 'Готово!');
-            
-            // Build detailed message
-            let message = '';
-            let type = 'info';
-            
-            if (foundCount > 0 && pausedCount > 0) {
-                message = `✅ Найдено ${foundCount} активных, ${pausedCount} на паузе`;
-                type = 'success';
-            } else if (foundCount > 0) {
-                message = `✅ Найдено ${foundCount} из ${total} офферов!`;
-                type = 'success';
-            } else if (pausedCount > 0) {
-                message = `⚠️ ${pausedCount} офферов не видны на Eldorado (пауза/продано)`;
-                type = 'warning';
-            } else if (total > 0) {
-                message = `ℹ️ Просканировано ${total} офферов, ни один не найден`;
-                type = 'info';
-            } else {
-                message = 'ℹ️ Нет офферов для сканирования';
-                type = 'info';
-            }
-            
-            showNotification(message, type);
-            
+        if (total === 0) {
+            message = 'ℹ️ Нет офферов';
+            type = 'info';
+        } else if (activeCount > 0 && pausedCount > 0) {
+            message = `✅ ${activeCount} активных, ${pausedCount} на паузе`;
+        } else if (activeCount > 0) {
+            message = `✅ ${activeCount} офферов обновлено`;
+        } else if (pausedCount > 0) {
+            message = `⚠️ ${pausedCount} офферов на паузе`;
+            type = 'warning';
         } else {
-            throw new Error(data.error || 'Неизвестная ошибка');
+            message = `ℹ️ ${total} офферов загружено`;
+            type = 'info';
         }
+        
+        showNotification(message, type);
+        
     } catch (err) {
-        console.error('Scan error:', err);
+        console.error('Refresh error:', err);
         updateProgress(0, 'Ошибка');
-        
-        // More detailed error messages
-        let errorMessage = 'Ошибка сканирования: ';
-        if (err.message.includes('fetch')) {
-            errorMessage += 'Не удалось подключиться к серверу';
-        } else if (err.message.includes('timeout')) {
-            errorMessage += 'Превышено время ожидания';
-        } else if (err.message.includes('500')) {
-            errorMessage += 'Ошибка сервера, попробуйте позже';
-        } else {
-            errorMessage += err.message;
-        }
-        
-        showNotification(errorMessage, 'error');
+        showNotification('❌ Ошибка загрузки: ' + err.message, 'error');
     } finally {
         scanBtn.disabled = false;
         scanBtn.innerHTML = originalContent;
@@ -5693,9 +5649,34 @@ async function scanEldoradoOffers() {
         // Hide progress bar after delay
         setTimeout(() => {
             if (progressEl) progressEl.classList.add('hidden');
-        }, 2000);
+        }, 1500);
     }
 }
+
+// Auto-refresh offers every 60 seconds when on offers tab
+let offersAutoRefreshInterval = null;
+
+function startOffersAutoRefresh() {
+    if (offersAutoRefreshInterval) return;
+    
+    offersAutoRefreshInterval = setInterval(async () => {
+        // Only refresh if we have a key and offers tab might be visible
+        if (state.currentKey && offersState.offers.length > 0) {
+            console.log('🔄 Auto-refreshing offers...');
+            await loadOffers(true, true); // Force refresh, silent mode
+        }
+    }, 60000); // Every 60 seconds
+}
+
+function stopOffersAutoRefresh() {
+    if (offersAutoRefreshInterval) {
+        clearInterval(offersAutoRefreshInterval);
+        offersAutoRefreshInterval = null;
+    }
+}
+
+// Start auto-refresh when page loads
+startOffersAutoRefresh();
 
 // Initialize offers when view is shown
 function initOffersView() {

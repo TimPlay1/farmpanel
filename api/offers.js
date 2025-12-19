@@ -3,12 +3,25 @@ const { connectToDatabase } = require('./_lib/db');
 /**
  * API для отслеживания офферов на Eldorado
  * Офферы идентифицируются по уникальному коду #GS-XXX в описании
+ * 
+ * При GET запросе автоматически добавляет recommendedPrice из global_brainrot_prices
  */
+
+/**
+ * Генерирует ключ кэша цены (как в клиенте)
+ */
+function getPriceCacheKey(name, income) {
+    if (!name || income === undefined) return null;
+    const roundedIncome = Math.floor(income / 10) * 10;
+    return `${name.toLowerCase()}_${roundedIncome}`;
+}
 
 module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    // No-cache for fresh data
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
 
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
@@ -17,8 +30,9 @@ module.exports = async (req, res) => {
     try {
         const { db } = await connectToDatabase();
         const offersCollection = db.collection('offers');
+        const globalPricesCollection = db.collection('global_brainrot_prices');
 
-        // GET - получить офферы для farmKey
+        // GET - получить офферы для farmKey с recommendedPrice из глобального кэша
         if (req.method === 'GET') {
             const { farmKey, offerId } = req.query;
             
@@ -45,7 +59,44 @@ module.exports = async (req, res) => {
 
             // Получить все офферы
             const offers = await offersCollection.find({ farmKey }).sort({ createdAt: -1 }).toArray();
-            return res.json({ offers });
+            
+            // Собираем все ключи цен для batch запроса
+            const priceKeys = [];
+            for (const offer of offers) {
+                const key = getPriceCacheKey(offer.brainrotName, offer.income);
+                if (key) priceKeys.push(key);
+            }
+            
+            // Получаем все цены одним запросом
+            const pricesMap = new Map();
+            if (priceKeys.length > 0) {
+                const prices = await globalPricesCollection.find({
+                    cacheKey: { $in: priceKeys }
+                }).toArray();
+                
+                for (const p of prices) {
+                    pricesMap.set(p.cacheKey, p);
+                }
+            }
+            
+            // Добавляем recommendedPrice к каждому офферу
+            for (const offer of offers) {
+                const key = getPriceCacheKey(offer.brainrotName, offer.income);
+                const priceData = key ? pricesMap.get(key) : null;
+                
+                if (priceData && priceData.suggestedPrice) {
+                    offer.recommendedPrice = priceData.suggestedPrice;
+                    offer.isSpike = priceData.isSpike || false;
+                    offer.pendingPrice = priceData.pendingPrice || null;
+                    offer.priceSource = priceData.priceSource || null;
+                    offer.competitorPrice = priceData.competitorPrice || null;
+                }
+            }
+            
+            return res.json({ 
+                offers,
+                timestamp: Date.now() // For client to know data freshness
+            });
         }
 
         // POST - создать/обновить оффер
