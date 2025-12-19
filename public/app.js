@@ -5196,6 +5196,27 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
     return ((recommendedPrice - currentPrice) / currentPrice) * 100;
 }
 
+// v9.8.21: Count brainrots in collection with same income as offer
+function countBrainrotsWithSameIncome(offerIncome, offerIncomeRaw) {
+    if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
+        return 0;
+    }
+    
+    // Normalize offer income for comparison
+    const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
+    if (!normalizedOfferIncome) return 0;
+    
+    let count = 0;
+    for (const b of collectionState.allBrainrots) {
+        const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
+        if (normalizedBrainrotIncome === normalizedOfferIncome) {
+            count++;
+        }
+    }
+    
+    return count;
+}
+
 // Check if price change is a suspicious spike (>100% change)
 function isPriceSpike(currentPrice, recommendedPrice, previousRecommended) {
     if (!currentPrice || !recommendedPrice) return false;
@@ -5248,6 +5269,17 @@ function renderOffers() {
         // v9.7: Better paused icon using FontAwesome
         const statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : (needsUpdate ? 'Needs Update' : 'Active');
         
+        // v9.8.21: Count brainrots in collection with same income for paused offers
+        let brainrotsCountBadge = '';
+        if (isPaused) {
+            const brainrotsCount = countBrainrotsWithSameIncome(offer.income, offer.incomeRaw);
+            if (brainrotsCount > 0) {
+                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} brainrot(s) with same income in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
+            } else {
+                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="No brainrots with same income in collection"><i class="fas fa-brain"></i> 0</span>`;
+            }
+        }
+        
         // v9.7.6: Calculate time until auto-delete for paused offers
         let pausedInfo = '';
         if (isPaused) {
@@ -5278,6 +5310,7 @@ function renderOffers() {
         
         return `
         <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''}" data-offer-id="${offer.offerId}">
+            ${brainrotsCountBadge}
             <div class="offer-card-checkbox">
                 <label class="checkbox-wrapper">
                     <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleOfferSelection('${offer.offerId}')">

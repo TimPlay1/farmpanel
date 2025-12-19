@@ -3309,6 +3309,37 @@ body {
     filter: grayscale(10%);
 }
 
+/* v9.8.21: Brainrots count badge for paused offers */
+.offer-brainrots-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 2;
+}
+
+.offer-brainrots-badge.has-brainrots {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.4);
+}
+
+.offer-brainrots-badge.no-brainrots {
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.offer-brainrots-badge i {
+    font-size: 0.65rem;
+}
+
 @media (max-width: 768px) {
     .offers-controls {
         flex-direction: column;
