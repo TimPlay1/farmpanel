@@ -2769,6 +2769,42 @@ body {
     gap: 0.3rem;
 }
 
+/* Offers Scan Progress Bar */
+.offers-scan-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 120px;
+}
+
+.offers-scan-progress.hidden {
+    display: none;
+}
+
+.offers-scan-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--bg-tertiary);
+    border-radius: 3px;
+    overflow: hidden;
+    min-width: 80px;
+}
+
+.offers-scan-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent-primary), var(--accent-green));
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.offers-scan-progress-text {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    min-width: 35px;
+    text-align: right;
+}
+
 .offers-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));

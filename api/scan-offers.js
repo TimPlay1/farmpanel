@@ -269,83 +269,101 @@ async function scanUserOffers(farmKey, db) {
     const found = [];
     const notFound = [];
     
-    for (const dbOffer of userOffers) {
-        const offerCode = dbOffer.offerId;
-        const brainrotName = dbOffer.brainrotName;
+    // Parallel scanning with concurrency limit
+    const BATCH_SIZE = 5; // Process 5 offers at a time
+    
+    for (let i = 0; i < userOffers.length; i += BATCH_SIZE) {
+        const batch = userOffers.slice(i, i + BATCH_SIZE);
         
-        if (!offerCode) {
-            notFound.push({ code: null, reason: 'no_code' });
-            continue;
-        }
-        
-        if (!brainrotName) {
-            notFound.push({ code: offerCode, reason: 'no_brainrot_name' });
-            continue;
-        }
-        
-        // Ищем оффер на Eldorado по названию брейнрота и коду
-        const eldoradoOffer = await findOfferOnEldorado(brainrotName, offerCode);
-        
-        if (eldoradoOffer) {
-            // Обновляем информацию в БД - статус меняем на active!
-            await offersCollection.updateOne(
-                { farmKey, offerId: offerCode },
-                { 
-                    $set: {
+        // Process batch in parallel
+        const batchResults = await Promise.all(batch.map(async (dbOffer) => {
+            const offerCode = dbOffer.offerId;
+            const brainrotName = dbOffer.brainrotName;
+            
+            if (!offerCode) {
+                return { type: 'notFound', data: { code: null, reason: 'no_code' } };
+            }
+            
+            if (!brainrotName) {
+                return { type: 'notFound', data: { code: offerCode, reason: 'no_brainrot_name' } };
+            }
+            
+            // Ищем оффер на Eldorado по названию брейнрота и коду
+            const eldoradoOffer = await findOfferOnEldorado(brainrotName, offerCode);
+            
+            if (eldoradoOffer) {
+                // Обновляем информацию в БД - статус меняем на active!
+                await offersCollection.updateOne(
+                    { farmKey, offerId: offerCode },
+                    { 
+                        $set: {
+                            eldoradoOfferId: eldoradoOffer.eldoradoOfferId,
+                            currentPrice: eldoradoOffer.currentPrice,
+                            income: eldoradoOffer.income || dbOffer.income,
+                            eldoradoTitle: eldoradoOffer.title,
+                            imageUrl: eldoradoOffer.imageUrl || dbOffer.imageUrl,
+                            sellerName: eldoradoOffer.sellerName,
+                            sellerId: eldoradoOffer.sellerId,
+                            status: 'active', // найден на Eldorado = активный!
+                            lastScannedAt: new Date(),
+                            updatedAt: new Date()
+                        }
+                    }
+                );
+                
+                return {
+                    type: 'found',
+                    data: {
+                        code: offerCode,
+                        brainrotName: brainrotName,
                         eldoradoOfferId: eldoradoOffer.eldoradoOfferId,
                         currentPrice: eldoradoOffer.currentPrice,
                         income: eldoradoOffer.income || dbOffer.income,
-                        eldoradoTitle: eldoradoOffer.title,
-                        imageUrl: eldoradoOffer.imageUrl || dbOffer.imageUrl,
-                        sellerName: eldoradoOffer.sellerName,
-                        sellerId: eldoradoOffer.sellerId,
-                        status: 'active', // найден на Eldorado = активный!
-                        lastScannedAt: new Date(),
-                        updatedAt: new Date()
+                        imageUrl: eldoradoOffer.imageUrl,
+                        status: 'active'
                     }
-                }
-            );
-            
-            found.push({
-                code: offerCode,
-                brainrotName: brainrotName,
-                eldoradoOfferId: eldoradoOffer.eldoradoOfferId,
-                currentPrice: eldoradoOffer.currentPrice,
-                income: eldoradoOffer.income || dbOffer.income,
-                imageUrl: eldoradoOffer.imageUrl,
-                status: 'active'
-            });
-        } else {
-            // v9.6 FIX: Оффер не найден на Eldorado - НЕ удаляем!
-            // Возможные причины:
-            // 1. Оффер на паузе (не виден на маркетплейсе)
-            // 2. Оффер продан (временно не виден)
-            // 3. Оффер заблокирован модерацией
-            // Помечаем как "paused" вместо удаления
-            console.log(`  Offer ${offerCode} not found on Eldorado - marking as PAUSED (not deleting)`);
-            
-            await offersCollection.updateOne(
-                { farmKey, offerId: offerCode },
-                { 
-                    $set: {
-                        status: 'paused', // не найден = на паузе (или продан)
-                        lastScannedAt: new Date(),
-                        updatedAt: new Date()
+                };
+            } else {
+                // v9.6 FIX: Оффер не найден на Eldorado - НЕ удаляем!
+                console.log(`  Offer ${offerCode} not found on Eldorado - marking as PAUSED`);
+                
+                await offersCollection.updateOne(
+                    { farmKey, offerId: offerCode },
+                    { 
+                        $set: {
+                            status: 'paused',
+                            lastScannedAt: new Date(),
+                            updatedAt: new Date()
+                        }
                     }
-                }
-            );
-            
-            notFound.push({
-                code: offerCode,
-                brainrotName: brainrotName,
-                reason: 'not_visible_on_marketplace',
-                deleted: false,
-                status: 'paused'
-            });
+                );
+                
+                return {
+                    type: 'notFound',
+                    data: {
+                        code: offerCode,
+                        brainrotName: brainrotName,
+                        reason: 'not_visible_on_marketplace',
+                        deleted: false,
+                        status: 'paused'
+                    }
+                };
+            }
+        }));
+        
+        // Collect results from batch
+        for (const result of batchResults) {
+            if (result.type === 'found') {
+                found.push(result.data);
+            } else {
+                notFound.push(result.data);
+            }
         }
         
-        // Небольшая задержка между запросами
-        await new Promise(r => setTimeout(r, 200));
+        // Small delay between batches (not between individual offers)
+        if (i + BATCH_SIZE < userOffers.length) {
+            await new Promise(r => setTimeout(r, 100));
+        }
     }
     
     // v9.6: больше не удаляем, только помечаем как paused

@@ -5580,62 +5580,120 @@ function setupOffersListeners() {
 // Scan Eldorado for offers with panel codes
 async function scanEldoradoOffers() {
     const scanBtn = document.getElementById('scanOffersBtn');
+    const progressEl = document.getElementById('offersScanProgress');
+    const progressFill = document.getElementById('offersScanProgressFill');
+    const progressText = document.getElementById('offersScanProgressText');
+    
     if (!scanBtn) return;
     
     if (!state.currentKey) {
-        showNotification('No farm key selected', 'error');
+        showNotification('❌ Ключ фермы не выбран', 'error');
         return;
     }
     
     const originalContent = scanBtn.innerHTML;
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    
+    // Show progress bar
+    if (progressEl) {
+        progressEl.classList.remove('hidden');
+        if (progressFill) progressFill.style.width = '0%';
+        if (progressText) progressText.textContent = '0%';
+    }
+    
+    const updateProgress = (percent, text) => {
+        if (progressFill) progressFill.style.width = `${percent}%`;
+        if (progressText) progressText.textContent = text || `${percent}%`;
+    };
     
     try {
-        showNotification('Scanning Eldorado for your offers...', 'info');
+        updateProgress(10, 'Загрузка...');
         
-        const response = await fetch(`${API_BASE}/scan-offers?farmKey=${encodeURIComponent(state.currentKey)}`);
+        // Start scan and price refresh in parallel
+        const scanPromise = fetch(`${API_BASE}/scan-offers?farmKey=${encodeURIComponent(state.currentKey)}`);
+        const pricesPromise = refreshAllPricesGradually(); // Parallel price refresh
+        
+        updateProgress(30, 'Сканирование...');
+        
+        const response = await scanPromise;
+        updateProgress(60, 'Обработка...');
+        
         const data = await response.json();
         
+        if (!response.ok) {
+            throw new Error(data.error || `HTTP ${response.status}`);
+        }
+        
         if (data.success) {
+            updateProgress(80, 'Загрузка цен...');
+            
+            // Wait for prices to finish
+            await pricesPromise;
+            
+            updateProgress(90, 'Обновление...');
+            
             const foundCount = data.found || 0;
             const notFoundCount = data.notFound || 0;
             const pausedCount = data.paused?.length || 0;
             const total = data.total || 0;
             
+            // Reload offers with new prices
+            await loadOffers(true);
+            
+            updateProgress(100, 'Готово!');
+            
+            // Build detailed message
             let message = '';
             let type = 'info';
             
             if (foundCount > 0 && pausedCount > 0) {
-                message = `Found ${foundCount} active, ${pausedCount} paused/not visible on marketplace`;
+                message = `✅ Найдено ${foundCount} активных, ${pausedCount} на паузе`;
                 type = 'success';
             } else if (foundCount > 0) {
-                message = `Found ${foundCount} of ${total} offers on Eldorado!`;
+                message = `✅ Найдено ${foundCount} из ${total} офферов!`;
                 type = 'success';
             } else if (pausedCount > 0) {
-                message = `${pausedCount} offers not visible on Eldorado (paused or sold?)`;
+                message = `⚠️ ${pausedCount} офферов не видны на Eldorado (пауза/продано)`;
                 type = 'warning';
             } else if (total > 0) {
-                message = `Scanned ${total} offers, none found on Eldorado yet`;
+                message = `ℹ️ Просканировано ${total} офферов, ни один не найден`;
                 type = 'info';
             } else {
-                message = 'No offers in database to scan';
+                message = 'ℹ️ Нет офферов для сканирования';
                 type = 'info';
             }
             
             showNotification(message, type);
             
-            // Reload offers (force refresh after scan)
-            await loadOffers(true);
         } else {
-            showNotification('Error scanning: ' + (data.error || 'Unknown error'), 'error');
+            throw new Error(data.error || 'Неизвестная ошибка');
         }
     } catch (err) {
         console.error('Scan error:', err);
-        showNotification('Failed to scan Eldorado: ' + err.message, 'error');
+        updateProgress(0, 'Ошибка');
+        
+        // More detailed error messages
+        let errorMessage = 'Ошибка сканирования: ';
+        if (err.message.includes('fetch')) {
+            errorMessage += 'Не удалось подключиться к серверу';
+        } else if (err.message.includes('timeout')) {
+            errorMessage += 'Превышено время ожидания';
+        } else if (err.message.includes('500')) {
+            errorMessage += 'Ошибка сервера, попробуйте позже';
+        } else {
+            errorMessage += err.message;
+        }
+        
+        showNotification(errorMessage, 'error');
     } finally {
         scanBtn.disabled = false;
         scanBtn.innerHTML = originalContent;
+        
+        // Hide progress bar after delay
+        setTimeout(() => {
+            if (progressEl) progressEl.classList.add('hidden');
+        }, 2000);
     }
 }
 
