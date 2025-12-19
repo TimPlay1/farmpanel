@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.20
+// @version      9.8.22
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -3568,12 +3568,68 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     let quickChatPanel = null;
     let deliveredWatcher = null;
     let orderDelivered = false;
+    let lastKnownUrl = window.location.href;
     
     /**
      * Check if current page is an order delivery page
      */
     function isOrderPage() {
         return window.location.pathname.includes('/order/');
+    }
+    
+    /**
+     * Remove Quick Chat panel and cleanup watchers
+     */
+    function cleanupQuickChat() {
+        if (quickChatPanel) {
+            quickChatPanel.remove();
+            quickChatPanel = null;
+            log('Quick Chat panel removed');
+        }
+        if (deliveredWatcher) {
+            clearInterval(deliveredWatcher);
+            deliveredWatcher = null;
+        }
+        orderDelivered = false;
+    }
+    
+    /**
+     * Watch for URL changes (SPA navigation)
+     */
+    function watchUrlChanges() {
+        // Check URL every 500ms for SPA navigation
+        setInterval(() => {
+            const currentUrl = window.location.href;
+            if (currentUrl !== lastKnownUrl) {
+                const wasOrderPage = lastKnownUrl.includes('/order/');
+                const isOrderPageNow = currentUrl.includes('/order/');
+                
+                lastKnownUrl = currentUrl;
+                
+                // Left order page - cleanup
+                if (wasOrderPage && !isOrderPageNow) {
+                    log('Left order page, cleaning up Quick Chat');
+                    cleanupQuickChat();
+                }
+                
+                // Entered order page - initialize
+                if (!wasOrderPage && isOrderPageNow) {
+                    log('Entered order page, initializing Quick Chat');
+                    setTimeout(() => {
+                        initQuickChat();
+                    }, 1500);
+                }
+                
+                // Changed to different order - reinitialize
+                if (wasOrderPage && isOrderPageNow && wasOrderPage !== isOrderPageNow) {
+                    log('Changed order page, reinitializing Quick Chat');
+                    cleanupQuickChat();
+                    setTimeout(() => {
+                        initQuickChat();
+                    }, 1500);
+                }
+            }
+        }, 500);
     }
     
     /**
@@ -3810,6 +3866,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     function initQuickChat() {
         if (!isOrderPage()) return;
         
+        // Don't reinitialize if panel already exists
+        if (quickChatPanel && document.body.contains(quickChatPanel)) {
+            log('Quick Chat panel already exists');
+            return;
+        }
+        
         logInfo('Order page detected, initializing Quick Chat...');
         
         // Wait for page to load
@@ -3930,6 +3992,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         if (isDashboard) {
             setTimeout(watchForOfferDeletions, 2000);
         }
+        
+        // v9.8.22: Watch for URL changes (SPA navigation) for Quick Chat
+        watchUrlChanges();
         
         // Initialize Quick Chat on order pages
         initQuickChat();
