@@ -218,6 +218,7 @@ async function scanGlitchedStore(db) {
     console.log(`✅ Scan complete: ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
     
     return {
+        version: 2, // Версия для проверки деплоя
         eldoradoCount: allEldoradoOffers.length,
         dbCount: dbOffers.length,
         updated,
