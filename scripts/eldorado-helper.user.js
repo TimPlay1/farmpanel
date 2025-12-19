@@ -647,7 +647,7 @@
         friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list.",
         wait: "We apologize! Please wait a few more minutes, we are rushing to get your order ready!",
         endDelivery: "Thank you❤️! Pls make review for fast deliver!) Have a good day and dont forget to mark order as \"Received\"!🔥   👾GLITCHED STORE👾",
-        endDeliveryImage: "https://raw.githubusercontent.com/TimPlay1/farmpanel/main/public/enddelivery.jpg"
+        endDeliveryImage: "https://cdn.jsdelivr.net/gh/TimPlay1/farmpanel@main/public/enddelivery.jpg"
     };
     
     // ==================== УТИЛИТЫ ====================
