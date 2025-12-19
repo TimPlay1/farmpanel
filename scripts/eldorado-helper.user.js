@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.19
+// @version      9.8.20
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -550,6 +550,29 @@
             transform: scale(1.05);
         }
         
+        /* v9.8.20: Clean Closed Button */
+        .glitched-clean-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+            margin-left: 8px;
+            white-space: nowrap;
+            flex-shrink: 0;
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 1px solid #ef4444;
+        }
+        .glitched-clean-btn:hover {
+            transform: scale(1.05);
+            background: rgba(239, 68, 68, 0.3);
+        }
+        
         /* Мини-панель автозаполнения */
         .glitched-mini {
             position: fixed;
@@ -998,6 +1021,21 @@
         }
     }
     
+    // v9.8.20: Check if offer has Closed status (can't be paused/resumed)
+    function isOfferClosed(item) {
+        // Look for chip with "Closed" aria-label or text
+        const closedChip = item.querySelector('.chip-status-red[aria-label="Closed"], [data-testid*="Closed"]');
+        if (closedChip) return true;
+        
+        // Fallback: check for chip with "Closed" text
+        const chips = item.querySelectorAll('.chip-status-red span');
+        for (const chip of chips) {
+            if (chip.textContent?.trim().toLowerCase() === 'closed') return true;
+        }
+        
+        return false;
+    }
+    
     // v9.7: Count our offers currently visible on page
     function countOurOffersOnPage() {
         let count = 0;
@@ -1135,6 +1173,14 @@
                 for (const offerCode of codesToProcess) {
                     try {
                         if (willPause) {
+                            // v9.8.20: Check if offer is Closed first
+                            const checkItem = findOfferElementByCode(offerCode);
+                            if (checkItem && isOfferClosed(checkItem)) {
+                                log(`⚠ ${offerCode}: Closed offer, skipping (can't pause)`); 
+                                totalSkipped++;
+                                continue;
+                            }
+                            
                             // v9.7.4: Retry logic for pausing - refind element each attempt
                             let success = false;
                             for (let attempt = 1; attempt <= 3 && !success; attempt++) {
@@ -1204,6 +1250,14 @@
                                 totalFailed++;
                             }
                         } else {
+                            // v9.8.20: Check if offer is Closed first
+                            const checkItem = findOfferElementByCode(offerCode);
+                            if (checkItem && isOfferClosed(checkItem)) {
+                                log(`⚠ ${offerCode}: Closed offer, skipping (can't resume)`);
+                                totalSkipped++;
+                                continue;
+                            }
+                            
                             // v9.7.4: Retry logic for resuming
                             let success = false;
                             for (let attempt = 1; attempt <= 3 && !success; attempt++) {
@@ -1292,8 +1346,8 @@
             }, 500);
             
             const statusMsg = willPause 
-                ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} already paused)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`
-                : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} already active)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
+                ? `💤 Sleep Mode - ${totalProcessed} offers paused${totalSkipped > 0 ? ` (${totalSkipped} skipped)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`
+                : `⚡ Active - ${totalProcessed} offers resumed${totalSkipped > 0 ? ` (${totalSkipped} skipped)` : ''}${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
             showNotification(statusMsg, totalFailed > 0 ? 'warning' : (totalProcessed > 0 ? 'success' : 'info'));
             logInfo(`Sleep mode: ${totalProcessed} paused/resumed, ${totalSkipped} skipped, ${totalFailed} failed`);
             
@@ -1306,6 +1360,200 @@
         } finally {
             isTogglingOffers = false;
         }
+    }
+    
+    // v9.8.20: Clean all Closed offers - удаляет офферы со статусом Closed
+    let isCleaningOffers = false;
+    
+    async function cleanClosedOffers() {
+        if (isCleaningOffers || isTogglingOffers) {
+            showNotification('⏳ Please wait, operation in progress...', 'warning');
+            return;
+        }
+        
+        // First, count how many Closed offers we have
+        const ourCodes = new Set([...userOfferCodes]);
+        let closedCount = 0;
+        
+        const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+        for (const item of items) {
+            const code = extractOfferCodeFromElement(item);
+            if (!code) continue;
+            if (!ourCodes.has(code) && !ourCodes.has('#' + code)) continue;
+            if (isOfferClosed(item)) closedCount++;
+        }
+        
+        if (closedCount === 0) {
+            showNotification('✓ No Closed offers to clean', 'success');
+            return;
+        }
+        
+        // Show confirmation dialog
+        const confirmMessage = `🗑️ Delete ${closedCount} Closed offer(s)?\n\nThis will permanently delete offers with "Closed" status.\nThis cannot be undone!`;
+        
+        if (!confirm(confirmMessage)) {
+            log('Clean Closed cancelled by user');
+            return;
+        }
+        
+        isCleaningOffers = true;
+        
+        try {
+            showNotification(`🗑️ Deleting ${closedCount} Closed offers...`, 'info');
+            logInfo(`Clean Closed: Starting deletion of ${closedCount} offers`);
+            
+            let totalDeleted = 0;
+            let totalFailed = 0;
+            
+            // Process all pages
+            const totalPages = getTotalPages();
+            
+            for (let page = 1; page <= totalPages; page++) {
+                if (page > 1) {
+                    const navigated = await goToPage(page);
+                    if (!navigated) break;
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+                
+                await scrollToLoadAllOffers();
+                
+                // Find Closed offers on this page
+                const pageItems = document.querySelectorAll('eld-dashboard-offers-list-item');
+                const closedCodes = [];
+                
+                for (const item of pageItems) {
+                    const code = extractOfferCodeFromElement(item);
+                    if (!code) continue;
+                    if (!ourCodes.has(code) && !ourCodes.has('#' + code)) continue;
+                    if (isOfferClosed(item)) {
+                        closedCodes.push(code);
+                    }
+                }
+                
+                log(`Page ${page}: Found ${closedCodes.length} Closed offers to delete`);
+                
+                // Delete each Closed offer
+                for (const offerCode of closedCodes) {
+                    try {
+                        // Find element fresh
+                        const item = findOfferElementByCode(offerCode);
+                        if (!item) {
+                            log(`⚠ ${offerCode}: Element not found`);
+                            continue;
+                        }
+                        
+                        // Double check it's still Closed
+                        if (!isOfferClosed(item)) {
+                            log(`⚠ ${offerCode}: No longer Closed, skipping`);
+                            continue;
+                        }
+                        
+                        // Find Delete button (trash icon)
+                        const deleteIcon = item.querySelector('.icon-delete');
+                        if (!deleteIcon) {
+                            log(`⚠ ${offerCode}: Delete button not found`);
+                            totalFailed++;
+                            continue;
+                        }
+                        
+                        const deleteBtn = deleteIcon.closest('button');
+                        if (!deleteBtn) {
+                            log(`⚠ ${offerCode}: Delete button wrapper not found`);
+                            totalFailed++;
+                            continue;
+                        }
+                        
+                        // Scroll into view and click
+                        item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        await new Promise(r => setTimeout(r, 400));
+                        
+                        log(`Clicking delete for ${offerCode}...`);
+                        reliableClick(deleteBtn);
+                        
+                        // Wait for confirmation modal
+                        await new Promise(r => setTimeout(r, 800));
+                        
+                        // Find and click confirm Delete button in modal
+                        const confirmDeleted = await clickDeleteConfirmButton();
+                        
+                        if (confirmDeleted) {
+                            totalDeleted++;
+                            log(`✓ Deleted ${offerCode}`);
+                            // Wait for UI to update after deletion
+                            await new Promise(r => setTimeout(r, 1000));
+                        } else {
+                            totalFailed++;
+                            log(`✗ Failed to confirm delete for ${offerCode}`);
+                        }
+                        
+                    } catch (e) {
+                        totalFailed++;
+                        logError(`Error deleting ${offerCode}:`, e);
+                    }
+                    
+                    highlightUserOffers();
+                }
+            }
+            
+            // Return to first page
+            if (totalPages > 1) {
+                await goToPage(1);
+            }
+            
+            await new Promise(r => setTimeout(r, 1000));
+            highlightUserOffers();
+            
+            const statusMsg = `🗑️ Cleaned ${totalDeleted} Closed offers${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
+            showNotification(statusMsg, totalFailed > 0 ? 'warning' : 'success');
+            logInfo(`Clean Closed: ${totalDeleted} deleted, ${totalFailed} failed`);
+            
+        } finally {
+            isCleaningOffers = false;
+        }
+    }
+    
+    // v9.8.20: Click the Delete confirm button in modal
+    async function clickDeleteConfirmButton(timeout = 5000) {
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            // Look for modal with "Delete offer" title
+            const modalTitles = document.querySelectorAll('.nsm-content span, .nsm-dialog span');
+            let isDeleteModal = false;
+            
+            for (const title of modalTitles) {
+                if (title.textContent?.includes('Delete offer')) {
+                    isDeleteModal = true;
+                    break;
+                }
+            }
+            
+            if (!isDeleteModal) {
+                await new Promise(r => setTimeout(r, 200));
+                continue;
+            }
+            
+            // Find the Delete button (primary button with "Delete" text, NOT Close)
+            const buttons = document.querySelectorAll('.nsm-content button, .nsm-dialog button');
+            
+            for (const btn of buttons) {
+                const btnText = btn.textContent?.trim().toLowerCase();
+                const isPrimary = btn.classList.contains('button__primary');
+                
+                // Must be primary button with "delete" text
+                if (isPrimary && btnText === 'delete') {
+                    log('Found Delete confirm button in modal');
+                    reliableClick(btn);
+                    await new Promise(r => setTimeout(r, 500));
+                    return true;
+                }
+            }
+            
+            await new Promise(r => setTimeout(r, 200));
+        }
+        
+        log('Timeout waiting for Delete confirm button');
+        return false;
     }
     
     // v9.7.2: Navigate to specific page
@@ -1625,6 +1873,14 @@
                 
                 sleepBtn.onclick = toggleSleepMode;
                 container.appendChild(sleepBtn);
+                
+                // v9.8.20: Clean Closed button - удаляет все Closed офферы
+                const cleanBtn = document.createElement('div');
+                cleanBtn.className = 'glitched-clean-btn';
+                cleanBtn.innerHTML = '🗑️ Clean';
+                cleanBtn.title = 'Delete all Closed offers';
+                cleanBtn.onclick = cleanClosedOffers;
+                container.appendChild(cleanBtn);
             }
             
             // Вставляем в начало activities-area
