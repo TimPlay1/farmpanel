@@ -15,7 +15,8 @@ const STORE_SEARCH_QUERY = 'Glitched Store'; // Название магазин�
  */
 function fetchEldoradoOffers(searchQuery, pageIndex = 1, pageSize = 100) {
     return new Promise((resolve) => {
-        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=Price&isAscending=true`;
+        // НЕ используем te_v0=Brainrot - он ломает поиск по searchQuery
+        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=Price&isAscending=true`;
         
         if (searchQuery) {
             queryPath += `&searchQuery=${encodeURIComponent(searchQuery)}`;
