@@ -5780,22 +5780,51 @@ async function scanEldoradoOffers() {
     }
 }
 
-// Auto-refresh offers every 60 seconds when on offers tab
+// v9.8.7: Smart auto-refresh for offers
 let offersAutoRefreshInterval = null;
+let lastOffersRefreshTime = 0;
+const OFFERS_REFRESH_INTERVAL = 10000; // 10 seconds
 
 function startOffersAutoRefresh() {
-    if (offersAutoRefreshInterval) return;
+    // Check if we need immediate refresh (timer already passed while away)
+    const timeSinceLastRefresh = Date.now() - lastOffersRefreshTime;
     
-    offersAutoRefreshInterval = setInterval(async () => {
-        // Only refresh if we have a key and offers tab might be visible
-        if (state.currentKey && offersState.offers.length > 0) {
-            console.log('🔄 Auto-refreshing offers...');
-            // First trigger server scan to update DB
-            await triggerServerScan();
-            // Then load updated offers
-            await loadOffers(true, true); // Force refresh, silent mode
+    if (lastOffersRefreshTime > 0 && timeSinceLastRefresh >= OFFERS_REFRESH_INTERVAL) {
+        // Timer already passed - refresh immediately
+        console.log('🔄 Returning to Offers - refreshing immediately (timer passed)');
+        doOffersRefresh();
+    } else if (lastOffersRefreshTime > 0) {
+        // Timer not yet passed - wait for remaining time
+        const remainingTime = OFFERS_REFRESH_INTERVAL - timeSinceLastRefresh;
+        console.log(`⏳ Returning to Offers - waiting ${Math.round(remainingTime/1000)}s for next refresh`);
+        
+        // Set one-time timeout for remaining time, then start interval
+        if (!offersAutoRefreshInterval) {
+            offersAutoRefreshInterval = setTimeout(async () => {
+                await doOffersRefresh();
+                // Now start regular interval
+                offersAutoRefreshInterval = setInterval(doOffersRefresh, OFFERS_REFRESH_INTERVAL);
+            }, remainingTime);
         }
-    }, 15000); // Every 15 seconds
+        return;
+    }
+    
+    // First time or fresh start - just start interval
+    if (!offersAutoRefreshInterval) {
+        offersAutoRefreshInterval = setInterval(doOffersRefresh, OFFERS_REFRESH_INTERVAL);
+        console.log('🔄 Offers auto-refresh started (every 10s)');
+    }
+}
+
+async function doOffersRefresh() {
+    if (state.currentKey && offersState.offers.length > 0) {
+        console.log('🔄 Auto-refreshing offers...');
+        lastOffersRefreshTime = Date.now();
+        // First trigger server scan to update DB
+        await triggerServerScan();
+        // Then load updated offers
+        await loadOffers(true, true); // Force refresh, silent mode
+    }
 }
 
 // Trigger server-side scan of Glitched Store offers
@@ -5814,15 +5843,29 @@ async function triggerServerScan() {
 function stopOffersAutoRefresh() {
     if (offersAutoRefreshInterval) {
         clearInterval(offersAutoRefreshInterval);
+        clearTimeout(offersAutoRefreshInterval);
         offersAutoRefreshInterval = null;
-        console.log('⏹️ Offers auto-refresh stopped');
+        // DON'T reset lastOffersRefreshTime - keep it for smart resume!
+        console.log('⏸️ Offers auto-refresh paused (timer preserved)');
     }
 }
 
 // Initialize offers when view is shown
 function initOffersView() {
-    console.log('📋 Offers view opened - starting auto-refresh');
-    loadOffers();
+    console.log('📋 Offers view opened');
+    
+    // v9.8.7: Smart refresh - check if we need to load or use cache
+    const timeSinceLastRefresh = Date.now() - lastOffersRefreshTime;
+    const needsRefresh = lastOffersRefreshTime === 0 || timeSinceLastRefresh >= OFFERS_REFRESH_INTERVAL;
+    
+    if (needsRefresh) {
+        console.log('Loading offers (first time or stale)...');
+        loadOffers();
+        lastOffersRefreshTime = Date.now();
+    } else {
+        console.log(`Using cached offers (${Math.round(timeSinceLastRefresh/1000)}s old)`);
+    }
+    
     startOffersAutoRefresh();
 }
 
