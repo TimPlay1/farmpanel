@@ -1,11 +1,50 @@
 const { connectToDatabase } = require('./_lib/db');
+const https = require('https');
 
 /**
  * API для отслеживания офферов на Eldorado
  * Офферы идентифицируются по уникальному коду #GS-XXX в описании
  * 
- * При GET запросе автоматически добавляет recommendedPrice из global_brainrot_prices
+ * При GET запросе:
+ * 1. Запускает быстрый фоновый сканер Glitched Store (не блокирует ответ)
+ * 2. Возвращает офферы с recommendedPrice из global_brainrot_prices
  */
+
+// Кэш последнего сканирования
+let lastBackgroundScanTime = 0;
+const BACKGROUND_SCAN_INTERVAL = 60000; // 60 секунд между фоновыми сканами
+
+/**
+ * Запуск фонового сканирования (не блокирует)
+ */
+function triggerBackgroundScan() {
+    const now = Date.now();
+    if (now - lastBackgroundScanTime < BACKGROUND_SCAN_INTERVAL) {
+        return; // Ещё не время
+    }
+    lastBackgroundScanTime = now;
+    
+    // Запускаем сканер асинхронно (не ждём результата)
+    const options = {
+        hostname: 'farmpanel.vercel.app',
+        path: '/api/scan-glitched',
+        method: 'GET',
+        timeout: 25000
+    };
+    
+    const req = https.request(options, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => {
+            try {
+                const result = JSON.parse(data);
+                console.log('Background scan completed:', result.updated, 'updated');
+            } catch (e) {}
+        });
+    });
+    req.on('error', () => {}); // Ignore errors
+    req.end();
+}
 
 /**
  * Генерирует ключ кэша цены (как в клиенте)
@@ -39,6 +78,9 @@ module.exports = async (req, res) => {
             if (!farmKey) {
                 return res.status(400).json({ error: 'farmKey is required' });
             }
+            
+            // Запускаем фоновое сканирование Glitched Store (не блокирует)
+            triggerBackgroundScan();
 
             // Auto-delete paused offers older than 3 days
             const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
