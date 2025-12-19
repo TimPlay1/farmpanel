@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.5
+// @version      9.8.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -28,7 +28,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.8.5';
+    const VERSION = '9.8.6';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -1450,6 +1450,94 @@
             if (!silent) {
                 showNotification('Failed to connect: ' + e.message, 'error');
             }
+        }
+    }
+    
+    // v9.8.6: Real-time sync with panel - polling for changes
+    let syncIntervalId = null;
+    let lastOfferCodesHash = '';
+    const SYNC_INTERVAL = 15000; // Check every 15 seconds
+    
+    function getOfferCodesHash() {
+        return [...userOfferCodes].sort().join(',');
+    }
+    
+    async function checkForOfferChanges() {
+        if (!CONFIG.farmKey || CONFIG.connectionError) return;
+        
+        try {
+            // Quick check - only fetch offers endpoint (faster than full sync)
+            const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
+            if (!response.ok) return;
+            
+            const data = await response.json();
+            const apiOffers = data.offers || [];
+            
+            // Build new codes set from API
+            const newCodes = new Set();
+            for (const offer of apiOffers) {
+                if (offer.offerId) {
+                    const code = offer.offerId.toUpperCase().replace(/^#/, '');
+                    newCodes.add(code);
+                    newCodes.add('#' + code);
+                }
+            }
+            
+            // Compare with current codes
+            const newHash = [...newCodes].sort().join(',');
+            
+            if (lastOfferCodesHash && newHash !== lastOfferCodesHash) {
+                // Codes changed! Find what was deleted
+                const deletedCodes = [...userOfferCodes].filter(code => !newCodes.has(code) && !code.startsWith('#'));
+                const addedCodes = [...newCodes].filter(code => !userOfferCodes.has(code) && !code.startsWith('#'));
+                
+                if (deletedCodes.length > 0) {
+                    log(`Detected ${deletedCodes.length} deleted offer(s): ${deletedCodes.join(', ')}`);
+                    showNotification(`🗑️ ${deletedCodes.length} offer(s) deleted from panel`, 'deleted');
+                }
+                
+                if (addedCodes.length > 0) {
+                    log(`Detected ${addedCodes.length} new offer(s): ${addedCodes.join(', ')}`);
+                    showNotification(`➕ ${addedCodes.length} new offer(s) added`, 'success');
+                }
+                
+                // Update local state
+                userOfferCodes.clear();
+                newCodes.forEach(code => userOfferCodes.add(code));
+                
+                // Update cache
+                try {
+                    localStorage.setItem('glitched_offer_codes', JSON.stringify([...userOfferCodes]));
+                    localStorage.setItem('glitched_offer_codes_timestamp', Date.now().toString());
+                } catch (e) {}
+                
+                // Re-highlight offers
+                highlightUserOffers();
+                updateSleepButton();
+            }
+            
+            lastOfferCodesHash = newHash;
+            
+        } catch (e) {
+            // Silent fail - don't spam errors for sync checks
+            log('Sync check failed: ' + e.message, 'warn');
+        }
+    }
+    
+    function startRealTimeSync() {
+        if (syncIntervalId) return; // Already running
+        
+        lastOfferCodesHash = getOfferCodesHash();
+        log('Starting real-time sync (every ' + (SYNC_INTERVAL/1000) + 's)');
+        
+        syncIntervalId = setInterval(checkForOfferChanges, SYNC_INTERVAL);
+    }
+    
+    function stopRealTimeSync() {
+        if (syncIntervalId) {
+            clearInterval(syncIntervalId);
+            syncIntervalId = null;
+            log('Stopped real-time sync');
         }
     }
     
@@ -2988,6 +3076,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         if (CONFIG.farmKey) {
             showMiniButton();
             loadUserOffers();
+            // v9.8.6: Start real-time sync with panel
+            setTimeout(startRealTimeSync, 3000); // Start after initial load
         } else {
             setTimeout(showAuthPanel, 500);
         }
