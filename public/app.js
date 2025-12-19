@@ -4875,7 +4875,7 @@ const offersState = {
     lastLoadTime: 0       // Track when offers were loaded
 };
 
-const OFFERS_CACHE_TTL = 60 * 1000; // 1 minute cache
+const OFFERS_CACHE_TTL = 10 * 1000; // 10 seconds cache for real-time updates
 const OFFERS_STORAGE_KEY = 'farmpanel_offers_cache';
 
 // Load offers from localStorage cache
@@ -5148,14 +5148,29 @@ function renderOffers() {
         // v9.7: Better paused icon using FontAwesome
         const statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : (needsUpdate ? 'Needs Update' : 'Active');
         
-        // v9.7.6: Calculate days until auto-delete for paused offers
+        // v9.7.6: Calculate time until auto-delete for paused offers
         let pausedInfo = '';
-        if (isPaused && offer.pausedAt) {
-            const pausedDate = new Date(offer.pausedAt);
+        if (isPaused) {
+            // Use pausedAt if available, otherwise use updatedAt or fallback to 3 days from now
+            const pausedDate = offer.pausedAt ? new Date(offer.pausedAt) : 
+                              (offer.updatedAt ? new Date(offer.updatedAt) : new Date());
             const deleteDate = new Date(pausedDate.getTime() + 3 * 24 * 60 * 60 * 1000);
-            const daysLeft = Math.ceil((deleteDate - Date.now()) / (24 * 60 * 60 * 1000));
-            if (daysLeft > 0) {
-                pausedInfo = `<div class="offer-paused-info">Auto-delete in ${daysLeft} day${daysLeft > 1 ? 's' : ''}</div>`;
+            const msLeft = deleteDate - Date.now();
+            const hoursLeft = Math.floor(msLeft / (60 * 60 * 1000));
+            const daysLeft = Math.floor(hoursLeft / 24);
+            const remainingHours = hoursLeft % 24;
+            
+            if (msLeft > 0) {
+                let timeText = '';
+                if (daysLeft > 0) {
+                    timeText = `${daysLeft}d ${remainingHours}h`;
+                } else if (hoursLeft > 0) {
+                    timeText = `${hoursLeft}h`;
+                } else {
+                    const minsLeft = Math.floor(msLeft / (60 * 1000));
+                    timeText = `${minsLeft}m`;
+                }
+                pausedInfo = `<div class="offer-paused-info">Auto-delete in ${timeText}</div>`;
             } else {
                 pausedInfo = `<div class="offer-paused-info urgent">Will be deleted soon</div>`;
             }
@@ -5265,11 +5280,17 @@ async function deleteOffer(offerId, brainrotName) {
             throw new Error('Failed to delete offer');
         }
         
-        // Remove from local state
+        // Remove from local state immediately
         offersState.offers = offersState.offers.filter(o => o.offerId !== offerId);
+        offersState.filteredOffers = offersState.filteredOffers.filter(o => o.offerId !== offerId);
         offersState.selectedOffers.delete(offerId);
         
-        filterAndRenderOffers();
+        // Clear cache to force fresh data on next load
+        offersCache = { data: null, timestamp: 0 };
+        
+        // Update UI immediately
+        updateOffersStats();
+        renderOffers();
         showToast(`Offer "${brainrotName}" deleted`, 'success');
         
     } catch (error) {
@@ -5665,7 +5686,7 @@ function startOffersAutoRefresh() {
             console.log('🔄 Auto-refreshing offers...');
             await loadOffers(true, true); // Force refresh, silent mode
         }
-    }, 60000); // Every 60 seconds
+    }, 15000); // Every 15 seconds
 }
 
 function stopOffersAutoRefresh() {
