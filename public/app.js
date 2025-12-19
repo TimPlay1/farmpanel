@@ -4880,6 +4880,69 @@ const offersState = {
 
 const OFFERS_CACHE_TTL = 10 * 1000; // 10 seconds cache for real-time updates
 const OFFERS_STORAGE_KEY = 'farmpanel_offers_cache';
+const OFFER_IMAGES_CACHE_KEY = 'farmpanel_offer_images';
+
+// Image cache for offer images (base64)
+let offerImagesCache = {};
+
+// Load cached offer images from localStorage
+function loadOfferImagesCache() {
+    try {
+        const cached = localStorage.getItem(OFFER_IMAGES_CACHE_KEY);
+        if (cached) {
+            offerImagesCache = JSON.parse(cached);
+            console.log('Loaded', Object.keys(offerImagesCache).length, 'cached offer images');
+        }
+    } catch (e) {
+        console.error('Error loading offer images cache:', e);
+        offerImagesCache = {};
+    }
+}
+
+// Save offer images cache to localStorage
+function saveOfferImagesCache() {
+    try {
+        localStorage.setItem(OFFER_IMAGES_CACHE_KEY, JSON.stringify(offerImagesCache));
+    } catch (e) {
+        console.error('Error saving offer images cache:', e);
+    }
+}
+
+// Get cached image or load and cache it
+function getCachedOfferImage(imageUrl, offerId) {
+    if (!imageUrl) return null;
+    
+    // Use offerId as cache key
+    const cacheKey = offerId || imageUrl;
+    
+    // Return cached base64 if available
+    if (offerImagesCache[cacheKey]) {
+        return offerImagesCache[cacheKey];
+    }
+    
+    // Load image and cache it (async, returns original URL for now)
+    cacheOfferImage(imageUrl, cacheKey);
+    return imageUrl;
+}
+
+// Cache image as base64
+async function cacheOfferImage(imageUrl, cacheKey) {
+    try {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            offerImagesCache[cacheKey] = reader.result;
+            saveOfferImagesCache();
+        };
+        reader.readAsDataURL(blob);
+    } catch (e) {
+        // Silently fail - will use original URL
+    }
+}
+
+// Initialize offer images cache
+loadOfferImagesCache();
 
 // Load offers from localStorage cache
 function loadOffersFromStorage() {
@@ -4934,6 +4997,9 @@ async function loadOffers(forceRefresh = false, silent = false) {
             return;
         }
         
+        // Save previous state for comparison
+        const previousOffers = [...offersState.offers];
+        
         // Trigger server scan first (non-blocking for silent mode)
         if (forceRefresh && typeof triggerServerScan === 'function') {
             if (silent) {
@@ -4954,14 +5020,36 @@ async function loadOffers(forceRefresh = false, silent = false) {
         // Save to localStorage for persistence
         saveOffersToStorage();
         
-        if (!silent) {
+        // Always update UI - compare with previous state for silent mode
+        const offersChanged = hasOffersChanged(previousOffers, offersState.offers);
+        if (!silent || offersChanged) {
             filterAndRenderOffers();
+            if (silent && offersChanged) {
+                console.log('🔄 Offers UI updated (changes detected)');
+            }
         }
         console.log('Loaded offers from server:', offersState.offers.length, 'with prices from global cache');
     } catch (err) {
         console.error('Error loading offers:', err);
         offersState.offers = [];
     }
+}
+
+// Check if offers have changed (for smart UI updates)
+function hasOffersChanged(oldOffers, newOffers) {
+    if (!oldOffers || oldOffers.length !== newOffers.length) return true;
+    
+    for (let i = 0; i < newOffers.length; i++) {
+        const newOffer = newOffers[i];
+        const oldOffer = oldOffers.find(o => o.offerId === newOffer.offerId);
+        
+        if (!oldOffer) return true;
+        if (oldOffer.status !== newOffer.status) return true;
+        if (oldOffer.currentPrice !== newOffer.currentPrice) return true;
+        if (oldOffer.imageUrl !== newOffer.imageUrl) return true;
+    }
+    
+    return false;
 }
 
 // Setup listener for offers refresh from Tampermonkey script
@@ -5203,7 +5291,7 @@ function renderOffers() {
                 <div class="offer-card-header-content">
                     <div class="offer-card-image">
                         ${offer.imageUrl 
-                            ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">`
+                            ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}" loading="lazy">`
                             : '<i class="fas fa-brain" style="font-size: 1.5rem; color: var(--text-muted);"></i>'
                         }
                     </div>
@@ -5346,7 +5434,7 @@ function openOfferPriceModal(offerId) {
     
     if (previewEl) {
         previewEl.innerHTML = `
-            ${offer.imageUrl ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">` : ''}
+            ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : ''}
             <div class="offer-preview-info">
                 <h4>${offer.brainrotName || 'Unknown'}</h4>
                 <p>${offer.income || '0/s'} • Current: $${(offer.currentPrice || 0).toFixed(2)}</p>
@@ -5383,7 +5471,7 @@ function openBulkPriceModal() {
     if (bulkOffersListEl) {
         bulkOffersListEl.innerHTML = selectedOffers.map(offer => `
             <div class="bulk-offer-item" data-offer-id="${offer.offerId}">
-                ${offer.imageUrl ? `<img src="${offer.imageUrl}" alt="${offer.brainrotName}">` : '<div style="width:40px;height:40px;background:var(--bg-tertiary);border-radius:6px;"></div>'}
+                ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div style="width:40px;height:40px;background:var(--bg-tertiary);border-radius:6px;"></div>'}
                 <div class="bulk-offer-info">
                     <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
                     <div class="bulk-offer-current">Current: $${(offer.currentPrice || 0).toFixed(2)}</div>
