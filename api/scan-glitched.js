@@ -119,17 +119,18 @@ async function scanGlitchedStore(db) {
             
             if (title.includes('Glitched Store') || title.includes('👾')) {
                 const code = extractOfferCode(title);
-                if (code) {
-                    allEldoradoOffers.push({
-                        code: code,
-                        title: title,
-                        price: offer.pricePerUnitInUSD?.amount || 0,
-                        income: parseIncomeFromTitle(title),
-                        imageUrl: offer.images?.[0]?.originalUrl || offer.images?.[0]?.url || null,
-                        eldoradoId: offer.id,
-                        sellerName: offer.seller?.nickname || null
-                    });
-                }
+                const eldoradoId = offer.id;
+                
+                // Добавляем все офферы магазина (с кодом или без)
+                allEldoradoOffers.push({
+                    code: code, // может быть null
+                    title: title,
+                    price: offer.pricePerUnitInUSD?.amount || 0,
+                    income: parseIncomeFromTitle(title),
+                    imageUrl: offer.mainOfferImage?.originalSizeImage || null,
+                    eldoradoId: eldoradoId,
+                    sellerName: item.user?.username || null
+                });
             }
         }
         
@@ -144,10 +145,16 @@ async function scanGlitchedStore(db) {
     
     console.log(`📊 Found ${allEldoradoOffers.length} Glitched Store offers on Eldorado`);
     
-    // Создаём Map по кодам для быстрого поиска
+    // Создаём Maps для быстрого поиска по коду и по eldoradoId
     const eldoradoByCode = new Map();
+    const eldoradoById = new Map();
     for (const offer of allEldoradoOffers) {
-        eldoradoByCode.set(offer.code, offer);
+        if (offer.code) {
+            eldoradoByCode.set(offer.code, offer);
+        }
+        if (offer.eldoradoId) {
+            eldoradoById.set(offer.eldoradoId, offer);
+        }
     }
     
     // Получаем все офферы из БД (всех пользователей)
@@ -161,9 +168,15 @@ async function scanGlitchedStore(db) {
     // Обновляем статусы
     for (const dbOffer of dbOffers) {
         const code = dbOffer.offerId?.replace(/^#/, '').toUpperCase();
-        if (!code) continue;
         
-        const eldoradoOffer = eldoradoByCode.get(code);
+        // Ищем сначала по коду, потом по eldoradoId
+        let eldoradoOffer = null;
+        if (code) {
+            eldoradoOffer = eldoradoByCode.get(code);
+        }
+        if (!eldoradoOffer && dbOffer.eldoradoOfferId) {
+            eldoradoOffer = eldoradoById.get(dbOffer.eldoradoOfferId);
+        }
         
         if (eldoradoOffer) {
             // Найден на Eldorado - обновляем данные
