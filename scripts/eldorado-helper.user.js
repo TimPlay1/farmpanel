@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.4
+// @version      9.8.5
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -28,7 +28,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.8.4';
+    const VERSION = '9.8.5';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -1316,29 +1316,61 @@
     async function loadUserOffers() {
         if (!CONFIG.farmKey) return;
         
-        // Сначала загружаем из кэша для мгновенного отображения
+        // v9.8.5: Load from cache immediately for instant display
         const cached = localStorage.getItem('glitched_offer_codes');
+        const cachedTimestamp = localStorage.getItem('glitched_offer_codes_timestamp');
+        const cacheAge = cachedTimestamp ? Date.now() - parseInt(cachedTimestamp, 10) : Infinity;
+        const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache
+        
         if (cached) {
             try {
                 const cachedCodes = JSON.parse(cached);
                 cachedCodes.forEach(code => userOfferCodes.add(code));
-                log(`Loaded ${cachedCodes.length} codes from cache`);
+                log(`Loaded ${cachedCodes.length} codes from cache (age: ${Math.round(cacheAge/1000)}s)`);
                 // Сразу подсвечиваем из кэша
                 highlightUserOffers();
+                updateSleepButton();
+                
+                // If cache is fresh enough, just use it and fetch in background
+                if (cacheAge < CACHE_TTL) {
+                    showNotification(`✓ Quick connect! Using cached data`, 'success');
+                    // Fetch fresh data in background (non-blocking)
+                    fetchFreshDataInBackground();
+                    return;
+                }
             } catch (e) {}
         }
         
+        await fetchAndCacheOfferData();
+    }
+    
+    // v9.8.5: Background data refresh (non-blocking)
+    async function fetchFreshDataInBackground() {
         try {
-            // Загружаем данные фермера с аккаунтами и brainrots
-            const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(CONFIG.farmKey)}`);
-            if (!response.ok) {
-                if (response.status === 404) {
+            await fetchAndCacheOfferData(true); // silent mode
+            log('Background data refresh completed');
+        } catch (e) {
+            logError('Background refresh failed:', e);
+        }
+    }
+    
+    // v9.8.5: Fetch data with parallel requests
+    async function fetchAndCacheOfferData(silent = false) {
+        try {
+            // Parallel fetch both endpoints for faster loading
+            const [syncResponse, offersResponse] = await Promise.all([
+                fetch(`${API_BASE}/sync?key=${encodeURIComponent(CONFIG.farmKey)}`),
+                fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null)
+            ]);
+            
+            if (!syncResponse.ok) {
+                if (syncResponse.status === 404) {
                     throw new Error('Farm Key not found. Please check your key.');
                 }
                 throw new Error('Failed to fetch data');
             }
             
-            const farmer = await response.json();
+            const farmer = await syncResponse.json();
             const accounts = farmer.accounts || [];
             
             // Собираем все brainrots со всех аккаунтов
@@ -1349,36 +1381,31 @@
             for (const account of accounts) {
                 const brainrots = account.brainrots || [];
                 for (const br of brainrots) {
-                    // Создаём объект оффера
                     const offer = {
                         name: br.name || br.Name,
                         income: br.income || br.Income,
                         imageId: br.imageId || br.ImageId,
-                        offerId: br.offerId || br.OfferId, // Уникальный код оффера #GSXXXXXX
+                        offerId: br.offerId || br.OfferId,
                         accountName: account.playerName || account.name,
                         accountId: account.userId
                     };
                     userOffers.push(offer);
                     
-                    // Добавляем уникальный код оффера для подсветки
                     if (offer.offerId) {
-                        // Код может быть с # или без
                         const code = offer.offerId.toUpperCase().replace(/^#/, '');
                         userOfferCodes.add(code);
-                        userOfferCodes.add('#' + code); // Добавляем и с #
+                        userOfferCodes.add('#' + code);
                     }
                     
-                    // Сохраняем имя brainrot для справки
                     if (offer.name) {
                         userBrainrotNames.add(offer.name.toUpperCase());
                     }
                 }
             }
             
-            // Также загружаем офферы из /api/offers если есть
-            try {
-                const offersResponse = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
-                if (offersResponse.ok) {
+            // Process offers response (already fetched in parallel)
+            if (offersResponse && offersResponse.ok) {
+                try {
                     const offersData = await offersResponse.json();
                     const apiOffers = offersData.offers || [];
                     
@@ -1390,37 +1417,39 @@
                         }
                     }
                     log(`Loaded ${apiOffers.length} offers from API`);
+                } catch (offersErr) {
+                    logError('Could not parse offers:', offersErr);
                 }
-            } catch (offersErr) {
-                logError('Could not load offers from API:', offersErr);
             }
             
-            // Сохраняем в кэш для быстрой загрузки в следующий раз
+            // Save to cache
             try {
                 localStorage.setItem('glitched_offer_codes', JSON.stringify([...userOfferCodes]));
+                localStorage.setItem('glitched_offer_codes_timestamp', Date.now().toString());
             } catch (e) {}
             
             logInfo(`Loaded ${accounts.length} accounts, ${userOffers.length} brainrots, ${userOfferCodes.size} unique codes`);
             CONFIG.connectionError = false;
             
-            if (userOffers.length > 0) {
-                showNotification(`✓ Connected! ${accounts.length} accounts, ${userOffers.length} brainrots`, 'success');
-            } else if (accounts.length > 0) {
-                showNotification(`✓ Connected! ${accounts.length} accounts (no brainrots)`, 'success');
-            } else {
-                showNotification('Connected but no accounts found', 'warning');
+            if (!silent) {
+                if (userOffers.length > 0) {
+                    showNotification(`✓ Connected! ${accounts.length} accounts, ${userOffers.length} brainrots`, 'success');
+                } else if (accounts.length > 0) {
+                    showNotification(`✓ Connected! ${accounts.length} accounts (no brainrots)`, 'success');
+                } else {
+                    showNotification('Connected but no accounts found', 'warning');
+                }
             }
             
-            // Подсвечиваем офферы
             highlightUserOffers();
-            
-            // v9.7: Update sleep button after loading offers
             updateSleepButton();
             
         } catch (e) {
             CONFIG.connectionError = true;
             logError('Error loading data:', e);
-            showNotification('Failed to connect: ' + e.message, 'error');
+            if (!silent) {
+                showNotification('Failed to connect: ' + e.message, 'error');
+            }
         }
     }
     
