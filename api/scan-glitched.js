@@ -230,8 +230,19 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { force } = req.query;
+        const { force, debug } = req.query;
         const now = Date.now();
+        
+        // Debug mode - показывает сырой ответ от Eldorado
+        if (debug) {
+            const rawResponse = await fetchEldoradoOffers(STORE_SEARCH_QUERY, 1, 5);
+            return res.json({
+                debug: true,
+                searchQuery: STORE_SEARCH_QUERY,
+                rawResponse: rawResponse,
+                firstItem: rawResponse.results?.[0] || null
+            });
+        }
         
         // Проверяем cooldown
         if (!force && lastScanResult && (now - lastScanTime) < SCAN_COOLDOWN) {
