@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.3
+// @version      9.8.4
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -28,7 +28,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.8.3';
+    const VERSION = '9.8.4';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== СОСТОЯНИЕ ====================
@@ -1771,6 +1771,163 @@
                expectedText.toLowerCase().includes(currentValue.toLowerCase());
     }
 
+    // v9.8.4: Special function for brainrot selection with "Other" fallback
+    // This keeps the dropdown OPEN if brainrot not found, so we can select "Other" immediately
+    async function selectBrainrotWithOtherFallback(ngSelect, searchName, originalName) {
+        if (!ngSelect) return false;
+        
+        log(`Selecting brainrot: "${searchName}" (original: "${originalName}")`);
+        
+        // First check if already selected
+        if (isValueSelected(ngSelect, searchName) || isValueSelected(ngSelect, originalName)) {
+            log(`Brainrot already selected`, 'success');
+            return true;
+        }
+        
+        try {
+            closeAllDropdowns();
+            await new Promise(r => setTimeout(r, 200));
+            
+            const input = ngSelect.querySelector('input[role="combobox"]');
+            if (!input) {
+                log('Input not found in ng-select for brainrot', 'warn');
+                return false;
+            }
+            
+            // Open dropdown
+            input.focus();
+            await new Promise(r => setTimeout(r, 100));
+            
+            input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 80));
+            input.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            await new Promise(r => setTimeout(r, 300));
+            
+            let isOpen = input.getAttribute('aria-expanded') === 'true';
+            
+            if (!isOpen) {
+                input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+                await new Promise(r => setTimeout(r, 200));
+                isOpen = input.getAttribute('aria-expanded') === 'true';
+            }
+            
+            if (!isOpen) {
+                log('Dropdown not opening for brainrot, trying container click', 'warn');
+                const container = ngSelect.querySelector('.ng-select-container');
+                if (container) {
+                    container.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 80));
+                    container.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 400));
+                }
+            }
+            
+            // Wait for panel
+            let panel = null;
+            for (let i = 0; i < 30; i++) {
+                panel = document.querySelector('ng-dropdown-panel');
+                if (panel) break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            if (!panel) {
+                log('Dropdown panel not found for brainrot', 'warn');
+                return false;
+            }
+            
+            log('Dropdown opened, searching for brainrot...');
+            
+            const options = panel.querySelectorAll('.ng-option');
+            const namesToTry = [searchName, originalName].filter((v, i, a) => a.indexOf(v) === i); // unique names
+            
+            // Try to find exact match for brainrot name
+            for (const nameToFind of namesToTry) {
+                const searchText = nameToFind.toLowerCase();
+                
+                // Exact match
+                for (const opt of options) {
+                    const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                    if (label.toLowerCase() === searchText) {
+                        log(`Found exact match: "${label}"`);
+                        opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                        await new Promise(r => setTimeout(r, 50));
+                        opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                        await new Promise(r => setTimeout(r, 300));
+                        return true;
+                    }
+                }
+                
+                // Partial match
+                for (const opt of options) {
+                    const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                    if (label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                        log(`Found partial match: "${label}"`);
+                        opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                        await new Promise(r => setTimeout(r, 50));
+                        opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                        await new Promise(r => setTimeout(r, 300));
+                        return true;
+                    }
+                }
+            }
+            
+            // Brainrot not found - select "Other" from the STILL OPEN dropdown!
+            log('Brainrot not found in dropdown, selecting "Other"...', 'warn');
+            
+            // The dropdown should still be open, look for "Other"
+            for (const opt of options) {
+                const label = opt.querySelector('.ng-option-label')?.textContent?.trim() || opt.textContent.trim();
+                if (label.toLowerCase() === 'other') {
+                    log('Found "Other" option, clicking...');
+                    opt.scrollIntoView({ block: 'center' });
+                    await new Promise(r => setTimeout(r, 100));
+                    opt.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 50));
+                    opt.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                    await new Promise(r => setTimeout(r, 300));
+                    
+                    // Verify selection
+                    if (isValueSelected(ngSelect, 'Other')) {
+                        log('Successfully selected "Other"', 'success');
+                        return true;
+                    }
+                }
+            }
+            
+            // If still not selected, try reopening and selecting Other
+            log('Could not find Other in current dropdown, retrying...', 'warn');
+            closeAllDropdowns();
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Retry selecting Other with fresh dropdown
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                log(`Retry attempt ${attempt}/3 for Other`);
+                
+                const freshSelect = findNgSelectByAriaLabel('Brainrot');
+                if (!freshSelect) {
+                    await new Promise(r => setTimeout(r, 300));
+                    continue;
+                }
+                
+                const selected = await selectNgOption(freshSelect, 'Other');
+                if (selected) {
+                    log('Successfully selected Other on retry', 'success');
+                    return true;
+                }
+                
+                await new Promise(r => setTimeout(r, 500));
+            }
+            
+            log('Failed to select brainrot or Other', 'error');
+            return false;
+            
+        } catch (e) {
+            log(`Error in selectBrainrotWithOtherFallback: ${e.message}`, 'error');
+            closeAllDropdowns();
+            return false;
+        }
+    }
+
     async function trySelectNgOption(ngSelect, optionText) {
         if (!ngSelect) return false;
         
@@ -2188,40 +2345,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 await new Promise(r => setTimeout(r, 150));
             }
             if (brainrotSelect) {
-                let selected = await selectNgOption(brainrotSelect, searchName);
-                // Если не нашли с исправленным именем, пробуем оригинальное
-                if (!selected && searchName !== name) {
-                    log('Trying original name: ' + name, 'warn');
-                    selected = await selectNgOption(brainrotSelect, name);
-                }
-                // v9.8.3: Если всё ещё не нашли - выбираем Other с дополнительной задержкой
-                if (!selected) {
-                    log('Brainrot not found, selecting Other', 'warn');
-                    // Даём время на сброс состояния dropdown после предыдущих попыток
-                    await new Promise(r => setTimeout(r, 500));
-                    closeAllDropdowns();
-                    await new Promise(r => setTimeout(r, 300));
-                    
-                    // Пробуем открыть dropdown заново и выбрать Other
-                    for (let otherAttempt = 1; otherAttempt <= 3; otherAttempt++) {
-                        log(`Attempting to select Other (attempt ${otherAttempt}/3)`);
-                        
-                        // Находим ng-select заново (Angular мог пересоздать элемент)
-                        brainrotSelect = findNgSelectByAriaLabel('Brainrot');
-                        if (!brainrotSelect) {
-                            await new Promise(r => setTimeout(r, 200));
-                            continue;
-                        }
-                        
-                        selected = await selectNgOption(brainrotSelect, 'Other');
-                        if (selected) {
-                            log('Successfully selected Other', 'success');
-                            break;
-                        }
-                        
-                        await new Promise(r => setTimeout(r, 400));
-                    }
-                }
+                // v9.8.4: Improved brainrot selection with fallback to Other
+                let selected = await selectBrainrotWithOtherFallback(brainrotSelect, searchName, name);
                 verificationResults.brainrot = selected;
                 await new Promise(r => setTimeout(r, 300));
             }
