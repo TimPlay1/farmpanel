@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.16
+// @version      9.8.17
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -136,6 +136,61 @@
         }
         
         /**
+         * Wait for image upload to complete (loading indicator disappears or image preview is ready)
+         */
+        async function waitForImageUpload(timeout = 15000) {
+            const startTime = Date.now();
+            console.log('[Glitched TalkJS] Waiting for image to upload to server...');
+            
+            // First, wait a bit for the upload to start
+            await new Promise(r => setTimeout(r, 500));
+            
+            while (Date.now() - startTime < timeout) {
+                // Check for loading indicators
+                const loadingSelectors = [
+                    '.loading',
+                    '.uploading', 
+                    '.spinner',
+                    '.progress',
+                    '[class*="loading"]',
+                    '[class*="upload"]',
+                    '.test__uploading'
+                ];
+                
+                let isLoading = false;
+                for (const sel of loadingSelectors) {
+                    const loader = document.querySelector(sel);
+                    if (loader && loader.offsetParent !== null) {
+                        console.log('[Glitched TalkJS] Upload in progress...', sel);
+                        isLoading = true;
+                        break;
+                    }
+                }
+                
+                // Check if preview image is fully loaded (has src and naturalWidth > 0)
+                const previewImg = document.querySelector('.preview img, .image-preview img, [class*="preview"] img');
+                if (previewImg && previewImg.complete && previewImg.naturalWidth > 0) {
+                    console.log('[Glitched TalkJS] Image preview loaded:', previewImg.naturalWidth, 'x', previewImg.naturalHeight);
+                    if (!isLoading) {
+                        // Image loaded and no loading indicator - ready!
+                        return true;
+                    }
+                }
+                
+                // If no loading indicator and we've waited at least 2 seconds, assume ready
+                if (!isLoading && (Date.now() - startTime) > 2000) {
+                    console.log('[Glitched TalkJS] No loading indicator detected, assuming upload complete');
+                    return true;
+                }
+                
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            console.log('[Glitched TalkJS] Upload wait timeout, proceeding anyway');
+            return true; // Proceed anyway after timeout
+        }
+        
+        /**
          * Wait for confirm button in image preview
          */
         async function waitForConfirmButton(timeout = 8000) {
@@ -156,9 +211,13 @@
                     const confirmBtn = document.querySelector(sel);
                     if (confirmBtn && confirmBtn.offsetParent !== null) {
                         console.log('[Glitched TalkJS] Found confirm button:', sel);
-                        await new Promise(r => setTimeout(r, 300));
+                        
+                        // IMPORTANT: Wait for image to upload BEFORE clicking confirm
+                        await waitForImageUpload();
+                        
+                        await new Promise(r => setTimeout(r, 500)); // Extra safety delay
                         confirmBtn.click();
-                        console.log('[Glitched TalkJS] Confirm button clicked');
+                        console.log('[Glitched TalkJS] Confirm button clicked after upload complete');
                         return true;
                     }
                 }
