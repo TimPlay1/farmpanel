@@ -105,8 +105,19 @@
             
             try {
                 const response = await fetch(imageUrl);
+                if (!response.ok) {
+                    console.error('[Glitched TalkJS] Failed to fetch image:', response.status, response.statusText);
+                    return false;
+                }
+                
                 const blob = await response.blob();
+                if (blob.size < 100) {
+                    console.error('[Glitched TalkJS] Image blob too small:', blob.size);
+                    return false;
+                }
+                
                 const file = new File([blob], 'enddelivery.jpg', { type: 'image/jpeg' });
+                console.log('[Glitched TalkJS] Created file:', file.name, file.size, 'bytes');
                 
                 const dataTransfer = new DataTransfer();
                 dataTransfer.items.add(file);
@@ -127,17 +138,31 @@
         /**
          * Wait for confirm button in image preview
          */
-        async function waitForConfirmButton(timeout = 5000) {
+        async function waitForConfirmButton(timeout = 8000) {
             const startTime = Date.now();
             
             while (Date.now() - startTime < timeout) {
-                const confirmBtn = document.querySelector('.confirm-send, .test__confirm-upload-button, .preview .send-row button:not(.cancel)');
-                if (confirmBtn && confirmBtn.offsetParent !== null) {
-                    await new Promise(r => setTimeout(r, 300));
-                    confirmBtn.click();
-                    console.log('[Glitched TalkJS] Confirm button clicked');
-                    return true;
+                // Try multiple selectors for the confirm button
+                const selectors = [
+                    '.confirm-send',
+                    '.test__confirm-upload-button', 
+                    '.preview .send-row button:not(.cancel)',
+                    '.preview button.confirm-send',
+                    'button.confirm-send',
+                    '.send-row button:last-child'
+                ];
+                
+                for (const sel of selectors) {
+                    const confirmBtn = document.querySelector(sel);
+                    if (confirmBtn && confirmBtn.offsetParent !== null) {
+                        console.log('[Glitched TalkJS] Found confirm button:', sel);
+                        await new Promise(r => setTimeout(r, 300));
+                        confirmBtn.click();
+                        console.log('[Glitched TalkJS] Confirm button clicked');
+                        return true;
+                    }
                 }
+                
                 await new Promise(r => setTimeout(r, 200));
             }
             
