@@ -442,7 +442,10 @@ function collectAllBrainrots() {
                 incomeText: b.incomeText || '',
                 imageUrl: b.imageUrl || getBrainrotImageUrl(b.name),
                 accountName: account.playerName || 'Unknown',
-                accountId: account.userId
+                accountId: account.userId,
+                mutation: b.mutation || null,
+                floor: b.floor || 1,
+                podiumIndex: b.podiumIndex
             });
         }
     }
