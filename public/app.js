@@ -56,6 +56,15 @@ function formatMoney(num) {
 
 // Mutation colors for brainrot variants
 function getMutationColor(mutation) {
+    if (!mutation) return '#888';
+    
+    // Clean from HTML tags
+    let clean = mutation.replace(/<[^>]+>/g, '').trim();
+    // Normalize Yin Yang
+    if (clean.toLowerCase().includes('yin') && clean.toLowerCase().includes('yang')) {
+        clean = 'YinYang';
+    }
+    
     const colors = {
         'Gold': '#FFD700',
         'Diamond': '#00BFFF',
@@ -64,10 +73,21 @@ function getMutationColor(mutation) {
         'Candy': '#FF69B4',
         'Lava': '#FF4500',
         'Galaxy': '#9400D3',
-        'YinYang': '#555555',
+        'YinYang': 'linear-gradient(90deg, #000, #fff)',
+        'Yin Yang': 'linear-gradient(90deg, #000, #fff)',
         'Radioactive': '#32CD32'
     };
-    return colors[mutation] || '#888';
+    return colors[clean] || '#888';
+}
+
+// Clean mutation text for display
+function cleanMutationText(mutation) {
+    if (!mutation) return null;
+    let clean = mutation.replace(/<[^>]+>/g, '').trim();
+    if (clean.toLowerCase().includes('yin') && clean.toLowerCase().includes('yang')) {
+        return 'YinYang';
+    }
+    return clean || null;
 }
 
 // Format income with K/M/B/T suffixes and /s unit (with space)
@@ -5345,7 +5365,7 @@ function renderOffers() {
                         }
                     </div>
                     <div class="offer-card-info">
-                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}${offer.mutation ? ` <span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${offer.mutation}</span>` : ''}</div>
+                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}${cleanMutationText(offer.mutation) ? ` <span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${cleanMutationText(offer.mutation)}</span>` : ''}</div>
                         <div class="offer-card-id">${offer.offerId}</div>
                         <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>

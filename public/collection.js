@@ -566,11 +566,23 @@ function renderCollection() {
             'Lava': '#FF4500',
             'Galaxy': '#9400D3',
             'YinYang': 'linear-gradient(90deg, #000, #fff)',
+            'Yin Yang': 'linear-gradient(90deg, #000, #fff)',
             'Radioactive': '#32CD32'
         };
-        const mutationBadge = b.mutation ? `
-            <div class="brainrot-mutation-badge" style="background: ${mutationColors[b.mutation] || '#888'};" title="Мутация: ${b.mutation}">
-                ${b.mutation}
+        
+        // Clean mutation text from HTML tags
+        let cleanMutation = b.mutation;
+        if (cleanMutation && typeof cleanMutation === 'string') {
+            cleanMutation = cleanMutation.replace(/<[^>]+>/g, '').trim();
+            // Normalize "Yin Yang" to "YinYang" for color lookup
+            if (cleanMutation.toLowerCase().includes('yin') && cleanMutation.toLowerCase().includes('yang')) {
+                cleanMutation = 'YinYang';
+            }
+        }
+        
+        const mutationBadge = cleanMutation ? `
+            <div class="brainrot-mutation-badge" style="background: ${mutationColors[cleanMutation] || '#888'};" title="Мутация: ${cleanMutation}">
+                ${cleanMutation}
             </div>
         ` : '';
         
@@ -579,7 +591,7 @@ function renderCollection() {
         if (generated) classes.push('brainrot-generated');
         if (isSelectionMode) classes.push('selectable');
         if (isSelected) classes.push('selected');
-        if (b.mutation) classes.push('brainrot-mutated');
+        if (cleanMutation) classes.push('brainrot-mutated');
         
         // Click handler for selection mode
         const clickHandler = isSelectionMode 
