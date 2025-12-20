@@ -1300,13 +1300,30 @@ const FARMERS_CACHE_EXPIRY = 5 * 60 * 1000; // 5 минут
 
 function saveFarmersDataToCache() {
     try {
+        // Сохраняем только текущий ключ чтобы уменьшить размер
+        const currentKeyData = state.farmersData[state.currentKey];
+        if (!currentKeyData) return;
+        
         const cache = {
             timestamp: Date.now(),
-            data: state.farmersData
+            currentKey: state.currentKey,
+            data: { [state.currentKey]: currentKeyData }
         };
         localStorage.setItem(FARMERS_CACHE_KEY, JSON.stringify(cache));
     } catch (e) {
-        console.error('Failed to save farmers cache:', e);
+        // Если QuotaExceeded - очищаем старые данные
+        if (e.name === 'QuotaExceededError') {
+            console.warn('localStorage full, clearing old cache...');
+            try {
+                localStorage.removeItem(FARMERS_CACHE_KEY);
+                localStorage.removeItem('farmerPanelAvatarCache');
+                localStorage.removeItem('farmerPanelBrainrotImages');
+            } catch (clearError) {
+                console.error('Failed to clear cache:', clearError);
+            }
+        } else {
+            console.error('Failed to save farmers cache:', e);
+        }
     }
 }
 
@@ -5398,7 +5415,8 @@ function renderOffers() {
                         }
                     </div>
                     <div class="offer-card-info">
-                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}${cleanMutationText(offer.mutation) ? ` <span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${cleanMutationText(offer.mutation)}</span>` : ''}</div>
+                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
+                        ${cleanMutationText(offer.mutation) ? `<div class="offer-mutation-line"><span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${cleanMutationText(offer.mutation)}</span></div>` : ''}
                         <div class="offer-card-id">${offer.offerId}</div>
                         <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>

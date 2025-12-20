@@ -831,8 +831,9 @@ body {
     display: flex;
     gap: 0.5rem;
     overflow-x: auto;
+    overflow-y: visible; /* Allow tooltip to show above */
     padding-bottom: 0.5rem;
-    padding-top: 10px; /* Space for mutation badges */
+    padding-top: 18px; /* More space for mutation badges and tooltip */
 }
 
 .brainrots-scroll::-webkit-scrollbar {
@@ -873,27 +874,26 @@ body {
     cursor: pointer;
 }
 
-/* Custom tooltip for mutation */
+/* Custom tooltip for mutation - positioned above container */
 .brainrot-mini-mutation::after {
     content: attr(data-mutation);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.9);
+    position: fixed;
+    transform: translateX(-50%) translateY(-100%);
+    background: rgba(0, 0, 0, 0.95);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.65rem;
-    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
     white-space: nowrap;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.2s, visibility 0.2s;
+    transition: opacity 0.15s, visibility 0.15s;
     pointer-events: none;
-    margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
 .brainrot-mini-mutation:hover::after {
@@ -2989,6 +2989,17 @@ body {
 @keyframes mutation-pulse {
     0%, 100% { opacity: 1; }
     50% { opacity: 0.85; }
+}
+
+/* Mutation line under brainrot name in offer card */
+.offer-mutation-line {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.offer-mutation-line .offer-mutation-badge {
+    font-size: 0.55rem;
+    padding: 2px 6px;
 }
 
 .offer-card-id {
