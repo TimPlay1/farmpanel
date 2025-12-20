@@ -852,6 +852,23 @@ body {
     flex-shrink: 0;
     width: 72px;
     text-align: center;
+    position: relative;
+}
+
+.brainrot-mini.has-mutation .brainrot-mini-img {
+    box-shadow: 0 0 8px rgba(255, 215, 0, 0.5);
+}
+
+.brainrot-mini-mutation {
+    position: absolute;
+    top: -2px;
+    right: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    border: 2px solid var(--bg-secondary);
+    z-index: 5;
+    box-shadow: 0 0 4px currentColor;
 }
 
 .brainrot-mini-img {

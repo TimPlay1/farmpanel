@@ -1495,17 +1495,21 @@ function handleLogout() {
 // Полная очистка кэша (для решения проблем с отображением)
 function clearAllCache() {
     try {
-        // Очищаем кэш фермеров
-        localStorage.removeItem(FARMERS_CACHE_KEY);
-        // Очищаем кэш аватаров
-        localStorage.removeItem('farmerPanelAvatarCache');
-        // Очищаем state.farmersData
-        state.farmersData = {};
-        console.log('All cache cleared!');
-        // Перезагружаем данные
-        if (state.currentKey) {
-            fetchFarmerData();
+        // Очищаем ВСЁ из localStorage для чистоты
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key) keysToRemove.push(key);
         }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        
+        // Очищаем state
+        state.farmersData = {};
+        console.log('All localStorage cleared! Removed', keysToRemove.length, 'keys');
+        
+        // Перезагружаем страницу
+        alert('Кэш очищен! Страница перезагрузится.');
+        location.reload();
         return true;
     } catch (e) {
         console.error('Failed to clear cache:', e);
@@ -1897,8 +1901,12 @@ function updateAccountCard(cardEl, account) {
     if (account.brainrots && account.brainrots.length > 0) {
         const brainrotsHtml = account.brainrots.slice(0, 10).map(b => {
             const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
+            // Mutation badge for mini brainrot
+            const mutationColor = b.mutation ? getMutationColor(b.mutation) : null;
+            const mutationBadge = mutationColor ? `<div class="brainrot-mini-mutation" style="background: ${mutationColor};" title="${cleanMutationText(b.mutation)}"></div>` : '';
             return `
-                <div class="brainrot-mini" title="${b.name}\n${b.incomeText || ''}">
+                <div class="brainrot-mini${b.mutation ? ' has-mutation' : ''}" title="${b.name}\n${b.incomeText || ''}${b.mutation ? '\nМутация: ' + cleanMutationText(b.mutation) : ''}">
+                    ${mutationBadge}
                     <div class="brainrot-mini-img">
                         ${imageUrl 
                             ? `<img src="${imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
@@ -1906,7 +1914,7 @@ function updateAccountCard(cardEl, account) {
                         }
                     </div>
                     <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
-                    <div class="brainrot-mini-income">${b.incomeText || ''}</div>
+                    <div class="brainrot-mini-income" style="${b.mutation ? 'color: ' + mutationColor : ''}">${b.incomeText || ''}</div>
                 </div>
             `;
         }).join('');
