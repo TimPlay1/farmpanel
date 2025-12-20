@@ -832,6 +832,7 @@ body {
     gap: 0.5rem;
     overflow-x: auto;
     padding-bottom: 0.5rem;
+    padding-top: 10px; /* Space for mutation badges */
 }
 
 .brainrots-scroll::-webkit-scrollbar {
@@ -861,14 +862,43 @@ body {
 
 .brainrot-mini-mutation {
     position: absolute;
-    top: -2px;
+    top: -4px;
     right: 6px;
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     border: 2px solid var(--bg-secondary);
     z-index: 5;
-    box-shadow: 0 0 4px currentColor;
+    box-shadow: 0 0 6px currentColor;
+    cursor: pointer;
+}
+
+/* Custom tooltip for mutation */
+.brainrot-mini-mutation::after {
+    content: attr(data-mutation);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+    pointer-events: none;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.brainrot-mini-mutation:hover::after {
+    opacity: 1;
+    visibility: visible;
 }
 
 .brainrot-mini-img {
@@ -1894,20 +1924,20 @@ body {
     z-index: 5;
 }
 
-/* Mutation Badge - Top Left Corner */
+/* Mutation Badge - Top Right Corner (moved from left to avoid overlap with generate btn) */
 .brainrot-mutation-badge {
     position: absolute;
     top: 0.5rem;
-    left: 0.5rem;
-    padding: 3px 8px;
+    right: 0.5rem;
+    padding: 4px 10px;
     color: white;
-    font-size: 0.65rem;
+    font-size: 0.7rem;
     font-weight: 700;
     border-radius: 6px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-    z-index: 8;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    z-index: 10;
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
 
@@ -2943,16 +2973,22 @@ body {
 /* Mutation badge in offer card */
 .offer-mutation-badge {
     display: inline-block;
-    padding: 2px 6px;
+    padding: 3px 8px;
     color: white;
-    font-size: 0.55rem;
+    font-size: 0.6rem;
     font-weight: 700;
     border-radius: 4px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     text-shadow: 0 1px 1px rgba(0,0,0,0.5);
     flex-shrink: 0;
+    animation: mutation-pulse 2s ease-in-out infinite;
+}
+
+@keyframes mutation-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.85; }
 }
 
 .offer-card-id {

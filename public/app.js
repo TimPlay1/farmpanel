@@ -1901,11 +1901,12 @@ function updateAccountCard(cardEl, account) {
     if (account.brainrots && account.brainrots.length > 0) {
         const brainrotsHtml = account.brainrots.slice(0, 10).map(b => {
             const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
-            // Mutation badge for mini brainrot
+            // Mutation badge for mini brainrot with custom tooltip
             const mutationColor = b.mutation ? getMutationColor(b.mutation) : null;
-            const mutationBadge = mutationColor ? `<div class="brainrot-mini-mutation" style="background: ${mutationColor};" title="${cleanMutationText(b.mutation)}"></div>` : '';
+            const mutationName = b.mutation ? cleanMutationText(b.mutation) : '';
+            const mutationBadge = mutationColor ? `<div class="brainrot-mini-mutation" style="background: ${mutationColor};" data-mutation="${mutationName}"></div>` : '';
             return `
-                <div class="brainrot-mini${b.mutation ? ' has-mutation' : ''}" title="${b.name}\n${b.incomeText || ''}${b.mutation ? '\nМутация: ' + cleanMutationText(b.mutation) : ''}">
+                <div class="brainrot-mini${b.mutation ? ' has-mutation' : ''}" title="${b.name}\n${b.incomeText || ''}">
                     ${mutationBadge}
                     <div class="brainrot-mini-img">
                         ${imageUrl 
@@ -5377,7 +5378,7 @@ function renderOffers() {
         }
         
         return `
-        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''}" data-offer-id="${offer.offerId}">
+        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''} ${offer.mutation ? 'has-mutation' : ''}" data-offer-id="${offer.offerId}" ${offer.mutation ? `style="border-color: ${getMutationColor(offer.mutation)}; box-shadow: 0 0 12px ${getMutationColor(offer.mutation)}40;"` : ''}>
             ${brainrotsCountBadge}
             <div class="offer-card-checkbox">
                 <label class="checkbox-wrapper">
