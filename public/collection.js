@@ -556,11 +556,30 @@ function renderCollection() {
         const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
         const isSelected = isSelectionMode && massSelectionState.selectedItems.includes(index);
         
+        // Mutation styling
+        const mutationColors = {
+            'Gold': '#FFD700',
+            'Diamond': '#00BFFF',
+            'Bloodrot': '#8B0000',
+            'Rainbow': 'linear-gradient(90deg, red, orange, yellow, green, blue, violet)',
+            'Candy': '#FF69B4',
+            'Lava': '#FF4500',
+            'Galaxy': '#9400D3',
+            'YinYang': 'linear-gradient(90deg, #000, #fff)',
+            'Radioactive': '#32CD32'
+        };
+        const mutationBadge = b.mutation ? `
+            <div class="brainrot-mutation-badge" style="background: ${mutationColors[b.mutation] || '#888'};" title="Мутация: ${b.mutation}">
+                ${b.mutation}
+            </div>
+        ` : '';
+        
         // Build class list
         const classes = ['brainrot-card'];
         if (generated) classes.push('brainrot-generated');
         if (isSelectionMode) classes.push('selectable');
         if (isSelected) classes.push('selected');
+        if (b.mutation) classes.push('brainrot-mutated');
         
         // Click handler for selection mode
         const clickHandler = isSelectionMode 
@@ -577,6 +596,7 @@ function renderCollection() {
                 <i class="fas fa-check-circle"></i>
             </div>
             ` : ''}
+            ${mutationBadge}
             <div class="brainrot-image">
                 ${b.imageUrl 
                     ? `<img src="${b.imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`

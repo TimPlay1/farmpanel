@@ -54,6 +54,22 @@ function formatMoney(num) {
     return sign + absNum.toLocaleString();
 }
 
+// Mutation colors for brainrot variants
+function getMutationColor(mutation) {
+    const colors = {
+        'Gold': '#FFD700',
+        'Diamond': '#00BFFF',
+        'Bloodrot': '#8B0000',
+        'Rainbow': 'linear-gradient(90deg, red, orange, yellow, green, blue, violet)',
+        'Candy': '#FF69B4',
+        'Lava': '#FF4500',
+        'Galaxy': '#9400D3',
+        'YinYang': '#555555',
+        'Radioactive': '#32CD32'
+    };
+    return colors[mutation] || '#888';
+}
+
 // Format income with K/M/B/T suffixes and /s unit (with space)
 function formatIncomeSec(num) {
     if (num === null || num === undefined || isNaN(num)) return '0 /s';
@@ -5329,7 +5345,7 @@ function renderOffers() {
                         }
                     </div>
                     <div class="offer-card-info">
-                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
+                        <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}${offer.mutation ? ` <span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${offer.mutation}</span>` : ''}</div>
                         <div class="offer-card-id">${offer.offerId}</div>
                         <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>

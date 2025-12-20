@@ -1,0 +1,20 @@
+{
+	"folders": [
+		{
+			"path": "../../supagenerator"
+		},
+		{
+			"path": ".."
+		},
+		{
+			"path": "../../sabwikiparser"
+		},
+		{
+			"path": "../../../AppData/Local/seliware-workspace"
+		},
+		{
+			"path": "../../../AppData/Local/Wave/scripts/brainrot"
+		}
+	],
+	"settings": {}
+}
