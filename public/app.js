@@ -1492,6 +1492,30 @@ function handleLogout() {
     stopPolling();
 }
 
+// Полная очистка кэша (для решения проблем с отображением)
+function clearAllCache() {
+    try {
+        // Очищаем кэш фермеров
+        localStorage.removeItem(FARMERS_CACHE_KEY);
+        // Очищаем кэш аватаров
+        localStorage.removeItem('farmerPanelAvatarCache');
+        // Очищаем state.farmersData
+        state.farmersData = {};
+        console.log('All cache cleared!');
+        // Перезагружаем данные
+        if (state.currentKey) {
+            fetchFarmerData();
+        }
+        return true;
+    } catch (e) {
+        console.error('Failed to clear cache:', e);
+        return false;
+    }
+}
+
+// Экспортируем в window для доступа из консоли
+window.clearAllCache = clearAllCache;
+
 // Views
 function showLoginScreen() {
     hideLoadingScreen(); // Скрываем loading screen

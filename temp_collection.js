@@ -559,11 +559,6 @@ function renderCollection() {
         const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
         const isSelected = isSelectionMode && massSelectionState.selectedItems.includes(index);
         
-        // Debug: log brainrots with mutations
-        if (b.mutation) {
-            console.log('Brainrot with mutation:', b.name, '→', b.mutation);
-        }
-        
         // Mutation styling
         const mutationColors = {
             'Gold': '#FFD700',
