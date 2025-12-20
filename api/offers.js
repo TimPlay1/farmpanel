@@ -103,6 +103,25 @@ module.exports = async (req, res) => {
             // Получить все офферы
             const offers = await offersCollection.find({ farmKey }).sort({ createdAt: -1 }).toArray();
             
+            // Получаем данные фермера для обогащения мутациями
+            const farmersCollection = db.collection('farmers');
+            const farmer = await farmersCollection.findOne({ farmKey });
+            
+            // Создаём map имя->мутация для быстрого поиска
+            const mutationsMap = new Map();
+            if (farmer && farmer.accounts) {
+                for (const account of farmer.accounts) {
+                    if (account.brainrots) {
+                        for (const b of account.brainrots) {
+                            if (b.mutation && b.name) {
+                                // Сохраняем мутацию по имени (приоритет более новым)
+                                mutationsMap.set(b.name.toLowerCase(), b.mutation);
+                            }
+                        }
+                    }
+                }
+            }
+            
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
             for (const offer of offers) {
@@ -122,7 +141,7 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // Добавляем recommendedPrice к каждому офферу
+            // Добавляем recommendedPrice и mutation к каждому офферу
             for (const offer of offers) {
                 const key = getPriceCacheKey(offer.brainrotName, offer.income);
                 const priceData = key ? pricesMap.get(key) : null;
@@ -132,6 +151,14 @@ module.exports = async (req, res) => {
                     // No spike logic in centralized cache - prices are verified by cron
                     offer.priceSource = priceData.priceSource || priceData.source || null;
                     offer.competitorPrice = priceData.competitorPrice || null;
+                }
+                
+                // Добавляем мутацию из данных фермера
+                if (!offer.mutation && offer.brainrotName) {
+                    const mutation = mutationsMap.get(offer.brainrotName.toLowerCase());
+                    if (mutation) {
+                        offer.mutation = mutation;
+                    }
                 }
             }
             

@@ -431,11 +431,16 @@ function collectAllBrainrots() {
 
     const brainrots = [];
     const accounts = data.accounts;
+    let mutationCount = 0;
 
     for (const account of accounts) {
         if (!account.brainrots) continue;
         
         for (const b of account.brainrots) {
+            if (b.mutation) {
+                mutationCount++;
+                console.log('[Collection] Found mutation:', b.name, '→', b.mutation);
+            }
             brainrots.push({
                 name: b.name,
                 income: b.income || 0,
@@ -449,6 +454,8 @@ function collectAllBrainrots() {
             });
         }
     }
+    
+    console.log('[Collection] Total brainrots:', brainrots.length, 'with mutations:', mutationCount);
 
     collectionState.allBrainrots = brainrots;
     updateAccountFilter(accounts);
