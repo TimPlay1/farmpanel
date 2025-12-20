@@ -220,14 +220,15 @@ function saveAvatarToCache(userId, avatarUrl) {
     };
     
     try {
-        // Ограничиваем размер кэша чтобы не переполнить localStorage
+        // Ограничиваем размер кэша - максимум 30 аватаров чтобы не забить localStorage
         const cacheKeys = Object.keys(state.avatarCache);
-        if (cacheKeys.length > 100) {
+        if (cacheKeys.length > 30) {
             // Удаляем старые записи
             const sorted = cacheKeys.sort((a, b) => 
                 (state.avatarCache[a].timestamp || 0) - (state.avatarCache[b].timestamp || 0)
             );
-            for (let i = 0; i < 20; i++) {
+            // Удаляем половину старых
+            for (let i = 0; i < 15; i++) {
                 delete state.avatarCache[sorted[i]];
             }
         }
@@ -332,7 +333,7 @@ async function loadBalanceHistory() {
     console.log('loadBalanceHistory: loading for', state.currentKey);
     
     try {
-        // Сначала пробуем загрузить из сервера
+        // Загружаем только из сервера (localStorage отключен для экономии места)
         const response = await fetch(`${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`);
         if (response.ok) {
             const data = await response.json();
@@ -340,33 +341,15 @@ async function loadBalanceHistory() {
                 state.balanceHistory[state.currentKey] = data.history;
                 console.log(`Loaded ${data.history.length} balance history records from server`);
                 return;
-            } else {
-                console.log('Server returned empty history');
             }
-        } else {
-            console.warn('Balance history API returned', response.status);
         }
     } catch (e) {
         console.warn('Failed to load balance history from server:', e);
     }
     
-    // Fallback: загружаем из localStorage
-    try {
-        const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
-        if (stored) {
-            state.balanceHistory = JSON.parse(stored);
-            // Очищаем старые записи (старше месяца)
-            const monthAgo = Date.now() - PERIODS.month;
-            for (const farmKey of Object.keys(state.balanceHistory)) {
-                state.balanceHistory[farmKey] = state.balanceHistory[farmKey].filter(
-                    entry => entry.timestamp > monthAgo
-                );
-            }
-            console.log('Loaded balance history from localStorage cache');
-        }
-    } catch (e) {
-        console.warn('Failed to load balance history:', e);
-        state.balanceHistory = {};
+    // Инициализируем пустой массив если сервер недоступен
+    if (!state.balanceHistory[state.currentKey]) {
+        state.balanceHistory[state.currentKey] = [];
     }
 }
 
@@ -386,25 +369,12 @@ async function saveBalanceHistoryToServer(farmKey, value) {
 }
 
 /**
- * Сохранить историю баланса в localStorage (backup)
+ * Сохранить историю баланса в localStorage (ОТКЛЮЧЕНО - данные на сервере)
  */
 function saveBalanceHistory() {
-    try {
-        localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(state.balanceHistory));
-    } catch (e) {
-        console.warn('Failed to save balance history:', e);
-        if (e.name === 'QuotaExceededError') {
-            // Очищаем старые записи
-            for (const farmKey of Object.keys(state.balanceHistory)) {
-                state.balanceHistory[farmKey] = state.balanceHistory[farmKey].slice(-100);
-            }
-            try {
-                localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(state.balanceHistory));
-            } catch (e2) {
-                state.balanceHistory = {};
-            }
-        }
-    }
+    // История баланса хранится на сервере, локальный кэш не нужен
+    // Это экономит ~500KB+ в localStorage
+    return;
 }
 
 /**
