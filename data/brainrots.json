@@ -106,6 +106,11 @@
       "hasImage": true
     },
     {
+      "name": "Bambu Bambu Sahur",
+      "image": "Bambu_Bambu_Sahur.png",
+      "hasImage": true
+    },
+    {
       "name": "Bananita Dolphinita",
       "image": "Bananita_Dolphinita.png",
       "hasImage": true
@@ -481,6 +486,11 @@
       "hasImage": true
     },
     {
+      "name": "Dragon Gingerini",
+      "image": "Dragon_Gingerini.png",
+      "hasImage": true
+    },
+    {
       "name": "Dug dug dug",
       "image": "Dug_dug_dug.png",
       "hasImage": true
@@ -696,6 +706,11 @@
       "hasImage": true
     },
     {
+      "name": "Guerreiro Digitale",
+      "image": "Guerreiro_Digitale.png",
+      "hasImage": true
+    },
+    {
       "name": "Guerriro Digitale",
       "image": "Guerriro_Digitale.png",
       "hasImage": true
@@ -733,6 +748,11 @@
     {
       "name": "Horegini Boom",
       "image": "Horegini_Boom.png",
+      "hasImage": true
+    },
+    {
+      "name": "Ice Dragon",
+      "image": "Ice_Dragon.png",
       "hasImage": true
     },
     {
@@ -817,7 +837,7 @@
     },
     {
       "name": "La Ginger Sekolah",
-      "image": "La_Ginger_Sekolah.webp",
+      "image": "La_Ginger_Sekolah.png",
       "hasImage": true
     },
     {
@@ -918,6 +938,11 @@
     {
       "name": "List List List Sahur",
       "image": "List_List_List_Sahur.png",
+      "hasImage": true
+    },
+    {
+      "name": "Lobarini Neerbino",
+      "image": "Lobarini_Neerbino.png",
       "hasImage": true
     },
     {
@@ -1071,6 +1096,11 @@
       "hasImage": true
     },
     {
+      "name": "Los Tralaledonitos",
+      "image": "Los_Tralaledonitos.png",
+      "hasImage": true
+    },
+    {
       "name": "Los Tralaleritos",
       "image": "Los_Tralaleritos.png",
       "hasImage": true
@@ -1121,6 +1151,11 @@
       "hasImage": true
     },
     {
+      "name": "MarioUBW Sandbox",
+      "image": "MarioUBW_Sandbox.png",
+      "hasImage": true
+    },
+    {
       "name": "Mastodontico Telepiedone",
       "image": "Mastodontico_Telepiedone.png",
       "hasImage": true
@@ -1158,6 +1193,11 @@
     {
       "name": "Money Money Puggy",
       "image": "Money_Money_Puggy.png",
+      "hasImage": true
+    },
+    {
+      "name": "Money Money Reindeer",
+      "image": "Money_Money_Reindeer.png",
       "hasImage": true
     },
     {
@@ -1248,6 +1288,31 @@
     {
       "name": "North Pole Event",
       "image": "North_Pole_Event.webp",
+      "hasImage": true
+    },
+    {
+      "name": "NotYuiopeem Burbaloni rebalance",
+      "image": "NotYuiopeem_Burbaloni_rebalance.png",
+      "hasImage": true
+    },
+    {
+      "name": "NotYuiopeem Pipi corni rebalance",
+      "image": "NotYuiopeem_Pipi_corni_rebalance.png",
+      "hasImage": true
+    },
+    {
+      "name": "NotYuiopeem Pipi rebalance",
+      "image": "NotYuiopeem_Pipi_rebalance.png",
+      "hasImage": true
+    },
+    {
+      "name": "NotYuiopeem Talpa di feró rebalance",
+      "image": "NotYuiopeem_Talpa_di_feró_rebalance.png",
+      "hasImage": true
+    },
+    {
+      "name": "NotYuiopeem Tim cheese rebalance",
+      "image": "NotYuiopeem_Tim_cheese_rebalance.png",
       "hasImage": true
     },
     {
@@ -1573,6 +1638,11 @@
     {
       "name": "Steal A Brainrot",
       "image": "Steal_A_Brainrot.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Steal a Brainrot Wiki PreloadBrainrotArticle",
+      "image": "Steal_a_Brainrot_Wiki_PreloadBrainrotArticle.png",
       "hasImage": true
     },
     {
