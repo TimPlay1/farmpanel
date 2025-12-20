@@ -3020,21 +3020,26 @@ function collectAllBrainrots() {
 
     const brainrots = [];
     const accounts = data.accounts;
+    let mutationCount = 0;
 
     for (const account of accounts) {
         if (!account.brainrots) continue;
         
         for (const b of account.brainrots) {
+            if (b.mutation) mutationCount++;
             brainrots.push({
                 name: b.name,
                 income: b.income || 0,
                 incomeText: b.incomeText || '',
                 imageUrl: b.imageUrl || getBrainrotImageUrl(b.name),
                 accountName: account.playerName || 'Unknown',
-                accountId: account.visibleUsername || account.userId
+                accountId: account.visibleUsername || account.userId,
+                mutation: b.mutation || null
             });
         }
     }
+    
+    console.log('[Collection] Total brainrots:', brainrots.length, 'with mutations:', mutationCount);
 
     collectionState.allBrainrots = brainrots;
     
@@ -3058,6 +3063,7 @@ function groupBrainrots(brainrots) {
                 income: income, // Use normalized income, not raw
                 incomeText: b.incomeText,
                 imageUrl: b.imageUrl,
+                mutation: b.mutation || null,
                 items: [],
                 quantity: 0
             });
@@ -3067,9 +3073,15 @@ function groupBrainrots(brainrots) {
         group.items.push({
             accountId: b.accountId,
             accountName: b.accountName,
-            imageUrl: b.imageUrl
+            imageUrl: b.imageUrl,
+            mutation: b.mutation
         });
         group.quantity++;
+        
+        // Если у группы ещё нет мутации, но у этого brainrot есть - добавляем
+        if (!group.mutation && b.mutation) {
+            group.mutation = b.mutation;
+        }
     }
     
     return Array.from(groups.values());
@@ -3449,7 +3461,7 @@ async function renderCollection() {
             : '';
         
         return `
-        <div class="${cardClasses.join(' ')}" 
+        <div class="${cardClasses.join(' ')} ${group.mutation ? 'brainrot-mutated' : ''}" 
              data-brainrot-name="${group.name}" 
              data-brainrot-income="${income}" 
              data-brainrot-index="${index}"
@@ -3457,6 +3469,7 @@ async function renderCollection() {
              data-quantity="${group.quantity}"
              ${clickHandler}>
             ${hasOffer ? `<div class="brainrot-offer-badge" title="На продаже"><i class="fas fa-shopping-cart"></i></div>` : ''}
+            ${group.mutation ? `<div class="brainrot-mutation-badge" style="background: ${getMutationColor(group.mutation)};">${cleanMutationText(group.mutation)}</div>` : ''}
             <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
                 ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
             </div>
