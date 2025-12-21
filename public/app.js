@@ -1850,11 +1850,31 @@ function formatTimeAgo(lastUpdate) {
     if (!lastUpdate) return 'Never';
     
     try {
-        const isoString = lastUpdate.replace(' ', 'T');
-        const lastUpdateTime = new Date(isoString).getTime();
+        let lastUpdateTime;
+        // Parse as local time (same as isAccountOnline)
+        if (lastUpdate.includes('T')) {
+            lastUpdateTime = new Date(lastUpdate).getTime();
+        } else {
+            // Format: "2025-12-21 12:50:05" - parse as local time
+            const parts = lastUpdate.split(/[- :]/);
+            if (parts.length >= 6) {
+                lastUpdateTime = new Date(
+                    parseInt(parts[0]), 
+                    parseInt(parts[1]) - 1, 
+                    parseInt(parts[2]),
+                    parseInt(parts[3]),
+                    parseInt(parts[4]),
+                    parseInt(parts[5])
+                ).getTime();
+            } else {
+                return lastUpdate;
+            }
+        }
+        
         const now = Date.now();
         const diffSeconds = Math.floor((now - lastUpdateTime) / 1000);
         
+        if (diffSeconds < 0) return 'Just now'; // Future time = just now
         if (diffSeconds < 60) return 'Just now';
         if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + 'm ago';
         if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + 'h ago';
