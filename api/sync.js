@@ -249,15 +249,17 @@ module.exports = async (req, res) => {
                     playerUserIdMap[account.playerName] = String(account.userId);
                 }
                 
-                // ВАЖНО: Явно устанавливаем серверное время для определения онлайн статуса
-                // Если isOnline=true - ставим текущее время
-                // Если isOnline=false - ставим время 5 минут назад чтобы гарантированно показывался offline
-                if (account.isOnline) {
-                    account.lastUpdate = now.toISOString();
-                } else {
-                    // Для offline аккаунтов ставим старое время чтобы frontend не показал их online
-                    const oldTime = new Date(now.getTime() - 5 * 60 * 1000); // 5 минут назад
-                    account.lastUpdate = oldTime.toISOString();
+                // Конвертируем lastUpdate в ISO формат если нужно
+                // panel_sync.lua отправляет формат "2025-12-21 17:02:06"
+                // Если lastUpdate не ISO формат - конвертируем
+                if (account.lastUpdate && typeof account.lastUpdate === 'string') {
+                    // Проверяем формат
+                    if (account.lastUpdate.includes(' ') && !account.lastUpdate.includes('T')) {
+                        // Формат "2025-12-21 17:02:06" - конвертируем в ISO
+                        const localTime = new Date(account.lastUpdate.replace(' ', 'T') + 'Z');
+                        account.lastUpdate = localTime.toISOString();
+                    }
+                    // Иначе оставляем как есть (уже ISO)
                 }
             }
 
