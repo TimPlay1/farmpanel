@@ -250,14 +250,17 @@ module.exports = async (req, res) => {
                 }
                 
                 // Конвертируем lastUpdate в ISO формат если нужно
-                // panel_sync.lua отправляет формат "2025-12-21 17:02:06"
-                // Если lastUpdate не ISO формат - конвертируем
+                // panel_sync.lua отправляет формат "2025-12-21 17:02:06" (локальное время UTC+3)
                 if (account.lastUpdate && typeof account.lastUpdate === 'string') {
                     // Проверяем формат
                     if (account.lastUpdate.includes(' ') && !account.lastUpdate.includes('T')) {
-                        // Формат "2025-12-21 17:02:06" - конвертируем в ISO
-                        const localTime = new Date(account.lastUpdate.replace(' ', 'T') + 'Z');
-                        account.lastUpdate = localTime.toISOString();
+                        // Формат "2025-12-21 17:02:06" - парсим как локальное время (без Z)
+                        // JavaScript Date() без Z парсит как локальное время сервера
+                        // Но Vercel в UTC, поэтому вычитаем offset для Moscow (UTC+3)
+                        const localTime = new Date(account.lastUpdate.replace(' ', 'T'));
+                        // Вычитаем 3 часа т.к. время в файле Moscow (UTC+3), а сервер в UTC
+                        const utcTime = new Date(localTime.getTime() - 3 * 60 * 60 * 1000);
+                        account.lastUpdate = utcTime.toISOString();
                     }
                     // Иначе оставляем как есть (уже ISO)
                 }
