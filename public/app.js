@@ -1901,13 +1901,13 @@ function updateAccountCard(cardEl, account) {
     const statusText = isOnline ? 'Online' : 'Offline';
     const actionText = isOnline ? (account.action || account.status || '') : '';
     
-    // Update status badge
+    // Update status badge - completely rewrite innerHTML for reliability
     const statusBadge = cardEl.querySelector('.status-badge');
     if (statusBadge) {
-        statusBadge.className = 'status-badge ' + statusClass;
-        const icon = statusBadge.querySelector('i');
-        if (icon && icon.nextSibling) {
-            icon.nextSibling.textContent = ' ' + statusText;
+        const currentClass = statusBadge.classList.contains('online') ? 'online' : 'offline';
+        if (currentClass !== statusClass) {
+            statusBadge.className = 'status-badge ' + statusClass;
+            statusBadge.innerHTML = `<i class="fas fa-circle"></i> ${statusText}`;
         }
     }
     
@@ -1938,7 +1938,8 @@ function updateAccountCard(cardEl, account) {
         }
     }
     if (statValues[1]) {
-        const newCount = String(account.totalBrainrots || 0);
+        // Show brainrots as X/Y format (totalBrainrots/maxSlots)
+        const newCount = `${account.totalBrainrots || 0}/${account.maxSlots || 10}`;
         if (statValues[1].textContent !== newCount) {
             statValues[1].textContent = newCount;
         }
