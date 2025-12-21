@@ -2039,10 +2039,12 @@ function updateUI() {
     
     const accounts = data.accounts || [];
     
-    // Calculate _isOnline for each account
+    // Use isOnline from server (calculated by lastUpdate timestamp on server side)
+    console.log('updateUI: accounts isOnline status:', accounts.map(a => ({ name: a.playerName, isOnline: a.isOnline, _isOnline: a._isOnline })));
     accounts.forEach(account => {
-        account._isOnline = isAccountOnline(account);
+        account._isOnline = account.isOnline === true;
     });
+    console.log('updateUI: after setting _isOnline:', accounts.map(a => ({ name: a.playerName, _isOnline: a._isOnline })));
     
     // Update stats (use calculated online status)
     const online = accounts.filter(a => a._isOnline).length;
