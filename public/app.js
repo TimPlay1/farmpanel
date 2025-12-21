@@ -1674,7 +1674,15 @@ async function fetchFarmerData() {
     const requestKey = state.currentKey;
     
     try {
-        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}`);
+        // Add cache-busting timestamp to prevent browser caching
+        const cacheBuster = Date.now();
+        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}&_=${cacheBuster}`, {
+            cache: 'no-store',  // Disable HTTP caching
+            headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
+            }
+        });
         
         // Проверяем что ключ не изменился пока ждали ответ
         if (state.currentKey !== requestKey) {
@@ -1693,6 +1701,7 @@ async function fetchFarmerData() {
             return;
         }
         
+        // ALWAYS use fresh data from server, completely replace cached data
         state.farmersData[requestKey] = data;
         
         // Сохраняем в localStorage для быстрой загрузки
@@ -2040,8 +2049,9 @@ function updateUI() {
     
     const accounts = data.accounts || [];
     
-    // Calculate isOnline based on lastUpdate timestamp (< 2 minutes = online)
+    // Calculate isOnline based on lastUpdate timestamp (< 60 seconds = online)
     // Don't trust cached isOnline value - always recalculate from lastUpdate
+    // If no update in 60 seconds, consider offline (scripts sync every 3 seconds)
     const now = Date.now();
     accounts.forEach(account => {
         // Calculate online status from lastUpdate
@@ -2067,7 +2077,7 @@ function updateUI() {
                 }
                 if (lastUpdateTime) {
                     const diffSeconds = (now - lastUpdateTime) / 1000;
-                    calculatedOnline = diffSeconds <= 120; // 2 minutes
+                    calculatedOnline = diffSeconds <= 60; // 60 seconds - fast detection
                 }
             } catch (e) {
                 calculatedOnline = false;
