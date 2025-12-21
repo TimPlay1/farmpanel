@@ -2608,24 +2608,20 @@ async function renderAccountsGrid(accounts) {
                         <div class="account-stat-value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
                         <div class="account-stat-label">Brainrots</div>
                     </div>
-                    ${accountValue > 0 ? `
                     <div class="account-stat account-value">
                         <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
                         <div class="account-stat-label">Value</div>
                     </div>
-                    ` : ''}
                 </div>
-                ${account.brainrots && account.brainrots.length > 0 ? `
-                    <div class="account-brainrots">
-                        <div class="brainrots-title">
-                            <i class="fas fa-brain"></i>
-                            Top Brainrots
-                        </div>
-                        <div class="brainrots-scroll">
-                            ${brainrotsHtml}
-                        </div>
+                <div class="account-brainrots">
+                    <div class="brainrots-title">
+                        <i class="fas fa-brain"></i>
+                        Top Brainrots
                     </div>
-                ` : ''}
+                    <div class="brainrots-scroll">
+                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">No brainrots yet</span>'}
+                    </div>
+                </div>
                 <div class="account-footer">
                     <i class="fas fa-clock"></i>
                     ${formatTimeAgo(account.lastUpdate)}

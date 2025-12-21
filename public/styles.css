@@ -702,6 +702,9 @@ body {
     border-radius: 12px;
     padding: 1.25rem;
     transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    min-height: 320px; /* Fixed minimum height for consistency */
 }
 
 .account-card:hover {
@@ -816,6 +819,8 @@ body {
 
 .account-brainrots {
     margin-bottom: 0.75rem;
+    flex: 1; /* Take remaining space to push footer to bottom */
+    min-height: 100px; /* Minimum height for brainrots section */
 }
 
 .brainrots-title {
@@ -874,11 +879,13 @@ body {
     cursor: pointer;
 }
 
-/* Custom tooltip for mutation - positioned above container */
+/* Custom tooltip for mutation - positioned above badge */
 .brainrot-mini-mutation::after {
     content: attr(data-mutation);
-    position: fixed;
-    transform: translateX(-50%) translateY(-100%);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 6px);
+    transform: translateX(-50%);
     background: rgba(0, 0, 0, 0.95);
     color: white;
     padding: 6px 10px;
@@ -896,9 +903,37 @@ body {
     box-shadow: 0 4px 12px rgba(0,0,0,0.5);
 }
 
-.brainrot-mini-mutation:hover::after {
+/* Arrow pointing down from tooltip */
+.brainrot-mini-mutation::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 2px);
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.95);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s, visibility 0.15s;
+    z-index: 9999;
+}
+
+.brainrot-mini-mutation:hover::after,
+.brainrot-mini-mutation:hover::before {
     opacity: 1;
     visibility: visible;
+}
+
+/* Empty state for no brainrots */
+.brainrots-scroll .no-brainrots {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 60px;
 }
 
 .brainrot-mini-img {
@@ -941,6 +976,7 @@ body {
     gap: 0.35rem;
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
+    margin-top: auto; /* Push footer to bottom of card */
 }
 
 /* Farm Keys List */
