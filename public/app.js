@@ -2049,9 +2049,9 @@ function updateUI() {
     
     const accounts = data.accounts || [];
     
-    // Calculate isOnline based on lastUpdate timestamp (< 60 seconds = online)
+    // Calculate isOnline based on lastUpdate timestamp (< 180 seconds = online)
     // Don't trust cached isOnline value - always recalculate from lastUpdate
-    // If no update in 60 seconds, consider offline (scripts sync every 3 seconds)
+    // If no update in 180 seconds (3 minutes), consider offline
     const now = Date.now();
     accounts.forEach(account => {
         // Calculate online status from lastUpdate
@@ -2077,7 +2077,7 @@ function updateUI() {
                 }
                 if (lastUpdateTime) {
                     const diffSeconds = (now - lastUpdateTime) / 1000;
-                    calculatedOnline = diffSeconds <= 60; // 60 seconds - fast detection
+                    calculatedOnline = diffSeconds <= 180; // 180 seconds (3 minutes)
                 }
             } catch (e) {
                 calculatedOnline = false;
