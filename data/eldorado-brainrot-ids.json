@@ -2,701 +2,681 @@
   {
     "name": "1x1x1x1",
     "id": "0-6-62",
-    "price": 4
+    "rarity": "6"
   },
   {
     "name": "67",
     "id": "0-6-40",
-    "price": 22.49
+    "rarity": "6"
   },
   {
     "name": "Admin Lucky Block",
     "id": "0-8-0",
-    "price": 1
+    "rarity": "8"
   },
   {
     "name": "Agarrini La Palini",
-    "id": "0-6-213",
-    "price": 1
+    "id": "0-6-4",
+    "rarity": "6"
   },
   {
     "name": "Alessio",
     "id": "0-5-18",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Ballerino Lololo",
     "id": "0-5-10",
-    "price": 1.9
+    "rarity": "5"
   },
   {
     "name": "Bisonte Giuppitere",
     "id": "0-6-1",
-    "price": 2.2
+    "rarity": "6"
   },
   {
     "name": "Blackhole Goat",
     "id": "0-6-28",
-    "price": 2
+    "rarity": "6"
   },
   {
     "name": "Boatito Auratito",
     "id": "0-6-72",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Bombardini Tortini",
     "id": "0-5-25",
-    "price": 24.7
+    "rarity": "5"
   },
   {
     "name": "Bombardiro Crocodilo",
     "id": "0-4-2",
-    "price": 1
+    "rarity": "4"
   },
   {
     "name": "Bombombini Gusini",
     "id": "0-4-3",
-    "price": 1.2
+    "rarity": "4"
   },
   {
     "name": "Brainrot God Lucky Block",
-    "id": "0-6-200",
-    "price": 1
+    "id": "0-5-17",
+    "rarity": "5"
   },
   {
     "name": "Buho de Noelo",
-    "id": "0-6-203",
-    "price": 1
+    "id": "0-5-27",
+    "rarity": "5"
   },
   {
     "name": "Bulbito Bandito Traktorito",
     "id": "0-5-11",
-    "price": 1.9
+    "rarity": "5"
   },
   {
     "name": "Burguro and Fryuro",
     "id": "0-6-61",
-    "price": 32.99
+    "rarity": "6"
   },
   {
     "name": "Burrito Bandito",
     "id": "0-6-59",
-    "price": 2
+    "rarity": "6"
   },
   {
     "name": "Capitano Moby",
     "id": "0-6-65",
-    "price": 65
+    "rarity": "6"
   },
   {
     "name": "Chicleteira Bicicleteira",
     "id": "0-6-12",
-    "price": 4.9
+    "rarity": "6"
   },
   {
     "name": "Chicleteira Noelteira",
     "id": "0-6-80",
-    "price": 19.99
+    "rarity": "6"
   },
   {
     "name": "Chillin Chili",
     "id": "0-6-55",
-    "price": 35.99
+    "rarity": "6"
   },
   {
     "name": "Chimino",
-    "id": "0-6-221",
-    "price": 1
+    "id": "0-6-90",
+    "rarity": "6"
   },
   {
     "name": "Chimpanzini Spiderini",
-    "id": "0-6-211",
-    "price": 1
+    "id": "0-6-34",
+    "rarity": "6"
   },
   {
     "name": "Chipso and Queso",
     "id": "0-6-60",
-    "price": 30
+    "rarity": "6"
   },
   {
     "name": "Chrismasmamat",
-    "id": "0-6-204",
-    "price": 1
+    "id": "0-5-28",
+    "rarity": "5"
   },
   {
     "name": "Cocoa Assassino",
-    "id": "0-6-205",
-    "price": 1
+    "id": "0-5-29",
+    "rarity": "5"
   },
   {
     "name": "Cocofanto Elefanto",
     "id": "0-5-0",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Cooki and Milki",
     "id": "0-6-77",
-    "price": 42.99
+    "rarity": "6"
   },
   {
     "name": "Cuadramat and Pakrahmatmamat",
     "id": "0-6-69",
-    "price": 10
+    "rarity": "6"
   },
   {
     "name": "Dragon Cannelloni",
     "id": "0-6-26",
-    "price": 135
+    "rarity": "6"
   },
   {
     "name": "Dul Dul Dul",
     "id": "0-6-33",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Esok Sekolah",
     "id": "0-6-19",
-    "price": 29.49
+    "rarity": "6"
   },
   {
     "name": "Espresso Signora",
     "id": "0-5-21",
-    "price": 2.5
+    "rarity": "5"
   },
   {
     "name": "Eviledon",
     "id": "0-6-52",
-    "price": 9.99
+    "rarity": "6"
   },
   {
     "name": "Extinct Matteo",
-    "id": "0-6-212",
-    "price": 1
+    "id": "0-6-37",
+    "rarity": "6"
   },
   {
     "name": "Festive 67",
-    "id": "0-6-223",
-    "price": 1
+    "id": "0-6-92",
+    "rarity": "6"
+  },
+  {
+    "name": "Festive Lucky Block",
+    "id": "0-10-0",
+    "rarity": "10"
   },
   {
     "name": "Fishino Clownino",
     "id": "0-6-68",
-    "price": 29.99
-  },
-  {
-    "name": "Fragama and Chocorama",
-    "id": "0-6-76",
-    "price": 79.99
+    "rarity": "6"
   },
   {
     "name": "Fragrama and Chocrama",
-    "id": "0-6-214",
-    "price": 1
+    "id": "0-6-76",
+    "rarity": "6"
   },
   {
     "name": "Frigo Camelo",
     "id": "0-4-0",
-    "price": 1
+    "rarity": "4"
   },
   {
     "name": "Garama and Madundung",
     "id": "0-6-24",
-    "price": 32.99
+    "rarity": "6"
   },
   {
     "name": "Gingerat Gerat",
-    "id": "0-6-215",
-    "price": 1
+    "id": "0-6-81",
+    "rarity": "6"
   },
   {
     "name": "Girafa Celestre",
     "id": "0-5-1",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Gobblino Uniciclino",
     "id": "0-6-78",
-    "price": 14.97
+    "rarity": "6"
   },
   {
     "name": "Graipuss Medussi",
     "id": "0-6-9",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Guerriro Digitale",
     "id": "0-6-30",
-    "price": 5.3
+    "rarity": "6"
   },
   {
     "name": "Guest 666",
     "id": "0-6-63",
-    "price": 9.99
+    "rarity": "6"
   },
   {
     "name": "Ho Ho Ho Sahur",
     "id": "0-6-82",
-    "price": 5
+    "rarity": "6"
   },
   {
     "name": "Job Job Job Sahur",
     "id": "0-6-7",
-    "price": 3
+    "rarity": "6"
   },
   {
     "name": "Karkerkar Kurkur",
     "id": "0-6-31",
-    "price": 0.5
+    "rarity": "6"
   },
   {
     "name": "Ketchuru and Musturu",
     "id": "0-6-23",
-    "price": 20
+    "rarity": "6"
   },
   {
     "name": "Ketupat Kepat",
     "id": "0-6-20",
-    "price": 14
+    "rarity": "6"
   },
   {
     "name": "La Casa Boo",
     "id": "0-6-58",
-    "price": 64.99
+    "rarity": "6"
   },
   {
     "name": "La Extinct Grande",
     "id": "0-6-38",
-    "price": 78.99
+    "rarity": "6"
   },
   {
     "name": "La Ginger Sekolah",
-    "id": "0-6-224",
-    "price": 1
+    "id": "0-6-93",
+    "rarity": "6"
   },
   {
     "name": "La Grande Combinasion",
     "id": "0-6-13",
-    "price": 29.49
+    "rarity": "6"
   },
   {
     "name": "La Jolly Grande",
     "id": "0-6-79",
-    "price": 55
+    "rarity": "6"
   },
   {
     "name": "La Karkerkar Combinasion",
     "id": "0-6-16",
-    "price": 6
+    "rarity": "6"
   },
   {
     "name": "La Sahur Combinasion",
     "id": "0-6-10",
-    "price": 3.69
+    "rarity": "6"
   },
   {
     "name": "La Secret Combinasion",
     "id": "0-6-57",
-    "price": 44.99
+    "rarity": "6"
   },
   {
     "name": "La Spooky Grande",
     "id": "0-6-49",
-    "price": 12.29
+    "rarity": "6"
   },
   {
     "name": "La Supreme Combinasion",
     "id": "0-6-22",
-    "price": 79.99
-  },
-  {
-    "name": "La Taco Combinasion",
-    "id": "0-6-227",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "La Vacca Prese Presente",
     "id": "0-6-83",
-    "price": 2.9
+    "rarity": "6"
   },
   {
     "name": "La Vacca Saturno Saturnita",
     "id": "0-6-2",
-    "price": 2
+    "rarity": "6"
   },
   {
     "name": "Las Sis",
     "id": "0-6-41",
-    "price": 9.99
+    "rarity": "6"
   },
   {
     "name": "Las Tralaleritas",
     "id": "0-6-6",
-    "price": 2
+    "rarity": "6"
   },
   {
     "name": "Las Vaquitas Saturnitas",
     "id": "0-6-8",
-    "price": 1.99
+    "rarity": "6"
   },
   {
     "name": "Lavadorito Spinito",
     "id": "0-6-71",
-    "price": 33
+    "rarity": "6"
   },
   {
     "name": "List List List Sahur",
     "id": "0-6-84",
-    "price": 40
+    "rarity": "6"
   },
   {
     "name": "Los 25",
-    "id": "0-6-220",
-    "price": 1
+    "id": "0-6-89",
+    "rarity": "6"
   },
   {
     "name": "Los 67",
     "id": "0-6-51",
-    "price": 19.99
+    "rarity": "6"
   },
   {
     "name": "Los Bombinitos",
     "id": "0-5-19",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Los Bros",
     "id": "0-6-21",
-    "price": 9.5
-  },
-  {
-    "name": "Los Burritos",
-    "id": "0-6-228",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Los Candies",
-    "id": "0-6-222",
-    "price": 1
+    "id": "0-6-91",
+    "rarity": "6"
   },
   {
     "name": "Los Chicleteiras",
     "id": "0-6-39",
-    "price": 6
+    "rarity": "6"
   },
   {
     "name": "Los Combinasionas",
     "id": "0-6-14",
-    "price": 5.99
+    "rarity": "6"
   },
   {
     "name": "Los Crocodillitos",
-    "id": "0-6-206",
-    "price": 1
+    "id": "0-5-3",
+    "rarity": "5"
   },
   {
     "name": "Los Hotspotsitos",
     "id": "0-6-17",
-    "price": 34.99
+    "rarity": "6"
   },
   {
     "name": "Los Lucky Block",
     "id": "0-8-2",
-    "price": 1
+    "rarity": "8"
   },
   {
     "name": "Los Matteos",
-    "id": "0-6-209",
-    "price": 1
+    "id": "0-6-0",
+    "rarity": "6"
   },
   {
     "name": "Los Mobilis",
     "id": "0-6-50",
-    "price": 2.5
-  },
-  {
-    "name": "Los Nooo My Hotspotsitos",
-    "id": "0-6-229",
-    "price": 8
+    "rarity": "6"
   },
   {
     "name": "Los Orcalitos",
     "id": "0-5-15",
-    "price": 1.5
+    "rarity": "5"
   },
   {
     "name": "Los Planitos",
     "id": "0-6-70",
-    "price": 11.99
+    "rarity": "6"
   },
   {
     "name": "Los Primos",
     "id": "0-6-47",
-    "price": 72.94
+    "rarity": "6"
   },
   {
     "name": "Los Puggies",
     "id": "0-6-74",
-    "price": 8
+    "rarity": "6"
   },
   {
     "name": "Los Spaghettis",
     "id": "0-6-75",
-    "price": 39.99
-  },
-  {
-    "name": "Los Spooky Combinasionas",
-    "id": "0-6-226",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Los Spyderinis",
-    "id": "0-6-210",
-    "price": 1
+    "id": "0-6-29",
+    "rarity": "6"
   },
   {
     "name": "Los Tacoritas",
     "id": "0-6-48",
-    "price": 90
+    "rarity": "6"
   },
   {
     "name": "Los Tralaleritos",
     "id": "0-6-5",
-    "price": 1
+    "rarity": "6"
   },
   {
     "name": "Los Tungtungtungcitos",
     "id": "0-5-12",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Mariachi Corazoni",
     "id": "0-6-46",
-    "price": 19.44
+    "rarity": "6"
   },
   {
     "name": "Matteo",
     "id": "0-5-20",
-    "price": 2
+    "rarity": "5"
   },
   {
     "name": "Meowl",
     "id": "0-7-2",
-    "price": 999.99
+    "rarity": "7"
   },
   {
     "name": "Mieteteira Bicicleteira",
     "id": "0-6-54",
-    "price": 5.99
+    "rarity": "6"
   },
   {
     "name": "Money Money Puggy",
     "id": "0-6-43",
-    "price": 16.9
+    "rarity": "6"
   },
   {
     "name": "Naughty Naughty",
-    "id": "0-6-218",
-    "price": 1
+    "id": "0-6-87",
+    "rarity": "6"
   },
   {
     "name": "Noo my Present",
-    "id": "0-6-219",
-    "price": 1
+    "id": "0-6-88",
+    "rarity": "6"
   },
   {
     "name": "Nooo My Hotspot",
     "id": "0-6-35",
-    "price": 3
+    "rarity": "6"
   },
   {
     "name": "Nuclearo Dinossauro",
     "id": "0-6-15",
-    "price": 11
+    "rarity": "6"
   },
   {
     "name": "Odin Din Din Dun",
     "id": "0-5-5",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Orangutini Ananassini",
     "id": "0-4-1",
-    "price": 1
+    "rarity": "4"
   },
   {
     "name": "Orcaledon",
     "id": "0-6-66",
-    "price": 169.99
+    "rarity": "6"
   },
   {
     "name": "Orcalero Orcala",
     "id": "0-5-6",
-    "price": 1
-  },
-  {
-    "name": "Other",
-    "id": "0-6-36",
-    "price": 1.49
+    "rarity": "5"
   },
   {
     "name": "Pakrahmatmamat",
     "id": "0-5-13",
-    "price": 5
+    "rarity": "5"
   },
   {
     "name": "Pandanini Frostini",
-    "id": "0-6-207",
-    "price": 1
+    "id": "0-5-30",
+    "rarity": "5"
   },
   {
     "name": "Piccione Macchina",
     "id": "0-5-14",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Pirulitoita Bicicletera",
     "id": "0-6-73",
-    "price": 1.11
+    "rarity": "6"
   },
   {
     "name": "Pot Hotspot",
     "id": "0-6-11",
-    "price": 2
+    "rarity": "6"
   },
   {
     "name": "Reinito Sleighito",
-    "id": "0-6-225",
-    "price": 1
+    "id": "0-6-94",
+    "rarity": "6"
   },
   {
     "name": "Sammyni Spyderini",
     "id": "0-6-32",
-    "price": 3.5
+    "rarity": "6"
   },
   {
     "name": "Santa Hotspot",
-    "id": "0-6-217",
-    "price": 1
+    "id": "0-6-86",
+    "rarity": "6"
   },
   {
     "name": "Secret Lucky Block",
     "id": "0-6-27",
-    "price": 0.5
+    "rarity": "6"
   },
   {
     "name": "Spaghetti Tualetti",
     "id": "0-6-25",
-    "price": 7.99
+    "rarity": "6"
   },
   {
     "name": "Spooky and Pumpky",
     "id": "0-6-53",
-    "price": 17.99
+    "rarity": "6"
   },
   {
     "name": "Statutino Libertino",
-    "id": "0-6-202",
-    "price": 1
+    "id": "0-5-23",
+    "rarity": "5"
   },
   {
     "name": "Strawberry Elephant",
     "id": "0-7-0",
-    "price": 90
+    "rarity": "7"
   },
   {
     "name": "Swag Soda",
     "id": "0-6-64",
-    "price": 8
+    "rarity": "6"
+  },
+  {
+    "name": "Swaggy Bros",
+    "id": "0-6-95",
+    "rarity": "6"
   },
   {
     "name": "Taco Lucky Block",
     "id": "0-9-0",
-    "price": 0.5
+    "rarity": "9"
   },
   {
     "name": "Tacorita Bicicleta",
     "id": "0-6-45",
-    "price": 23.99
+    "rarity": "6"
   },
   {
     "name": "Tang Tang Keletang",
     "id": "0-6-56",
-    "price": 24.88
+    "rarity": "6"
   },
   {
     "name": "Tartaruga Cisterna",
     "id": "0-5-16",
-    "price": 2
+    "rarity": "5"
   },
   {
     "name": "Te Te Te Sahur",
     "id": "0-4-4",
-    "price": 1
+    "rarity": "4"
   },
   {
     "name": "Tictac Sahur",
     "id": "0-6-42",
-    "price": 35
+    "rarity": "6"
   },
   {
     "name": "Tigroligre Frutonni",
-    "id": "0-6-208",
-    "price": 1
+    "id": "0-5-4",
+    "rarity": "5"
   },
   {
     "name": "Tipi Topi Taco",
     "id": "0-5-24",
-    "price": 3.9
+    "rarity": "5"
   },
   {
     "name": "To to to Sahur",
     "id": "0-6-44",
-    "price": 4
+    "rarity": "6"
   },
   {
     "name": "Torrtuginni Dragonfrutini",
     "id": "0-6-3",
-    "price": 2.5
+    "rarity": "6"
   },
   {
     "name": "Tralaledon",
     "id": "0-6-18",
-    "price": 29.99
+    "rarity": "6"
   },
   {
     "name": "Tralalero Tralala",
     "id": "0-5-2",
-    "price": 1
+    "rarity": "5"
   },
   {
     "name": "Tralalita Tralala",
     "id": "0-5-7",
-    "price": 2.5
+    "rarity": "5"
   },
   {
     "name": "Trenostruzzo Turbo 3000",
     "id": "0-5-8",
-    "price": 4.99
+    "rarity": "5"
   },
   {
     "name": "Triplito Tralaleritos",
-    "id": "0-6-216",
-    "price": 1
+    "id": "0-6-85",
+    "rarity": "6"
   },
   {
     "name": "Trippi Troppi Troppa Trippa",
     "id": "0-5-9",
-    "price": 1.5
+    "rarity": "5"
   },
   {
     "name": "Urubini Flamenguini",
-    "id": "0-6-201",
-    "price": 1
+    "id": "0-5-22",
+    "rarity": "5"
   },
   {
     "name": "W or L",
     "id": "0-6-67",
-    "price": 20
+    "rarity": "6"
   }
 ]
