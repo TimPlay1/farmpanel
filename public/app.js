@@ -104,14 +104,14 @@ function getMutationStyles(mutation) {
         },
         'YinYang': {
             background: 'linear-gradient(135deg, #333, #fff, #333)',
-            textColor: '#888',
-            textShadow: '0 0 2px #fff, 0 0 4px #000',
+            textColor: '#000000',
+            textShadow: '0 0 2px #fff',
             glowColor: '#888888'
         },
         'Yin Yang': {
             background: 'linear-gradient(135deg, #333, #fff, #333)',
-            textColor: '#888',
-            textShadow: '0 0 2px #fff, 0 0 4px #000',
+            textColor: '#000000',
+            textShadow: '0 0 2px #fff',
             glowColor: '#888888'
         },
         'Radioactive': {
