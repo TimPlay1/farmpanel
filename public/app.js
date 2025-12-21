@@ -5550,6 +5550,18 @@ function filterAndRenderOffers() {
             const diff = calculatePriceDiff(o.currentPrice, o.recommendedPrice);
             return Math.abs(diff) > 5; // More than 5% difference
         });
+    } else if (offersState.statusFilter === 'in-stock') {
+        // v9.8.26: Filter offers that have brainrots in collection
+        filtered = filtered.filter(o => {
+            const count = countBrainrotsWithSameNameAndIncome(o.brainrotName, o.income, o.incomeRaw, o.mutation);
+            return count > 0;
+        });
+    } else if (offersState.statusFilter === 'out-of-stock') {
+        // v9.8.26: Filter offers that have NO brainrots in collection
+        filtered = filtered.filter(o => {
+            const count = countBrainrotsWithSameNameAndIncome(o.brainrotName, o.income, o.incomeRaw, o.mutation);
+            return count === 0;
+        });
     }
     
     // Sort
