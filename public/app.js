@@ -5596,13 +5596,17 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
     return ((recommendedPrice - currentPrice) / currentPrice) * 100;
 }
 
-// v9.8.21: Count brainrots in collection with same name as offer
-function countBrainrotsWithSameName(offerBrainrotName, offerMutation) {
+// v9.8.24: Count brainrots in collection with same name AND income as offer
+function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, offerIncomeRaw, offerMutation) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return 0;
     }
     
     if (!offerBrainrotName) return 0;
+    
+    // Normalize offer income (same logic as price cache key)
+    const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
+    const roundedOfferIncome = Math.floor(normalizedOfferIncome / 10) * 10;
     
     // Normalize brainrot name for comparison (lowercase, remove special chars)
     const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -5615,6 +5619,12 @@ function countBrainrotsWithSameName(offerBrainrotName, offerMutation) {
         
         // Match by name
         if (normalizedBrainrotName === normalizedOfferName) {
+            // Also check income matches (rounded to 10)
+            const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
+            const roundedBrainrotIncome = Math.floor(normalizedBrainrotIncome / 10) * 10;
+            
+            if (roundedBrainrotIncome !== roundedOfferIncome) continue;
+            
             // If offer has mutation, also check mutation matches
             if (normalizedOfferMutation) {
                 const normalizedBrainrotMutation = b.mutation ? b.mutation.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
@@ -5622,7 +5632,7 @@ function countBrainrotsWithSameName(offerBrainrotName, offerMutation) {
                     count++;
                 }
             } else {
-                // No mutation on offer - count all with same name
+                // No mutation on offer - count all with same name+income
                 count++;
             }
         }
@@ -5691,10 +5701,10 @@ function renderOffers() {
                               (isUnverified ? '<i class="fas fa-question-circle"></i> Unverified' :
                               (needsUpdate ? 'Needs Update' : 'Active'));
         
-        // v9.8.21: Count brainrots in collection with same name for paused offers
+        // v9.8.24: Count brainrots in collection with same name AND income for paused offers
         let brainrotsCountBadge = '';
         if (isPaused) {
-            const brainrotsCount = countBrainrotsWithSameName(offer.brainrotName, offer.mutation);
+            const brainrotsCount = countBrainrotsWithSameNameAndIncome(offer.brainrotName, offer.income, offer.incomeRaw, offer.mutation);
             if (brainrotsCount > 0) {
                 brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
             } else {
