@@ -4201,6 +4201,12 @@ async function updateCollection() {
             renderCollection();
         }
     }).catch(err => console.warn('Background load error:', err));
+    
+    // v9.8.22: Update offers prices from collection prices cache
+    if (offersState.offers.length > 0) {
+        await updateOffersRecommendedPrices();
+        filterAndRenderOffers();
+    }
 }
 
 // Handle generate button click (for individual brainrots - deprecated, use handleGroupGenerateClick)
@@ -5485,7 +5491,20 @@ async function updateOffersRecommendedPrices() {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
             const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
-            const priceData = state.brainrotPrices[priceKey];
+            let priceData = state.brainrotPrices[priceKey];
+            
+            // v9.8.22: If not found, try nearby income values (±10, ±20)
+            if (!priceData || !priceData.suggestedPrice) {
+                const tryOffsets = [10, -10, 20, -20, 5, -5];
+                for (const offset of tryOffsets) {
+                    const altKey = getPriceCacheKey(offer.brainrotName, normalizedIncome + offset);
+                    const altData = state.brainrotPrices[altKey];
+                    if (altData && altData.suggestedPrice && altData.suggestedPrice > 0) {
+                        priceData = altData;
+                        break;
+                    }
+                }
+            }
             
             if (priceData && priceData.suggestedPrice && priceData.suggestedPrice > 0) {
                 // Store previous recommended price before updating
@@ -5773,12 +5792,12 @@ function renderOffers() {
                     <i class="fas fa-edit"></i>
                     Adjust Price
                 </button>
-                ${isPaused ? `
+                ${isPaused || isUnverified ? `
                 <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
                     <i class="fas fa-trash"></i>
                     Delete
                 </button>
-                ${pausedInfo}
+                ${isPaused ? pausedInfo : ''}
                 ` : ''}
             </div>
         </div>
