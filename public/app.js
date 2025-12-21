@@ -2557,6 +2557,11 @@ async function renderAccountsGrid(accounts) {
     }
     
     // Full render (first time or accounts changed)
+    console.log('[Dashboard] Rendering accounts:');
+    accounts.forEach(acc => {
+        console.log('  ' + acc.playerName + ': brainrots=' + (acc.brainrots ? acc.brainrots.length : 0));
+    });
+    
     accountsGridEl.innerHTML = accounts.map(account => {
         const brainrotsHtml = (account.brainrots || []).slice(0, 10).map(b => {
             const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
