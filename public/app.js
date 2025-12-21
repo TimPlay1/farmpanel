@@ -1689,6 +1689,21 @@ async function fetchStatusOnly() {
             statusData.accounts.forEach(statusAcc => {
                 const existing = existingAccounts.find(a => a.playerName === statusAcc.playerName);
                 if (existing) {
+                    // Only update if status data is fresher or same age
+                    let shouldUpdate = true;
+                    if (existing.lastUpdate && statusAcc.lastUpdate) {
+                        try {
+                            const existingTime = new Date(existing.lastUpdate).getTime();
+                            const statusTime = new Date(statusAcc.lastUpdate).getTime();
+                            // Don't overwrite with older data
+                            if (statusTime < existingTime) {
+                                shouldUpdate = false;
+                            }
+                        } catch (e) {}
+                    }
+                    
+                    if (!shouldUpdate) return;
+                    
                     // Calculate isOnline on frontend from lastUpdate
                     let calculatedOnline = false;
                     if (statusAcc.lastUpdate) {
@@ -1787,7 +1802,26 @@ async function fetchFarmerData() {
             return;
         }
         
-        // ALWAYS use fresh data from server, completely replace cached data
+        // SMART MERGE: Don't overwrite fresher data with stale sync data
+        // Compare lastUpdate timestamps for each account
+        const existingData = state.farmersData[requestKey];
+        if (existingData && existingData.accounts && data.accounts) {
+            data.accounts = data.accounts.map(newAcc => {
+                const existing = existingData.accounts.find(a => a.playerName === newAcc.playerName);
+                if (existing && existing.lastUpdate && newAcc.lastUpdate) {
+                    try {
+                        const existingTime = new Date(existing.lastUpdate).getTime();
+                        const newTime = new Date(newAcc.lastUpdate).getTime();
+                        // If existing data is fresher, keep it
+                        if (existingTime > newTime) {
+                            return { ...newAcc, ...existing };
+                        }
+                    } catch (e) {}
+                }
+                return newAcc;
+            });
+        }
+        
         state.farmersData[requestKey] = data;
         
         // Сохраняем в localStorage для быстрой загрузки
