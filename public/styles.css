@@ -3386,6 +3386,19 @@ body {
     color: #fbbf24;
 }
 
+/* v9.8.22: Unverified offer status (not scanned recently) */
+.offer-status-badge.unverified {
+    background: rgba(251, 146, 60, 0.2);
+    color: #fb923c;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.offer-status-badge.unverified i {
+    font-size: 0.8rem;
+}
+
 /* v9.6: Paused offer status */
 .offer-status-badge.paused {
     background: rgba(107, 114, 128, 0.2);

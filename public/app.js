@@ -5588,21 +5588,35 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
     return ((recommendedPrice - currentPrice) / currentPrice) * 100;
 }
 
-// v9.8.21: Count brainrots in collection with same income as offer
-function countBrainrotsWithSameIncome(offerIncome, offerIncomeRaw) {
+// v9.8.21: Count brainrots in collection with same name as offer
+function countBrainrotsWithSameName(offerBrainrotName, offerMutation) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return 0;
     }
     
-    // Normalize offer income for comparison
-    const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
-    if (!normalizedOfferIncome) return 0;
+    if (!offerBrainrotName) return 0;
+    
+    // Normalize brainrot name for comparison (lowercase, remove special chars)
+    const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const normalizedOfferMutation = offerMutation ? offerMutation.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
     
     let count = 0;
     for (const b of collectionState.allBrainrots) {
-        const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
-        if (normalizedBrainrotIncome === normalizedOfferIncome) {
-            count++;
+        if (!b.name) continue;
+        const normalizedBrainrotName = b.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // Match by name
+        if (normalizedBrainrotName === normalizedOfferName) {
+            // If offer has mutation, also check mutation matches
+            if (normalizedOfferMutation) {
+                const normalizedBrainrotMutation = b.mutation ? b.mutation.toLowerCase().replace(/[^a-z0-9]/g, '') : null;
+                if (normalizedBrainrotMutation === normalizedOfferMutation) {
+                    count++;
+                }
+            } else {
+                // No mutation on offer - count all with same name
+                count++;
+            }
         }
     }
     
@@ -5657,18 +5671,26 @@ function renderOffers() {
         
         // v9.6: Show paused status
         const isPaused = offer.status === 'paused';
-        const statusBadgeClass = isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active');
-        // v9.7: Better paused icon using FontAwesome
-        const statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : (needsUpdate ? 'Needs Update' : 'Active');
         
-        // v9.8.21: Count brainrots in collection with same income for paused offers
+        // v9.8.22: Check if offer was recently scanned (within 1 hour)
+        const lastScannedAt = offer.lastScannedAt ? new Date(offer.lastScannedAt).getTime() : 0;
+        const scanAgeMs = Date.now() - lastScannedAt;
+        const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000; // > 1 hour = unverified
+        
+        let statusBadgeClass = isPaused ? 'paused' : (isUnverified ? 'unverified' : (needsUpdate ? 'needs-update' : 'active'));
+        // v9.7: Better paused icon using FontAwesome
+        let statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : 
+                              (isUnverified ? '<i class="fas fa-question-circle"></i> Unverified' :
+                              (needsUpdate ? 'Needs Update' : 'Active'));
+        
+        // v9.8.21: Count brainrots in collection with same name for paused offers
         let brainrotsCountBadge = '';
         if (isPaused) {
-            const brainrotsCount = countBrainrotsWithSameIncome(offer.income, offer.incomeRaw);
+            const brainrotsCount = countBrainrotsWithSameName(offer.brainrotName, offer.mutation);
             if (brainrotsCount > 0) {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} brainrot(s) with same income in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
+                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
             } else {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="No brainrots with same income in collection"><i class="fas fa-brain"></i> 0</span>`;
+                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="No '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> 0</span>`;
             }
         }
         
