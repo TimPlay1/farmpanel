@@ -82,8 +82,10 @@ module.exports = async (req, res) => {
                 playerName: acc.playerName,
                 isOnline: isOnline,
                 lastUpdate: acc.lastUpdate,
-                status: isOnline ? (acc.status || 'idle') : 'offline',
-                action: isOnline ? (acc.action || '') : '',
+                // status = действие фермера (idle, searching, walking и т.д.)
+                // НЕ "offline" - online/offline определяется по isOnline
+                status: acc.status || 'idle',
+                action: acc.action || '',
                 totalIncome: acc.totalIncome || 0,
                 totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
                 totalBrainrots: acc.totalBrainrots || 0,
