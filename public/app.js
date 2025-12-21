@@ -1684,16 +1684,27 @@ async function fetchStatusOnly() {
         // Update only status-related data in existing cards
         if (statusData.accounts && state.farmersData[state.currentKey]) {
             const existingAccounts = state.farmersData[state.currentKey].accounts || [];
+            const now = Date.now();
             
             statusData.accounts.forEach(statusAcc => {
                 const existing = existingAccounts.find(a => a.playerName === statusAcc.playerName);
                 if (existing) {
+                    // Calculate isOnline on frontend from lastUpdate
+                    let calculatedOnline = false;
+                    if (statusAcc.lastUpdate) {
+                        try {
+                            const lastUpdateTime = new Date(statusAcc.lastUpdate).getTime();
+                            const diffSeconds = (now - lastUpdateTime) / 1000;
+                            calculatedOnline = diffSeconds <= 180; // 3 minutes
+                        } catch (e) {}
+                    }
+                    
                     // Update status fields
-                    existing.isOnline = statusAcc.isOnline;
-                    existing._isOnline = statusAcc.isOnline;
+                    existing.isOnline = calculatedOnline;
+                    existing._isOnline = calculatedOnline;
                     existing.lastUpdate = statusAcc.lastUpdate;
-                    existing.status = statusAcc.status;
-                    existing.action = statusAcc.action;
+                    existing.status = calculatedOnline ? (statusAcc.status || 'idle') : 'offline';
+                    existing.action = calculatedOnline ? (statusAcc.action || '') : '';
                     existing.totalIncome = statusAcc.totalIncome;
                     existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
                     existing.totalBrainrots = statusAcc.totalBrainrots;

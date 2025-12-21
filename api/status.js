@@ -63,39 +63,19 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Farm not found' });
         }
 
-        // Use isOnline directly from database (set by sync POST from Lua)
-        // Don't recalculate - trust the source
-        const now = Date.now();
-        const accounts = (farmer.accounts || []).map(acc => {
-            // Use stored isOnline value directly
-            // Only recalculate if lastUpdate is WAY too old (10+ minutes = definitely offline)
-            let isOnline = acc.isOnline || false;
-            
-            // Safety check: if lastUpdate is more than 10 minutes old, force offline
-            if (acc.lastUpdate) {
-                try {
-                    const lastUpdateTime = new Date(acc.lastUpdate).getTime();
-                    const diffSeconds = (now - lastUpdateTime) / 1000;
-                    if (diffSeconds > 600) { // 10 minutes = definitely offline
-                        isOnline = false;
-                    }
-                } catch (e) {
-                    // Keep stored value
-                }
-            }
-            
-            return {
-                playerName: acc.playerName,
-                isOnline: isOnline,
-                lastUpdate: acc.lastUpdate,
-                status: isOnline ? (acc.status || 'idle') : 'offline',
-                action: isOnline ? (acc.action || '') : '',
-                totalIncome: acc.totalIncome || 0,
-                totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
-                totalBrainrots: acc.totalBrainrots || 0,
-                maxSlots: acc.maxSlots || 10
-            };
-        });
+        // Return raw data - let frontend calculate isOnline
+        // This avoids timezone/clock sync issues between serverless instances
+        const accounts = (farmer.accounts || []).map(acc => ({
+            playerName: acc.playerName,
+            isOnline: acc.isOnline, // Raw value from Lua sync
+            lastUpdate: acc.lastUpdate, // Raw timestamp from sync
+            status: acc.status || 'idle',
+            action: acc.action || '',
+            totalIncome: acc.totalIncome || 0,
+            totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
+            totalBrainrots: acc.totalBrainrots || 0,
+            maxSlots: acc.maxSlots || 10
+        }));
 
         const response = {
             timestamp: Date.now(),
