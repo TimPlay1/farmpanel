@@ -63,17 +63,24 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Farm not found' });
         }
 
-        // Calculate isOnline based on lastUpdate (180 second threshold)
+        // Use isOnline directly from database (set by sync POST from Lua)
+        // Don't recalculate - trust the source
         const now = Date.now();
         const accounts = (farmer.accounts || []).map(acc => {
-            let isOnline = false;
+            // Use stored isOnline value directly
+            // Only recalculate if lastUpdate is WAY too old (10+ minutes = definitely offline)
+            let isOnline = acc.isOnline || false;
+            
+            // Safety check: if lastUpdate is more than 10 minutes old, force offline
             if (acc.lastUpdate) {
                 try {
                     const lastUpdateTime = new Date(acc.lastUpdate).getTime();
                     const diffSeconds = (now - lastUpdateTime) / 1000;
-                    isOnline = diffSeconds <= 180;
+                    if (diffSeconds > 600) { // 10 minutes = definitely offline
+                        isOnline = false;
+                    }
                 } catch (e) {
-                    isOnline = false;
+                    // Keep stored value
                 }
             }
             
