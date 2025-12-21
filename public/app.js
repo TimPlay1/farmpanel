@@ -4240,6 +4240,7 @@ function handleGroupGenerateClick(index) {
         accountName: itemToGenerate.accountName,
         accountId: itemToGenerate.accountId,
         quantity: group.quantity, // Передаём количество для Eldorado
+        mutation: group.mutation || '', // v9.8.28: Передаём мутацию для Eldorado
         groupItems: group.items // Все элементы группы
     };
     
