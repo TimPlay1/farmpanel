@@ -1,13 +1,28 @@
 {
   "brainrots": [
     {
+      "name": "10x Luck",
+      "image": "10x_Luck.png",
+      "hasImage": true
+    },
+    {
       "name": "1x1x1x1",
       "image": "1x1x1x1.png",
       "hasImage": true
     },
     {
+      "name": "1x1x1x1 Ritual Event",
+      "image": "1x1x1x1_Ritual_Event.webp",
+      "hasImage": true
+    },
+    {
       "name": "25",
       "image": "25.png",
+      "hasImage": true
+    },
+    {
+      "name": "3 Paths",
+      "image": "3_Paths.webp",
       "hasImage": true
     },
     {
@@ -21,8 +36,33 @@
       "hasImage": true
     },
     {
+      "name": "Admin Lucky Block 1",
+      "image": "Admin_Lucky_Block_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Admin Machine",
+      "image": "Admin_Machine.png",
+      "hasImage": true
+    },
+    {
+      "name": "Advent Calendar",
+      "image": "Advent_Calendar.png",
+      "hasImage": true
+    },
+    {
+      "name": "Advent Calendar 1",
+      "image": "Advent_Calendar_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Agarrini La Palini",
       "image": "Agarrini_La_Palini.png",
+      "hasImage": true
+    },
+    {
+      "name": "Agarrini Shovel",
+      "image": "Agarrini_Shovel.webp",
       "hasImage": true
     },
     {
@@ -43,6 +83,11 @@
     {
       "name": "Aquanaut",
       "image": "Aquanaut.png",
+      "hasImage": true
+    },
+    {
+      "name": "Aura Farm Boat",
+      "image": "Aura_Farm_Boat.png",
       "hasImage": true
     },
     {
@@ -106,6 +151,16 @@
       "hasImage": true
     },
     {
+      "name": "Base",
+      "image": "Base.png",
+      "hasImage": true
+    },
+    {
+      "name": "Bat",
+      "image": "Bat.webp",
+      "hasImage": true
+    },
+    {
       "name": "Belula Beluga",
       "image": "Belula_Beluga.png",
       "hasImage": true
@@ -116,8 +171,28 @@
       "hasImage": true
     },
     {
+      "name": "Bisonte Giuppitere",
+      "image": "Bisonte_Giuppitere.jpg",
+      "hasImage": true
+    },
+    {
+      "name": "Bisonte Giuppitere 1",
+      "image": "Bisonte_Giuppitere_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Bisonte Giuppitere 2",
+      "image": "Bisonte_Giuppitere_2.png",
+      "hasImage": true
+    },
+    {
       "name": "Blackhole Goat",
       "image": "Blackhole_Goat.png",
+      "hasImage": true
+    },
+    {
+      "name": "Bloodmoon Event",
+      "image": "Bloodmoon_Event.png",
       "hasImage": true
     },
     {
@@ -136,6 +211,11 @@
       "hasImage": true
     },
     {
+      "name": "Bombardiro Crocodilo",
+      "image": "Bombardiro_Crocodilo.png",
+      "hasImage": true
+    },
+    {
       "name": "Bombombini Gusini",
       "image": "Bombombini_Gusini.png",
       "hasImage": true
@@ -146,8 +226,18 @@
       "hasImage": true
     },
     {
+      "name": "Brainrot Dealer",
+      "image": "Brainrot_Dealer.png",
+      "hasImage": true
+    },
+    {
       "name": "Brainrot God Lucky Block",
       "image": "Brainrot_God_Lucky_Block.png",
+      "hasImage": true
+    },
+    {
+      "name": "Brainrot God Lucky Block 1",
+      "image": "Brainrot_God_Lucky_Block_1.png",
       "hasImage": true
     },
     {
@@ -158,6 +248,11 @@
     {
       "name": "Brasilini Berimbini",
       "image": "Brasilini_Berimbini.png",
+      "hasImage": true
+    },
+    {
+      "name": "BRAZILIAN SPYDER",
+      "image": "BRAZILIAN_SPYDER.png",
       "hasImage": true
     },
     {
@@ -176,8 +271,28 @@
       "hasImage": true
     },
     {
+      "name": "Brutto Gialutto",
+      "image": "Brutto_Gialutto.png",
+      "hasImage": true
+    },
+    {
       "name": "Buho de Fuego",
       "image": "Buho_de_Fuego.png",
+      "hasImage": true
+    },
+    {
+      "name": "Buho de Fuego",
+      "image": "Buho_de_Fuego.jpg",
+      "hasImage": true
+    },
+    {
+      "name": "Buho de Fuego 1",
+      "image": "Buho_de_Fuego_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Buho de Fuego 2",
+      "image": "Buho_de_Fuego_2.png",
       "hasImage": true
     },
     {
@@ -193,6 +308,11 @@
     {
       "name": "Bunnyman",
       "image": "Bunnyman.png",
+      "hasImage": true
+    },
+    {
+      "name": "Burbaloni Loliloli",
+      "image": "Burbaloni_Loliloli.png",
       "hasImage": true
     },
     {
@@ -218,6 +338,11 @@
     {
       "name": "Cacto Hipopotamo",
       "image": "Cacto_Hipopotamo.png",
+      "hasImage": true
+    },
+    {
+      "name": "Candy Aurora Event",
+      "image": "Candy_Aurora_Event.png",
       "hasImage": true
     },
     {
@@ -253,6 +378,11 @@
     {
       "name": "Carrotini Brainini",
       "image": "Carrotini_Brainini.png",
+      "hasImage": true
+    },
+    {
+      "name": "Cash",
+      "image": "Cash.png",
       "hasImage": true
     },
     {
@@ -316,6 +446,11 @@
       "hasImage": true
     },
     {
+      "name": "Chimpanzini Bananini 1",
+      "image": "Chimpanzini_Bananini_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Chimpanzini Spiderini",
       "image": "Chimpanzini_Spiderini.png",
       "hasImage": true
@@ -333,6 +468,16 @@
     {
       "name": "Chrismasmamat",
       "image": "Chrismasmamat.png",
+      "hasImage": true
+    },
+    {
+      "name": "Christmas",
+      "image": "Christmas.png",
+      "hasImage": true
+    },
+    {
+      "name": "Christmas Dragon",
+      "image": "Christmas_Dragon.png",
       "hasImage": true
     },
     {
@@ -361,6 +506,11 @@
       "hasImage": true
     },
     {
+      "name": "Coffin Tung Tung Tung Sahur 1",
+      "image": "Coffin_Tung_Tung_Tung_Sahur_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Cooki and Milki",
       "image": "Cooki_and_Milki.png",
       "hasImage": true
@@ -373,6 +523,11 @@
     {
       "name": "Crabbo Limonetta",
       "image": "Crabbo_Limonetta.png",
+      "hasImage": true
+    },
+    {
+      "name": "Crafting Machine",
+      "image": "Crafting_Machine.png",
       "hasImage": true
     },
     {
@@ -393,6 +548,16 @@
     {
       "name": "Developini Braziliaspidini",
       "image": "Developini_Braziliaspidini.png",
+      "hasImage": true
+    },
+    {
+      "name": "do small",
+      "image": "do_small.webp",
+      "hasImage": true
+    },
+    {
+      "name": "do small 1",
+      "image": "do_small_1.webp",
       "hasImage": true
     },
     {
@@ -436,6 +601,11 @@
       "hasImage": true
     },
     {
+      "name": "Esok Sekolah 1",
+      "image": "Esok_Sekolah_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Espresso Signora",
       "image": "Espresso_Signora.png",
       "hasImage": true
@@ -443,6 +613,11 @@
     {
       "name": "Eviledon",
       "image": "Eviledon.png",
+      "hasImage": true
+    },
+    {
+      "name": "Extinct",
+      "image": "Extinct.png",
       "hasImage": true
     },
     {
@@ -461,8 +636,18 @@
       "hasImage": true
     },
     {
+      "name": "Fat Sammy",
+      "image": "Fat_Sammy.png",
+      "hasImage": true
+    },
+    {
       "name": "Festive 67",
       "image": "Festive_67.png",
+      "hasImage": true
+    },
+    {
+      "name": "Festive 67 1",
+      "image": "Festive_67_1.png",
       "hasImage": true
     },
     {
@@ -471,8 +656,23 @@
       "hasImage": true
     },
     {
+      "name": "Festive67-Model",
+      "image": "Festive67-Model.png",
+      "hasImage": true
+    },
+    {
+      "name": "Fishing Event",
+      "image": "Fishing_Event.png",
+      "hasImage": true
+    },
+    {
       "name": "Fishino Clownino",
       "image": "Fishino_Clownino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Flame Slap",
+      "image": "Flame_Slap.png",
       "hasImage": true
     },
     {
@@ -516,6 +716,21 @@
       "hasImage": true
     },
     {
+      "name": "Fuse Machine",
+      "image": "Fuse_Machine.png",
+      "hasImage": true
+    },
+    {
+      "name": "Fuse Machine",
+      "image": "Fuse_Machine.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Galaxy Event",
+      "image": "Galaxy_Event.png",
+      "hasImage": true
+    },
+    {
       "name": "Ganganzelli Trulala",
       "image": "Ganganzelli_Trulala.png",
       "hasImage": true
@@ -541,8 +756,18 @@
       "hasImage": true
     },
     {
+      "name": "Gattatino Nyanino 1",
+      "image": "Gattatino_Nyanino_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Gattito Tacoto",
       "image": "Gattito_Tacoto.png",
+      "hasImage": true
+    },
+    {
+      "name": "Gatto Yarnello",
+      "image": "Gatto_Yarnello.png",
       "hasImage": true
     },
     {
@@ -561,8 +786,23 @@
       "hasImage": true
     },
     {
+      "name": "Gingerat Gerat",
+      "image": "Gingerat_Gerat.png",
+      "hasImage": true
+    },
+    {
+      "name": "Gingerat Gerat 1",
+      "image": "Gingerat_Gerat_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Girafa Celestre",
       "image": "Girafa_Celestre.png",
+      "hasImage": true
+    },
+    {
+      "name": "Globini and Sbtini",
+      "image": "Globini_and_Sbtini.png",
       "hasImage": true
     },
     {
@@ -601,8 +841,23 @@
       "hasImage": true
     },
     {
+      "name": "Guerriro Digitale",
+      "image": "Guerriro_Digitale.png",
+      "hasImage": true
+    },
+    {
       "name": "Guest 666",
       "image": "Guest_666.png",
+      "hasImage": true
+    },
+    {
+      "name": "Halloween",
+      "image": "Halloween.png",
+      "hasImage": true
+    },
+    {
+      "name": "Halloween Base",
+      "image": "Halloween_Base.png",
       "hasImage": true
     },
     {
@@ -628,6 +883,11 @@
     {
       "name": "Ice Dragon",
       "image": "Ice_Dragon.png",
+      "hasImage": true
+    },
+    {
+      "name": "Indonesian Event",
+      "image": "Indonesian_Event.jpg",
       "hasImage": true
     },
     {
@@ -658,6 +918,11 @@
     {
       "name": "John Pork",
       "image": "John_Pork.png",
+      "hasImage": true
+    },
+    {
+      "name": "John Pork 1",
+      "image": "John_Pork_1.png",
       "hasImage": true
     },
     {
@@ -711,6 +976,16 @@
       "hasImage": true
     },
     {
+      "name": "La Ginger Sekolah",
+      "image": "La_Ginger_Sekolah.webp",
+      "hasImage": true
+    },
+    {
+      "name": "La Ginger Sekolah 1",
+      "image": "La_Ginger_Sekolah_1.webp",
+      "hasImage": true
+    },
+    {
       "name": "La Grande Combinasion",
       "image": "La_Grande_Combinasion.png",
       "hasImage": true
@@ -756,6 +1031,11 @@
       "hasImage": true
     },
     {
+      "name": "La Vacca Prese Presente",
+      "image": "La_Vacca_Prese_Presente.png",
+      "hasImage": true
+    },
+    {
       "name": "La Vacca Saturno Saturnita",
       "image": "La_Vacca_Saturno_Saturnita.png",
       "hasImage": true
@@ -783,6 +1063,11 @@
     {
       "name": "Lavadorito Spinito",
       "image": "Lavadorito_Spinito.png",
+      "hasImage": true
+    },
+    {
+      "name": "Legendary",
+      "image": "Legendary.png",
       "hasImage": true
     },
     {
@@ -831,6 +1116,11 @@
       "hasImage": true
     },
     {
+      "name": "Los Burritos",
+      "image": "Los_Burritos.png",
+      "hasImage": true
+    },
+    {
       "name": "Los Candies",
       "image": "Los_Candies.png",
       "hasImage": true
@@ -856,6 +1146,16 @@
       "hasImage": true
     },
     {
+      "name": "Los Cucarachas",
+      "image": "Los_Cucarachas.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Cucarachas 1",
+      "image": "Los_Cucarachas_1.png",
+      "hasImage": true
+    },
+    {
       "name": "Los Gattitos",
       "image": "Los_Gattitos.png",
       "hasImage": true
@@ -878,6 +1178,11 @@
     {
       "name": "Los Lucky Blocks",
       "image": "Los_Lucky_Blocks.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Lucky Blocks 1",
+      "image": "Los_Lucky_Blocks_1.png",
       "hasImage": true
     },
     {
@@ -911,6 +1216,11 @@
       "hasImage": true
     },
     {
+      "name": "Los Primos",
+      "image": "Los_Primos.png",
+      "hasImage": true
+    },
+    {
       "name": "Los Puggies",
       "image": "Los_Puggies.png",
       "hasImage": true
@@ -921,6 +1231,11 @@
       "hasImage": true
     },
     {
+      "name": "Los Spaghettis",
+      "image": "Los_Spaghettis.png",
+      "hasImage": true
+    },
+    {
       "name": "Los Spooky Combinasionas",
       "image": "Los_Spooky_Combinasionas.png",
       "hasImage": true
@@ -928,6 +1243,16 @@
     {
       "name": "Los Spyderinis",
       "image": "Los_Spyderinis.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Taco Blocks",
+      "image": "Los_Taco_Blocks.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Taco Blocks 1",
+      "image": "Los_Taco_Blocks_1.png",
       "hasImage": true
     },
     {
@@ -961,6 +1286,56 @@
       "hasImage": true
     },
     {
+      "name": "Luck Variants",
+      "image": "Luck_Variants.png",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants",
+      "image": "Luck_Variants.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 1",
+      "image": "Luck_Variants_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 1",
+      "image": "Luck_Variants_1.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 2",
+      "image": "Luck_Variants_2.png",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 2",
+      "image": "Luck_Variants_2.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 3",
+      "image": "Luck_Variants_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 3",
+      "image": "Luck_Variants_3.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Luck Variants 4",
+      "image": "Luck_Variants_4.png",
+      "hasImage": true
+    },
+    {
+      "name": "Lucky Blocks",
+      "image": "Lucky_Blocks.png",
+      "hasImage": true
+    },
+    {
       "name": "Magi Ribbitini",
       "image": "Magi_Ribbitini.png",
       "hasImage": true
@@ -971,6 +1346,11 @@
       "hasImage": true
     },
     {
+      "name": "Malame Amarele",
+      "image": "Malame_Amarele.png",
+      "hasImage": true
+    },
+    {
       "name": "Mangolini Parrocini",
       "image": "Mangolini_Parrocini.png",
       "hasImage": true
@@ -978,6 +1358,11 @@
     {
       "name": "Mariachi Corazoni",
       "image": "Mariachi_Corazoni.png",
+      "hasImage": true
+    },
+    {
+      "name": "MarioUBW Sandbox",
+      "image": "MarioUBW_Sandbox.png",
       "hasImage": true
     },
     {
@@ -996,8 +1381,18 @@
       "hasImage": true
     },
     {
+      "name": "Merchandise",
+      "image": "Merchandise.png",
+      "hasImage": true
+    },
+    {
       "name": "Mieteteira Bicicleteira",
       "image": "Mieteteira_Bicicleteira.png",
+      "hasImage": true
+    },
+    {
+      "name": "Molten Event",
+      "image": "Molten_Event.png",
       "hasImage": true
     },
     {
@@ -1026,8 +1421,63 @@
       "hasImage": true
     },
     {
+      "name": "Mutations",
+      "image": "Mutations.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 1",
+      "image": "Mutations_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 2",
+      "image": "Mutations_2.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 3",
+      "image": "Mutations_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 4",
+      "image": "Mutations_4.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 5",
+      "image": "Mutations_5.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 6",
+      "image": "Mutations_6.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 7",
+      "image": "Mutations_7.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 8",
+      "image": "Mutations_8.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mutations 9",
+      "image": "Mutations_9.png",
+      "hasImage": true
+    },
+    {
       "name": "Mythic Lucky Block",
       "image": "Mythic_Lucky_Block.png",
+      "hasImage": true
+    },
+    {
+      "name": "Mythic Lucky Block 1",
+      "image": "Mythic_Lucky_Block_1.png",
       "hasImage": true
     },
     {
@@ -1073,6 +1523,11 @@
     {
       "name": "Nooo My Hotspot",
       "image": "Nooo_My_Hotspot.png",
+      "hasImage": true
+    },
+    {
+      "name": "North Pole Event",
+      "image": "North_Pole_Event.webp",
       "hasImage": true
     },
     {
@@ -1151,6 +1606,11 @@
       "hasImage": true
     },
     {
+      "name": "Panjat Pinang",
+      "image": "Panjat_Pinang.png",
+      "hasImage": true
+    },
+    {
       "name": "Penguin Tree",
       "image": "Penguin_Tree.png",
       "hasImage": true
@@ -1201,6 +1661,21 @@
       "hasImage": true
     },
     {
+      "name": "Pipi Corni",
+      "image": "Pipi_Corni.png",
+      "hasImage": true
+    },
+    {
+      "name": "Pipi Kiwi",
+      "image": "Pipi_Kiwi.png",
+      "hasImage": true
+    },
+    {
+      "name": "Pipi Potato",
+      "image": "Pipi_Potato.png",
+      "hasImage": true
+    },
+    {
       "name": "Pirulitoita Bicicleteira",
       "image": "Pirulitoita_Bicicleteira.png",
       "hasImage": true
@@ -1241,6 +1716,11 @@
       "hasImage": true
     },
     {
+      "name": "Quesadilla Crocodila",
+      "image": "Quesadilla_Crocodila.png",
+      "hasImage": true
+    },
+    {
       "name": "Quesadillo Vampiro",
       "image": "Quesadillo_Vampiro.png",
       "hasImage": true
@@ -1248,6 +1728,26 @@
     {
       "name": "Quivoli Ameleoni",
       "image": "Quivoli_Ameleoni.png",
+      "hasImage": true
+    },
+    {
+      "name": "Raccooni Jandelini",
+      "image": "Raccooni_Jandelini.png",
+      "hasImage": true
+    },
+    {
+      "name": "Radioactive",
+      "image": "Radioactive.png",
+      "hasImage": true
+    },
+    {
+      "name": "Rainbow Machine Event",
+      "image": "Rainbow_Machine_Event.png",
+      "hasImage": true
+    },
+    {
+      "name": "Rang Ring Bus",
+      "image": "Rang_Ring_Bus.png",
       "hasImage": true
     },
     {
@@ -1271,6 +1771,11 @@
       "hasImage": true
     },
     {
+      "name": "Robux Shop",
+      "image": "Robux_Shop.png",
+      "hasImage": true
+    },
+    {
       "name": "Salamino Penguino",
       "image": "Salamino_Penguino.png",
       "hasImage": true
@@ -1286,6 +1791,16 @@
       "hasImage": true
     },
     {
+      "name": "Santa's Fuse",
+      "image": "Santa's_Fuse.png",
+      "hasImage": true
+    },
+    {
+      "name": "Santa's Fuse",
+      "image": "Santa's_Fuse.webp",
+      "hasImage": true
+    },
+    {
       "name": "Santteo",
       "image": "Santteo.png",
       "hasImage": true
@@ -1298,6 +1813,16 @@
     {
       "name": "Secret Lucky Block",
       "image": "Secret_Lucky_Block.png",
+      "hasImage": true
+    },
+    {
+      "name": "Secret Lucky Block 1",
+      "image": "Secret_Lucky_Block_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Shop",
+      "image": "Shop.png",
       "hasImage": true
     },
     {
@@ -1326,6 +1851,11 @@
       "hasImage": true
     },
     {
+      "name": "Slitta Sprinta",
+      "image": "Slitta_Sprinta.png",
+      "hasImage": true
+    },
+    {
       "name": "Smurf Cat",
       "image": "Smurf_Cat.png",
       "hasImage": true
@@ -1351,8 +1881,43 @@
       "hasImage": true
     },
     {
+      "name": "Spooky Lucky Block",
+      "image": "Spooky_Lucky_Block.png",
+      "hasImage": true
+    },
+    {
+      "name": "Spooky Lucky Block 1",
+      "image": "Spooky_Lucky_Block_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "SpyderSammy",
+      "image": "SpyderSammy.jpg",
+      "hasImage": true
+    },
+    {
+      "name": "SpyderSammy",
+      "image": "SpyderSammy.webp",
+      "hasImage": true
+    },
+    {
+      "name": "SpyderSammy 1",
+      "image": "SpyderSammy_1.webp",
+      "hasImage": true
+    },
+    {
       "name": "Squalanana",
       "image": "Squalanana.png",
+      "hasImage": true
+    },
+    {
+      "name": "Statutino Libertino",
+      "image": "Statutino_Libertino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Steal A Brainrot",
+      "image": "Steal_A_Brainrot.webp",
       "hasImage": true
     },
     {
@@ -1363,6 +1928,11 @@
     {
       "name": "Stoppo Luminino",
       "image": "Stoppo_Luminino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Strawberrelli Flamingelli",
+      "image": "Strawberrelli_Flamingelli.png",
       "hasImage": true
     },
     {
@@ -1396,13 +1966,43 @@
       "hasImage": true
     },
     {
+      "name": "Taco Lucky Block",
+      "image": "Taco_Lucky_Block.png",
+      "hasImage": true
+    },
+    {
+      "name": "Taco Lucky Block 1",
+      "image": "Taco_Lucky_Block_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Taco Tuesday",
+      "image": "Taco_Tuesday.png",
+      "hasImage": true
+    },
+    {
       "name": "Tacorita Bicicleta",
       "image": "Tacorita_Bicicleta.png",
       "hasImage": true
     },
     {
+      "name": "Talpa Di Fero",
+      "image": "Talpa_Di_Fero.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tamaluk un Meass",
+      "image": "Tamaluk_un_Meass.png",
+      "hasImage": true
+    },
+    {
       "name": "Tang Tang Keletang",
       "image": "Tang_Tang_Keletang.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tang Tang Keletang 1",
+      "image": "Tang_Tang_Keletang_1.png",
       "hasImage": true
     },
     {
@@ -1413,6 +2013,11 @@
     {
       "name": "Tartaruga Cisterna",
       "image": "Tartaruga_Cisterna.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tartaruga Frutto",
+      "image": "Tartaruga_Frutto.png",
       "hasImage": true
     },
     {
@@ -1506,8 +2111,28 @@
       "hasImage": true
     },
     {
+      "name": "Tralalita Tralala",
+      "image": "Tralalita_Tralala.png",
+      "hasImage": true
+    },
+    {
+      "name": "Trap",
+      "image": "Trap.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tree Tree Tree Sahur",
+      "image": "Tree_Tree_Tree_Sahur.png",
+      "hasImage": true
+    },
+    {
       "name": "Trenostruzzo Turbo 3000",
       "image": "Trenostruzzo_Turbo_3000.png",
+      "hasImage": true
+    },
+    {
+      "name": "Trenostruzzo Turbo 4000",
+      "image": "Trenostruzzo_Turbo_4000.png",
       "hasImage": true
     },
     {
@@ -1518,6 +2143,11 @@
     {
       "name": "Trickolino",
       "image": "Trickolino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Triplito Tralaleritos",
+      "image": "Triplito_Tralaleritos.png",
       "hasImage": true
     },
     {
@@ -1551,6 +2181,56 @@
       "hasImage": true
     },
     {
+      "name": "Upcoming Features Brainrots",
+      "image": "Upcoming_Features_Brainrots.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 1",
+      "image": "Upcoming_Features_Brainrots_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 2",
+      "image": "Upcoming_Features_Brainrots_2.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 3",
+      "image": "Upcoming_Features_Brainrots_3.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 4",
+      "image": "Upcoming_Features_Brainrots_4.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 5",
+      "image": "Upcoming_Features_Brainrots_5.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 6",
+      "image": "Upcoming_Features_Brainrots_6.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 7",
+      "image": "Upcoming_Features_Brainrots_7.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 8",
+      "image": "Upcoming_Features_Brainrots_8.png",
+      "hasImage": true
+    },
+    {
+      "name": "Upcoming Features Brainrots 9",
+      "image": "Upcoming_Features_Brainrots_9.png",
+      "hasImage": true
+    },
+    {
       "name": "Urubini Flamenguini",
       "image": "Urubini_Flamenguini.png",
       "hasImage": true
@@ -1571,6 +2251,31 @@
       "hasImage": true
     },
     {
+      "name": "Winter Hour",
+      "image": "Winter_Hour.png",
+      "hasImage": true
+    },
+    {
+      "name": "Witch Fuse",
+      "image": "Witch_Fuse.png",
+      "hasImage": true
+    },
+    {
+      "name": "Witch Fuse",
+      "image": "Witch_Fuse.webp",
+      "hasImage": true
+    },
+    {
+      "name": "Witch Fuse 1",
+      "image": "Witch_Fuse_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Witching Event",
+      "image": "Witching_Event.webp",
+      "hasImage": true
+    },
+    {
       "name": "Wombo Rollo",
       "image": "Wombo_Rollo.png",
       "hasImage": true
@@ -1583,6 +2288,16 @@
     {
       "name": "Yeti Claus",
       "image": "Yeti_Claus.png",
+      "hasImage": true
+    },
+    {
+      "name": "Yin Yang Spin",
+      "image": "Yin_Yang_Spin.png",
+      "hasImage": true
+    },
+    {
+      "name": "Yin-Yang Event",
+      "image": "Yin-Yang_Event.png",
       "hasImage": true
     },
     {
