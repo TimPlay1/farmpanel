@@ -821,6 +821,8 @@ body {
     margin-bottom: 0.75rem;
     flex: 1; /* Take remaining space to push footer to bottom */
     min-height: 100px; /* Minimum height for brainrots section */
+    overflow: visible; /* Allow tooltips to show above */
+    position: relative;
 }
 
 .brainrots-title {
@@ -838,7 +840,8 @@ body {
     overflow-x: auto;
     overflow-y: visible; /* Allow tooltip to show above */
     padding-bottom: 0.5rem;
-    padding-top: 18px; /* More space for mutation badges and tooltip */
+    padding-top: 22px; /* More space for mutation badges and tooltip */
+    position: relative;
 }
 
 .brainrots-scroll::-webkit-scrollbar {
@@ -879,50 +882,7 @@ body {
     cursor: pointer;
 }
 
-/* Custom tooltip for mutation - positioned above badge */
-.brainrot-mini-mutation::after {
-    content: attr(data-mutation);
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 6px);
-    transform: translateX(-50%);
-    background: rgba(0, 0, 0, 0.95);
-    color: white;
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    white-space: nowrap;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
-    pointer-events: none;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    z-index: 9999;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-}
-
-/* Arrow pointing down from tooltip */
-.brainrot-mini-mutation::before {
-    content: '';
-    position: absolute;
-    left: 50%;
-    bottom: calc(100% + 2px);
-    transform: translateX(-50%);
-    border: 5px solid transparent;
-    border-top-color: rgba(0, 0, 0, 0.95);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.15s, visibility 0.15s;
-    z-index: 9999;
-}
-
-.brainrot-mini-mutation:hover::after,
-.brainrot-mini-mutation:hover::before {
-    opacity: 1;
-    visibility: visible;
-}
+/* Tooltip is now handled by JavaScript for proper z-index layering */
 
 /* Empty state for no brainrots */
 .brainrots-scroll .no-brainrots {

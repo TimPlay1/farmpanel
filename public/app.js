@@ -6906,10 +6906,66 @@ function _doUpdateBalanceChart(period) {
     isChartUpdating = false;
 }
 
+// Dynamic tooltip for mutation badges (to escape overflow containers)
+function initMutationTooltips() {
+    // Create tooltip element if not exists
+    let tooltip = document.getElementById('mutation-tooltip');
+    if (!tooltip) {
+        tooltip = document.createElement('div');
+        tooltip.id = 'mutation-tooltip';
+        tooltip.style.cssText = `
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            color: white;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s, visibility 0.15s;
+            pointer-events: none;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            z-index: 99999;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        `;
+        document.body.appendChild(tooltip);
+    }
+    
+    // Event delegation for mutation badges
+    document.addEventListener('mouseover', function(e) {
+        const badge = e.target.closest('.brainrot-mini-mutation');
+        if (badge && badge.dataset.mutation) {
+            const rect = badge.getBoundingClientRect();
+            tooltip.textContent = badge.dataset.mutation;
+            tooltip.style.opacity = '1';
+            tooltip.style.visibility = 'visible';
+            
+            // Position above the badge
+            const tooltipRect = tooltip.getBoundingClientRect();
+            tooltip.style.left = (rect.left + rect.width / 2 - tooltipRect.width / 2) + 'px';
+            tooltip.style.top = (rect.top - tooltipRect.height - 8) + 'px';
+        }
+    });
+    
+    document.addEventListener('mouseout', function(e) {
+        const badge = e.target.closest('.brainrot-mini-mutation');
+        if (badge) {
+            tooltip.style.opacity = '0';
+            tooltip.style.visibility = 'hidden';
+        }
+    });
+}
+
 // Initialize period tab listeners
 document.addEventListener('DOMContentLoaded', function() {
     // Load saved chart period
     loadChartPeriod();
+    
+    // Initialize mutation tooltips
+    initMutationTooltips();
     
     document.querySelectorAll('.period-tab').forEach(tab => {
         tab.addEventListener('click', function() {
