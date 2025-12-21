@@ -54,9 +54,9 @@ function formatMoney(num) {
     return sign + absNum.toLocaleString();
 }
 
-// Mutation colors for brainrot variants
-function getMutationColor(mutation) {
-    if (!mutation) return '#888';
+// Mutation styles for brainrot variants - includes background, text color, and glow color
+function getMutationStyles(mutation) {
+    if (!mutation) return null;
     
     // Clean from HTML tags
     let clean = mutation.replace(/<[^>]+>/g, '').trim();
@@ -65,19 +65,68 @@ function getMutationColor(mutation) {
         clean = 'YinYang';
     }
     
-    const colors = {
-        'Gold': '#FFD700',
-        'Diamond': '#00BFFF',
-        'Bloodrot': '#8B0000',
-        'Rainbow': 'linear-gradient(90deg, red, orange, yellow, green, blue, violet)',
-        'Candy': '#FF69B4',
-        'Lava': '#FF4500',
-        'Galaxy': '#9400D3',
-        'YinYang': 'linear-gradient(90deg, #000, #fff)',
-        'Yin Yang': 'linear-gradient(90deg, #000, #fff)',
-        'Radioactive': '#32CD32'
+    const styles = {
+        'Gold': {
+            background: 'linear-gradient(135deg, #FFD700, #FFA500)',
+            textColor: '#4a3500',
+            glowColor: '#FFD700'
+        },
+        'Diamond': {
+            background: 'linear-gradient(135deg, #00BFFF, #87CEEB)',
+            textColor: '#003366',
+            glowColor: '#00BFFF'
+        },
+        'Bloodrot': {
+            background: 'linear-gradient(135deg, #8B0000, #DC143C)',
+            textColor: '#ffcccc',
+            glowColor: '#DC143C'
+        },
+        'Rainbow': {
+            background: 'linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff)',
+            textColor: '#ffffff',
+            textShadow: '0 0 3px #000, 0 0 5px #000',
+            glowColor: '#ff00ff'
+        },
+        'Candy': {
+            background: 'linear-gradient(135deg, #FF69B4, #FF1493)',
+            textColor: '#4a0020',
+            glowColor: '#FF69B4'
+        },
+        'Lava': {
+            background: 'linear-gradient(135deg, #FF4500, #FF6347)',
+            textColor: '#3d0000',
+            glowColor: '#FF4500'
+        },
+        'Galaxy': {
+            background: 'linear-gradient(135deg, #9400D3, #4B0082)',
+            textColor: '#e0c0ff',
+            glowColor: '#9400D3'
+        },
+        'YinYang': {
+            background: 'linear-gradient(135deg, #333, #fff, #333)',
+            textColor: '#888',
+            textShadow: '0 0 2px #fff, 0 0 4px #000',
+            glowColor: '#888888'
+        },
+        'Yin Yang': {
+            background: 'linear-gradient(135deg, #333, #fff, #333)',
+            textColor: '#888',
+            textShadow: '0 0 2px #fff, 0 0 4px #000',
+            glowColor: '#888888'
+        },
+        'Radioactive': {
+            background: 'linear-gradient(135deg, #32CD32, #00FF00)',
+            textColor: '#003300',
+            glowColor: '#32CD32'
+        }
     };
-    return colors[clean] || '#888';
+    return styles[clean] || { background: '#888', textColor: '#fff', glowColor: '#888' };
+}
+
+// Get just the background color/gradient for mutation
+function getMutationColor(mutation) {
+    const styles = getMutationStyles(mutation);
+    return styles ? styles.background : '#888';
 }
 
 // Clean mutation text for display
@@ -3491,7 +3540,11 @@ async function renderCollection() {
             </div>
             <div class="brainrot-details">
                 <div class="brainrot-name" title="${group.name}">${group.name}</div>
-                ${group.mutation ? `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${getMutationColor(group.mutation)};">${cleanMutationText(group.mutation)}</span></div>` : ''}
+                ${group.mutation ? (() => {
+                    const mStyles = getMutationStyles(group.mutation);
+                    const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
+                    return `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(group.mutation)}</span></div>`;
+                })() : ''}
                 <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
                 ${priceHtml}
                 <div class="brainrot-account" title="${accountsList}">
@@ -5399,7 +5452,11 @@ function renderOffers() {
                     </div>
                     <div class="offer-card-info">
                         <div class="offer-card-name" title="${offer.brainrotName}">${offer.brainrotName || 'Unknown'}</div>
-                        ${cleanMutationText(offer.mutation) ? `<div class="offer-mutation-line"><span class="offer-mutation-badge" style="background: ${getMutationColor(offer.mutation)};">${cleanMutationText(offer.mutation)}</span></div>` : ''}
+                        ${cleanMutationText(offer.mutation) ? (() => {
+                            const mStyles = getMutationStyles(offer.mutation);
+                            const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
+                            return `<div class="offer-mutation-line"><span class="offer-mutation-badge" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(offer.mutation)}</span></div>`;
+                        })() : ''}
                         <div class="offer-card-id">${offer.offerId}</div>
                         <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>
