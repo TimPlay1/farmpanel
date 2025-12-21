@@ -1672,6 +1672,7 @@ async function fetchFarmerData() {
     if (!state.currentKey) return;
     
     const requestKey = state.currentKey;
+    const fetchStart = performance.now();
     
     try {
         // Add cache-busting timestamp to prevent browser caching
@@ -1683,6 +1684,8 @@ async function fetchFarmerData() {
                 'Pragma': 'no-cache'
             }
         });
+        
+        const networkTime = performance.now() - fetchStart;
         
         // Проверяем что ключ не изменился пока ждали ответ
         if (state.currentKey !== requestKey) {
@@ -1725,7 +1728,16 @@ async function fetchFarmerData() {
             saveState();
         }
         
+        const uiStart = performance.now();
         updateUI();
+        const uiTime = performance.now() - uiStart;
+        
+        // Log performance metrics (only every 10th call to reduce noise)
+        if (!window._fetchCount) window._fetchCount = 0;
+        window._fetchCount++;
+        if (window._fetchCount % 10 === 1) {
+            console.log(`[Perf] Network: ${networkTime.toFixed(0)}ms, UI: ${uiTime.toFixed(0)}ms, Total: ${(performance.now() - fetchStart).toFixed(0)}ms`);
+        }
         
     } catch (error) {
         console.error('Fetch error:', error);
@@ -2137,16 +2149,19 @@ function updateUI() {
         }
     }
     
-    // Render accounts
-    renderAccountsGrid(accounts);
-    renderAccountsList(accounts);
-    updateCurrentFarmer();
-    
-    // Update collection view
-    updateCollection();
-    
-    // Update balance chart
-    updateBalanceChart();
+    // Render accounts - use requestAnimationFrame for smooth updates
+    // All renders in same RAF to batch DOM updates
+    requestAnimationFrame(() => {
+        renderAccountsGrid(accounts);
+        renderAccountsList(accounts);
+        updateCurrentFarmer();
+        
+        // Update collection view (non-critical, can be slightly delayed)
+        requestAnimationFrame(() => {
+            updateCollection();
+            updateBalanceChart();
+        });
+    });
 }
 
 function updateCurrentFarmer() {
@@ -2352,16 +2367,16 @@ async function renderAccountsGrid(accounts) {
         existingPlayerNames.size > 0 &&
         [...existingPlayerNames].every(name => newPlayerNames.has(name));
     
-    // DISABLED smart update - always do full render to fix status issues
-    // if (sameAccounts) {
-    //     // Smart update - just update values in existing cards
-    //     accounts.forEach(account => {
-    //         const cardId = getAccountCardId(account);
-    //         const cardEl = document.getElementById(cardId);
-    //         updateAccountCard(cardEl, account);
-    //     });
-    //     return;
-    // }
+    // Smart update - update existing cards without full DOM rebuild
+    if (sameAccounts) {
+        // Smart update - just update values in existing cards
+        accounts.forEach(account => {
+            const cardId = getAccountCardId(account);
+            const cardEl = document.getElementById(cardId);
+            updateAccountCard(cardEl, account);
+        });
+        return;
+    }
     
     // Full render (first time or accounts changed)
     accountsGridEl.innerHTML = accounts.map(account => {
