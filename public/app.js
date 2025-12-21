@@ -5490,21 +5490,10 @@ async function updateOffersRecommendedPrices() {
         if (offer.brainrotName && offer.income) {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
+            // v9.8.23: Use exact same key as collection - no offsets needed
+            // getPriceCacheKey already rounds to 10, so all similar incomes match
             const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
-            let priceData = state.brainrotPrices[priceKey];
-            
-            // v9.8.22: If not found, try nearby income values (±10, ±20)
-            if (!priceData || !priceData.suggestedPrice) {
-                const tryOffsets = [10, -10, 20, -20, 5, -5];
-                for (const offset of tryOffsets) {
-                    const altKey = getPriceCacheKey(offer.brainrotName, normalizedIncome + offset);
-                    const altData = state.brainrotPrices[altKey];
-                    if (altData && altData.suggestedPrice && altData.suggestedPrice > 0) {
-                        priceData = altData;
-                        break;
-                    }
-                }
-            }
+            const priceData = state.brainrotPrices[priceKey];
             
             if (priceData && priceData.suggestedPrice && priceData.suggestedPrice > 0) {
                 // Store previous recommended price before updating
