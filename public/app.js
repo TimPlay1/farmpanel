@@ -1795,6 +1795,7 @@ async function fetchAllFarmersData() {
 
 // Check if account is online based on lastUpdate timestamp (primary) and isOnline flag (secondary)
 // Account is considered online only if lastUpdate is within last 2 minutes
+// NOTE: lastUpdate comes as LOCAL time from server (not UTC), so we parse without adding Z
 function isAccountOnline(account) {
     if (!account) return false;
     
@@ -1806,11 +1807,26 @@ function isAccountOnline(account) {
     
     try {
         let lastUpdateTime;
-        if (account.lastUpdate.includes('T') || account.lastUpdate.includes('Z')) {
+        // Parse as local time (server sends local time without timezone)
+        if (account.lastUpdate.includes('T')) {
+            // Already ISO format - parse directly
             lastUpdateTime = new Date(account.lastUpdate).getTime();
         } else {
-            const isoString = account.lastUpdate.replace(' ', 'T') + 'Z';
-            lastUpdateTime = new Date(isoString).getTime();
+            // Format: "2025-12-21 12:50:05" - parse as local time
+            const parts = account.lastUpdate.split(/[- :]/);
+            if (parts.length >= 6) {
+                // Create date from parts: year, month (0-based), day, hour, min, sec
+                lastUpdateTime = new Date(
+                    parseInt(parts[0]), 
+                    parseInt(parts[1]) - 1, 
+                    parseInt(parts[2]),
+                    parseInt(parts[3]),
+                    parseInt(parts[4]),
+                    parseInt(parts[5])
+                ).getTime();
+            } else {
+                return account.isOnline === true;
+            }
         }
         
         const now = Date.now();
@@ -2012,6 +2028,7 @@ function updateUI() {
     const online = accounts.filter(a => a._isOnline).length;
     const totalIncome = accounts.reduce((sum, a) => sum + (a.totalIncome || 0), 0);
     const totalBrainrots = accounts.reduce((sum, a) => sum + (a.totalBrainrots || 0), 0);
+    const totalSlots = accounts.reduce((sum, a) => sum + (a.maxSlots || 10), 0);
     
     // Собираем все брейнроты для расчета общей стоимости
     const allBrainrots = [];
@@ -2041,7 +2058,7 @@ function updateUI() {
     statsEls.totalAccounts.textContent = accounts.length;
     statsEls.onlineAccounts.textContent = online;
     statsEls.totalIncome.textContent = formatIncome(totalIncome);
-    statsEls.totalBrainrots.textContent = totalBrainrots;
+    statsEls.totalBrainrots.textContent = `${totalBrainrots}/${totalSlots}`;
     
     // Update total value with change indicator
     if (statsEls.totalValue) {
@@ -2332,7 +2349,7 @@ async function renderAccountsGrid(accounts) {
                         <div class="account-stat-label">Income</div>
                     </div>
                     <div class="account-stat">
-                        <div class="account-stat-value">${account.totalBrainrots || 0}</div>
+                        <div class="account-stat-value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
                         <div class="account-stat-label">Brainrots</div>
                     </div>
                     ${accountValue > 0 ? `
@@ -2426,7 +2443,7 @@ function renderAccountsList(accounts) {
                     <div class="label">INCOME</div>
                 </div>
                 <div class="account-list-brainrots">
-                    <div class="value">${account.totalBrainrots || 0}</div>
+                    <div class="value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
                     <div class="label">BRAINROTS</div>
                 </div>
                 ${accountValue > 0 ? `
