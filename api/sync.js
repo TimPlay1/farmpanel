@@ -266,27 +266,12 @@ module.exports = async (req, res) => {
                 }
             }
 
-            // MERGE accounts: сохраняем существующих фермеров, обновляем тех кто пришёл в sync
-            const existingAccounts = farmer.accounts || [];
-            const existingByName = {};
-            for (const acc of existingAccounts) {
-                if (acc.playerName) {
-                    existingByName[acc.playerName] = acc;
-                }
-            }
-            
-            // Обновляем/добавляем пришедшие аккаунты
-            for (const acc of accounts) {
-                if (acc.playerName) {
-                    existingByName[acc.playerName] = acc;
-                }
-            }
-            
-            // Собираем обратно в массив
-            const mergedAccounts = Object.values(existingByName);
+            // NO MERGE - полная замена аккаунтов данными из panel_sync.lua
+            // panel_sync.lua отправляет sync ТОЛЬКО если есть хотя бы один online аккаунт
+            // Если все offline - sync не отправляется и старые данные сохраняются в БД
 
             // Update farmer data
-            farmer.accounts = mergedAccounts;
+            farmer.accounts = accounts;
             farmer.accountAvatars = accountAvatars;
             farmer.playerUserIdMap = playerUserIdMap; // Сохраняем маппинг
             farmer.lastUpdate = new Date();
