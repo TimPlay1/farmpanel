@@ -2040,9 +2040,40 @@ function updateUI() {
     
     const accounts = data.accounts || [];
     
-    // Use isOnline from server (calculated by lastUpdate timestamp on server side)
+    // Calculate isOnline based on lastUpdate timestamp (< 2 minutes = online)
+    // Don't trust cached isOnline value - always recalculate from lastUpdate
+    const now = Date.now();
     accounts.forEach(account => {
-        account._isOnline = account.isOnline === true;
+        // Calculate online status from lastUpdate
+        let calculatedOnline = false;
+        if (account.lastUpdate) {
+            try {
+                let lastUpdateTime;
+                if (account.lastUpdate.includes('T')) {
+                    lastUpdateTime = new Date(account.lastUpdate).getTime();
+                } else {
+                    // Format: "2025-12-21 14:04:43" - parse as local time
+                    const parts = account.lastUpdate.split(/[- :]/);
+                    if (parts.length >= 6) {
+                        lastUpdateTime = new Date(
+                            parseInt(parts[0]), 
+                            parseInt(parts[1]) - 1, 
+                            parseInt(parts[2]),
+                            parseInt(parts[3]),
+                            parseInt(parts[4]),
+                            parseInt(parts[5])
+                        ).getTime();
+                    }
+                }
+                if (lastUpdateTime) {
+                    const diffSeconds = (now - lastUpdateTime) / 1000;
+                    calculatedOnline = diffSeconds <= 120; // 2 minutes
+                }
+            } catch (e) {
+                calculatedOnline = false;
+            }
+        }
+        account._isOnline = calculatedOnline;
     });
     
     // Update stats (use calculated online status)
