@@ -1669,15 +1669,32 @@ function stopPolling() {
 }
 
 // Fast status-only fetch (lightweight endpoint)
+let statusController = null;
+let lastStatusRequestId = 0;
+
 async function fetchStatusOnly() {
     if (!state.currentKey) return;
     
+    const thisStatusId = ++lastStatusRequestId;
+    
     try {
+        // Abort previous status request
+        if (statusController) {
+            statusController.abort();
+        }
+        statusController = new AbortController();
+        
         const response = await fetch(`${API_BASE}/status?key=${encodeURIComponent(state.currentKey)}&_=${Date.now()}`, {
-            cache: 'no-store'
+            cache: 'no-store',
+            signal: statusController.signal
         });
         
         if (!response.ok) return;
+        
+        // Check if this is still the latest request
+        if (thisStatusId !== lastStatusRequestId) {
+            return;
+        }
         
         const statusData = await response.json();
         
@@ -1743,7 +1760,12 @@ async function fetchStatusOnly() {
             });
         }
     } catch (error) {
-        // Silently fail - full fetch will handle errors
+        // Ignore abort errors, silently fail for others
+        if (error.name !== 'AbortError') {
+            // Silent fail
+        }
+    } finally {
+        statusController = null;
     }
 }
 
@@ -1766,17 +1788,37 @@ function abortCurrentFetch() {
     }
 }
 
+// Track if sync is in progress to prevent overlapping requests
+let syncInProgress = false;
+let lastSyncRequestId = 0;
+
 async function fetchFarmerData() {
     if (!state.currentKey) return;
     
+    // Don't start new sync if one is already in progress
+    if (syncInProgress) {
+        console.log('[Sync] Skipping - previous sync still in progress');
+        return;
+    }
+    
     const requestKey = state.currentKey;
     const fetchStart = performance.now();
+    const thisRequestId = ++lastSyncRequestId;
+    
+    syncInProgress = true;
     
     try {
+        // Abort any previous request
+        if (currentFetchController) {
+            currentFetchController.abort();
+        }
+        currentFetchController = new AbortController();
+        
         // Add cache-busting timestamp to prevent browser caching
         const cacheBuster = Date.now();
         const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}&_=${cacheBuster}`, {
             cache: 'no-store',  // Disable HTTP caching
+            signal: currentFetchController.signal,
             headers: {
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache'
@@ -1799,6 +1841,12 @@ async function fetchFarmerData() {
         
         // Ещё раз проверяем что ключ не изменился
         if (state.currentKey !== requestKey) {
+            return;
+        }
+        
+        // Check if this is still the latest request
+        if (thisRequestId !== lastSyncRequestId) {
+            console.log('[Sync] Ignoring stale response');
             return;
         }
         
@@ -1857,7 +1905,16 @@ async function fetchFarmerData() {
         }
         
     } catch (error) {
+        // Ignore abort errors
+        if (error.name === 'AbortError') {
+            console.log('[Sync] Request aborted');
+            return;
+        }
         console.error('Fetch error:', error);
+    } finally {
+        // Always reset sync flag
+        syncInProgress = false;
+        currentFetchController = null;
     }
 }
 
