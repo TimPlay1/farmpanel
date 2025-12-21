@@ -1743,6 +1743,10 @@ async function fetchStatusOnly() {
                     existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
                     existing.totalBrainrots = statusAcc.totalBrainrots;
                     existing.maxSlots = statusAcc.maxSlots;
+                    // ADDED: Update brainrots array for real-time updates
+                    if (statusAcc.brainrots && Array.isArray(statusAcc.brainrots)) {
+                        existing.brainrots = statusAcc.brainrots;
+                    }
                 }
             });
             

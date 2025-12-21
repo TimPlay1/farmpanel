@@ -57,7 +57,8 @@ module.exports = async (req, res) => {
                     'accounts.totalIncome': 1,
                     'accounts.totalIncomeFormatted': 1,
                     'accounts.totalBrainrots': 1,
-                    'accounts.maxSlots': 1
+                    'accounts.maxSlots': 1,
+                    'accounts.brainrots': 1  // ADDED: Include brainrots for real-time updates
                 } 
             }
         );
@@ -91,7 +92,8 @@ module.exports = async (req, res) => {
                 totalIncome: acc.totalIncome || 0,
                 totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
                 totalBrainrots: acc.totalBrainrots || 0,
-                maxSlots: acc.maxSlots || 10
+                maxSlots: acc.maxSlots || 10,
+                brainrots: acc.brainrots || []  // ADDED: Include brainrots for real-time UI updates
             };
         });
 
