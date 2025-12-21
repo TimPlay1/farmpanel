@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.28
+// @version      9.8.29
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.28
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.28
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.29
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.29
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.16';
+    const VERSION = '9.8.29';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -775,6 +775,123 @@
         setTimeout(() => el.remove(), 4000);
     }
     
+    // ==================== LOADING SPINNER HANDLER ====================
+    
+    /**
+     * Check if Eldorado loading spinner is visible
+     * The spinner has class "la-ball-spin-clockwise"
+     */
+    function isSpinnerVisible() {
+        const spinner = document.querySelector('.la-ball-spin-clockwise');
+        if (!spinner) return false;
+        
+        // Check if spinner is actually visible (not hidden)
+        const style = window.getComputedStyle(spinner);
+        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    }
+    
+    /**
+     * Wait for loading spinner to disappear
+     * @param {number} timeout - Max time to wait in ms (default 15000)
+     * @param {string} actionName - Name of action being performed (for retry)
+     * @returns {Promise<boolean>} - true if spinner disappeared, false if timeout (page will reload)
+     */
+    async function waitForSpinner(timeout = 15000, actionName = null) {
+        // If no spinner visible, return immediately
+        if (!isSpinnerVisible()) {
+            return true;
+        }
+        
+        log('⏳ Loading spinner detected, waiting...');
+        const startTime = Date.now();
+        
+        while (Date.now() - startTime < timeout) {
+            if (!isSpinnerVisible()) {
+                log('✅ Spinner disappeared');
+                await new Promise(r => setTimeout(r, 300)); // Small delay after spinner gone
+                return true;
+            }
+            await new Promise(r => setTimeout(r, 200));
+        }
+        
+        // Timeout - spinner didn't disappear
+        logError('⚠️ Spinner timeout after 15s, reloading page...');
+        showNotification('⏳ Page loading stuck, reloading...', 'warning');
+        
+        // Save action to retry after reload
+        if (actionName) {
+            GM_setValue('pendingAction', {
+                action: actionName,
+                timestamp: Date.now(),
+                url: window.location.href
+            });
+            log(`Saved pending action: ${actionName}`);
+        }
+        
+        // Reload page
+        await new Promise(r => setTimeout(r, 500));
+        window.location.reload();
+        return false;
+    }
+    
+    /**
+     * Check and execute pending action after page reload
+     */
+    async function checkPendingAction() {
+        const pending = GM_getValue('pendingAction', null);
+        if (!pending) return;
+        
+        // Check if action is recent (within 2 minutes)
+        if (Date.now() - pending.timestamp > 2 * 60 * 1000) {
+            GM_deleteValue('pendingAction');
+            log('Pending action expired, ignoring');
+            return;
+        }
+        
+        // Check if we're on the same or relevant page
+        const currentUrl = window.location.href;
+        
+        log(`Found pending action: ${pending.action}`);
+        GM_deleteValue('pendingAction'); // Clear it first to prevent loops
+        
+        // Wait for page to be ready
+        await new Promise(r => setTimeout(r, 2000));
+        
+        // Wait for any initial spinners
+        if (!await waitForSpinner(15000)) {
+            return; // Another reload happened
+        }
+        
+        // Execute the pending action
+        switch (pending.action) {
+            case 'autoFill':
+                log('Retrying auto-fill after reload...');
+                showNotification('🔄 Retrying auto-fill...', 'info');
+                await fillOfferForm();
+                break;
+                
+            case 'sleepMode':
+                log('Retrying sleep mode after reload...');
+                showNotification('🔄 Retrying sleep mode...', 'info');
+                await toggleSleepMode();
+                break;
+                
+            case 'deleteOffer':
+                log('Retrying delete after reload...');
+                showNotification('🔄 Retrying delete...', 'info');
+                // Delete is handled by queue, just log
+                break;
+                
+            case 'priceUpdate':
+                log('Retrying price update after reload...');
+                showNotification('🔄 Retrying price update...', 'info');
+                break;
+                
+            default:
+                log(`Unknown pending action: ${pending.action}`);
+        }
+    }
+    
     // ==================== SLEEP MODE ====================
     
     // v9.7: Extract offer code from element text (h5 title contains #GSXXXXXX)
@@ -1091,6 +1208,11 @@
     let isTogglingOffers = false;
     
     async function toggleSleepMode() {
+        // Wait for any loading spinner first
+        if (!await waitForSpinner(15000, 'sleepMode')) {
+            return; // Page reloaded, will retry
+        }
+        
         // Prevent concurrent toggles
         if (isTogglingOffers) {
             log('Toggle already in progress, ignoring');
@@ -1367,6 +1489,11 @@
     let isCleaningOffers = false;
     
     async function cleanClosedOffers() {
+        // Wait for any loading spinner first
+        if (!await waitForSpinner(15000, 'cleanClosed')) {
+            return; // Page reloaded, will retry
+        }
+        
         if (isCleaningOffers || isTogglingOffers) {
             showNotification('⏳ Please wait, operation in progress...', 'warning');
             return;
@@ -2962,6 +3089,11 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     async function fillOfferForm() {
         if (!offerData) return;
 
+        // Wait for any loading spinner before starting
+        if (!await waitForSpinner(15000, 'autoFill')) {
+            return; // Page reloaded, will retry
+        }
+
         const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity, mutation } = offerData;
         const offerId = generateOfferId();
         const totalQuantity = quantity || 1;
@@ -2971,6 +3103,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         try {
             await waitForOfferPage();
+            
+            // Wait for spinner after page load
+            if (!await waitForSpinner(15000, 'autoFill')) {
+                return;
+            }
+            
             await new Promise(r => setTimeout(r, 1000));
 
             const expectedIncomeRange = getIncomeRange(income);
@@ -3904,6 +4042,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
+        
+        // Check if we have a pending action after page reload (spinner timeout)
+        await checkPendingAction();
         
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
