@@ -1645,12 +1645,16 @@ function restoreLastView() {
 
 // Polling
 let pollingInterval = null;
+let statusPollingInterval = null; // Fast polling for status only
 let currentFetchController = null; // AbortController для отмены запросов
 let fetchRequestId = 0; // ID запроса для проверки актуальности
 
 function startPolling() {
     fetchFarmerData();
-    pollingInterval = setInterval(fetchFarmerData, 3000); // Быстрее обновление - 3 сек
+    // Full data every 10 seconds (heavy - includes brainrots, avatars)
+    pollingInterval = setInterval(fetchFarmerData, 10000);
+    // Fast status updates every 2 seconds (lightweight - only status)
+    statusPollingInterval = setInterval(fetchStatusOnly, 2000);
 }
 
 function stopPolling() {
@@ -1658,6 +1662,74 @@ function stopPolling() {
         clearInterval(pollingInterval);
         pollingInterval = null;
     }
+    if (statusPollingInterval) {
+        clearInterval(statusPollingInterval);
+        statusPollingInterval = null;
+    }
+}
+
+// Fast status-only fetch (lightweight endpoint)
+async function fetchStatusOnly() {
+    if (!state.currentKey) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/status?key=${encodeURIComponent(state.currentKey)}&_=${Date.now()}`, {
+            cache: 'no-store'
+        });
+        
+        if (!response.ok) return;
+        
+        const statusData = await response.json();
+        
+        // Update only status-related data in existing cards
+        if (statusData.accounts && state.farmersData[state.currentKey]) {
+            const existingAccounts = state.farmersData[state.currentKey].accounts || [];
+            
+            statusData.accounts.forEach(statusAcc => {
+                const existing = existingAccounts.find(a => a.playerName === statusAcc.playerName);
+                if (existing) {
+                    // Update status fields
+                    existing.isOnline = statusAcc.isOnline;
+                    existing._isOnline = statusAcc.isOnline;
+                    existing.lastUpdate = statusAcc.lastUpdate;
+                    existing.status = statusAcc.status;
+                    existing.action = statusAcc.action;
+                    existing.totalIncome = statusAcc.totalIncome;
+                    existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
+                    existing.totalBrainrots = statusAcc.totalBrainrots;
+                    existing.maxSlots = statusAcc.maxSlots;
+                }
+            });
+            
+            // Quick UI update using requestAnimationFrame
+            requestAnimationFrame(() => {
+                const accounts = state.farmersData[state.currentKey].accounts || [];
+                accounts.forEach(account => {
+                    const cardId = getAccountCardId(account);
+                    const cardEl = document.getElementById(cardId);
+                    if (cardEl) {
+                        updateAccountCard(cardEl, account);
+                    }
+                });
+                
+                // Update header stats
+                updateHeaderStats(accounts);
+            });
+        }
+    } catch (error) {
+        // Silently fail - full fetch will handle errors
+    }
+}
+
+// Update header stats quickly
+function updateHeaderStats(accounts) {
+    const online = accounts.filter(a => a.isOnline || a._isOnline).length;
+    const totalBrainrots = accounts.reduce((sum, acc) => sum + (acc.totalBrainrots || 0), 0);
+    const totalSlots = accounts.reduce((sum, acc) => sum + (acc.maxSlots || 10), 0);
+    
+    if (statsEls.totalAccounts) statsEls.totalAccounts.textContent = accounts.length;
+    if (statsEls.onlineAccounts) statsEls.onlineAccounts.textContent = online;
+    if (statsEls.totalBrainrots) statsEls.totalBrainrots.textContent = `${totalBrainrots}/${totalSlots}`;
 }
 
 // Отменить текущий запрос (при переключении пользователя)
