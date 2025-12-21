@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.27
+// @version      9.8.28
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,8 +21,8 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.27
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.27
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.28
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.28
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -578,25 +578,26 @@
             position: fixed;
             top: 100px;
             right: 20px;
-            width: 300px;
+            width: 340px;
             background: #1a1a2e;
             border-radius: 12px;
-            padding: 12px;
+            padding: 14px;
             z-index: 999998;
             box-shadow: 0 15px 40px rgba(0,0,0,0.5);
             font-family: 'Segoe UI', sans-serif;
             color: white;
         }
-        .glitched-mini .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .glitched-mini .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .glitched-mini .title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
         .glitched-mini .close { cursor: pointer; opacity: 0.6; font-size: 16px; }
         .glitched-mini .close:hover { opacity: 1; }
-        .glitched-mini .info { display: flex; gap: 10px; align-items: center; background: #2a2a4a; border-radius: 8px; padding: 8px; margin-bottom: 8px; }
-        .glitched-mini .info img { width: 45px; height: 45px; border-radius: 6px; object-fit: cover; }
-        .glitched-mini .info .name { font-weight: 600; font-size: 12px; }
-        .glitched-mini .info .details { font-size: 11px; color: #888; }
+        .glitched-mini .info { display: flex; gap: 12px; align-items: flex-start; background: #2a2a4a; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+        .glitched-mini .info img { width: 50px; height: 50px; border-radius: 6px; object-fit: cover; flex-shrink: 0; }
+        .glitched-mini .info .name { font-weight: 600; font-size: 13px; margin-bottom: 4px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+        .glitched-mini .info .details { font-size: 11px; color: #888; display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
         .glitched-mini .info .income { color: #1BFF00; background: #000; border: 1px solid #27C902; padding: 2px 6px; border-radius: 4px; }
         .glitched-mini .info .price { color: #ffc950; }
+        .glitched-mini .info .mutation-badge { background: #7c3aed; padding: 2px 6px; border-radius: 4px; font-size: 10px; color: white; }
         .glitched-mini .status { font-size: 11px; padding: 6px 8px; background: rgba(255,255,255,0.05); border-radius: 6px; color: #888; text-align: center; }
         .glitched-mini .status.working { color: #ffc950; background: rgba(255, 201, 80, 0.1); }
         .glitched-mini .status.ready { color: #38ef7d; background: rgba(56, 239, 125, 0.1); }
@@ -3136,10 +3137,10 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 needsRecheck = true;
             }
             
-            // Re-check Mutations
-            if (mutationSelect && !isValueSelected(mutationSelect, 'None')) {
-                log('⚠️ Mutations lost, re-selecting...', 'warn');
-                await selectNgOption(mutationSelect, 'None');
+            // Re-check Mutations - v9.8.28: используем expectedMutation вместо 'None'
+            if (mutationSelect && !isValueSelected(mutationSelect, expectedMutation)) {
+                log(`⚠️ Mutations lost, re-selecting to ${expectedMutation}...`, 'warn');
+                await selectNgOption(mutationSelect, expectedMutation);
                 needsRecheck = true;
             }
             
@@ -3283,8 +3284,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         const panel = document.createElement('div');
         panel.className = 'glitched-mini';
-        // v9.8.27: Show mutation badge in panel
-        const mutationBadge = offerData.mutation ? `<span style="background:#7c3aed;padding:1px 5px;border-radius:3px;font-size:9px;margin-left:4px;">${offerData.mutation}</span>` : '';
+        // v9.8.28: Show mutation badge in panel with proper styling
+        const mutationBadge = offerData.mutation ? `<span class="mutation-badge">${offerData.mutation}</span>` : '';
+        const qtyBadge = qty > 1 ? `<span style="color:#f59e0b;font-weight:bold;">x${qty}</span>` : '';
         panel.innerHTML = `
             <div class="header">
                 <div class="title">👾 Glitched Store${isFromQueue ? ' - Queue' : ''}</div>
@@ -3293,8 +3295,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             ${queueHtml}
             <div class="info">
                 ${offerData.generatedImageUrl ? `<img src="${offerData.generatedImageUrl}" alt="">` : ''}
-                <div>
-                    <div class="name">${offerData.name || 'Unknown'}${mutationBadge}${qty > 1 ? ` <span style="color:#f59e0b;">x${qty}</span>` : ''}</div>
+                <div style="flex:1;min-width:0;">
+                    <div class="name">${offerData.name || 'Unknown'} ${qtyBadge} ${mutationBadge}</div>
                     <div class="details">
                         <span class="income">💰 ${offerData.income || '0/s'}</span>
                         ${price > 0 ? `<span class="price">💵 $${price.toFixed(2)}</span>` : ''}
