@@ -1771,7 +1771,8 @@ async function fetchStatusOnly() {
 
 // Update header stats quickly
 function updateHeaderStats(accounts) {
-    const online = accounts.filter(a => a.isOnline || a._isOnline).length;
+    // ALWAYS use calculated _isOnline, never trust server's isOnline (may be stale)
+    const online = accounts.filter(a => a._isOnline === true).length;
     const totalBrainrots = accounts.reduce((sum, acc) => sum + (acc.totalBrainrots || 0), 0);
     const totalSlots = accounts.reduce((sum, acc) => sum + (acc.maxSlots || 10), 0);
     
@@ -2027,9 +2028,10 @@ function isAccountOnline(account) {
         const now = Date.now();
         const diffSeconds = (now - lastUpdateTime) / 1000;
         
-        // If last update was more than 2 minutes ago, account is offline
+        // If last update was more than 3 minutes ago, account is offline
         // regardless of isOnline flag (script may have crashed without cleanup)
-        if (diffSeconds > 120) {
+        // Must match panel_sync.lua threshold of 180 seconds
+        if (diffSeconds > 180) {
             return false;
         }
         
