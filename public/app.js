@@ -2311,15 +2311,16 @@ async function renderAccountsGrid(accounts) {
         existingPlayerNames.size > 0 &&
         [...existingPlayerNames].every(name => newPlayerNames.has(name));
     
-    if (sameAccounts) {
-        // Smart update - just update values in existing cards
-        accounts.forEach(account => {
-            const cardId = getAccountCardId(account);
-            const cardEl = document.getElementById(cardId);
-            updateAccountCard(cardEl, account);
-        });
-        return;
-    }
+    // DISABLED smart update - always do full render to fix status issues
+    // if (sameAccounts) {
+    //     // Smart update - just update values in existing cards
+    //     accounts.forEach(account => {
+    //         const cardId = getAccountCardId(account);
+    //         const cardEl = document.getElementById(cardId);
+    //         updateAccountCard(cardEl, account);
+    //     });
+    //     return;
+    // }
     
     // Full render (first time or accounts changed)
     accountsGridEl.innerHTML = accounts.map(account => {
