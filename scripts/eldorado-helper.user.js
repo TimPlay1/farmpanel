@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.22
+// @version      9.8.27
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,8 +21,8 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.16
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.16
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.27
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.27
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -2429,11 +2429,12 @@
             setTimeout(() => closeWindowOrRedirect(), 3000);
             return false;
         }
-        log(`Processing queue item: ${item.name} (qty: ${item.quantity || 1})`);
+        log(`Processing queue item: ${item.name} (qty: ${item.quantity || 1}, mutation: ${item.mutation || 'None'})`);
         const offerDataForUrl = {
             name: item.name, income: item.income, generatedImageUrl: item.imageUrl,
             maxPrice: parseFloat(item.price) || 0, minPrice: parseFloat(item.price) || 0,
             quantity: item.quantity || 1,
+            mutation: item.mutation || '', // v9.8.27: Мутация брейнрота
             accountName: item.accountName, fromQueue: true,
             queueIndex: queueState.currentIndex, queueTotal: queueState.queue.length
         };
@@ -2960,12 +2961,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     async function fillOfferForm() {
         if (!offerData) return;
 
-        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity } = offerData;
+        const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity, mutation } = offerData;
         const offerId = generateOfferId();
         const totalQuantity = quantity || 1;
 
         updateStatus('🔄 Заполняем форму...', 'working');
-        log(`Starting auto-fill v5.3... (quantity: ${totalQuantity})`);
+        log(`Starting auto-fill v5.3... (quantity: ${totalQuantity}, mutation: ${mutation || 'None'})`);
 
         try {
             await waitForOfferPage();
@@ -2973,6 +2974,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
             const expectedIncomeRange = getIncomeRange(income);
             const expectedRarity = rarity || 'Secret';
+            // v9.8.27: Используем мутацию из данных или 'None' если не указана
+            const expectedMutation = mutation || 'None';
             
             // Track what we need to verify at the end
             const verificationResults = {};
@@ -2996,11 +2999,11 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 await new Promise(r => setTimeout(r, 300));
             }
             
-            // 2. Mutations - None
-            log('Step 2: Mutations -> None');
+            // 2. Mutations - v9.8.27: Используем мутацию из данных брейнрота
+            log('Step 2: Mutations -> ' + expectedMutation);
             const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
             if (mutationSelect) {
-                const selected = await selectNgOption(mutationSelect, 'None');
+                const selected = await selectNgOption(mutationSelect, expectedMutation);
                 verificationResults.mutations = selected;
                 if (!selected) log('⚠️ Mutations may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 300));
@@ -3271,13 +3274,17 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 if (idx < queueState.currentIndex) { icon = '✅'; className = 'done'; }
                 else if (idx === queueState.currentIndex) { icon = '▶️'; className = 'current'; }
                 const qtyBadge = item.quantity > 1 ? `<span style="color:#f59e0b;font-weight:bold;">x${item.quantity}</span>` : '';
-                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name} ${qtyBadge}</span></div>`;
+                // v9.8.27: Show mutation badge if present
+                const mutBadge = item.mutation ? `<span style="color:#a855f7;font-size:9px;margin-left:3px;">[${item.mutation}]</span>` : '';
+                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name} ${qtyBadge}${mutBadge}</span></div>`;
             }).join('');
             queueHtml = `<div class="queue-info"><div class="queue-progress">📋 ${queueIndex + 1} / ${queueTotal}</div><div>Очередь Eldorado</div></div><div class="queue-list">${queueItems}</div>`;
         }
 
         const panel = document.createElement('div');
         panel.className = 'glitched-mini';
+        // v9.8.27: Show mutation badge in panel
+        const mutationBadge = offerData.mutation ? `<span style="background:#7c3aed;padding:1px 5px;border-radius:3px;font-size:9px;margin-left:4px;">${offerData.mutation}</span>` : '';
         panel.innerHTML = `
             <div class="header">
                 <div class="title">👾 Glitched Store${isFromQueue ? ' - Queue' : ''}</div>
@@ -3287,7 +3294,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             <div class="info">
                 ${offerData.generatedImageUrl ? `<img src="${offerData.generatedImageUrl}" alt="">` : ''}
                 <div>
-                    <div class="name">${offerData.name || 'Unknown'}${qty > 1 ? ` <span style="color:#f59e0b;">x${qty}</span>` : ''}</div>
+                    <div class="name">${offerData.name || 'Unknown'}${mutationBadge}${qty > 1 ? ` <span style="color:#f59e0b;">x${qty}</span>` : ''}</div>
                     <div class="details">
                         <span class="income">💰 ${offerData.income || '0/s'}</span>
                         ${price > 0 ? `<span class="price">💵 $${price.toFixed(2)}</span>` : ''}

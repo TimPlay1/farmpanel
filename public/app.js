@@ -4610,6 +4610,7 @@ function postToEldorado() {
         maxPrice: maxPrice,
         quantity: quantity, // Количество для Eldorado Total Quantity
         rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
+        mutation: currentSupaBrainrot?.mutation || '', // v9.8.27: Мутация брейнрота (YinYang, Diamond, etc)
         accountId: currentSupaBrainrot?.accountId,
         accountName: currentSupaBrainrot?.accountName,
         farmKey: state.currentKey, // Передаём farmKey для сохранения оффера в панель
@@ -5026,6 +5027,7 @@ async function startMassGeneration() {
                 imageUrl: result.resultUrl,
                 price: price || 0,
                 quantity: group.quantity || 1,
+                mutation: group.mutation || '', // v9.8.27: Мутация брейнрота
                 accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown'
             });
             
@@ -5197,6 +5199,7 @@ async function startMassEldoradoQueue() {
         maxPrice: parseFloat(firstItem.price) || 0,
         minPrice: parseFloat(firstItem.price) || 0,
         quantity: firstItem.quantity || 1,
+        mutation: firstItem.mutation || '', // v9.8.27: Мутация брейнрота
         accountName: firstItem.accountName,
         farmKey: state.currentKey,
         fromQueue: true,
