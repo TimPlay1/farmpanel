@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.29
+// @version      9.8.30
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.29
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.29
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.30
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.30
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.29';
+    const VERSION = '9.8.30';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -779,15 +779,30 @@
     
     /**
      * Check if Eldorado loading spinner is visible
-     * The spinner has class "la-ball-spin-clockwise"
+     * The spinner has class "la-ball-spin-clockwise" inside a visible container
      */
     function isSpinnerVisible() {
         const spinner = document.querySelector('.la-ball-spin-clockwise');
         if (!spinner) return false;
         
-        // Check if spinner is actually visible (not hidden)
+        // Check if spinner element itself is visible
+        const rect = spinner.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return false;
+        
+        // Check computed style
         const style = window.getComputedStyle(spinner);
-        return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+        
+        // Check parent container (usually has "app-circle" class and controls visibility)
+        const container = spinner.closest('.app-loading-overlay, .app-loader, [class*="loading"]');
+        if (container) {
+            const containerStyle = window.getComputedStyle(container);
+            if (containerStyle.display === 'none' || containerStyle.visibility === 'hidden' || containerStyle.opacity === '0') {
+                return false;
+            }
+        }
+        
+        return true;
     }
     
     /**
@@ -818,14 +833,15 @@
         logError('⚠️ Spinner timeout after 15s, reloading page...');
         showNotification('⏳ Page loading stuck, reloading...', 'warning');
         
-        // Save action to retry after reload
+        // Save current URL (with glitched_data if present) and action for retry
         if (actionName) {
             GM_setValue('pendingAction', {
                 action: actionName,
                 timestamp: Date.now(),
-                url: window.location.href
+                url: window.location.href,
+                offerData: offerData // Save offer data for autoFill
             });
-            log(`Saved pending action: ${actionName}`);
+            log(`Saved pending action: ${actionName}, url: ${window.location.href}`);
         }
         
         // Reload page
@@ -836,30 +852,35 @@
     
     /**
      * Check and execute pending action after page reload
+     * Called AFTER normal init parsing to not interfere
      */
     async function checkPendingAction() {
         const pending = GM_getValue('pendingAction', null);
-        if (!pending) return;
+        if (!pending) return false;
         
         // Check if action is recent (within 2 minutes)
         if (Date.now() - pending.timestamp > 2 * 60 * 1000) {
             GM_deleteValue('pendingAction');
             log('Pending action expired, ignoring');
-            return;
+            return false;
         }
-        
-        // Check if we're on the same or relevant page
-        const currentUrl = window.location.href;
         
         log(`Found pending action: ${pending.action}`);
         GM_deleteValue('pendingAction'); // Clear it first to prevent loops
         
-        // Wait for page to be ready
-        await new Promise(r => setTimeout(r, 2000));
+        // Restore offerData if present
+        if (pending.offerData) {
+            offerData = pending.offerData;
+            log('Restored offerData from pending action');
+        }
         
-        // Wait for any initial spinners
-        if (!await waitForSpinner(15000)) {
-            return; // Another reload happened
+        // Wait a bit for page to stabilize
+        await new Promise(r => setTimeout(r, 1000));
+        
+        // Wait for any spinners
+        const spinnerGone = await waitForSpinner(15000);
+        if (!spinnerGone) {
+            return true; // Another reload will happen
         }
         
         // Execute the pending action
@@ -867,29 +888,30 @@
             case 'autoFill':
                 log('Retrying auto-fill after reload...');
                 showNotification('🔄 Retrying auto-fill...', 'info');
-                await fillOfferForm();
-                break;
+                if (offerData) {
+                    createOfferPanel();
+                    await new Promise(r => setTimeout(r, 500));
+                    await fillOfferForm();
+                }
+                return true;
                 
             case 'sleepMode':
                 log('Retrying sleep mode after reload...');
                 showNotification('🔄 Retrying sleep mode...', 'info');
                 await toggleSleepMode();
-                break;
+                return true;
                 
-            case 'deleteOffer':
-                log('Retrying delete after reload...');
-                showNotification('🔄 Retrying delete...', 'info');
-                // Delete is handled by queue, just log
-                break;
-                
-            case 'priceUpdate':
-                log('Retrying price update after reload...');
-                showNotification('🔄 Retrying price update...', 'info');
-                break;
+            case 'cleanClosed':
+                log('Retrying clean closed after reload...');
+                showNotification('🔄 Retrying clean closed...', 'info');
+                await cleanClosedOffers();
+                return true;
                 
             default:
                 log(`Unknown pending action: ${pending.action}`);
         }
+        
+        return false;
     }
     
     // ==================== SLEEP MODE ====================
@@ -4043,11 +4065,15 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
         
-        // Check if we have a pending action after page reload (spinner timeout)
-        await checkPendingAction();
-        
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
+        
+        // Check if we have a pending action after page reload (spinner timeout)
+        // This must be checked before normal flow to restore state
+        const hadPendingAction = await checkPendingAction();
+        if (hadPendingAction) {
+            return; // Pending action handled everything
+        }
         
         // Загружаем состояние очереди
         getQueueFromStorage();
