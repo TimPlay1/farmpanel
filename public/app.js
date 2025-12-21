@@ -3469,7 +3469,6 @@ async function renderCollection() {
              data-quantity="${group.quantity}"
              ${clickHandler}>
             ${hasOffer ? `<div class="brainrot-offer-badge" title="На продаже"><i class="fas fa-shopping-cart"></i></div>` : ''}
-            ${group.mutation ? `<div class="brainrot-mutation-badge" style="background: ${getMutationColor(group.mutation)};">${cleanMutationText(group.mutation)}</div>` : ''}
             <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
                 ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
             </div>
@@ -3492,6 +3491,7 @@ async function renderCollection() {
             </div>
             <div class="brainrot-details">
                 <div class="brainrot-name" title="${group.name}">${group.name}</div>
+                ${group.mutation ? `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${getMutationColor(group.mutation)};">${cleanMutationText(group.mutation)}</span></div>` : ''}
                 <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
                 ${priceHtml}
                 <div class="brainrot-account" title="${accountsList}">

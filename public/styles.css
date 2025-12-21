@@ -1924,32 +1924,34 @@ body {
     z-index: 5;
 }
 
-/* Mutation Badge - Top Right Corner (moved from left to avoid overlap with generate btn) */
-.brainrot-mutation-badge {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-    padding: 4px 10px;
+/* Mutation Badge Inline - Under brainrot name */
+.brainrot-mutation-line {
+    margin-top: 2px;
+    margin-bottom: 2px;
+}
+
+.brainrot-mutation-badge-inline {
+    display: inline-block;
+    padding: 2px 6px;
     color: white;
-    font-size: 0.7rem;
+    font-size: 0.55rem;
     font-weight: 700;
-    border-radius: 6px;
+    border-radius: 4px;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.5);
-    z-index: 10;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+    letter-spacing: 0.3px;
+    text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+    box-shadow: 0 0 8px currentColor, 0 2px 6px rgba(0,0,0,0.4);
+    animation: badge-glow 2s ease-in-out infinite;
 }
 
-/* Mutated brainrot card glow */
+@keyframes badge-glow {
+    0%, 100% { filter: brightness(1); box-shadow: 0 0 6px currentColor, 0 2px 6px rgba(0,0,0,0.4); }
+    50% { filter: brightness(1.2); box-shadow: 0 0 12px currentColor, 0 2px 8px rgba(0,0,0,0.5); }
+}
+
+/* Remove card glow for mutated brainrots */
 .brainrot-card.brainrot-mutated {
-    border-width: 2px;
-    animation: mutation-glow 2s ease-in-out infinite;
-}
-
-@keyframes mutation-glow {
-    0%, 100% { box-shadow: 0 0 8px rgba(148, 0, 211, 0.3); }
-    50% { box-shadow: 0 0 16px rgba(148, 0, 211, 0.6); }
+    /* No special styling for mutated cards - glow is on badge */
 }
 
 /* Has Offer Badge - Top Left Corner - shopping cart indicator */
@@ -2973,22 +2975,17 @@ body {
 /* Mutation badge in offer card */
 .offer-mutation-badge {
     display: inline-block;
-    padding: 3px 8px;
+    padding: 2px 6px;
     color: white;
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     font-weight: 700;
     border-radius: 4px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.4);
     text-shadow: 0 1px 1px rgba(0,0,0,0.5);
+    box-shadow: 0 0 8px currentColor, 0 2px 6px rgba(0,0,0,0.4);
+    animation: badge-glow 2s ease-in-out infinite;
     flex-shrink: 0;
-    animation: mutation-pulse 2s ease-in-out infinite;
-}
-
-@keyframes mutation-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.85; }
 }
 
 /* Mutation line under brainrot name in offer card */
