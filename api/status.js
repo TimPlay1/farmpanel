@@ -65,19 +65,31 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Farm not found' });
         }
 
-        // Return raw data - let frontend calculate isOnline
-        // This avoids timezone/clock sync issues between serverless instances
-        const accounts = (farmer.accounts || []).map(acc => ({
-            playerName: acc.playerName,
-            isOnline: acc.isOnline, // Raw value from Lua sync
-            lastUpdate: acc.lastUpdate, // Raw timestamp from sync
-            status: acc.status || 'idle',
-            action: acc.action || '',
-            totalIncome: acc.totalIncome || 0,
-            totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
-            totalBrainrots: acc.totalBrainrots || 0,
-            maxSlots: acc.maxSlots || 10
-        }));
+        // Calculate isOnline on server based on lastUpdate
+        // Account is online if lastUpdate is within last 3 minutes
+        const now = Date.now();
+        const ONLINE_THRESHOLD = 180 * 1000; // 3 minutes in ms
+        
+        const accounts = (farmer.accounts || []).map(acc => {
+            let isOnline = false;
+            if (acc.lastUpdate) {
+                try {
+                    const lastUpdateTime = new Date(acc.lastUpdate).getTime();
+                    isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
+                } catch (e) {}
+            }
+            return {
+                playerName: acc.playerName,
+                isOnline: isOnline,
+                lastUpdate: acc.lastUpdate,
+                status: isOnline ? (acc.status || 'idle') : 'offline',
+                action: isOnline ? (acc.action || '') : '',
+                totalIncome: acc.totalIncome || 0,
+                totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
+                totalBrainrots: acc.totalBrainrots || 0,
+                maxSlots: acc.maxSlots || 10
+            };
+        });
 
         const response = {
             timestamp: Date.now(),

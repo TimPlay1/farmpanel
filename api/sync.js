@@ -415,12 +415,32 @@ module.exports = async (req, res) => {
                 }
             }
 
+            // Recalculate isOnline based on lastUpdate for each account
+            // Account is online if lastUpdate is within last 3 minutes
+            const now = Date.now();
+            const ONLINE_THRESHOLD = 180 * 1000; // 3 minutes in ms
+            const accountsWithFreshStatus = (farmer.accounts || []).map(acc => {
+                let isOnline = false;
+                if (acc.lastUpdate) {
+                    try {
+                        const lastUpdateTime = new Date(acc.lastUpdate).getTime();
+                        isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
+                    } catch (e) {}
+                }
+                return {
+                    ...acc,
+                    isOnline: isOnline,
+                    status: isOnline ? (acc.status || 'idle') : 'offline',
+                    action: isOnline ? (acc.action || '') : ''
+                };
+            });
+
             return res.status(200).json({
                 success: true,
                 farmKey: farmer.farmKey,
                 username: farmer.username,
                 avatar: farmer.avatar,
-                accounts: farmer.accounts || [],
+                accounts: accountsWithFreshStatus,
                 accountAvatars: accountAvatars, // Возвращаем аватары из обоих источников
                 playerUserIdMap: playerUserIdMap, // Маппинг playerName -> userId (обновлённый)
                 lastUpdate: farmer.lastUpdate,
