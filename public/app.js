@@ -1651,10 +1651,10 @@ let fetchRequestId = 0; // ID запроса для проверки актуа�
 
 function startPolling() {
     fetchFarmerData();
-    // Full data every 10 seconds (heavy - includes brainrots, avatars)
-    pollingInterval = setInterval(fetchFarmerData, 10000);
-    // Fast status updates every 2 seconds (lightweight - only status)
-    statusPollingInterval = setInterval(fetchStatusOnly, 2000);
+    // Full data every 15 seconds (heavy - includes brainrots, avatars)
+    pollingInterval = setInterval(fetchFarmerData, 15000);
+    // Fast status updates every 5 seconds (lightweight - only status)
+    statusPollingInterval = setInterval(fetchStatusOnly, 5000);
 }
 
 function stopPolling() {
