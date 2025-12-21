@@ -389,8 +389,9 @@ function parseIncomeFromMsRange(msRange) {
  * @param {number} pageIndex - номер страницы
  * @param {string} msRangeAttrId - ID атрибута M/s range (например "0-8" для 1+ B/s)
  * @param {string} brainrotName - имя брейнрота для фильтрации (опционально, "Other" для неизвестных)
+ * @param {string} searchQuery - текстовый поиск в title оффера (для брейнротов не в списке Eldorado)
  */
-function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null) {
+function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null, searchQuery = null) {
     return new Promise((resolve) => {
         // Используем официальные параметры из swagger
         const params = new URLSearchParams({
@@ -412,6 +413,11 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null)
         // Если brainrotName = "Other" - это специальный фильтр для неизвестных брейнротов
         if (brainrotName) {
             params.set('tradeEnvironmentValue2', brainrotName);
+        }
+        
+        // Добавляем текстовый поиск (для брейнротов не в списке Eldorado)
+        if (searchQuery) {
+            params.set('searchQuery', searchQuery);
         }
 
         const options = {
@@ -567,32 +573,44 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
-    let filterMode = 'name'; // 'name' | 'other' | 'none'
+    let filterMode = 'name'; // 'name' | 'other' | 'search' | 'none'
     let currentFilter = eldoradoName; // Имя для фильтра
+    let useSearchQuery = null; // searchQuery для текстового поиска
     
     for (let page = 1; page <= maxPages; page++) {
         // Определяем какой фильтр использовать
         let filterName = null;
         if (filterMode === 'name') {
             filterName = eldoradoName;
-        } else if (filterMode === 'other') {
+        } else if (filterMode === 'other' || filterMode === 'search') {
             filterName = 'Other';  // Специальный фильтр для неизвестных брейнротов
         }
         // filterMode === 'none' → filterName = null
         
-        let response = await fetchEldorado(page, msRangeAttrId, filterName);
+        let response = await fetchEldorado(page, msRangeAttrId, filterName, useSearchQuery);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName);
+            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName, useSearchQuery ? '| Search: ' + useSearchQuery : '');
             
-            // Если с фильтром по имени 0 результатов - пробуем "Other" (для брейнротов не в списке Eldorado)
+            // Если с фильтром по имени 0 результатов - пробуем "Other" + searchQuery
             if (totalPages === 0 && filterMode === 'name') {
-                console.log('No results with name filter "' + eldoradoName + '", trying "Other" category...');
-                filterMode = 'other';
-                response = await fetchEldorado(page, msRangeAttrId, 'Other');
+                console.log('No results with name filter "' + eldoradoName + '", trying "Other" + searchQuery...');
+                filterMode = 'search';
+                useSearchQuery = brainrotName; // Используем оригинальное имя для поиска
+                response = await fetchEldorado(page, msRangeAttrId, 'Other', useSearchQuery);
                 totalPages = response.totalPages || 0;
-                console.log('With "Other" filter - total pages:', totalPages);
+                console.log('With "Other" + searchQuery - total pages:', totalPages);
+                
+                // Если searchQuery не дал результатов - пробуем просто "Other" без searchQuery
+                if (totalPages === 0) {
+                    console.log('No results with searchQuery, trying just "Other" category...');
+                    filterMode = 'other';
+                    useSearchQuery = null;
+                    response = await fetchEldorado(page, msRangeAttrId, 'Other');
+                    totalPages = response.totalPages || 0;
+                    console.log('With "Other" filter only - total pages:', totalPages);
+                }
                 
                 // Если и "Other" не дал результатов - пробуем без фильтра
                 if (totalPages === 0) {
