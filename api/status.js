@@ -49,6 +49,7 @@ module.exports = async (req, res) => {
             { 
                 projection: { 
                     'accounts.playerName': 1,
+                    'accounts.userId': 1,
                     'accounts.isOnline': 1,
                     'accounts.lastUpdate': 1,
                     'accounts.status': 1,
@@ -80,6 +81,7 @@ module.exports = async (req, res) => {
             }
             return {
                 playerName: acc.playerName,
+                userId: acc.userId,
                 isOnline: isOnline,
                 lastUpdate: acc.lastUpdate,
                 // status = действие фермера (idle, searching, walking и т.д.)

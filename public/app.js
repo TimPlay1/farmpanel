@@ -1735,8 +1735,10 @@ async function fetchStatusOnly() {
                     existing.isOnline = calculatedOnline;
                     existing._isOnline = calculatedOnline;
                     existing.lastUpdate = statusAcc.lastUpdate;
-                    existing.status = calculatedOnline ? (statusAcc.status || 'idle') : 'offline';
-                    existing.action = calculatedOnline ? (statusAcc.action || '') : '';
+                    // status = действие фермера (idle, searching, walking и т.д.)
+                    // НЕ "offline" - online/offline определяется по isOnline
+                    existing.status = statusAcc.status || 'idle';
+                    existing.action = statusAcc.action || '';
                     existing.totalIncome = statusAcc.totalIncome;
                     existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
                     existing.totalBrainrots = statusAcc.totalBrainrots;
@@ -2676,7 +2678,8 @@ function renderAccountsList(accounts) {
         
         const isOnline = account._isOnline;
         const statusClass = isOnline ? 'online' : 'offline';
-        const actionText = isOnline ? (account.action || account.status || 'Idle') : 'Offline';
+        // actionText показывает последнее действие фермера, даже если offline
+        const actionText = account.action || account.status || 'Idle';
         const accountValue = calculateAccountValue(account);
         
         return `

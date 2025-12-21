@@ -417,6 +417,31 @@ module.exports = async (req, res) => {
                             base64: stored.base64,
                             timestamp: stored.fetchedAt
                         };
+                    } else {
+                        // Аватар не найден в базе - загружаем с Roblox
+                        console.log(`Avatar missing for userId ${key}, fetching from Roblox...`);
+                        const base64Avatar = await fetchRobloxAvatarBase64(userId);
+                        if (base64Avatar) {
+                            accountAvatars[key] = {
+                                url: base64Avatar,
+                                base64: base64Avatar,
+                                timestamp: Date.now()
+                            };
+                            // Сохраняем в коллекцию для будущих запросов
+                            await avatarsCollection.updateOne(
+                                { userId: key },
+                                { 
+                                    $set: { 
+                                        userId: key,
+                                        base64: base64Avatar,
+                                        fetchedAt: Date.now(),
+                                        updatedAt: new Date(),
+                                        playerName: account.playerName
+                                    } 
+                                },
+                                { upsert: true }
+                            );
+                        }
                     }
                 }
             }
@@ -436,8 +461,10 @@ module.exports = async (req, res) => {
                 return {
                     ...acc,
                     isOnline: isOnline,
-                    status: isOnline ? (acc.status || 'idle') : 'offline',
-                    action: isOnline ? (acc.action || '') : ''
+                    // status = действие фермера (idle, searching, walking и т.д.)
+                    // НЕ "offline" - online/offline определяется по isOnline
+                    status: acc.status || 'idle',
+                    action: acc.action || ''
                 };
             });
 
