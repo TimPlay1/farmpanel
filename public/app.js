@@ -3759,7 +3759,7 @@ async function renderCollection() {
                 additionalPricesHtml = `<div class="brainrot-additional-prices">`;
                 if (cachedPrice.medianPrice) {
                     const medianTooltip = cachedPrice.medianData 
-                        ? `Median of ${cachedPrice.medianData.offersOnPage} offers on page ${cachedPrice.medianData.pageNumber}` 
+                        ? `Median of ${cachedPrice.medianData.offersUsed} offers (page ${cachedPrice.medianData.pageNumber})` 
                         : 'Median price';
                     additionalPricesHtml += `
                         <div class="additional-price median" title="${medianTooltip}">
@@ -5959,7 +5959,7 @@ function renderOffers() {
             ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
             <div class="offer-additional-prices">
                 ${offer.medianPrice ? `
-                <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersOnPage + ' offers on page ' + offer.medianData.pageNumber : 'Median price'}">
+                <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersUsed + ' offers (page ' + offer.medianData.pageNumber + ')' : 'Median price'}">
                     <i class="fas fa-chart-bar"></i>
                     <span class="offer-alt-price-label">Median</span>
                     <span class="offer-alt-price-value">$${offer.medianPrice.toFixed(2)}</span>
