@@ -2060,24 +2060,6 @@ body {
     font-size: 0.7rem;
 }
 
-/* Generated Brainrot Badge - Bottom Right Corner */
-.brainrot-generated-badge {
-    position: absolute;
-    bottom: 0.5rem;
-    right: 0.5rem;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 6px;
-    background: linear-gradient(135deg, #4ade80, #22c55e);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 4px;
-    box-shadow: 0 2px 8px rgba(74, 222, 128, 0.4);
-    z-index: 5;
-}
-
 /* Mutation Badge Inline - Under brainrot name */
 .brainrot-mutation-line {
     margin-top: 2px;
@@ -2137,17 +2119,6 @@ body {
 .brainrot-card.has-offer:hover {
     border-color: #60a5fa;
     box-shadow: 0 0 0 1px #60a5fa, 0 4px 12px rgba(59, 130, 246, 0.3);
-}
-
-.brainrot-generated-badge i {
-    color: white;
-    font-size: 0.65rem;
-}
-
-.brainrot-generated-badge .gen-count {
-    color: white;
-    font-size: 0.6rem;
-    font-weight: 600;
 }
 
 /* Quantity Badge - Top Right Corner */
@@ -2245,10 +2216,6 @@ body {
 
 .brainrot-card.brainrot-partial:hover {
     border-color: rgba(245, 158, 11, 0.5);
-}
-
-.brainrot-card.brainrot-partial .brainrot-generated-badge {
-    background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
 /* Generate button changes for generated cards */

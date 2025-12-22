@@ -3947,12 +3947,6 @@ async function renderCollection() {
                 x${group.quantity}
             </div>
             ` : ''}
-            ${groupGenerated && partialGenerated ? `
-            <div class="brainrot-generated-badge" title="Сгенерировано аккаунтов: ${generatedCount}/${group.quantity}">
-                <i class="fas fa-check-circle"></i>
-                <span class="gen-count">${generatedCount}/${group.quantity}</span>
-            </div>
-            ` : ''}
             <div class="brainrot-image">
                 ${group.imageUrl 
                     ? `<img src="${group.imageUrl}" alt="${group.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
