@@ -2787,6 +2787,83 @@ body {
     border-color: var(--accent-primary);
 }
 
+/* v9.9.0: Supa Generator price selector */
+.supa-price-selector {
+    margin-top: 0.5rem;
+}
+
+.supa-price-options {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-top: 0.3rem;
+}
+
+.supa-price-option {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.supa-price-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.supa-price-option.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* Disabled state for price options in offers modal */
+.price-option.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.price-option.disabled input[type="radio"] {
+    cursor: not-allowed;
+}
+
+.supa-price-option input[type="radio"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 0.5rem;
+    accent-color: var(--accent-primary);
+}
+
+.supa-price-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    font-size: 0.85rem;
+}
+
+.supa-price-label i {
+    width: 16px;
+    font-size: 0.75rem;
+}
+
+.supa-price-option.median .supa-price-label i {
+    color: #60a5fa;
+}
+
+.supa-price-option.next-comp .supa-price-label i {
+    color: #4ade80;
+}
+
+.supa-price-label strong {
+    margin-left: auto;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
 .supa-generate-btn {
     background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
     color: white;
@@ -4416,6 +4493,68 @@ body {
 .mass-gen-item-status.processing { color: #f59e0b; }
 .mass-gen-item-status.done { color: #22c55e; }
 .mass-gen-item-status.error { color: #ef4444; }
+
+/* Mass generation price selector */
+.mass-gen-global-price-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.mass-gen-global-price-selector label {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.mass-gen-global-select {
+    padding: 0.4rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    cursor: pointer;
+    flex: 1;
+    max-width: 200px;
+}
+
+.mass-gen-global-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.mass-gen-price-selector {
+    margin-left: auto;
+    margin-right: 0.5rem;
+}
+
+.mass-gen-price-select {
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    min-width: 90px;
+}
+
+.mass-gen-price-select:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.mass-gen-price-select option:disabled {
+    color: var(--text-tertiary);
+}
 
 .mass-gen-item-remove {
     width: 28px;

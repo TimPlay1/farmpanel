@@ -511,9 +511,25 @@
                         <label class="radio-wrapper">
                             <input type="radio" name="bulkPriceType" value="recommended" checked>
                             <span class="radiomark"></span>
-                            <span>Set to Recommended Price</span>
+                            <span><i class="fas fa-tag"></i> Set to Recommended Price</span>
                         </label>
                         <p class="option-hint">Use market-based recommended price for each offer</p>
+                    </div>
+                    <div class="bulk-option">
+                        <label class="radio-wrapper">
+                            <input type="radio" name="bulkPriceType" value="median">
+                            <span class="radiomark"></span>
+                            <span><i class="fas fa-chart-bar" style="color: #60a5fa;"></i> Set to Median Price</span>
+                        </label>
+                        <p class="option-hint">Use the median price from competitor page</p>
+                    </div>
+                    <div class="bulk-option">
+                        <label class="radio-wrapper">
+                            <input type="radio" name="bulkPriceType" value="nextCompetitor">
+                            <span class="radiomark"></span>
+                            <span><i class="fas fa-arrow-up" style="color: #4ade80;"></i> Set to Next Competitor Price</span>
+                        </label>
+                        <p class="option-hint">Use the price of next competitor after upper bound</p>
                     </div>
                     <div class="bulk-option">
                         <label class="radio-wrapper">
@@ -568,7 +584,30 @@
                         <label class="radio-wrapper">
                             <input type="radio" name="priceType" value="recommended" checked>
                             <span class="radiomark"></span>
-                            <span>Recommended: <strong id="recommendedPriceValue">$0.00</strong></span>
+                            <span class="price-option-label">
+                                <i class="fas fa-tag"></i>
+                                Recommended: <strong id="recommendedPriceValue">$0.00</strong>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="price-option median-option">
+                        <label class="radio-wrapper">
+                            <input type="radio" name="priceType" value="median">
+                            <span class="radiomark"></span>
+                            <span class="price-option-label">
+                                <i class="fas fa-chart-bar" style="color: #60a5fa;"></i>
+                                Median: <strong id="medianPriceValue">$0.00</strong>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="price-option next-comp-option">
+                        <label class="radio-wrapper">
+                            <input type="radio" name="priceType" value="nextCompetitor">
+                            <span class="radiomark"></span>
+                            <span class="price-option-label">
+                                <i class="fas fa-arrow-up" style="color: #4ade80;"></i>
+                                Next Competitor: <strong id="nextCompetitorPriceValue">$0.00</strong>
+                            </span>
                         </label>
                     </div>
                     <div class="price-option">
@@ -606,6 +645,15 @@
                 </button>
             </div>
             <div class="modal-body">
+                <div class="mass-gen-global-price-selector">
+                    <label><i class="fas fa-tag"></i> Тип цены для всех:</label>
+                    <select id="massGenGlobalPriceType" class="mass-gen-global-select">
+                        <option value="">Индивидуально</option>
+                        <option value="suggested">💰 Рекомендуемая</option>
+                        <option value="median">📊 Медиана</option>
+                        <option value="nextCompetitor">⬆️ Следующий конкурент</option>
+                    </select>
+                </div>
                 <div class="mass-gen-list" id="massGenList">
                     <!-- Items will be rendered here -->
                 </div>

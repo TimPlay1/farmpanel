@@ -899,9 +899,23 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
  * 5. Если upper не найден (мы выше рынка) → используем max price среди max income - $0.50
  */
 async function calculateOptimalPrice(brainrotName, ourIncome) {
+    // Парсим income если передан как строка ("80M/s" -> 80)
+    let numericIncome = ourIncome;
+    if (typeof ourIncome === 'string') {
+        const match = ourIncome.match(/(\d+(?:[.,]\d+)?)\s*([MmBb])?/);
+        if (match) {
+            numericIncome = parseFloat(match[1].replace(',', '.'));
+            if (match[2] && match[2].toLowerCase() === 'b') {
+                numericIncome *= 1000; // B/s -> M/s
+            }
+        } else {
+            numericIncome = 0;
+        }
+    }
+    
     // Кэш по M/s диапазону + точному income (округлённому до 5)
-    const targetMsRange = getMsRangeForIncome(ourIncome);
-    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(ourIncome / 5) * 5}`;
+    const targetMsRange = getMsRangeForIncome(numericIncome);
+    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(numericIncome / 5) * 5}`;
     
     // Проверяем кэш
     const cached = priceCache.get(cacheKey);
@@ -911,7 +925,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
 
     try {
         // Ищем офферы брейнрота в нужном M/s диапазоне
-        const searchResult = await searchBrainrotOffers(brainrotName, ourIncome);
+        const searchResult = await searchBrainrotOffers(brainrotName, numericIncome);
         const { 
             upperOffer, lowerOffer, nextCompetitor, upperPage, offersByPage,
             allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount 
@@ -958,35 +972,54 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             }
             
             // ==================== v9.9.0: МЕДИАННАЯ ЦЕНА ====================
-            // Вычисляем медиану цен на странице где найден компетитор
+            // Вычисляем медиану цен среди первых 24 офферов на странице где найден компетитор
             if (upperPage > 0 && offersByPage) {
                 const pageOffers = offersByPage.get(upperPage) || [];
-                const validPrices = pageOffers.filter(o => o.price > 0).map(o => o.price);
+                // Берём только первые 24 оффера для расчёта медианы (как просил пользователь)
+                const first24Offers = pageOffers.slice(0, 24);
+                const validPrices = first24Offers.filter(o => o.price > 0).map(o => o.price);
                 
                 if (validPrices.length >= 3) {
                     const median = calculateMedian(validPrices);
                     medianPrice = Math.round((median - 0.5) * 100) / 100;
                     medianData = {
                         pageNumber: upperPage,
+                        offersUsed: validPrices.length,
                         offersOnPage: pageOffers.length,
                         medianValue: median,
                         minPrice: Math.min(...validPrices),
                         maxPrice: Math.max(...validPrices)
                     };
-                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length} offers) → suggested $${medianPrice.toFixed(2)}`);
+                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length}/24 offers) → suggested $${medianPrice.toFixed(2)}`);
                 }
             }
             
             // ==================== v9.9.0: ЦЕНА СЛЕДУЮЩЕГО КОМПЕТИТОРА ====================
+            // Расчёт аналогичен suggestedPrice: ищем lower для nextCompetitor
+            // Lower для nextCompetitor = upperOffer (как нижняя граница по цене)
             if (nextCompetitor) {
-                nextCompetitorPrice = Math.round((nextCompetitor.price - 0.5) * 100) / 100;
+                // Upper является lower-ом для nextCompetitor (меньшая цена)
+                const nextCompLower = upperOffer;
+                const nextPriceDiff = nextCompetitor.price - nextCompLower.price;
+                
+                if (nextPriceDiff >= 1) {
+                    // Разница >= $1 - ставим на $1 меньше nextCompetitor
+                    nextCompetitorPrice = Math.round((nextCompetitor.price - 1) * 100) / 100;
+                } else {
+                    // Разница < $1 - ставим на $0.50 меньше nextCompetitor
+                    nextCompetitorPrice = Math.round((nextCompetitor.price - 0.5) * 100) / 100;
+                }
+                
                 nextCompetitorData = {
                     income: nextCompetitor.income,
                     price: nextCompetitor.price,
+                    lowerPrice: nextCompLower.price,
+                    lowerIncome: nextCompLower.income,
+                    priceDiff: nextPriceDiff,
                     title: nextCompetitor.title?.substring(0, 50),
                     page: nextCompetitor.page
                 };
-                console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)} → suggested $${nextCompetitorPrice.toFixed(2)}`);
+                console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}, lower: $${nextCompLower.price.toFixed(2)}, diff: $${nextPriceDiff.toFixed(2)} → suggested $${nextCompetitorPrice.toFixed(2)}`);
             }
             
         } else if (allPageOffers.length > 0) {

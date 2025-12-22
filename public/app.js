@@ -1432,6 +1432,23 @@ function setupEventListeners() {
         closeMassGenModal.addEventListener('click', closeMassGenerationModal);
     }
     
+    // Global price type selector for mass generation
+    const massGenGlobalPriceType = document.getElementById('massGenGlobalPriceType');
+    if (massGenGlobalPriceType) {
+        massGenGlobalPriceType.addEventListener('change', (e) => {
+            const globalType = e.target.value;
+            if (globalType) {
+                // Apply to all individual selectors
+                document.querySelectorAll('.mass-gen-price-select').forEach(select => {
+                    const option = select.querySelector(`option[value="${globalType}"]`);
+                    if (option && !option.disabled) {
+                        select.value = globalType;
+                    }
+                });
+            }
+        });
+    }
+    
     // Start mass generation button
     const startMassGenBtn = document.getElementById('startMassGenBtn');
     if (startMassGenBtn) {
@@ -4304,6 +4321,34 @@ function openSupaGenerator(brainrotData) {
     document.getElementById('supaIncome').value = brainrotData.incomeText || formatIncome(brainrotData.income);
     document.getElementById('supaImageUrl').value = brainrotData.imageUrl || '';
     
+    // v9.9.0: Заполняем варианты цен
+    const normalizedIncome = normalizeIncomeForApi(brainrotData.income, brainrotData.incomeText);
+    const priceKey = getPriceCacheKey(brainrotData.name, normalizedIncome);
+    const priceData = state.brainrotPrices[priceKey];
+    
+    const suggestedEl = document.getElementById('supaPriceSuggested');
+    const medianEl = document.getElementById('supaPriceMedian');
+    const nextEl = document.getElementById('supaPriceNext');
+    
+    if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${priceData.suggestedPrice.toFixed(2)}` : 'N/A';
+    if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${priceData.medianPrice.toFixed(2)}` : 'N/A';
+    if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${priceData.nextCompetitorPrice.toFixed(2)}` : 'N/A';
+    
+    // Disable options if price not available
+    const medianOption = document.querySelector('input[name="supaPriceType"][value="median"]');
+    const nextOption = document.querySelector('input[name="supaPriceType"][value="nextCompetitor"]');
+    if (medianOption) {
+        medianOption.disabled = !priceData?.medianPrice;
+        medianOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.medianPrice);
+    }
+    if (nextOption) {
+        nextOption.disabled = !priceData?.nextCompetitorPrice;
+        nextOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.nextCompetitorPrice);
+    }
+    
+    // Reset to suggested
+    document.querySelector('input[name="supaPriceType"][value="suggested"]').checked = true;
+    
     // Используем единый цвет панели для границы
     const panelColor = collectionState.panelColor || '#4ade80';
     const accountInfoEl = document.getElementById('supaAccountInfo');
@@ -4386,6 +4431,35 @@ function createSupaGeneratorModal() {
                     <div class="supa-form-group">
                         <label><i class="fas fa-image"></i> URL изображения</label>
                         <input type="url" id="supaImageUrl" placeholder="https://..." onchange="updateSupaImagePreview(this.value)">
+                    </div>
+                    <div class="supa-form-group supa-price-selector">
+                        <label><i class="fas fa-dollar-sign"></i> Цена для Eldorado</label>
+                        <div class="supa-price-options" id="supaPriceOptions">
+                            <label class="supa-price-option">
+                                <input type="radio" name="supaPriceType" value="suggested" checked>
+                                <span class="supa-price-label">
+                                    <i class="fas fa-tag"></i>
+                                    <span>Рекомендованная</span>
+                                    <strong id="supaPriceSuggested">$0.00</strong>
+                                </span>
+                            </label>
+                            <label class="supa-price-option median">
+                                <input type="radio" name="supaPriceType" value="median">
+                                <span class="supa-price-label">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <span>Медианная</span>
+                                    <strong id="supaPriceMedian">$0.00</strong>
+                                </span>
+                            </label>
+                            <label class="supa-price-option next-comp">
+                                <input type="radio" name="supaPriceType" value="nextCompetitor">
+                                <span class="supa-price-label">
+                                    <i class="fas fa-arrow-up"></i>
+                                    <span>След. компетитор</span>
+                                    <strong id="supaPriceNext">$0.00</strong>
+                                </span>
+                            </label>
+                        </div>
                     </div>
                     <button id="supaGenerateBtn" class="supa-generate-btn" onclick="generateSupaImage()">
                         <i class="fas fa-wand-magic-sparkles"></i>
@@ -4621,6 +4695,9 @@ function postToEldorado() {
     const income = document.getElementById('supaIncome').value.trim();
     const imageUrl = document.getElementById('supaImageUrl').value.trim();
     
+    // v9.9.0: Получаем выбранный тип цены
+    const selectedPriceType = document.querySelector('input[name="supaPriceType"]:checked')?.value || 'suggested';
+    
     // Получаем цену из кэша или из данных брейнрота
     let minPrice = 0;
     let maxPrice = 0;
@@ -4630,8 +4707,18 @@ function postToEldorado() {
     const priceKey = getPriceCacheKey(name, normalizedIncome);
     const priceData = state.brainrotPrices[priceKey];
     
-    if (priceData && priceData.suggestedPrice) {
-        maxPrice = priceData.suggestedPrice;
+    // v9.9.0: Выбираем цену в зависимости от типа
+    if (priceData) {
+        switch (selectedPriceType) {
+            case 'median':
+                maxPrice = priceData.medianPrice || priceData.suggestedPrice || 0;
+                break;
+            case 'nextCompetitor':
+                maxPrice = priceData.nextCompetitorPrice || priceData.suggestedPrice || 0;
+                break;
+            default:
+                maxPrice = priceData.suggestedPrice || 0;
+        }
         minPrice = Math.floor(maxPrice * 0.9);
     }
     
@@ -4646,6 +4733,7 @@ function postToEldorado() {
         generatedImageUrl: currentSupaResult.resultUrl,
         minPrice: minPrice,
         maxPrice: maxPrice,
+        priceType: selectedPriceType, // v9.9.0: Тип выбранной цены
         quantity: quantity, // Количество для Eldorado Total Quantity
         rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
         mutation: currentSupaBrainrot?.mutation || '', // v9.8.27: Мутация брейнрота (YinYang, Diamond, etc)
@@ -4867,9 +4955,18 @@ function openMassGenerationModal() {
     }
     startBtn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> <span id="massGenBtnText">Генерировать ${selectedGroups.length} шт</span>`;
     
-    // Render list of selected items
+    // Render list of selected items with price type selector
     list.innerHTML = selectedGroups.map((group, i) => {
         const accountsList = group.items ? group.items.map(item => item.accountName).join(', ') : 'Unknown';
+        
+        // Get prices from cache
+        const income = normalizeIncomeForApi(group.income, group.incomeText);
+        const cacheKey = getPriceCacheKey(group.name, income);
+        const cachedPrice = state.brainrotPrices[cacheKey];
+        const suggestedPrice = cachedPrice?.suggestedPrice || 0;
+        const medianPrice = cachedPrice?.medianPrice || 0;
+        const nextCompPrice = cachedPrice?.nextCompetitorPrice || 0;
+        
         return `
             <div class="mass-gen-item" data-item-index="${i}" data-group-key="${group.groupKey}">
                 <img class="mass-gen-item-img" src="${group.imageUrl || ''}" alt="${group.name}" 
@@ -4880,6 +4977,13 @@ function openMassGenerationModal() {
                         <span><i class="fas fa-coins"></i> ${group.incomeText || formatIncome(group.income)}</span>
                         <span><i class="fas fa-user"></i> ${accountsList}</span>
                     </div>
+                </div>
+                <div class="mass-gen-price-selector" data-price-index="${i}">
+                    <select class="mass-gen-price-select" data-index="${i}">
+                        <option value="suggested" ${suggestedPrice > 0 ? '' : 'disabled'}>💰 $${suggestedPrice.toFixed(2)}</option>
+                        <option value="median" ${medianPrice > 0 ? '' : 'disabled'}>📊 $${medianPrice.toFixed(2)}</option>
+                        <option value="nextCompetitor" ${nextCompPrice > 0 ? '' : 'disabled'}>⬆️ $${nextCompPrice.toFixed(2)}</option>
+                    </select>
                 </div>
                 <div class="mass-gen-item-status pending" data-status-index="${i}">
                     <i class="fas fa-clock"></i>
@@ -5001,11 +5105,27 @@ async function startMassGeneration() {
         }
         
         try {
-            // Get price from cache
+            // Get price from cache based on selected price type
             const income = normalizeIncomeForApi(group.income, group.incomeText);
             const cacheKey = getPriceCacheKey(group.name, income);
             const cachedPrice = state.brainrotPrices[cacheKey];
-            const price = cachedPrice?.suggestedPrice || 0;
+            
+            // Get selected price type from dropdown
+            const priceSelect = list.querySelector(`.mass-gen-price-select[data-index="${idx}"]`);
+            const selectedPriceType = priceSelect?.value || 'suggested';
+            
+            let price = 0;
+            switch (selectedPriceType) {
+                case 'median':
+                    price = cachedPrice?.medianPrice || cachedPrice?.suggestedPrice || 0;
+                    break;
+                case 'nextCompetitor':
+                    price = cachedPrice?.nextCompetitorPrice || cachedPrice?.suggestedPrice || 0;
+                    break;
+                case 'suggested':
+                default:
+                    price = cachedPrice?.suggestedPrice || 0;
+            }
             
             // Use panel color
             const borderColor = collectionState.panelColor || '#4ade80';
@@ -5990,6 +6110,36 @@ function openOfferPriceModal(offerId) {
         recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
     }
     
+    // Populate median price
+    const medianValueEl = document.getElementById('medianPriceValue');
+    const medianRadio = document.querySelector('input[name="priceType"][value="median"]');
+    if (medianValueEl && medianRadio) {
+        if (offer.medianPrice && offer.medianPrice > 0) {
+            medianValueEl.textContent = `$${offer.medianPrice.toFixed(2)}`;
+            medianRadio.disabled = false;
+            medianRadio.closest('.price-option')?.classList.remove('disabled');
+        } else {
+            medianValueEl.textContent = 'N/A';
+            medianRadio.disabled = true;
+            medianRadio.closest('.price-option')?.classList.add('disabled');
+        }
+    }
+    
+    // Populate next competitor price
+    const nextCompValueEl = document.getElementById('nextCompetitorPriceValue');
+    const nextCompRadio = document.querySelector('input[name="priceType"][value="nextCompetitor"]');
+    if (nextCompValueEl && nextCompRadio) {
+        if (offer.nextCompetitorPrice && offer.nextCompetitorPrice > 0) {
+            nextCompValueEl.textContent = `$${offer.nextCompetitorPrice.toFixed(2)}`;
+            nextCompRadio.disabled = false;
+            nextCompRadio.closest('.price-option')?.classList.remove('disabled');
+        } else {
+            nextCompValueEl.textContent = 'N/A';
+            nextCompRadio.disabled = true;
+            nextCompRadio.closest('.price-option')?.classList.add('disabled');
+        }
+    }
+    
     if (customInputEl) {
         customInputEl.value = offer.currentPrice || '';
     }
@@ -6053,10 +6203,21 @@ async function confirmOfferPriceAdjustment() {
     const priceType = document.querySelector('input[name="priceType"]:checked')?.value;
     let newPrice;
     
-    if (priceType === 'recommended') {
-        newPrice = offer.recommendedPrice;
-    } else {
-        newPrice = parseFloat(document.getElementById('customPriceInput')?.value);
+    switch (priceType) {
+        case 'recommended':
+            newPrice = offer.recommendedPrice;
+            break;
+        case 'median':
+            newPrice = offer.medianPrice;
+            break;
+        case 'nextCompetitor':
+            newPrice = offer.nextCompetitorPrice;
+            break;
+        case 'custom':
+            newPrice = parseFloat(document.getElementById('customPriceInput')?.value);
+            break;
+        default:
+            newPrice = offer.recommendedPrice;
     }
     
     if (!newPrice || newPrice <= 0) {
@@ -6099,13 +6260,25 @@ async function confirmBulkPriceAdjustment() {
     for (const offer of selectedOffers) {
         let newPrice;
         
-        if (priceType === 'recommended') {
-            newPrice = offer.recommendedPrice;
-        } else if (priceType === 'custom-single') {
-            newPrice = parseFloat(document.getElementById('singleCustomPrice')?.value);
-        } else if (priceType === 'custom-each') {
-            const input = document.querySelector(`#bulkOffersList .bulk-offer-item[data-offer-id="${offer.offerId}"] input`);
-            newPrice = parseFloat(input?.value);
+        switch (priceType) {
+            case 'recommended':
+                newPrice = offer.recommendedPrice;
+                break;
+            case 'median':
+                newPrice = offer.medianPrice || offer.recommendedPrice;
+                break;
+            case 'nextCompetitor':
+                newPrice = offer.nextCompetitorPrice || offer.recommendedPrice;
+                break;
+            case 'custom-single':
+                newPrice = parseFloat(document.getElementById('singleCustomPrice')?.value);
+                break;
+            case 'custom-each':
+                const input = document.querySelector(`#bulkOffersList .bulk-offer-item[data-offer-id="${offer.offerId}"] input`);
+                newPrice = parseFloat(input?.value);
+                break;
+            default:
+                newPrice = offer.recommendedPrice;
         }
         
         if (newPrice && newPrice > 0) {
