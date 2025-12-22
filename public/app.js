@@ -3831,7 +3831,9 @@ async function renderCollection() {
             const changeHtml = formatPriceChange(priceChange);
             
             // v9.10.2: Check if next competitor price is >100% higher than current competitor (opportunity)
+            // v9.10.9: Don't show opportunity if we already switched to next range (opportunity already used)
             const hasNextOpportunity = cachedPrice.nextCompetitorPrice && cachedPrice.competitorPrice && 
+                !cachedPrice.nextRangeChecked &&
                 ((cachedPrice.nextCompetitorPrice / cachedPrice.competitorPrice) > 2);
             
             // Parsing source badge (regex, ai, or hybrid)
