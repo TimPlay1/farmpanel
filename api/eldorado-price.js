@@ -714,24 +714,34 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             // Функция проверки соответствия названия
             const checkBrainrotMatch = () => {
-                // v9.10.13: ПЕРВЫМ делом проверяем что title НЕ содержит другой известный брейнрот
-                // Если в title есть "La Spooky Grande" а мы ищем "Capitano Moby" - это фейк!
-                const knownBrainrots = [
-                    'chilin chili', 'chillin chili', 'esok sekolah', 'los mobilis', 
-                    'mieteteira', 'bicicleteira', 'tictac sahur', 'skibidi toilet',
-                    'los planitos', 'los 67', 'la ginger', 'secret combinasion',
-                    'garama', 'madundung', 'dragon cannelloni', 'eviledon',
-                    'la taco', 'taco combinasion', 'capitano moby', 'spooky grande',
-                    'la spooky', 'los spooky', 'fragama', 'chocrama', 'yinrang',
-                    'los burritos', 'donkeyturbo', 'los 25', 'el burrito',
-                    'la grande', 'combinasion gold', 'los combinasion'
-                ];
+                // v9.10.14: Используем ДИНАМИЧЕСКИЙ список брейнротов из Eldorado API
+                // Проверяем что title НЕ содержит другой известный брейнрот
+                // dynamicBrainrotsCache загружается из API и содержит все 142+ брейнрота
                 
-                for (const otherBrainrot of knownBrainrots) {
-                    // Если title содержит другой брейнрот, а мы ищем не его
-                    if (titleLower.includes(otherBrainrot) && !nameLower.includes(otherBrainrot)) {
+                // Разбиваем title на слова для более точного поиска
+                const titleWords = titleLower.split(/[\s\-_|,.!:]+/).filter(w => w.length >= 3);
+                
+                for (const otherBrainrot of dynamicBrainrotsCache) {
+                    // Пропускаем если это наш брейнрот (или его часть)
+                    if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
+                    
+                    // Проверяем полное имя брейнрота в title
+                    if (titleLower.includes(otherBrainrot)) {
                         console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
                         return false;
+                    }
+                    
+                    // Для многословных брейнротов (например "La Extinct Grande") проверяем ключевые слова
+                    // Минимум 5 символов чтобы избежать false positives на коротких словах (money, gold, etc)
+                    const brainrotWords = otherBrainrot.split(/\s+/).filter(w => w.length >= 5);
+                    if (brainrotWords.length >= 2) {
+                        // Уникальные слова брейнрота найденные в title
+                        const matchedWords = [...new Set(brainrotWords.filter(w => titleLower.includes(w)))];
+                        // Если 2+ УНИКАЛЬНЫХ ключевых слова найдены - это тот брейнрот
+                        if (matchedWords.length >= 2) {
+                            console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found words: ${matchedWords.join(', ')} → ${otherBrainrot}, expected: ${brainrotName})`);
+                            return false;
+                        }
                     }
                 }
                 
