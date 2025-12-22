@@ -208,6 +208,30 @@ function isNearRangeUpperBound(income, msRange) {
 }
 
 /**
+ * v9.10.0: Рассчитывает процентное уменьшение цены на основе разницы между competitor и lower
+ * Формула: 15% от разницы, минимум $0.10, максимум $1.00
+ * 
+ * Примеры:
+ * - $5 vs $4 (diff=$1) → reduction = $0.15
+ * - $12 vs $7 (diff=$5) → reduction = $0.75
+ * - $50 vs $28 (diff=$22) → reduction = $1.00 (max)
+ * 
+ * @param {number} competitorPrice - цена компетитора (upper)
+ * @param {number} lowerPrice - цена lower (или 0 если нет lower)
+ * @returns {number} - величина уменьшения цены в диапазоне $0.10-$1.00
+ */
+function calculateReduction(competitorPrice, lowerPrice = 0) {
+    // Если нет lower, используем 10% от цены компетитора как разницу
+    const diff = lowerPrice > 0 ? (competitorPrice - lowerPrice) : (competitorPrice * 0.1);
+    
+    // 15% от разницы, минимум $0.10, максимум $1.00
+    const reduction = Math.min(1.0, Math.max(0.1, diff * 0.15));
+    
+    // Округляем до центов
+    return Math.round(reduction * 100) / 100;
+}
+
+/**
  * Проверяет является ли оффер от нашего магазина Glitched Store
  * По коду #GS или по названию магазина в title
  */
@@ -954,21 +978,15 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 lowerPrice = lowerOffer.price;
                 lowerIncome = lowerOffer.income;
                 
-                const priceDiff = competitorPrice - lowerPrice;
-                
-                if (priceDiff >= 1) {
-                    // Разница >= $1 - ставим на $1 меньше upper
-                    suggestedPrice = Math.round((competitorPrice - 1) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} >= $1 → -$1`;
-                } else {
-                    // Разница < $1 - ставим на $0.50 меньше upper
-                    suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                    priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${priceDiff.toFixed(2)} < $1 → -$0.50`;
-                }
+                // v9.10.0: Процентное уменьшение на основе разницы (15% от diff, мин $0.10, макс $1.00)
+                const reduction = calculateReduction(competitorPrice, lowerPrice);
+                suggestedPrice = Math.round((competitorPrice - reduction) * 100) / 100;
+                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, lower ${lowerIncome}M/s @ $${lowerPrice.toFixed(2)}, diff $${(competitorPrice - lowerPrice).toFixed(2)} → -$${reduction.toFixed(2)}`;
             } else {
-                // Нет lower - ставим на $0.50 меньше upper
-                suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
-                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower on same page → -$0.50`;
+                // Нет lower - используем 10% от цены компетитора
+                const reduction = calculateReduction(competitorPrice, 0);
+                suggestedPrice = Math.round((competitorPrice - reduction) * 100) / 100;
+                priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower → -$${reduction.toFixed(2)}`;
             }
             
             // ==================== v9.9.0: МЕДИАННАЯ ЦЕНА ====================
@@ -981,7 +999,9 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 
                 if (validPrices.length >= 3) {
                     const median = calculateMedian(validPrices);
-                    medianPrice = Math.round((median - 0.5) * 100) / 100;
+                    // v9.10.0: Для медианы используем reduction с lower = minPrice
+                    const medianReduction = calculateReduction(median, Math.min(...validPrices));
+                    medianPrice = Math.round((median - medianReduction) * 100) / 100;
                     medianData = {
                         pageNumber: upperPage,
                         offersUsed: validPrices.length,
@@ -990,7 +1010,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                         minPrice: Math.min(...validPrices),
                         maxPrice: Math.max(...validPrices)
                     };
-                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length}/24 offers) → suggested $${medianPrice.toFixed(2)}`);
+                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
                 }
             }
             
@@ -1000,26 +1020,20 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
             if (nextCompetitor) {
                 // Upper является lower-ом для nextCompetitor (меньшая цена)
                 const nextCompLower = upperOffer;
-                const nextPriceDiff = nextCompetitor.price - nextCompLower.price;
-                
-                if (nextPriceDiff >= 1) {
-                    // Разница >= $1 - ставим на $1 меньше nextCompetitor
-                    nextCompetitorPrice = Math.round((nextCompetitor.price - 1) * 100) / 100;
-                } else {
-                    // Разница < $1 - ставим на $0.50 меньше nextCompetitor
-                    nextCompetitorPrice = Math.round((nextCompetitor.price - 0.5) * 100) / 100;
-                }
+                // v9.10.0: Процентное уменьшение
+                const nextReduction = calculateReduction(nextCompetitor.price, nextCompLower.price);
+                nextCompetitorPrice = Math.round((nextCompetitor.price - nextReduction) * 100) / 100;
                 
                 nextCompetitorData = {
                     income: nextCompetitor.income,
                     price: nextCompetitor.price,
                     lowerPrice: nextCompLower.price,
                     lowerIncome: nextCompLower.income,
-                    priceDiff: nextPriceDiff,
+                    priceDiff: nextCompetitor.price - nextCompLower.price,
                     title: nextCompetitor.title?.substring(0, 50),
                     page: nextCompetitor.page
                 };
-                console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}, lower: $${nextCompLower.price.toFixed(2)}, diff: $${nextPriceDiff.toFixed(2)} → suggested $${nextCompetitorPrice.toFixed(2)}`);
+                console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}, lower: $${nextCompLower.price.toFixed(2)}, diff: $${(nextCompetitor.price - nextCompLower.price).toFixed(2)} → -$${nextReduction.toFixed(2)} → $${nextCompetitorPrice.toFixed(2)}`);
             }
             
         } else if (allPageOffers.length > 0) {
@@ -1034,8 +1048,9 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 
                 // Берём минимальную цену из первых 5 офферов как fallback
                 const minPriceOffer = allPageOffers.slice(0, 5).reduce((min, o) => o.price < min.price ? o : min);
-                suggestedPrice = Math.round((minPriceOffer.price - 0.5) * 100) / 100;
-                priceSource = `FALLBACK: income parsing failed, using min price from first offers: $${minPriceOffer.price.toFixed(2)} → -$0.50`;
+                const fallbackReduction = calculateReduction(minPriceOffer.price, 0);
+                suggestedPrice = Math.round((minPriceOffer.price - fallbackReduction) * 100) / 100;
+                priceSource = `FALLBACK: income parsing failed, using min price: $${minPriceOffer.price.toFixed(2)} → -$${fallbackReduction.toFixed(2)}`;
                 competitorPrice = minPriceOffer.price;
                 competitorIncome = 0;
             } else {
@@ -1051,9 +1066,10 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 // The old check (maxPrice > minPrice * 3) caused issues because low income offers 
                 // naturally have much lower prices than high income offers
                 
-                // Выше рынка - ставим на $0.50 ниже max price
-                suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
-                priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${numericIncome}M/s) → -$0.50`;
+                // v9.10.0: Выше рынка - используем процентное уменьшение
+                const aboveMarketReduction = calculateReduction(maxPriceOffer.price, 0);
+                suggestedPrice = Math.round((maxPriceOffer.price - aboveMarketReduction) * 100) / 100;
+                priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${numericIncome}M/s) → -$${aboveMarketReduction.toFixed(2)}`;
             }
             
             // v9.9.8: Рассчитываем медиану даже когда нет upper (above market case)
@@ -1066,7 +1082,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 
                 if (validPrices.length >= 3) {
                     const median = calculateMedian(validPrices);
-                    medianPrice = Math.round((median - 0.5) * 100) / 100;
+                    const medianReduction = calculateReduction(median, Math.min(...validPrices));
+                    medianPrice = Math.round((median - medianReduction) * 100) / 100;
                     medianData = {
                         pageNumber: firstPage,
                         offersUsed: validPrices.length,
@@ -1075,7 +1092,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                         minPrice: Math.min(...validPrices),
                         maxPrice: Math.max(...validPrices)
                     };
-                    console.log(`📊 Median (no upper): $${median.toFixed(2)} (page ${firstPage}, ${validPrices.length}/24 offers) → suggested $${medianPrice.toFixed(2)}`);
+                    console.log(`📊 Median (no upper): $${median.toFixed(2)} (page ${firstPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
                 }
             }
         } else {
@@ -1152,13 +1169,14 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                                 competitorPrice = cheapestNearBoundary.price;
                                 competitorIncome = cheapestNearBoundary.income;
                                 
-                                // Пересчитываем suggestedPrice (конкурент из следующего диапазона всегда upper)
-                                // Так как его income > нашего, он является upper, и мы ставим -$0.50
-                                suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
+                                // v9.10.0: Пересчитываем suggestedPrice с процентным уменьшением
+                                // Для next range у нас нет lower, используем 10% от цены
+                                const nextRangeReduction = calculateReduction(competitorPrice, 0);
+                                suggestedPrice = Math.round((competitorPrice - nextRangeReduction) * 100) / 100;
                                 
                                 priceSource = `NEXT RANGE CHECK: ${nextRange} has cheaper competitor ` +
                                     `(${cheapestNearBoundary.income}M/s @ $${cheapestNearBoundary.price.toFixed(2)}) ` +
-                                    `vs current (${msRange}: $${oldCompetitorPrice.toFixed(2)}) → using next range → -$0.50`;
+                                    `vs current (${msRange}: $${oldCompetitorPrice.toFixed(2)}) → using next range → -$${nextRangeReduction.toFixed(2)}`;
                                 
                                 console.log(`   ✅ Switching to next range competitor! $${oldSuggestedPrice.toFixed(2)} → $${suggestedPrice.toFixed(2)}`);
                                 
@@ -1173,7 +1191,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                                     
                                     if (nextRangePrices.length >= 3) {
                                         const nextMedian = calculateMedian(nextRangePrices);
-                                        medianPrice = Math.round((nextMedian - 0.5) * 100) / 100;
+                                        const nextMedianReduction = calculateReduction(nextMedian, Math.min(...nextRangePrices));
+                                        medianPrice = Math.round((nextMedian - nextMedianReduction) * 100) / 100;
                                         medianData = {
                                             pageNumber: nextRangeUpperPage,
                                             offersUsed: nextRangePrices.length,
@@ -1184,7 +1203,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                                             fromNextRange: true,
                                             nextRange: nextRange
                                         };
-                                        console.log(`   📊 Median recalculated from next range ${nextRange}: $${nextMedian.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                                        console.log(`   📊 Median recalculated from next range ${nextRange}: $${nextMedian.toFixed(2)} → -$${nextMedianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
                                     }
                                 }
                             } else {
