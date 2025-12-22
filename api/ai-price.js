@@ -173,9 +173,11 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }
         }
         
-        // v9.10.11: Функция процентного уменьшения (15% от разницы, min $0.10, max $1.00)
-        function calculateReduction(competitorPrice, lowerPrice) {
-            const diff = competitorPrice - (lowerPrice || 0);
+        // v9.10.12: Функция процентного уменьшения (15% от разницы, min $0.10, max $1.00)
+        // Если lower нету - используем минимальное уменьшение $0.10
+        function calculateReduction(competitorPrice, lowerPrice, hasLower) {
+            if (!hasLower) return 0.10; // Нет lower = минимальное уменьшение
+            const diff = competitorPrice - lowerPrice;
             return Math.min(1.0, Math.max(0.1, diff * 0.15));
         }
         
@@ -186,15 +188,18 @@ async function forceAIPrice(brainrotName, ourIncome) {
         if (upperOffer) {
             const upperPrice = upperOffer.price;
             const lowerPrice = lowerOffer?.price || 0;
+            const hasLower = lowerOffer !== null && lowerOffer !== undefined;
             
-            // v9.10.11: Процентное уменьшение вместо фиксированного
-            const reduction = calculateReduction(upperPrice, lowerPrice);
+            // v9.10.12: Процентное уменьшение, $0.10 если нет lower
+            const reduction = calculateReduction(upperPrice, lowerPrice, hasLower);
             suggestedPrice = Math.round((upperPrice - reduction) * 100) / 100;
-            priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, lower $${lowerPrice.toFixed(2)}, diff $${(upperPrice - lowerPrice).toFixed(2)} → -$${reduction.toFixed(2)}`;
+            priceSource = hasLower 
+                ? `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, lower $${lowerPrice.toFixed(2)}, diff $${(upperPrice - lowerPrice).toFixed(2)} → -$${reduction.toFixed(2)}`
+                : `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, no lower → -$${reduction.toFixed(2)}`;
         } else if (validOffers.length > 0) {
-            // Выше рынка
+            // Выше рынка - нет lower, используем минимальное уменьшение
             const maxIncomeOffer = validOffers.reduce((max, o) => o.income > max.income ? o : max);
-            const reduction = calculateReduction(maxIncomeOffer.price, 0);
+            const reduction = 0.10; // v9.10.12: above market = минимальное уменьшение
             suggestedPrice = Math.round((maxIncomeOffer.price - reduction) * 100) / 100;
             priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s @ $${maxIncomeOffer.price.toFixed(2)} → -$${reduction.toFixed(2)}`;
         }
