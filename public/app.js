@@ -3821,14 +3821,9 @@ async function renderCollection() {
             const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
             const changeHtml = formatPriceChange(priceChange);
             
-            // Check for spike
-            const isSpikePrice = cachedPrice.isSpike || false;
-            const spikeHtml = isSpikePrice 
-                ? `<span class="price-spike-badge" title="Price spike detected! Waiting for verification...">⚠️ Spike</span>` 
-                : '';
-            const pendingInfo = isSpikePrice && cachedPrice.pendingPrice 
-                ? `<span class="price-pending" title="Pending: $${cachedPrice.pendingPrice.toFixed(2)}">→ $${cachedPrice.pendingPrice.toFixed(2)}</span>` 
-                : '';
+            // v9.10.2: Check if next competitor price is >100% higher than current competitor (opportunity)
+            const hasNextOpportunity = cachedPrice.nextCompetitorPrice && cachedPrice.competitorPrice && 
+                ((cachedPrice.nextCompetitorPrice / cachedPrice.competitorPrice) > 2);
             
             // Parsing source badge (regex, ai, or hybrid)
             // Приоритет: source (новый AI-first API) > parsingSource (старый)
@@ -3865,10 +3860,11 @@ async function renderCollection() {
                 }
                 if (cachedPrice.nextCompetitorPrice) {
                     const nextTooltip = cachedPrice.nextCompetitorData 
-                        ? `Next: ${cachedPrice.nextCompetitorData.income}M/s @ $${cachedPrice.nextCompetitorData.price?.toFixed(2)}` 
+                        ? `Next: ${cachedPrice.nextCompetitorData.income}M/s @ $${cachedPrice.nextCompetitorData.price?.toFixed(2)}${hasNextOpportunity ? ' 🔥 >100% gap!' : ''}` 
                         : 'Next competitor price';
+                    // v9.10.2: Анимация если разница > 100%
                     additionalPricesHtml += `
-                        <div class="additional-price next-comp" title="${nextTooltip}">
+                        <div class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}">
                             <i class="fas fa-arrow-up"></i>
                             <span>${formatPrice(cachedPrice.nextCompetitorPrice)}</span>
                         </div>`;
@@ -3881,14 +3877,13 @@ async function renderCollection() {
             const priceTypeBadge = priceTypeLabel ? `<span class="price-type-badge" title="Using ${priceTypeLabel} price">${priceTypeLabel}</span>` : '';
             
             priceHtml = `
-                <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
+                <div class="brainrot-price" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(selectedPrice)}</span>
                     ${priceTypeBadge}
                     ${sourceBadge}
                     ${nextRangeBadge}
-                    ${isSpikePrice ? spikeHtml : changeHtml}
-                    ${pendingInfo}
+                    ${changeHtml}
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
                 </div>
                 ${additionalPricesHtml}`;
