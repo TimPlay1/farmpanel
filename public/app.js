@@ -681,6 +681,11 @@ async function savePricesToServer() {
                     competitorPrice: data.competitorPrice,
                     competitorIncome: data.competitorIncome,
                     priceSource: data.priceSource,
+                    nextRangeChecked: data.nextRangeChecked || false,
+                    medianPrice: data.medianPrice,
+                    medianData: data.medianData,
+                    nextCompetitorPrice: data.nextCompetitorPrice,
+                    nextCompetitorData: data.nextCompetitorData,
                     _timestamp: data._timestamp || Date.now()
                 };
             }
@@ -3753,6 +3758,11 @@ async function renderCollection() {
                 sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
             }
             
+            // v9.9.5: Иконка для цены из следующего диапазона
+            const nextRangeBadge = cachedPrice.nextRangeChecked 
+                ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
+                : '';
+            
             // v9.9.0: Дополнительные варианты цен (медиана и следующий компетитор)
             let additionalPricesHtml = '';
             if (cachedPrice.medianPrice || cachedPrice.nextCompetitorPrice) {
@@ -3785,6 +3795,7 @@ async function renderCollection() {
                     <i class="fas fa-tag"></i>
                     <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
                     ${sourceBadge}
+                    ${nextRangeBadge}
                     ${isSpikePrice ? spikeHtml : changeHtml}
                     ${pendingInfo}
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
@@ -4056,6 +4067,11 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
         }
         
+        // v9.9.5: Иконка для цены из следующего диапазона
+        const nextRangeBadge = priceData.nextRangeChecked 
+            ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
+            : '';
+        
         if (isSpikePrice) {
             priceEl.classList.add('spike-warning');
         } else {
@@ -4066,6 +4082,7 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             <i class="fas fa-tag"></i>
             <span class="price-text suggested">${formatPrice(priceData.suggestedPrice)}</span>
             ${sourceBadge}
+            ${nextRangeBadge}
             ${isSpikePrice ? spikeHtml : changeHtml}
             ${pendingInfo}
             ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
@@ -5667,6 +5684,8 @@ async function updateOffersRecommendedPrices() {
                 offer.medianData = priceData.medianData || null;
                 offer.nextCompetitorPrice = priceData.nextCompetitorPrice || null;
                 offer.nextCompetitorData = priceData.nextCompetitorData || null;
+                // v9.9.5: Флаг что цена из следующего диапазона
+                offer.nextRangeChecked = priceData.nextRangeChecked || false;
                 // Spike logic removed - centralized cache has verified prices
                 updated++;
             } else {
@@ -5952,7 +5971,7 @@ function renderOffers() {
                     ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
                 </div>
                 <div class="offer-price-item">
-                    <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}</div>
+                    <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked ? ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>' : ''}</div>
                     <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                 </div>
             </div>

@@ -65,3 +65,4 @@
 | 500-749 M/s | 0-6 |
 | 750-999 M/s | 0-7 |
 | 1+ B/s | 0-8 |
+https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=0-3&te_v2=Los%2025&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24

@@ -1827,6 +1827,26 @@ body {
     font-size: 0.55rem;
 }
 
+/* v9.9.5: Next range badge - цена из следующего диапазона */
+.next-range-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 0.25rem;
+    font-size: 0.65rem;
+    color: #f59e0b;
+    opacity: 0.9;
+}
+
+.next-range-badge:hover {
+    opacity: 1;
+    color: #fbbf24;
+}
+
+.next-range-badge i {
+    font-size: 0.6rem;
+}
+
 /* Price change indicators */
 .price-change-up {
     color: #4ade80;
