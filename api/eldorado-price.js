@@ -1055,6 +1055,29 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
                 priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
             }
+            
+            // v9.9.8: Рассчитываем медиану даже когда нет upper (above market case)
+            // Берём первую страницу если есть офферы
+            if (!medianData && offersByPage && offersByPage.size > 0) {
+                const firstPage = Math.min(...offersByPage.keys());
+                const pageOffers = offersByPage.get(firstPage) || [];
+                const first24Offers = pageOffers.slice(0, 24);
+                const validPrices = first24Offers.filter(o => o.price > 0).map(o => o.price);
+                
+                if (validPrices.length >= 3) {
+                    const median = calculateMedian(validPrices);
+                    medianPrice = Math.round((median - 0.5) * 100) / 100;
+                    medianData = {
+                        pageNumber: firstPage,
+                        offersUsed: validPrices.length,
+                        offersOnPage: pageOffers.length,
+                        medianValue: median,
+                        minPrice: Math.min(...validPrices),
+                        maxPrice: Math.max(...validPrices)
+                    };
+                    console.log(`📊 Median (no upper): $${median.toFixed(2)} (page ${firstPage}, ${validPrices.length}/24 offers) → suggested $${medianPrice.toFixed(2)}`);
+                }
+            }
         } else {
             // Нет офферов вообще - берём минимальную цену из mapping
             const minPrice = BRAINROT_MIN_PRICES.get(brainrotName.toLowerCase());

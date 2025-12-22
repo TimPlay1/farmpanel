@@ -1862,19 +1862,20 @@ body {
     margin-left: 0.2rem;
 }
 
-/* v9.9.7: Price type badge */
+/* v9.9.7: Price type badge - compact */
 .price-type-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     font-weight: 600;
-    padding: 1px 4px;
-    margin-left: 0.25rem;
-    border-radius: 3px;
-    background: rgba(139, 92, 246, 0.3);
+    padding: 1px 3px;
+    margin-left: 0.15rem;
+    border-radius: 2px;
+    background: rgba(139, 92, 246, 0.25);
     color: #a78bfa;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
 }
 
 /* v9.9.7: Price type dropdown toggle */
@@ -1887,21 +1888,40 @@ body {
     color: var(--primary);
 }
 
+/* Brainrot price row - compact layout */
+.brainrot-price {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.15rem;
+    font-size: 0.85rem;
+}
+
+.brainrot-price .price-text {
+    white-space: nowrap;
+}
+
+.brainrot-price .price-market {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    white-space: nowrap;
+}
+
 /* v9.9.0: Additional prices (median, next competitor) */
 .brainrot-additional-prices {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.25rem;
+    gap: 0.4rem;
+    margin-top: 0.2rem;
     flex-wrap: wrap;
 }
 
 .additional-price {
     display: flex;
     align-items: center;
-    gap: 0.2rem;
-    font-size: 0.7rem;
-    padding: 2px 6px;
-    border-radius: 4px;
+    gap: 0.15rem;
+    font-size: 0.65rem;
+    padding: 1px 4px;
+    border-radius: 3px;
     cursor: help;
 }
 
@@ -1912,7 +1932,7 @@ body {
 }
 
 .additional-price.median i {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
 }
 
 .additional-price.next-comp {
