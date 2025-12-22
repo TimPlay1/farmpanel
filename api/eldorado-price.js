@@ -39,6 +39,21 @@ let dynamicBrainrotsCacheTime = 0;
 const DYNAMIC_CACHE_TTL = 30 * 60 * 1000; // 30 минут
 
 /**
+ * Вычисляет медиану массива чисел
+ * @param {number[]} numbers - массив чисел
+ * @returns {number|null} - медианное значение или null если массив пуст
+ */
+function calculateMedian(numbers) {
+    if (!numbers || numbers.length === 0) return null;
+    const sorted = [...numbers].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+        return (sorted[mid - 1] + sorted[mid]) / 2;
+    }
+    return sorted[mid];
+}
+
+/**
  * Получает актуальный список брейнротов из Eldorado API
  * Использует кэш чтобы не спамить API
  */
@@ -582,7 +597,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     
     let upperOffer = null;
     let lowerOffer = null;
+    let nextCompetitor = null; // v9.9.0: Следующий компетитор после upper
     let upperPage = 0;
+    const offersByPage = new Map(); // v9.9.0: Офферы по страницам для расчёта медианы
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
@@ -756,6 +773,16 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 upperPage = page;
                 console.log('Found UPPER at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
             }
+            // v9.9.0: Ищем nextCompetitor (после upper с income >= target И цена > upper.price)
+            else if (upperOffer && !nextCompetitor && parsedIncome && parsedIncome >= targetIncome && price > upperOffer.price) {
+                nextCompetitor = offerData;
+                console.log('Found NEXT COMPETITOR at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
+            }
+        }
+        
+        // v9.9.0: Сохраняем офферы по страницам для расчёта медианы
+        if (pageOffers.length > 0) {
+            offersByPage.set(page, [...pageOffers]);
         }
         
         // Если нашли upper - ищем lower среди ВСЕХ собранных офферов
@@ -775,8 +802,20 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 console.log('Found LOWER:', lowerOffer.income, 'M/s @', lowerOffer.price.toFixed(2), '(page', lowerOffer.page + ')');
             }
             
-            // Нашли upper (и возможно lower) - можно остановиться
-            console.log('Upper found at page', page, ', stopping search. Total offers collected:', allPageOffers.length);
+            // v9.9.0: Продолжаем ещё 1 страницу для поиска nextCompetitor
+            if (!nextCompetitor && page < maxPages) {
+                console.log('Upper found at page', page, ', continuing 1 more page for nextCompetitor...');
+                continue;
+            }
+            
+            // Нашли upper и nextCompetitor (или прошли ещё 1 страницу) - останавливаемся
+            console.log('Upper found at page', upperPage, (nextCompetitor ? ', nextCompetitor found' : ', no nextCompetitor'), '. Total offers collected:', allPageOffers.length);
+            break;
+        }
+        
+        // v9.9.0: Если upper уже найден на предыдущей странице - останавливаемся после текущей
+        if (upperOffer && page > upperPage) {
+            console.log('Searched 1 page after upper, stopping. Total offers collected:', allPageOffers.length);
             break;
         }
         
@@ -797,7 +836,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const searchWasReliable = filterMode === 'name' || allPageOffers.length > 0;
     const usedNameFilter = filterMode === 'name' ? eldoradoName : (filterMode === 'other' ? 'Other' : null);
     
-    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable);
+    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| NextCompetitor:', nextCompetitor ? `${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable);
     
     // AI RE-PARSING: для офферов где regex не справился - пробуем AI
     const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
@@ -837,6 +876,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     return {
         upperOffer,
         lowerOffer,
+        nextCompetitor,      // v9.9.0: Следующий компетитор после upper
+        upperPage,           // v9.9.0: Страница где найден upper (для медианы)
+        offersByPage,        // v9.9.0: Офферы по страницам (Map)
         allPageOffers,
         targetMsRange,
         isInEldoradoList,
@@ -870,7 +912,10 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
     try {
         // Ищем офферы брейнрота в нужном M/s диапазоне
         const searchResult = await searchBrainrotOffers(brainrotName, ourIncome);
-        const { upperOffer, lowerOffer, allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount } = searchResult;
+        const { 
+            upperOffer, lowerOffer, nextCompetitor, upperPage, offersByPage,
+            allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount 
+        } = searchResult;
         
         let suggestedPrice;
         let priceSource;
@@ -878,6 +923,12 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         let competitorIncome = null;
         let lowerPrice = null;
         let lowerIncome = null;
+        
+        // v9.9.0: Новые цены
+        let medianPrice = null;
+        let medianData = null;
+        let nextCompetitorPrice = null;
+        let nextCompetitorData = null;
 
         if (upperOffer) {
             // Нашли upper (income >= наш)
@@ -905,6 +956,39 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 suggestedPrice = Math.round((competitorPrice - 0.5) * 100) / 100;
                 priceSource = `upper ${competitorIncome}M/s @ $${competitorPrice.toFixed(2)}, no lower on same page → -$0.50`;
             }
+            
+            // ==================== v9.9.0: МЕДИАННАЯ ЦЕНА ====================
+            // Вычисляем медиану цен на странице где найден компетитор
+            if (upperPage > 0 && offersByPage) {
+                const pageOffers = offersByPage.get(upperPage) || [];
+                const validPrices = pageOffers.filter(o => o.price > 0).map(o => o.price);
+                
+                if (validPrices.length >= 3) {
+                    const median = calculateMedian(validPrices);
+                    medianPrice = Math.round((median - 0.5) * 100) / 100;
+                    medianData = {
+                        pageNumber: upperPage,
+                        offersOnPage: pageOffers.length,
+                        medianValue: median,
+                        minPrice: Math.min(...validPrices),
+                        maxPrice: Math.max(...validPrices)
+                    };
+                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length} offers) → suggested $${medianPrice.toFixed(2)}`);
+                }
+            }
+            
+            // ==================== v9.9.0: ЦЕНА СЛЕДУЮЩЕГО КОМПЕТИТОРА ====================
+            if (nextCompetitor) {
+                nextCompetitorPrice = Math.round((nextCompetitor.price - 0.5) * 100) / 100;
+                nextCompetitorData = {
+                    income: nextCompetitor.income,
+                    price: nextCompetitor.price,
+                    title: nextCompetitor.title?.substring(0, 50),
+                    page: nextCompetitor.page
+                };
+                console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)} → suggested $${nextCompetitorPrice.toFixed(2)}`);
+            }
+            
         } else if (allPageOffers.length > 0) {
             // Upper не найден - мы выше рынка
             // Но сначала проверяем - если у ВСЕХ офферов income = 0, значит парсинг сломался!
@@ -1126,6 +1210,11 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 price: nextRangeCompetitor.price,
                 range: getNextMsRange(msRange)
             } : null,
+            // v9.9.0: Новые варианты цен
+            medianPrice,
+            medianData,
+            nextCompetitorPrice,
+            nextCompetitorData,
             samples: allPageOffers.slice(0, 5).map(o => ({
                 income: o.income,
                 price: o.price,
