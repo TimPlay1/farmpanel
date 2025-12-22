@@ -1310,8 +1310,17 @@ module.exports = async (req, res) => {
     }
 };
 
+// Очистка кэша цен
+function clearPriceCache() {
+    const size = priceCache.size;
+    priceCache.clear();
+    console.log(`🗑️ Cleared ${size} entries from price cache`);
+    return size;
+}
+
 // Экспорт для тестирования
 module.exports.calculateOptimalPrice = calculateOptimalPrice;
 module.exports.searchBrainrotOffers = searchBrainrotOffers;
 module.exports.findEldoradoBrainrot = findEldoradoBrainrot;
 module.exports.parseIncomeFromTitle = parseIncomeFromTitle;
+module.exports.clearPriceCache = clearPriceCache;
