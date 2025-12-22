@@ -1177,9 +1177,9 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                             
                             console.log(`   ✅ Switching to next range competitor! $${oldSuggestedPrice.toFixed(2)} → $${suggestedPrice.toFixed(2)}`);
                             
-                            // v9.9.9: Если в текущем диапазоне НЕ БЫЛ найден upper (above market case),
-                            // то пересчитываем медиану из следующего диапазона
-                            if (!hadUpperInCurrentRange && nextRangeResult.offersByPage && nextRangeResult.offersByPage.size > 0) {
+                            // v9.10.8: ВСЕГДА пересчитываем median и nextCompetitor из следующего диапазона
+                            // когда переключаемся на него, т.к. старые значения нерелевантны
+                            if (nextRangeResult.offersByPage && nextRangeResult.offersByPage.size > 0) {
                                 const nextRangeUpperPage = nextRangeResult.upperPage || 1;
                                 const nextRangePageOffers = nextRangeResult.offersByPage.get(nextRangeUpperPage) || 
                                                            nextRangeResult.offersByPage.get(1) || [];
@@ -1201,6 +1201,32 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                                         nextRange: nextRange
                                     };
                                     console.log(`   📊 Median recalculated from next range ${nextRange}: $${nextMedian.toFixed(2)} → -$${nextMedianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                                }
+                                
+                                // v9.10.8: Пересчитываем nextCompetitor из следующего диапазона
+                                if (nextRangeResult.nextCompetitor) {
+                                    const ncData = nextRangeResult.nextCompetitor;
+                                    const ncLowerPrice = nextRangeResult.upperOffer ? nextRangeResult.upperOffer.price : ncData.price * 0.9;
+                                    const ncDiff = ncData.price - ncLowerPrice;
+                                    const ncReduction = calculateReduction(ncData.price, ncLowerPrice);
+                                    nextCompetitorPrice = Math.round((ncData.price - ncReduction) * 100) / 100;
+                                    nextCompetitorData = {
+                                        income: ncData.income,
+                                        price: ncData.price,
+                                        lowerPrice: ncLowerPrice,
+                                        lowerIncome: nextRangeResult.upperOffer ? nextRangeResult.upperOffer.income : ncData.income,
+                                        priceDiff: ncDiff,
+                                        title: ncData.title,
+                                        page: ncData.page || nextRangeUpperPage,
+                                        fromNextRange: true,
+                                        nextRange: nextRange
+                                    };
+                                    console.log(`   📈 NextCompetitor recalculated from ${nextRange}: ${ncData.income}M/s @ $${ncData.price.toFixed(2)} → -$${ncReduction.toFixed(2)} → $${nextCompetitorPrice.toFixed(2)}`);
+                                } else {
+                                    // Нет nextCompetitor в следующем диапазоне - очищаем
+                                    nextCompetitorPrice = null;
+                                    nextCompetitorData = null;
+                                    console.log(`   📈 No nextCompetitor in ${nextRange}, clearing`);
                                 }
                             }
                         } else {
