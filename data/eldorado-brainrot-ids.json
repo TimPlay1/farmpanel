@@ -5,6 +5,11 @@
     "rarity": "6"
   },
   {
+    "name": "25",
+    "id": "0-6-101",
+    "rarity": "6"
+  },
+  {
     "name": "67",
     "id": "0-6-40",
     "rarity": "6"
@@ -73,6 +78,11 @@
     "name": "Bulbito Bandito Traktorito",
     "id": "0-5-11",
     "rarity": "5"
+  },
+  {
+    "name": "Bunnyman",
+    "id": "0-6-97",
+    "rarity": "6"
   },
   {
     "name": "Burguro and Fryuro",
@@ -145,8 +155,18 @@
     "rarity": "6"
   },
   {
+    "name": "Donkeyturbo Express",
+    "id": "0-6-98",
+    "rarity": "6"
+  },
+  {
     "name": "Dragon Cannelloni",
     "id": "0-6-26",
+    "rarity": "6"
+  },
+  {
+    "name": "Dragon Gingerini",
+    "id": "0-6-100",
     "rarity": "6"
   },
   {
@@ -307,6 +327,11 @@
   {
     "name": "La Supreme Combinasion",
     "id": "0-6-22",
+    "rarity": "6"
+  },
+  {
+    "name": "La Taco Combinasion",
+    "id": "0-6-96",
     "rarity": "6"
   },
   {
@@ -472,6 +497,11 @@
   {
     "name": "Money Money Puggy",
     "id": "0-6-43",
+    "rarity": "6"
+  },
+  {
+    "name": "Money Money Reindeer",
+    "id": "0-6-99",
     "rarity": "6"
   },
   {

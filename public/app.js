@@ -5783,7 +5783,7 @@ function renderOffers() {
                             const mStyles = getMutationStyles(offer.mutation);
                             const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
                             return `<div class="offer-mutation-line"><span class="offer-mutation-badge" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(offer.mutation)}</span></div>`;
-                        })() : ''}
+                        })() : '<div class="offer-mutation-line offer-mutation-placeholder"></div>'}
                         <div class="offer-card-id">${offer.offerId}</div>
                         <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
                     </div>

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.30
+// @version      9.8.32
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.30
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.30
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.32
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.32
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.30';
+    const VERSION = '9.8.32';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -3572,8 +3572,26 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     async function goToNextPage() {
         const pagination = document.querySelector('eld-pagination, .pagination');
         if (!pagination) return false;
-        const nextBtn = pagination.querySelector('.pagination-arrow, [class*="sign-right"]');
-        if (nextBtn) { nextBtn.click(); await new Promise(r => setTimeout(r, 1500)); return true; }
+        
+        // v9.8.31: Fixed - find the LAST pagination arrow (next), not the first (prev)
+        // Also check for disabled state
+        const paginationArrows = pagination.querySelectorAll('.pagination-arrow');
+        const nextBtn = paginationArrows.length > 0 ? paginationArrows[paginationArrows.length - 1] : null;
+        
+        // Alternative selectors for next button
+        const nextBtnAlt = pagination.querySelector('.pagination-arrow:last-child div') ||
+                           pagination.querySelector('.icon-sign-right')?.closest('.pagination-arrow') ||
+                           pagination.querySelector('[class*="sign-right"]')?.closest('.pagination-arrow');
+        
+        const buttonToClick = nextBtn || nextBtnAlt;
+        
+        if (buttonToClick && !buttonToClick.classList.contains('disable') && !buttonToClick.closest('.disable')) {
+            buttonToClick.click();
+            await new Promise(r => setTimeout(r, 1500));
+            return true;
+        }
+        
+        // Fallback: try clicking next sibling of active page
         const currentPage = pagination.querySelector('.active-page, .pagination-item.active');
         if (currentPage?.nextElementSibling?.classList.contains('pagination-item')) {
             currentPage.nextElementSibling.click();
@@ -3632,7 +3650,19 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         updateStatus(`✅ Готово! ${successCount}/${results.length} цен изменено`, 'ready');
         showNotification(`Изменено ${successCount} из ${results.length} цен`, successCount === results.length ? 'success' : 'warning');
         
-        setTimeout(() => adjustmentData.returnUrl ? (window.location.href = adjustmentData.returnUrl) : window.close(), 2000);
+        // v9.8.32: Trigger panel refresh and close this tab (don't open new panel tab)
+        triggerPanelRefresh();
+        setTimeout(() => {
+            try {
+                window.close();
+            } catch (e) {
+                log('window.close() failed:', e.message);
+                // Fallback: redirect to panel if close fails
+                if (adjustmentData.returnUrl) {
+                    window.location.href = adjustmentData.returnUrl;
+                }
+            }
+        }, 2000);
     }
 
     function createAdjustmentPanel() {

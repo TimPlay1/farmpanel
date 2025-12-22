@@ -265,14 +265,27 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*B/gi, '$1B');
     
-    // ПРОВЕРКА НА ДИАПАЗОНЫ: "150m - 500m/s", "100-500M/s", "250m~500m/s"
+    // ПРОВЕРКА НА ДИАПАЗОНЫ: "150m - 500m/s", "100-500M/s", "250m~500m/s", "88M to 220M/s"
     // Такие офферы - это "spin the wheel" или рандомные, их income ненадёжен
-    const rangePattern = /(\d+)\s*[mM]\s*[-~]\s*(\d+)\s*[mM]\/[sS]/i;
-    const rangeMatch = cleanTitle.match(rangePattern);
-    if (rangeMatch) {
-        // Это диапазон, возвращаем null чтобы не использовать этот оффер как референс
-        console.log(`⚠️ Skipping range offer: "${title}" (${rangeMatch[1]}-${rangeMatch[2]} M/s)`);
-        return null;
+    // Паттерны:
+    // - "150m - 500m/s" (с дефисом)
+    // - "250m~500m/s" (с тильдой)
+    // - "88M to 220M/s" (со словом "to")
+    // - "100 to 500M/s" (первое число может быть без M)
+    const rangePatterns = [
+        /(\d+)\s*[mM]?\s*[-~]\s*(\d+)\s*[mM]\/[sS]/i,          // 150m - 500m/s, 100-500M/s
+        /(\d+)\s*[mM]?\s+to\s+(\d+)\s*[mM]\/[sS]/i,             // 88M to 220M/s, 100 to 500M/s
+        /(\d+)\s*[mM]?\s*[-~]\s*(\d+)\s*[mM]\s/i,               // 150m - 500m (без /s, но с пробелом после)
+        /(\d+)\s*[mM]?\s+to\s+(\d+)\s*[mM]\s/i,                 // 88M to 220M (без /s)
+    ];
+    
+    for (const rangePattern of rangePatterns) {
+        const rangeMatch = cleanTitle.match(rangePattern);
+        if (rangeMatch) {
+            // Это диапазон, возвращаем null чтобы не использовать этот оффер как референс
+            console.log(`⚠️ Skipping range offer: "${title}" (${rangeMatch[1]}-${rangeMatch[2]} M/s)`);
+            return null;
+        }
     }
     
     // Также проверяем паттерны "Spin the Wheel", "Random", "Mystery" - это ненадёжные офферы

@@ -2894,6 +2894,8 @@ body {
     gap: 0.75rem;
     transition: all 0.2s;
     position: relative;
+    min-height: 300px; /* Fixed minimum height for alignment */
+    height: 100%; /* Fill grid cell for equal heights */
 }
 
 .offer-card:hover {
@@ -2920,6 +2922,8 @@ body {
     align-items: flex-start;
     padding-left: 28px;
     position: relative;
+    flex-shrink: 0; /* Don't shrink header */
+    min-height: 100px; /* Fixed header height for alignment */
 }
 
 .offer-card-header .offer-status-badge {
@@ -2953,6 +2957,10 @@ body {
 .offer-card-info {
     flex: 1;
     min-width: 0;
+    min-height: 85px; /* Fixed height for alignment - accounts for mutation badges */
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
 }
 
 .offer-card-name {
@@ -2986,6 +2994,17 @@ body {
 .offer-mutation-line {
     margin-top: 2px;
     margin-bottom: 2px;
+    min-height: 18px; /* Fixed height for alignment */
+}
+
+/* Placeholder for cards without mutation - reserves same space */
+.offer-mutation-placeholder {
+    visibility: hidden;
+}
+
+/* Reserve space for mutation line even when absent */
+.offer-card-info .offer-card-id {
+    margin-top: auto; /* Push ID down to align across cards */
 }
 
 .offer-mutation-line .offer-mutation-badge {
@@ -3007,7 +3026,7 @@ body {
     font-size: 0.85rem;
     color: var(--accent-green);
     font-weight: 600;
-    margin-top: 0.25rem;
+    margin-top: auto; /* Push to bottom of info block */
 }
 
 .offer-card-prices {
@@ -3017,6 +3036,8 @@ body {
     padding: 0.75rem;
     background: var(--bg-tertiary);
     border-radius: 8px;
+    margin-top: auto; /* Push prices to bottom of card */
+    flex-shrink: 0; /* Don't shrink prices */
 }
 
 .offer-price-item {
@@ -3098,6 +3119,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    flex-shrink: 0; /* Don't shrink actions */
 }
 
 .offer-card-actions .btn {

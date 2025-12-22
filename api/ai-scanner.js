@@ -473,11 +473,13 @@ function parseIncomeRegex(title) {
         .replace(/\s*\.\s*/g, '.')
         .trim();
     
-    // Проверка на диапазоны
+    // Проверка на диапазоны: "88M to 220M/s", "150m - 500m/s", "100~500M/s"
+    // Такие офферы ненадёжны для определения цены
     const rangePatterns = [
         /(\d+)\s*[mMkKbB]\/?[sS]?\s*[-~–—>]+\s*(\d+)\s*[mMkKbB]\/?[sS]?/i,
         /(\d+)\s*[-~–—>]+\s*(\d+)\s*[mMkKbB]\/?[sS]/i,
         /(\d+)\s*[-~–—>]+\s*(\d+)\s*[mMkKbB]/i,
+        /(\d+)\s*[mM]?\s+to\s+(\d+)\s*[mMkKbB]\/?[sS]?/i,  // "88M to 220M/s", "88 to 220M/s"
         /0\s*-\s*24\s*[mM]/i   // Специальный случай "0-24M/s"
     ];
     
@@ -607,10 +609,12 @@ CRITICAL RULES:
 4. Ignore prices ($4.50, $12, etc.)
 5. COMMA IN NUMBER (18,5) = DECIMAL (18.5), NOT A RANGE!
 
-RANGE = null (MUST HAVE DASH/ARROW/TILDE BETWEEN TWO NUMBERS):
+RANGE = null (MUST HAVE DASH/ARROW/TILDE/TO BETWEEN TWO NUMBERS):
 - "0-24M/s", "10m-13m/s" → null, r="range" (dash between numbers)
 - "100->150m/s" → null, r="range" (arrow between numbers)  
 - "50~100M" → null, r="range" (tilde between numbers)
+- "88M to 220M/s" → null, r="range" ("to" word between numbers)
+- "100 to 500M/s" → null, r="range" ("to" word between numbers)
 - "18,5M/s" is NOT a range - comma is decimal separator!
 
 RANDOM = null (when title contains "random" word or similar):
