@@ -173,6 +173,12 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }
         }
         
+        // v9.10.11: Функция процентного уменьшения (15% от разницы, min $0.10, max $1.00)
+        function calculateReduction(competitorPrice, lowerPrice) {
+            const diff = competitorPrice - (lowerPrice || 0);
+            return Math.min(1.0, Math.max(0.1, diff * 0.15));
+        }
+        
         // Рассчитываем цену
         let suggestedPrice = null;
         let priceSource = 'ai';
@@ -180,20 +186,17 @@ async function forceAIPrice(brainrotName, ourIncome) {
         if (upperOffer) {
             const upperPrice = upperOffer.price;
             const lowerPrice = lowerOffer?.price || 0;
-            const diff = upperPrice - lowerPrice;
             
-            if (diff >= 1) {
-                suggestedPrice = Math.round((upperPrice - 1) * 100) / 100;
-                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff >= $1`;
-            } else {
-                suggestedPrice = Math.round((upperPrice - 0.5) * 100) / 100;
-                priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, diff < $1`;
-            }
+            // v9.10.11: Процентное уменьшение вместо фиксированного
+            const reduction = calculateReduction(upperPrice, lowerPrice);
+            suggestedPrice = Math.round((upperPrice - reduction) * 100) / 100;
+            priceSource = `AI: upper ${upperOffer.income}M/s @ $${upperPrice.toFixed(2)}, lower $${lowerPrice.toFixed(2)}, diff $${(upperPrice - lowerPrice).toFixed(2)} → -$${reduction.toFixed(2)}`;
         } else if (validOffers.length > 0) {
             // Выше рынка
             const maxIncomeOffer = validOffers.reduce((max, o) => o.income > max.income ? o : max);
-            suggestedPrice = Math.round((maxIncomeOffer.price - 0.5) * 100) / 100;
-            priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s`;
+            const reduction = calculateReduction(maxIncomeOffer.price, 0);
+            suggestedPrice = Math.round((maxIncomeOffer.price - reduction) * 100) / 100;
+            priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s @ $${maxIncomeOffer.price.toFixed(2)} → -$${reduction.toFixed(2)}`;
         }
         
         // v9.10.10: Вычисляем medianPrice и nextCompetitorPrice для AI результатов
