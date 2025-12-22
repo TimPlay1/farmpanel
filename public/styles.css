@@ -1862,6 +1862,31 @@ body {
     margin-left: 0.2rem;
 }
 
+/* v9.9.7: Price type badge */
+.price-type-badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.55rem;
+    font-weight: 600;
+    padding: 1px 4px;
+    margin-left: 0.25rem;
+    border-radius: 3px;
+    background: rgba(139, 92, 246, 0.3);
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* v9.9.7: Price type dropdown toggle */
+.price-type-toggle {
+    min-width: 100px;
+}
+
+.price-type-toggle i:first-child {
+    margin-right: 0.3rem;
+    color: var(--primary);
+}
+
 /* v9.9.0: Additional prices (median, next competitor) */
 .brainrot-additional-prices {
     display: flex;

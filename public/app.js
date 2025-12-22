@@ -808,8 +808,10 @@ function calculateTotalValue(brainrots) {
         const income = normalizeIncomeForApi(b.income, b.incomeText);
         const cacheKey = getPriceCacheKey(b.name, income);
         const priceData = state.brainrotPrices[cacheKey];
-        if (priceData && priceData.suggestedPrice) {
-            total += priceData.suggestedPrice;
+        // v9.9.7: Используем выбранный тип цены
+        const price = getSelectedPrice(priceData);
+        if (price) {
+            total += price;
         }
     }
     return total;
@@ -3079,6 +3081,7 @@ let collectionState = {
     sortBy: 'income-desc',
     accountFilter: 'all',
     priceFilter: 'all',
+    priceType: 'suggested', // v9.9.7: 'suggested', 'median', or 'nextCompetitor'
     pricesLoading: false,
     pricesLoaded: new Set(), // Кэш загруженных цен по имени
     generations: {},  // Stores which brainrots have been generated
@@ -3358,6 +3361,40 @@ function setupCollectionListeners() {
         collectionState.priceFilter = value;
         filterAndRenderCollection();
     });
+    
+    // v9.9.7: Price type selector (suggested/median/nextCompetitor)
+    const priceTypeDropdown = document.getElementById('priceTypeDropdown');
+    initDropdown(priceTypeDropdown, function(value) {
+        collectionState.priceType = value;
+        localStorage.setItem('farmerpanel_priceType', value);
+        filterAndRenderCollection();
+        // Also refresh offers to update diff calculations
+        if (typeof updateOffersPrices === 'function') {
+            updateOffersPrices();
+            renderOffers();
+        }
+    });
+    
+    // Restore saved price type
+    const savedPriceType = localStorage.getItem('farmerpanel_priceType');
+    if (savedPriceType && ['suggested', 'median', 'nextCompetitor'].includes(savedPriceType)) {
+        collectionState.priceType = savedPriceType;
+        // Update dropdown visual
+        if (priceTypeDropdown) {
+            const toggle = priceTypeDropdown.querySelector('.dropdown-toggle span');
+            const items = priceTypeDropdown.querySelectorAll('.dropdown-item');
+            items.forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.value === savedPriceType) {
+                    item.classList.add('active');
+                    if (toggle) {
+                        const labels = { suggested: 'Suggested', median: 'Median', nextCompetitor: 'Next Comp' };
+                        toggle.textContent = labels[savedPriceType] || 'Suggested';
+                    }
+                }
+            });
+        }
+    }
 }
 
 // Collect all brainrots from all accounts
@@ -3482,6 +3519,39 @@ function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true) {
     }
     
     return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
+}
+
+/**
+ * v9.9.7: Получить выбранную цену на основе настройки priceType
+ * @param {Object} priceData - данные цены из кэша
+ * @returns {number|null} - выбранная цена
+ */
+function getSelectedPrice(priceData) {
+    if (!priceData) return null;
+    
+    const priceType = collectionState.priceType || 'suggested';
+    
+    switch (priceType) {
+        case 'median':
+            return priceData.medianPrice || priceData.suggestedPrice || null;
+        case 'nextCompetitor':
+            return priceData.nextCompetitorPrice || priceData.suggestedPrice || null;
+        case 'suggested':
+        default:
+            return priceData.suggestedPrice || null;
+    }
+}
+
+/**
+ * v9.9.7: Получить название выбранного типа цены
+ */
+function getSelectedPriceLabel() {
+    const priceType = collectionState.priceType || 'suggested';
+    switch (priceType) {
+        case 'median': return 'Median';
+        case 'nextCompetitor': return 'Next Comp';
+        default: return 'Suggested';
+    }
 }
 
 /**
@@ -3738,14 +3808,17 @@ async function renderCollection() {
         
         let priceHtml;
         
-        if (cachedPrice && cachedPrice.suggestedPrice) {
+        // v9.9.7: Получаем выбранную цену на основе настройки
+        const selectedPrice = getSelectedPrice(cachedPrice);
+        
+        if (cachedPrice && selectedPrice) {
             // competitorPrice - это цена конкурента (может быть upper или max на рынке)
             // Если priceSource содержит "above market" - показываем "max" вместо "~"
             const isAboveMarket = cachedPrice.priceSource && cachedPrice.priceSource.includes('above market');
             const competitorInfo = cachedPrice.competitorPrice 
                 ? `${isAboveMarket ? 'max ' : '~'}$${cachedPrice.competitorPrice.toFixed(2)}` 
                 : '';
-            const priceChange = getPriceChangePercent(cacheKey, cachedPrice.suggestedPrice);
+            const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
             const changeHtml = formatPriceChange(priceChange);
             
             // Check for spike
@@ -3803,10 +3876,15 @@ async function renderCollection() {
                 additionalPricesHtml += `</div>`;
             }
             
+            // v9.9.7: Показываем выбранную цену как основную
+            const priceTypeLabel = collectionState.priceType !== 'suggested' ? getSelectedPriceLabel() : '';
+            const priceTypeBadge = priceTypeLabel ? `<span class="price-type-badge" title="Using ${priceTypeLabel} price">${priceTypeLabel}</span>` : '';
+            
             priceHtml = `
                 <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
-                    <span class="price-text suggested">${formatPrice(cachedPrice.suggestedPrice)}</span>
+                    <span class="price-text suggested">${formatPrice(selectedPrice)}</span>
+                    ${priceTypeBadge}
                     ${sourceBadge}
                     ${nextRangeBadge}
                     ${isSpikePrice ? spikeHtml : changeHtml}
@@ -5691,7 +5769,9 @@ async function updateOffersRecommendedPrices() {
                 if (offer.recommendedPrice && offer.recommendedPrice !== priceData.suggestedPrice) {
                     offer.previousRecommendedPrice = offer.recommendedPrice;
                 }
-                offer.recommendedPrice = priceData.suggestedPrice;
+                // v9.9.7: Используем выбранный тип цены
+                offer.recommendedPrice = getSelectedPrice(priceData);
+                offer.suggestedPrice = priceData.suggestedPrice; // Сохраняем оригинал
                 // v9.9.0: Сохраняем дополнительные варианты цен
                 offer.medianPrice = priceData.medianPrice || null;
                 offer.medianData = priceData.medianData || null;
