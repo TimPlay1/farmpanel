@@ -6303,7 +6303,8 @@ function openBulkPriceModal() {
             const nextPrice = offer.nextCompetitorPrice || 0;
             
             return `
-            <div class="bulk-offer-item" data-offer-id="${offer.offerId}">
+            <div class="bulk-offer-item" data-offer-id="${offer.offerId}" 
+                 data-rec-price="${recPrice}" data-med-price="${medPrice}" data-next-price="${nextPrice}">
                 ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div class="bulk-offer-placeholder"></div>'}
                 <div class="bulk-offer-info">
                     <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
@@ -6327,13 +6328,38 @@ function openBulkPriceModal() {
                         <span class="price-value">${nextPrice > 0 ? '$' + nextPrice.toFixed(2) : 'N/A'}</span>
                     </div>
                 </div>
+                <div class="bulk-offer-custom-input">
+                    <div class="custom-price-wrapper">
+                        <span>$</span>
+                        <input type="number" step="0.01" min="0" class="offer-custom-price" 
+                               placeholder="0.00" value="${recPrice > 0 ? recPrice.toFixed(2) : ''}">
+                    </div>
+                    <div class="price-quick-btns">
+                        ${recPrice > 0 ? `<button class="price-quick-btn rec" data-price="${recPrice}" title="Recommended $${recPrice.toFixed(2)}">Rec</button>` : ''}
+                        ${medPrice > 0 ? `<button class="price-quick-btn med" data-price="${medPrice}" title="Median $${medPrice.toFixed(2)}">Med</button>` : ''}
+                        ${nextPrice > 0 ? `<button class="price-quick-btn next" data-price="${nextPrice}" title="Next Comp $${nextPrice.toFixed(2)}">Next</button>` : ''}
+                    </div>
+                </div>
             </div>
         `}).join('');
+        
+        // Add click handlers for quick price buttons
+        bulkOffersListEl.querySelectorAll('.price-quick-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const price = parseFloat(e.target.dataset.price);
+                const input = e.target.closest('.bulk-offer-custom-input').querySelector('.offer-custom-price');
+                if (input && price > 0) {
+                    input.value = price.toFixed(2);
+                    // Update active state
+                    e.target.closest('.price-quick-btns').querySelectorAll('.price-quick-btn').forEach(b => b.classList.remove('active'));
+                    e.target.classList.add('active');
+                }
+            });
+        });
     }
     
     // Reset to recommended
     document.querySelector('input[name="bulkPriceType"][value="recommended"]').checked = true;
-    document.getElementById('singlePriceInput')?.classList.add('hidden');
     
     // Update visual selection
     updateBulkPriceTypeVisual('recommended');
@@ -6347,8 +6373,11 @@ function updateBulkPriceTypeVisual(type) {
         opt.classList.toggle('selected', opt.dataset.type === type);
     });
     
-    // Show/hide single price input
-    document.getElementById('singlePriceInput')?.classList.toggle('hidden', type !== 'custom-single');
+    // Toggle custom mode for offer items (shows individual price inputs)
+    const isCustomMode = type === 'custom-single';
+    document.querySelectorAll('.bulk-offer-item').forEach(item => {
+        item.classList.toggle('custom-mode', isCustomMode);
+    });
     
     // Highlight corresponding price column in offers
     document.querySelectorAll('.bulk-price-cell').forEach(cell => {
@@ -6447,7 +6476,10 @@ async function confirmBulkPriceAdjustment() {
                 newPrice = offer.nextCompetitorPrice || offer.recommendedPrice;
                 break;
             case 'custom-single':
-                newPrice = parseFloat(document.getElementById('singleCustomPrice')?.value);
+                // Get individual price from each offer's input
+                const offerItem = document.querySelector(`.bulk-offer-item[data-offer-id="${offer.offerId}"]`);
+                const priceInput = offerItem?.querySelector('.offer-custom-price');
+                newPrice = parseFloat(priceInput?.value);
                 break;
             default:
                 newPrice = offer.recommendedPrice;

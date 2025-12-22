@@ -3397,7 +3397,12 @@ body {
 
 /* Bulk Price Modal */
 .modal-lg .modal-content {
-    max-width: 600px;
+    max-width: 720px;
+}
+
+/* Bulk Price Modal XL */
+#bulkPriceModal .modal-content {
+    max-width: 780px;
 }
 
 .bulk-price-options {
@@ -3572,6 +3577,82 @@ body {
 .bulk-price-cell.median.highlighted { background: rgba(96, 165, 250, 0.15); border-color: #60a5fa; }
 .bulk-price-cell.next-comp.highlighted { background: rgba(74, 222, 128, 0.15); border-color: #4ade80; }
 
+/* Custom Price Input per Offer */
+.bulk-offer-custom-input {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    min-width: 200px;
+}
+
+.bulk-offer-item.custom-mode .bulk-offer-custom-input {
+    display: flex;
+}
+
+.bulk-offer-item.custom-mode .bulk-offer-prices {
+    display: none;
+}
+
+.bulk-offer-custom-input .custom-price-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.25rem 0.5rem;
+}
+
+.bulk-offer-custom-input .custom-price-wrapper span {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.bulk-offer-custom-input .custom-price-wrapper input {
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    width: 60px;
+    text-align: right;
+    outline: none;
+}
+
+.bulk-offer-custom-input .price-quick-btns {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.bulk-offer-custom-input .price-quick-btn {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.65rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: var(--text-muted);
+}
+
+.bulk-offer-custom-input .price-quick-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.bulk-offer-custom-input .price-quick-btn.rec { border-color: #f59e0b; color: #f59e0b; }
+.bulk-offer-custom-input .price-quick-btn.med { border-color: #60a5fa; color: #60a5fa; }
+.bulk-offer-custom-input .price-quick-btn.next { border-color: #4ade80; color: #4ade80; }
+
+.bulk-offer-custom-input .price-quick-btn:hover {
+    opacity: 0.8;
+}
+
+.bulk-offer-custom-input .price-quick-btn.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--accent-primary);
+}
+
 /* Bulk Price Type Selector */
 .bulk-price-type-selector {
     display: grid;
@@ -3582,6 +3663,7 @@ body {
 
 .bulk-price-type-option {
     position: relative;
+    display: flex;
 }
 
 .bulk-price-type-option input[type="radio"] {
@@ -3594,13 +3676,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 0.75rem 0.5rem;
+    justify-content: center;
+    padding: 0.6rem 0.4rem;
     background: var(--bg-tertiary);
     border: 2px solid transparent;
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: center;
+    width: 100%;
+    min-height: 80px;
 }
 
 .bulk-price-type-option label i {
