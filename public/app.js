@@ -206,9 +206,9 @@ let state = {
     lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
-// Кэш цен Eldorado (время жизни 10 минут)
-const PRICE_CACHE_TTL = 10 * 60 * 1000;
-const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
+// Кэш цен Eldorado (время жизни 5 минут)
+const PRICE_CACHE_TTL = 5 * 60 * 1000;
+const PRICE_AUTO_REFRESH_INTERVAL = 5 * 60 * 1000; // Автообновление каждые 5 минут
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PRICE_CACHE_VERSION = 2; // v9.10.4: Increment to invalidate old cache without medianPrice/nextCompetitorPrice
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
