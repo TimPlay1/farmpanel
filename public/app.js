@@ -210,6 +210,7 @@ let state = {
 const PRICE_CACHE_TTL = 10 * 60 * 1000;
 const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
+const PRICE_CACHE_VERSION = 2; // v9.10.4: Increment to invalidate old cache without medianPrice/nextCompetitorPrice
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
@@ -730,6 +731,13 @@ function loadPriceCacheFromStorage() {
             const data = JSON.parse(stored);
             const now = Date.now();
             
+            // Check cache version - invalidate if old structure
+            if (!data.version || data.version < PRICE_CACHE_VERSION) {
+                console.log(`Cache version mismatch (${data.version || 0} < ${PRICE_CACHE_VERSION}), clearing old cache`);
+                localStorage.removeItem(PRICE_STORAGE_KEY);
+                return;
+            }
+            
             // Загружаем только не истёкшие записи
             for (const [name, entry] of Object.entries(data.brainrotPrices || {})) {
                 if (entry.timestamp && now - entry.timestamp < PRICE_CACHE_TTL) {
@@ -772,6 +780,7 @@ function loadPriceCacheFromStorage() {
 function savePriceCacheToStorage() {
     try {
         const toStore = {
+            version: PRICE_CACHE_VERSION,
             brainrotPrices: {}
         };
         
