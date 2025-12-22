@@ -196,6 +196,55 @@ async function forceAIPrice(brainrotName, ourIncome) {
             priceSource = `AI: above market, max ${maxIncomeOffer.income}M/s`;
         }
         
+        // v9.10.10: Вычисляем medianPrice и nextCompetitorPrice для AI результатов
+        let medianPrice = null;
+        let medianData = null;
+        let nextCompetitorPrice = null;
+        let nextCompetitorData = null;
+        
+        // Median: медиана цен из первых 24 офферов
+        if (validOffers.length >= 3) {
+            const prices = validOffers.slice(0, 24).map(o => o.price).sort((a, b) => a - b);
+            const mid = Math.floor(prices.length / 2);
+            const median = prices.length % 2 === 0 
+                ? (prices[mid - 1] + prices[mid]) / 2 
+                : prices[mid];
+            const minPrice = Math.min(...prices);
+            const diff = median - minPrice;
+            const reduction = Math.min(1.0, Math.max(0.1, diff * 0.15));
+            medianPrice = Math.round((median - reduction) * 100) / 100;
+            medianData = {
+                offersUsed: prices.length,
+                medianValue: median,
+                minPrice: minPrice,
+                maxPrice: Math.max(...prices),
+                source: 'ai'
+            };
+        }
+        
+        // NextCompetitor: следующий конкурент после upper
+        if (upperOffer && validOffers.length > 1) {
+            // Ищем следующий оффер с тем же или большим income но более высокой ценой
+            const nextComp = validOffers.find(o => 
+                o.income >= upperOffer.income && 
+                o.price > upperOffer.price &&
+                o !== upperOffer
+            );
+            if (nextComp) {
+                const ncDiff = nextComp.price - upperOffer.price;
+                const ncReduction = Math.min(1.0, Math.max(0.1, ncDiff * 0.15));
+                nextCompetitorPrice = Math.round((nextComp.price - ncReduction) * 100) / 100;
+                nextCompetitorData = {
+                    income: nextComp.income,
+                    price: nextComp.price,
+                    lowerPrice: upperOffer.price,
+                    lowerIncome: upperOffer.income,
+                    priceDiff: ncDiff,
+                    source: 'ai'
+                };
+            }
+        }
+        
         const result = {
             suggestedPrice,
             priceSource,
@@ -209,6 +258,11 @@ async function forceAIPrice(brainrotName, ourIncome) {
             competitorIncome: upperOffer?.income || null,
             lowerPrice: lowerOffer?.price || null,
             lowerIncome: lowerOffer?.income || null,
+            // v9.10.10: Добавляем median и nextCompetitor
+            medianPrice,
+            medianData,
+            nextCompetitorPrice,
+            nextCompetitorData,
             samples: aiResults.slice(0, 5).map(r => ({
                 income: r.income,
                 price: r.price,
