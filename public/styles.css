@@ -1842,6 +1842,96 @@ body {
     margin-left: 0.2rem;
 }
 
+/* v9.9.0: Additional prices (median, next competitor) */
+.brainrot-additional-prices {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+}
+
+.additional-price {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: help;
+}
+
+.additional-price.median {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.additional-price.median i {
+    font-size: 0.6rem;
+}
+
+.additional-price.next-comp {
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+.additional-price.next-comp i {
+    font-size: 0.6rem;
+}
+
+/* Offer additional prices */
+.offer-additional-prices {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.offer-alt-price {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.3rem 0.5rem;
+    border-radius: 6px;
+    flex: 1;
+    cursor: help;
+}
+
+.offer-alt-price.median {
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.offer-alt-price.median i {
+    color: #60a5fa;
+    font-size: 0.7rem;
+}
+
+.offer-alt-price.next-comp {
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+}
+
+.offer-alt-price.next-comp i {
+    color: #4ade80;
+    font-size: 0.7rem;
+}
+
+.offer-alt-price-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.offer-alt-price-value {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-left: auto;
+}
+
 /* Total value in stats */
 .total-value {
     color: var(--accent-green);

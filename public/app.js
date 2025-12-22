@@ -3736,6 +3736,33 @@ async function renderCollection() {
                 sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
             }
             
+            // v9.9.0: Дополнительные варианты цен (медиана и следующий компетитор)
+            let additionalPricesHtml = '';
+            if (cachedPrice.medianPrice || cachedPrice.nextCompetitorPrice) {
+                additionalPricesHtml = `<div class="brainrot-additional-prices">`;
+                if (cachedPrice.medianPrice) {
+                    const medianTooltip = cachedPrice.medianData 
+                        ? `Median of ${cachedPrice.medianData.offersOnPage} offers on page ${cachedPrice.medianData.pageNumber}` 
+                        : 'Median price';
+                    additionalPricesHtml += `
+                        <div class="additional-price median" title="${medianTooltip}">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>${formatPrice(cachedPrice.medianPrice)}</span>
+                        </div>`;
+                }
+                if (cachedPrice.nextCompetitorPrice) {
+                    const nextTooltip = cachedPrice.nextCompetitorData 
+                        ? `Next: ${cachedPrice.nextCompetitorData.income}M/s @ $${cachedPrice.nextCompetitorData.price?.toFixed(2)}` 
+                        : 'Next competitor price';
+                    additionalPricesHtml += `
+                        <div class="additional-price next-comp" title="${nextTooltip}">
+                            <i class="fas fa-arrow-up"></i>
+                            <span>${formatPrice(cachedPrice.nextCompetitorPrice)}</span>
+                        </div>`;
+                }
+                additionalPricesHtml += `</div>`;
+            }
+            
             priceHtml = `
                 <div class="brainrot-price ${isSpikePrice ? 'spike-warning' : ''}" title="${cachedPrice.priceSource || ''}">
                     <i class="fas fa-tag"></i>
@@ -3744,7 +3771,8 @@ async function renderCollection() {
                     ${isSpikePrice ? spikeHtml : changeHtml}
                     ${pendingInfo}
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
-                </div>`;
+                </div>
+                ${additionalPricesHtml}`;
         } else if (cachedPrice && cachedPrice.error) {
             priceHtml = `
                 <div class="brainrot-price">
@@ -5514,6 +5542,11 @@ async function updateOffersRecommendedPrices() {
                     offer.previousRecommendedPrice = offer.recommendedPrice;
                 }
                 offer.recommendedPrice = priceData.suggestedPrice;
+                // v9.9.0: Сохраняем дополнительные варианты цен
+                offer.medianPrice = priceData.medianPrice || null;
+                offer.medianData = priceData.medianData || null;
+                offer.nextCompetitorPrice = priceData.nextCompetitorPrice || null;
+                offer.nextCompetitorData = priceData.nextCompetitorData || null;
                 // Spike logic removed - centralized cache has verified prices
                 updated++;
             } else {
@@ -5803,6 +5836,24 @@ function renderOffers() {
                     <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                 </div>
             </div>
+            ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
+            <div class="offer-additional-prices">
+                ${offer.medianPrice ? `
+                <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersOnPage + ' offers on page ' + offer.medianData.pageNumber : 'Median price'}">
+                    <i class="fas fa-chart-bar"></i>
+                    <span class="offer-alt-price-label">Median</span>
+                    <span class="offer-alt-price-value">$${offer.medianPrice.toFixed(2)}</span>
+                </div>
+                ` : ''}
+                ${offer.nextCompetitorPrice ? `
+                <div class="offer-alt-price next-comp" title="${offer.nextCompetitorData ? 'Next: ' + offer.nextCompetitorData.income + 'M/s @ $' + offer.nextCompetitorData.price?.toFixed(2) : 'Next competitor price'}">
+                    <i class="fas fa-arrow-up"></i>
+                    <span class="offer-alt-price-label">Next</span>
+                    <span class="offer-alt-price-value">$${offer.nextCompetitorPrice.toFixed(2)}</span>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
             <div class="offer-card-actions">
                 <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
                     <i class="fas fa-edit"></i>
