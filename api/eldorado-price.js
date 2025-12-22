@@ -714,6 +714,27 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             // Функция проверки соответствия названия
             const checkBrainrotMatch = () => {
+                // v9.10.13: ПЕРВЫМ делом проверяем что title НЕ содержит другой известный брейнрот
+                // Если в title есть "La Spooky Grande" а мы ищем "Capitano Moby" - это фейк!
+                const knownBrainrots = [
+                    'chilin chili', 'chillin chili', 'esok sekolah', 'los mobilis', 
+                    'mieteteira', 'bicicleteira', 'tictac sahur', 'skibidi toilet',
+                    'los planitos', 'los 67', 'la ginger', 'secret combinasion',
+                    'garama', 'madundung', 'dragon cannelloni', 'eviledon',
+                    'la taco', 'taco combinasion', 'capitano moby', 'spooky grande',
+                    'la spooky', 'los spooky', 'fragama', 'chocrama', 'yinrang',
+                    'los burritos', 'donkeyturbo', 'los 25', 'el burrito',
+                    'la grande', 'combinasion gold', 'los combinasion'
+                ];
+                
+                for (const otherBrainrot of knownBrainrots) {
+                    // Если title содержит другой брейнрот, а мы ищем не его
+                    if (titleLower.includes(otherBrainrot) && !nameLower.includes(otherBrainrot)) {
+                        console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
+                        return false;
+                    }
+                }
+                
                 // 1. Точное совпадение имени в title
                 if (titleLower.includes(nameLower)) return true;
                 
@@ -735,24 +756,6 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 } else if (nameWords.length === 1) {
                     // Для коротких имён требуем точное слово
                     if (titleLower.includes(nameWords[0])) return true;
-                }
-                
-                // 4. Проверяем что title НЕ содержит другой известный брейнрот
-                // Если в title есть "CHILIN CHILI" а мы ищем "Garama" - это не наш оффер
-                const knownBrainrots = [
-                    'chilin chili', 'chillin chili', 'esok sekolah', 'los mobilis', 
-                    'mieteteira', 'bicicleteira', 'tictac sahur', 'skibidi toilet',
-                    'los planitos', 'los 67', 'la ginger', 'secret combinasion',
-                    'garama', 'madundung', 'dragon cannelloni', 'eviledon',
-                    'la taco', 'taco combinasion'  // Добавляем La Taco
-                ];
-                
-                for (const otherBrainrot of knownBrainrots) {
-                    // Если title содержит другой брейнрот, а мы ищем не его
-                    if (titleLower.includes(otherBrainrot) && !nameLower.includes(otherBrainrot)) {
-                        console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
-                        return false;
-                    }
                 }
                 
                 return false;
