@@ -1053,7 +1053,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                 
                 // Выше рынка - ставим на $0.50 ниже max price
                 suggestedPrice = Math.round((maxPriceOffer.price - 0.5) * 100) / 100;
-                priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${ourIncome}M/s) → -$0.50`;
+                priceSource = `above market (max: $${maxPriceOffer.price.toFixed(2)} @ ${maxPriceOffer.income}M/s, our: ${numericIncome}M/s) → -$0.50`;
             }
             
             // v9.9.8: Рассчитываем медиану даже когда нет upper (above market case)
@@ -1102,12 +1102,14 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
         
         let nextRangeChecked = false;
         let nextRangeCompetitor = null;
+        // v9.9.9: Запоминаем был ли upper в текущем диапазоне
+        const hadUpperInCurrentRange = !!upperOffer;
         
-        if (competitorPrice && suggestedPrice && isNearRangeUpperBound(ourIncome, msRange)) {
+        if (competitorPrice && suggestedPrice && isNearRangeUpperBound(numericIncome, msRange)) {
             const nextRange = getNextMsRange(msRange);
             
             if (nextRange) {
-                console.log(`🔍 ${brainrotName} @ ${ourIncome}M/s: near upper bound of ${msRange}, checking ${nextRange}...`);
+                console.log(`🔍 ${brainrotName} @ ${numericIncome}M/s: near upper bound of ${msRange}, checking ${nextRange}...`);
                 
                 try {
                     // Ищем офферы в следующем диапазоне
@@ -1124,7 +1126,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                         const nearBoundaryOffers = nextRangeResult.allPageOffers.filter(o => 
                             o.income >= nextRangeLowerBound && 
                             o.income <= maxCheckIncome &&
-                            o.income > ourIncome // Должен быть больше нашего income
+                            o.income > numericIncome // Должен быть больше нашего income
                         );
                         
                         if (nearBoundaryOffers.length > 0) {
@@ -1159,6 +1161,32 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
                                     `vs current (${msRange}: $${oldCompetitorPrice.toFixed(2)}) → using next range → -$0.50`;
                                 
                                 console.log(`   ✅ Switching to next range competitor! $${oldSuggestedPrice.toFixed(2)} → $${suggestedPrice.toFixed(2)}`);
+                                
+                                // v9.9.9: Если в текущем диапазоне НЕ БЫЛ найден upper (above market case),
+                                // то пересчитываем медиану из следующего диапазона
+                                if (!hadUpperInCurrentRange && nextRangeResult.offersByPage && nextRangeResult.offersByPage.size > 0) {
+                                    const nextRangeUpperPage = nextRangeResult.upperPage || 1;
+                                    const nextRangePageOffers = nextRangeResult.offersByPage.get(nextRangeUpperPage) || 
+                                                               nextRangeResult.offersByPage.get(1) || [];
+                                    const first24NextRange = nextRangePageOffers.slice(0, 24);
+                                    const nextRangePrices = first24NextRange.filter(o => o.price > 0).map(o => o.price);
+                                    
+                                    if (nextRangePrices.length >= 3) {
+                                        const nextMedian = calculateMedian(nextRangePrices);
+                                        medianPrice = Math.round((nextMedian - 0.5) * 100) / 100;
+                                        medianData = {
+                                            pageNumber: nextRangeUpperPage,
+                                            offersUsed: nextRangePrices.length,
+                                            offersOnPage: nextRangePageOffers.length,
+                                            medianValue: nextMedian,
+                                            minPrice: Math.min(...nextRangePrices),
+                                            maxPrice: Math.max(...nextRangePrices),
+                                            fromNextRange: true,
+                                            nextRange: nextRange
+                                        };
+                                        console.log(`   📊 Median recalculated from next range ${nextRange}: $${nextMedian.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                                    }
+                                }
                             } else {
                                 console.log(`   ❌ Next range competitor is more expensive, keeping current`);
                             }
