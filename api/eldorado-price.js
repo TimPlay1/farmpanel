@@ -11,9 +11,9 @@ try {
     console.warn('AI Scanner not available:', e.message);
 }
 
-// Кэш для цен (хранится в памяти)
+// Серверный кэш для цен (хранится в памяти)
 const priceCache = new Map();
-const CACHE_TTL = 15 * 60 * 1000; // 15 минут
+const CACHE_TTL = 2 * 60 * 1000; // 2 минуты - чтобы не долбить Eldorado API
 
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
