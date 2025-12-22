@@ -3399,11 +3399,12 @@ body {
 }
 
 .bulk-offers-list {
-    max-height: 300px;
+    max-height: 350px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    margin-top: 1rem;
 }
 
 .bulk-offer-item {
@@ -3422,43 +3423,169 @@ body {
     object-fit: cover;
 }
 
+.bulk-offer-placeholder {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+}
+
 .bulk-offer-info {
     flex: 1;
     min-width: 0;
+    max-width: 140px;
 }
 
 .bulk-offer-name {
     font-weight: 600;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-.bulk-offer-current {
-    font-size: 0.75rem;
+.bulk-offer-income {
+    font-size: 0.7rem;
     color: var(--text-muted);
 }
 
-.bulk-offer-price-input {
-    width: 80px;
+.bulk-offer-prices {
+    display: flex;
+    gap: 0.5rem;
+    flex: 1;
+    justify-content: flex-end;
 }
 
-.bulk-offer-price-input input {
-    width: 100%;
-    padding: 0.4rem 0.5rem;
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
+.bulk-price-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.4rem 0.6rem;
     border-radius: 6px;
+    background: var(--bg-secondary);
+    min-width: 55px;
+    transition: all 0.2s ease;
+}
+
+.bulk-price-cell.highlighted {
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid var(--accent-primary);
+}
+
+.bulk-price-cell.current {
+    background: transparent;
+}
+
+.bulk-price-cell .price-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.bulk-price-cell .price-label i {
+    font-size: 0.55rem;
+}
+
+.bulk-price-cell .price-value {
+    font-size: 0.75rem;
+    font-weight: 600;
     color: var(--text-primary);
-    font-size: 0.85rem;
+}
+
+.bulk-price-cell.na .price-value {
+    color: var(--text-tertiary);
+    font-size: 0.65rem;
+}
+
+.bulk-price-cell.recommended .price-label i { color: #f59e0b; }
+.bulk-price-cell.median .price-label i { color: #60a5fa; }
+.bulk-price-cell.next-comp .price-label i { color: #4ade80; }
+
+.bulk-price-cell.recommended.highlighted { background: rgba(245, 158, 11, 0.15); border-color: #f59e0b; }
+.bulk-price-cell.median.highlighted { background: rgba(96, 165, 250, 0.15); border-color: #60a5fa; }
+.bulk-price-cell.next-comp.highlighted { background: rgba(74, 222, 128, 0.15); border-color: #4ade80; }
+
+/* Bulk Price Type Selector */
+.bulk-price-type-selector {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.bulk-price-type-option {
+    position: relative;
+}
+
+.bulk-price-type-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.bulk-price-type-option label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.75rem 0.5rem;
+    background: var(--bg-tertiary);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
     text-align: center;
 }
 
-.bulk-offer-recommended {
+.bulk-price-type-option label i {
+    font-size: 1.1rem;
+    margin-bottom: 0.4rem;
+}
+
+.bulk-price-type-option[data-type="recommended"] label i { color: #f59e0b; }
+.bulk-price-type-option[data-type="median"] label i { color: #60a5fa; }
+.bulk-price-type-option[data-type="nextCompetitor"] label i { color: #4ade80; }
+.bulk-price-type-option[data-type="custom-single"] label i { color: #a78bfa; }
+
+.bulk-price-type-option label .type-name {
     font-size: 0.75rem;
-    color: var(--accent-green);
     font-weight: 600;
+    color: var(--text-primary);
+}
+
+.bulk-price-type-option label .type-hint {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    margin-top: 0.2rem;
+}
+
+.bulk-price-type-option.selected label,
+.bulk-price-type-option input[type="radio"]:checked + label {
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.bulk-price-type-option.unavailable label {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.bulk-price-type-option.partially-available label .type-hint {
+    color: #f59e0b;
+}
+
+.bulk-price-type-option:hover:not(.unavailable) label {
+    background: var(--bg-hover);
+}
+
+#singlePriceInput {
+    margin-bottom: 0.5rem;
+}
+
+#singlePriceInput .input-group {
+    max-width: 150px;
+    margin: 0 auto;
 }
 
 /* Single Offer Price Modal */

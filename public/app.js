@@ -6162,37 +6162,101 @@ function openBulkPriceModal() {
         bulkCountEl.textContent = selectedOffers.length;
     }
     
+    // Count offers with each price type available
+    const withMedian = selectedOffers.filter(o => o.medianPrice > 0).length;
+    const withNextComp = selectedOffers.filter(o => o.nextCompetitorPrice > 0).length;
+    
+    // Update option availability indicators
+    const medianOption = document.querySelector('.bulk-price-type-option[data-type="median"]');
+    const nextCompOption = document.querySelector('.bulk-price-type-option[data-type="nextCompetitor"]');
+    
+    if (medianOption) {
+        medianOption.classList.toggle('partially-available', withMedian > 0 && withMedian < selectedOffers.length);
+        medianOption.classList.toggle('unavailable', withMedian === 0);
+        const hint = medianOption.querySelector('.type-hint');
+        if (hint) hint.textContent = withMedian === 0 ? 'Not available' : `Available for ${withMedian}/${selectedOffers.length}`;
+    }
+    
+    if (nextCompOption) {
+        nextCompOption.classList.toggle('partially-available', withNextComp > 0 && withNextComp < selectedOffers.length);
+        nextCompOption.classList.toggle('unavailable', withNextComp === 0);
+        const hint = nextCompOption.querySelector('.type-hint');
+        if (hint) hint.textContent = withNextComp === 0 ? 'Not available' : `Available for ${withNextComp}/${selectedOffers.length}`;
+    }
+    
     if (bulkOffersListEl) {
-        bulkOffersListEl.innerHTML = selectedOffers.map(offer => `
+        bulkOffersListEl.innerHTML = selectedOffers.map(offer => {
+            const recPrice = offer.recommendedPrice || 0;
+            const medPrice = offer.medianPrice || 0;
+            const nextPrice = offer.nextCompetitorPrice || 0;
+            
+            return `
             <div class="bulk-offer-item" data-offer-id="${offer.offerId}">
-                ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div style="width:40px;height:40px;background:var(--bg-tertiary);border-radius:6px;"></div>'}
+                ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div class="bulk-offer-placeholder"></div>'}
                 <div class="bulk-offer-info">
                     <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
-                    <div class="bulk-offer-current">Current: $${(offer.currentPrice || 0).toFixed(2)}</div>
+                    <div class="bulk-offer-income">${offer.income || '0/s'}</div>
                 </div>
-                <div class="bulk-offer-price-input custom-price-input hidden">
-                    <input type="number" step="0.01" min="0" value="${offer.currentPrice || ''}" placeholder="0.00">
+                <div class="bulk-offer-prices">
+                    <div class="bulk-price-cell current">
+                        <span class="price-label">Current</span>
+                        <span class="price-value">$${(offer.currentPrice || 0).toFixed(2)}</span>
+                    </div>
+                    <div class="bulk-price-cell recommended ${recPrice > 0 ? 'available' : 'na'}">
+                        <span class="price-label"><i class="fas fa-tag"></i> Rec</span>
+                        <span class="price-value">${recPrice > 0 ? '$' + recPrice.toFixed(2) : 'N/A'}</span>
+                    </div>
+                    <div class="bulk-price-cell median ${medPrice > 0 ? 'available' : 'na'}">
+                        <span class="price-label"><i class="fas fa-chart-bar"></i> Med</span>
+                        <span class="price-value">${medPrice > 0 ? '$' + medPrice.toFixed(2) : 'N/A'}</span>
+                    </div>
+                    <div class="bulk-price-cell next-comp ${nextPrice > 0 ? 'available' : 'na'}">
+                        <span class="price-label"><i class="fas fa-arrow-up"></i> Next</span>
+                        <span class="price-value">${nextPrice > 0 ? '$' + nextPrice.toFixed(2) : 'N/A'}</span>
+                    </div>
                 </div>
-                <div class="bulk-offer-recommended">$${(offer.recommendedPrice || 0).toFixed(2)}</div>
             </div>
-        `).join('');
+        `}).join('');
     }
     
     // Reset to recommended
     document.querySelector('input[name="bulkPriceType"][value="recommended"]').checked = true;
     document.getElementById('singlePriceInput')?.classList.add('hidden');
-    bulkOffersListEl?.querySelectorAll('.custom-price-input').forEach(el => el.classList.add('hidden'));
+    
+    // Update visual selection
+    updateBulkPriceTypeVisual('recommended');
     
     openModal(bulkPriceModal);
 }
 
+// Update bulk price type visual selection
+function updateBulkPriceTypeVisual(type) {
+    document.querySelectorAll('.bulk-price-type-option').forEach(opt => {
+        opt.classList.toggle('selected', opt.dataset.type === type);
+    });
+    
+    // Show/hide single price input
+    document.getElementById('singlePriceInput')?.classList.toggle('hidden', type !== 'custom-single');
+    
+    // Highlight corresponding price column in offers
+    document.querySelectorAll('.bulk-price-cell').forEach(cell => {
+        cell.classList.remove('highlighted');
+    });
+    
+    const columnClass = type === 'recommended' ? 'recommended' : 
+                        type === 'median' ? 'median' : 
+                        type === 'nextCompetitor' ? 'next-comp' : null;
+    
+    if (columnClass) {
+        document.querySelectorAll(`.bulk-price-cell.${columnClass}`).forEach(cell => {
+            cell.classList.add('highlighted');
+        });
+    }
+}
+
 // Handle bulk price type change
 function handleBulkPriceTypeChange(type) {
-    const singlePriceInput = document.getElementById('singlePriceInput');
-    const customInputs = document.querySelectorAll('#bulkOffersList .custom-price-input');
-    
-    singlePriceInput?.classList.toggle('hidden', type !== 'custom-single');
-    customInputs.forEach(el => el.classList.toggle('hidden', type !== 'custom-each'));
+    updateBulkPriceTypeVisual(type);
 }
 
 // Confirm single offer price adjustment
@@ -6272,10 +6336,6 @@ async function confirmBulkPriceAdjustment() {
                 break;
             case 'custom-single':
                 newPrice = parseFloat(document.getElementById('singleCustomPrice')?.value);
-                break;
-            case 'custom-each':
-                const input = document.querySelector(`#bulkOffersList .bulk-offer-item[data-offer-id="${offer.offerId}"] input`);
-                newPrice = parseFloat(input?.value);
                 break;
             default:
                 newPrice = offer.recommendedPrice;
