@@ -682,6 +682,7 @@ async function savePricesToServer() {
                     competitorIncome: data.competitorIncome,
                     priceSource: data.priceSource,
                     nextRangeChecked: data.nextRangeChecked || false,
+                    isInEldoradoList: data.isInEldoradoList !== false, // default true
                     medianPrice: data.medianPrice,
                     medianData: data.medianData,
                     nextCompetitorPrice: data.nextCompetitorPrice,
@@ -3459,7 +3460,7 @@ function updateAccountDropdown(accounts) {
  * 0-0 = Any, 0-1 = 0-24, 0-2 = 25-49, 0-3 = 50-99, 0-4 = 100-249, 
  * 0-5 = 250-499, 0-6 = 500-749, 0-7 = 750-999, 0-8 = 1+ B/s
  */
-function getEldoradoSearchLink(brainrotName, income) {
+function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true) {
     const incomeValue = typeof income === 'string' ? parseFloat(income) : income;
     
     // Определяем attr_ids на основе income
@@ -3474,6 +3475,12 @@ function getEldoradoSearchLink(brainrotName, income) {
     else if (incomeValue > 0) attrIds = '0-1';     // 0-24 M/s
     
     const encodedName = encodeURIComponent(brainrotName);
+    
+    // v9.9.6: Если brainrot не в списке Eldorado, используем Other + searchQuery
+    if (!isInEldoradoList) {
+        return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=Other&searchQuery=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
+    }
+    
     return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
 }
 
@@ -3481,7 +3488,13 @@ function getEldoradoSearchLink(brainrotName, income) {
  * Открыть ссылку Eldorado для брейнрота
  */
 function openEldoradoLink(brainrotName, income) {
-    const link = getEldoradoSearchLink(brainrotName, income);
+    // v9.9.6: Проверяем isInEldoradoList из кэша цен
+    const normalizedIncome = normalizeIncomeForApi(income);
+    const cacheKey = getPriceCacheKey(brainrotName, normalizedIncome);
+    const priceData = state.brainrotPrices[cacheKey];
+    const isInEldoradoList = priceData ? priceData.isInEldoradoList !== false : true;
+    
+    const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList);
     window.open(link, '_blank');
 }
 
