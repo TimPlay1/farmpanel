@@ -6169,10 +6169,16 @@ function toggleOfferSelection(offerId) {
     renderOffers();
 }
 
-// v9.7.6: Delete a paused offer from server
+// v9.7.6: Delete a paused offer from server (v10.0.1: with Eldorado cleanup option)
 async function deleteOffer(offerId, brainrotName) {
-    if (!confirm(`Delete offer "${brainrotName}" (${offerId}) from farmpanel?\n\nThis will remove it from tracking. The offer on Eldorado will NOT be affected.`)) {
-        return;
+    // Ask user if they want to also delete from Eldorado
+    const deleteFromEldorado = confirm(`Delete offer "${brainrotName}" (${offerId})?\n\n⚠️ Click OK to delete from BOTH farmpanel AND queue for Eldorado cleanup.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
+    
+    // User might want to cancel entirely - add second confirm for cancel
+    if (!deleteFromEldorado) {
+        if (!confirm(`Delete offer "${brainrotName}" (${offerId}) from farmpanel ONLY?\n\nThe offer on Eldorado will NOT be affected.`)) {
+            return;
+        }
     }
     
     try {
@@ -6200,8 +6206,26 @@ async function deleteOffer(offerId, brainrotName) {
         
         // Update UI immediately
         updateOffersStats();
+        updateBulkActionsState();
         renderOffers();
-        showNotification(`✅ Offer "${brainrotName}" deleted`, 'success');
+        showNotification(`✅ Offer "${brainrotName}" deleted from farmpanel`, 'success');
+        
+        // If user wants to delete from Eldorado too, set up cleanup queue and redirect
+        if (deleteFromEldorado) {
+            const cleanupData = {
+                action: 'cleanup_offers',
+                offerCodes: [offerId],
+                timestamp: Date.now()
+            };
+            localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+            
+            showNotification('🔄 Opening Eldorado dashboard...', 'info');
+            
+            // Open Eldorado dashboard in new tab
+            setTimeout(() => {
+                window.open('https://www.eldorado.gg/dashboard/offers?category=CustomItem', '_blank');
+            }, 500);
+        }
         
     } catch (error) {
         console.error('Delete offer error:', error);
@@ -6209,30 +6233,27 @@ async function deleteOffer(offerId, brainrotName) {
     }
 }
 
-// v10.0.0: Bulk delete multiple paused/unverified offers
+// v10.0.0: Bulk delete multiple offers (v10.0.1: delete any selected offers)
 async function bulkDeleteOffers() {
     const selectedOfferIds = Array.from(offersState.selectedOffers);
     const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
     
-    // Filter only paused or unverified offers
-    const deletableOffers = selectedOffers.filter(o => {
-        const isPaused = o.status === 'paused';
-        const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
-        const scanAgeMs = Date.now() - lastScannedAt;
-        const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
-        return isPaused || isUnverified;
-    });
-    
-    if (deletableOffers.length === 0) {
-        showNotification('⚠️ No paused/unverified offers selected', 'warning');
+    if (selectedOffers.length === 0) {
+        showNotification('⚠️ No offers selected', 'warning');
         return;
     }
     
-    const offerCodes = deletableOffers.map(o => o.offerId);
-    const offerNames = deletableOffers.map(o => `${o.brainrotName} (${o.offerId})`).join('\n');
+    const offerNames = selectedOffers.map(o => `${o.brainrotName} (${o.offerId})`).join('\n');
     
     // Ask user if they want to also delete from Eldorado
-    const deleteFromEldorado = confirm(`Delete ${deletableOffers.length} offers?\n\n${offerNames}\n\n⚠️ Click OK to delete from BOTH farmpanel AND Eldorado.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
+    const deleteFromEldorado = confirm(`Delete ${selectedOffers.length} offers?\n\n${offerNames}\n\n⚠️ Click OK to delete from BOTH farmpanel AND Eldorado.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
+    
+    // If cancel, ask for farmpanel only
+    if (!deleteFromEldorado) {
+        if (!confirm(`Delete ${selectedOffers.length} offers from farmpanel ONLY?\n\nThe offers on Eldorado will NOT be affected.`)) {
+            return;
+        }
+    }
     
     const currentFarmKey = state.currentKey;
     if (!currentFarmKey) {
@@ -6244,7 +6265,7 @@ async function bulkDeleteOffers() {
     let failCount = 0;
     const deletedOfferIds = [];
     
-    for (const offer of deletableOffers) {
+    for (const offer of selectedOffers) {
         try {
             const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(currentFarmKey)}&offerId=${encodeURIComponent(offer.offerId)}`, {
                 method: 'DELETE'
@@ -6320,26 +6341,17 @@ function updateBulkActionsState() {
         bulkAdjustBtn.disabled = offersState.selectedOffers.size === 0;
     }
     
-    // Show/enable bulk delete button only when paused/unverified offers are selected
+    // v10.0.1: Show bulk delete button when ANY offers are selected
     if (deleteBtnEl) {
-        const selectedOfferIds = Array.from(offersState.selectedOffers);
-        const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
+        const selectedCount = offersState.selectedOffers.size;
         
-        const deletableCount = selectedOffers.filter(o => {
-            const isPaused = o.status === 'paused';
-            const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
-            const scanAgeMs = Date.now() - lastScannedAt;
-            const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
-            return isPaused || isUnverified;
-        }).length;
+        console.log('updateBulkActionsState: selectedCount =', selectedCount);
         
-        console.log('updateBulkActionsState: deletableCount =', deletableCount, 'selected =', selectedOfferIds.length);
-        
-        // Show button if any deletable offers are selected
-        if (deletableCount > 0) {
+        // Show button if any offers are selected
+        if (selectedCount > 0) {
             deleteBtnEl.classList.remove('hidden');
             deleteBtnEl.disabled = false;
-            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete (${deletableCount})`;
+            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete (${selectedCount})`;
         } else {
             deleteBtnEl.classList.add('hidden');
             deleteBtnEl.disabled = true;
