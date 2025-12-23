@@ -2816,7 +2816,6 @@
     function getPriceAdjustmentData() {
         const data = localStorage.getItem('glitched_price_adjustment');
         if (data) {
-        if (data) {
             try {
                 return JSON.parse(data);
             } catch (e) {
