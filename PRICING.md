@@ -1,4 +1,4 @@
-# Система ценообразования Farmer Panel v9.10.0
+# Система ценообразования Farmer Panel v9.10.17
 
 ## Обзор
 
@@ -175,6 +175,13 @@ reduction = min(1.0, max(0.1, diff × 0.15))
 - ✅ Добавлен dropdown для выбора типа цены в коллекции
 - ✅ Сохранение выбора в localStorage
 
+### v9.10.15
+- ✅ **ИСПРАВЛЕНА фильтрация по названию брейнрота**
+- ✅ Логика "сначала проверь наш брейнрот, потом ищи чужие"
+- ✅ Специальная обработка паттерна "Los XX" (Los 25, Los 67 и т.д.)
+- ✅ Устранены ложные срабатывания (La Ginger Sekolah не отклоняется из-за "67")
+- ✅ Убрано агрессивное пропускание валидных офферов
+
 ### v9.9.6
 - ✅ Правильная генерация ссылок для брейнротов не в списке Eldorado
 
@@ -224,4 +231,24 @@ GET /api/eldorado-price?name={brainrotName}&income={income}
 
 ---
 
-*Документация актуальна для версии v9.10.0*
+*Документация актуальна для версии v9.10.17*
+
+### Changelog
+
+#### v9.10.17
+- **Fixed**: Tampermonkey скрипт v9.8.33 - исправлена корректировка цен на неправильном оффере
+- **Fixed**: `findOfferCardByOfferId` теперь использует правильные селекторы для dashboard (`eld-dashboard-offers-list-item`)
+- **Fixed**: Убран fallback на поиск по имени/цене (`findMatchingOfferCards`) который мог изменить цену на **другом** оффере с таким же названием
+- **Fixed**: Поиск оффера использует `extractOfferCodeFromElement` для надёжного извлечения кода (#GSXXXXXX)
+- **Improved**: Добавлено детальное логирование процесса изменения цен
+
+#### v9.10.16
+- **Fixed**: `prices-cache.js` теперь возвращает `medianPrice`, `medianData`, `nextCompetitorPrice`, `nextCompetitorData`, `nextRangeChecked`, `isInEldoradoList`
+- **Fixed**: `cron-price-scanner.js` теперь сохраняет все поля при обновлении цен в MongoDB
+- **Fixed**: Увеличена версия кэша (`PRICE_CACHE_VERSION = 4`) для принудительного сброса старых данных из localStorage
+- Ранее эти поля не передавались клиенту из centralized cache, хотя сохранялись в MongoDB
+
+#### v9.10.15
+- Исправлена фильтрация по названию брейнрота в описании
+- Специальная обработка "Los XX" паттернов (Los 25 ≠ Los 67)
+- Добавлен параметр `expectedBrainrot` в AI prompt для проверки wrong_brainrot

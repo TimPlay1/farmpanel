@@ -1335,6 +1335,23 @@ body {
     color: var(--text-primary);
 }
 
+/* Danger Button (for bulk delete) */
+.btn-danger {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #dc2626, #b91c1c);
+}
+
+.btn-danger:disabled {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+    cursor: not-allowed;
+}
+
 /* Empty State */
 .empty-state {
     text-align: center;
@@ -3125,6 +3142,7 @@ body {
     padding-left: 28px;
     position: relative;
     flex-shrink: 0; /* Don't shrink header */
+    flex-grow: 1; /* Grow to push bottom content down */
     min-height: 100px; /* Fixed header height for alignment */
 }
 
@@ -3238,8 +3256,16 @@ body {
     padding: 0.75rem;
     background: var(--bg-tertiary);
     border-radius: 8px;
-    margin-top: auto; /* Push prices to bottom of card */
     flex-shrink: 0; /* Don't shrink prices */
+}
+
+/* Wrapper for bottom section to ensure alignment across cards */
+.offer-card-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-top: auto; /* Push to bottom of card */
+    flex-shrink: 0;
 }
 
 .offer-price-item {
@@ -3752,6 +3778,36 @@ body {
 
 .input-group.compact.inline {
     margin-left: auto;
+}
+
+/* Custom price row with market price display */
+.custom-price-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-left: auto;
+}
+
+.current-market-price {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 6px;
+}
+
+.current-market-price .market-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.current-market-price .market-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--accent-green);
 }
 
 /* Empty state for offers */

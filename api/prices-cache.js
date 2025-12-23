@@ -45,6 +45,14 @@ module.exports = async (req, res) => {
                     competitorIncome: p.competitorIncome,
                     targetMsRange: p.targetMsRange,
                     aiParsedCount: p.aiParsedCount,
+                    // v9.10.16: Added median and nextCompetitor fields
+                    medianPrice: p.medianPrice,
+                    medianData: p.medianData,
+                    nextCompetitorPrice: p.nextCompetitorPrice,
+                    nextCompetitorData: p.nextCompetitorData,
+                    // v9.9.5: Next range check info
+                    nextRangeChecked: p.nextRangeChecked,
+                    isInEldoradoList: p.isInEldoradoList,
                     updatedAt: p.updatedAt
                 };
             }
@@ -71,6 +79,13 @@ module.exports = async (req, res) => {
                     priceSource: p.priceSource,
                     competitorPrice: p.competitorPrice,
                     competitorIncome: p.competitorIncome,
+                    // v9.10.16: Added median and nextCompetitor fields
+                    medianPrice: p.medianPrice,
+                    medianData: p.medianData,
+                    nextCompetitorPrice: p.nextCompetitorPrice,
+                    nextCompetitorData: p.nextCompetitorData,
+                    nextRangeChecked: p.nextRangeChecked,
+                    isInEldoradoList: p.isInEldoradoList,
                     updatedAt: p.updatedAt
                 };
             }
@@ -99,6 +114,13 @@ module.exports = async (req, res) => {
                     priceSource: p.priceSource,
                     competitorPrice: p.competitorPrice,
                     competitorIncome: p.competitorIncome,
+                    // v9.10.16: Added median and nextCompetitor fields
+                    medianPrice: p.medianPrice,
+                    medianData: p.medianData,
+                    nextCompetitorPrice: p.nextCompetitorPrice,
+                    nextCompetitorData: p.nextCompetitorData,
+                    nextRangeChecked: p.nextRangeChecked,
+                    isInEldoradoList: p.isInEldoradoList,
                     updatedAt: p.updatedAt
                 };
             }

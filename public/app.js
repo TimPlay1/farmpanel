@@ -210,7 +210,7 @@ let state = {
 const PRICE_CACHE_TTL = 3 * 60 * 1000;
 const PRICE_AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // Автообновление каждые 3 минуты
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
-const PRICE_CACHE_VERSION = 3; // v9.10.10: Increment to invalidate cache without AI medianPrice/nextCompetitorPrice
+const PRICE_CACHE_VERSION = 4; // v9.10.16: Increment to invalidate cache - fix missing medianPrice/nextCompetitorPrice
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
@@ -6054,50 +6054,52 @@ function renderOffers() {
                     </div>
                 </div>
             </div>
-            <div class="offer-card-prices">
-                <div class="offer-price-item">
-                    <div class="offer-price-label">Current</div>
-                    <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
+            <div class="offer-card-bottom">
+                <div class="offer-card-prices">
+                    <div class="offer-price-item">
+                        <div class="offer-price-label">Current</div>
+                        <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
+                    </div>
+                    <div class="offer-price-diff">
+                        <div class="offer-diff-badge ${diffClass}">${diffText}</div>
+                        ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
+                    </div>
+                    <div class="offer-price-item">
+                        <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked ? ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>' : ''}</div>
+                        <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
+                    </div>
                 </div>
-                <div class="offer-price-diff">
-                    <div class="offer-diff-badge ${diffClass}">${diffText}</div>
-                    ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
-                </div>
-                <div class="offer-price-item">
-                    <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked ? ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>' : ''}</div>
-                    <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
-                </div>
-            </div>
-            ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
-            <div class="offer-additional-prices">
-                ${offer.medianPrice ? `
-                <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersUsed + ' offers (page ' + offer.medianData.pageNumber + ')' : 'Median price'}">
-                    <i class="fas fa-chart-bar"></i>
-                    <span class="offer-alt-price-label">Median</span>
-                    <span class="offer-alt-price-value">$${offer.medianPrice.toFixed(2)}</span>
+                ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
+                <div class="offer-additional-prices">
+                    ${offer.medianPrice ? `
+                    <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersUsed + ' offers (page ' + offer.medianData.pageNumber + ')' : 'Median price'}">
+                        <i class="fas fa-chart-bar"></i>
+                        <span class="offer-alt-price-label">Median</span>
+                        <span class="offer-alt-price-value">$${offer.medianPrice.toFixed(2)}</span>
+                    </div>
+                    ` : ''}
+                    ${offer.nextCompetitorPrice ? `
+                    <div class="offer-alt-price next-comp" title="${offer.nextCompetitorData ? 'Next: ' + offer.nextCompetitorData.income + 'M/s @ $' + offer.nextCompetitorData.price?.toFixed(2) : 'Next competitor price'}">
+                        <i class="fas fa-arrow-up"></i>
+                        <span class="offer-alt-price-label">Next</span>
+                        <span class="offer-alt-price-value">$${offer.nextCompetitorPrice.toFixed(2)}</span>
+                    </div>
+                    ` : ''}
                 </div>
                 ` : ''}
-                ${offer.nextCompetitorPrice ? `
-                <div class="offer-alt-price next-comp" title="${offer.nextCompetitorData ? 'Next: ' + offer.nextCompetitorData.income + 'M/s @ $' + offer.nextCompetitorData.price?.toFixed(2) : 'Next competitor price'}">
-                    <i class="fas fa-arrow-up"></i>
-                    <span class="offer-alt-price-label">Next</span>
-                    <span class="offer-alt-price-value">$${offer.nextCompetitorPrice.toFixed(2)}</span>
+                <div class="offer-card-actions">
+                    <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
+                        <i class="fas fa-edit"></i>
+                        Adjust Price
+                    </button>
+                    ${isPaused || isUnverified ? `
+                    <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
+                        <i class="fas fa-trash"></i>
+                        Delete
+                    </button>
+                    ${isPaused ? pausedInfo : ''}
+                    ` : ''}
                 </div>
-                ` : ''}
-            </div>
-            ` : ''}
-            <div class="offer-card-actions">
-                <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
-                    <i class="fas fa-edit"></i>
-                    Adjust Price
-                </button>
-                ${isPaused || isUnverified ? `
-                <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
-                    <i class="fas fa-trash"></i>
-                    Delete
-                </button>
-                ${isPaused ? pausedInfo : ''}
-                ` : ''}
             </div>
         </div>
         `;
@@ -6175,6 +6177,86 @@ async function deleteOffer(offerId, brainrotName) {
     }
 }
 
+// v10.0.0: Bulk delete multiple paused/unverified offers
+async function bulkDeleteOffers() {
+    const selectedOfferIds = Array.from(offersState.selectedOffers);
+    const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
+    
+    // Filter only paused or unverified offers
+    const deletableOffers = selectedOffers.filter(o => {
+        const isPaused = o.status === 'paused';
+        const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
+        const scanAgeMs = Date.now() - lastScannedAt;
+        const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
+        return isPaused || isUnverified;
+    });
+    
+    if (deletableOffers.length === 0) {
+        showNotification('⚠️ No paused/unverified offers selected', 'warning');
+        return;
+    }
+    
+    const offerNames = deletableOffers.map(o => `${o.brainrotName} (${o.offerId})`).join('\n');
+    if (!confirm(`Delete ${deletableOffers.length} offers from farmpanel?\n\n${offerNames}\n\nThis will remove them from tracking. Offers on Eldorado will NOT be affected.\n\n💡 Tip: To also delete from Eldorado, you can use the Tampermonkey script cleanup feature.`)) {
+        return;
+    }
+    
+    const currentFarmKey = state.currentKey;
+    if (!currentFarmKey) {
+        showNotification('❌ No farm key selected', 'error');
+        return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    const deletedOfferIds = [];
+    
+    for (const offer of deletableOffers) {
+        try {
+            const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(currentFarmKey)}&offerId=${encodeURIComponent(offer.offerId)}`, {
+                method: 'DELETE'
+            });
+            
+            if (response.ok) {
+                successCount++;
+                deletedOfferIds.push(offer.offerId);
+            } else {
+                failCount++;
+            }
+        } catch (error) {
+            console.error(`Failed to delete offer ${offer.offerId}:`, error);
+            failCount++;
+        }
+    }
+    
+    // Remove deleted offers from local state
+    offersState.offers = offersState.offers.filter(o => !deletedOfferIds.includes(o.offerId));
+    offersState.filteredOffers = offersState.filteredOffers.filter(o => !deletedOfferIds.includes(o.offerId));
+    deletedOfferIds.forEach(id => offersState.selectedOffers.delete(id));
+    
+    // Clear cache
+    offersCache = { data: null, timestamp: 0 };
+    
+    // Update UI
+    updateOffersStats();
+    updateBulkActionsState();
+    renderOffers();
+    
+    if (failCount === 0) {
+        showNotification(`✅ ${successCount} offers deleted`, 'success');
+    } else {
+        showNotification(`⚠️ ${successCount} deleted, ${failCount} failed`, 'warning');
+    }
+    
+    // Signal to Tampermonkey script for cleanup on Eldorado
+    const cleanupData = {
+        action: 'cleanup_offers',
+        offerIds: deletedOfferIds,
+        timestamp: Date.now()
+    };
+    localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+}
+
 // Toggle select all offers
 function toggleSelectAllOffers() {
     if (offersState.selectedOffers.size === offersState.filteredOffers.length) {
@@ -6188,9 +6270,36 @@ function toggleSelectAllOffers() {
 
 // Update bulk actions button state
 function updateBulkActionsState() {
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    
     if (bulkAdjustBtn) {
         bulkAdjustBtn.disabled = offersState.selectedOffers.size === 0;
     }
+    
+    // Show/enable bulk delete button only when paused/unverified offers are selected
+    if (bulkDeleteBtn) {
+        const selectedOfferIds = Array.from(offersState.selectedOffers);
+        const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
+        
+        const deletableCount = selectedOffers.filter(o => {
+            const isPaused = o.status === 'paused';
+            const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
+            const scanAgeMs = Date.now() - lastScannedAt;
+            const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
+            return isPaused || isUnverified;
+        }).length;
+        
+        // Show button if any deletable offers are selected
+        if (deletableCount > 0) {
+            bulkDeleteBtn.classList.remove('hidden');
+            bulkDeleteBtn.disabled = false;
+            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete (${deletableCount})`;
+        } else {
+            bulkDeleteBtn.classList.add('hidden');
+            bulkDeleteBtn.disabled = true;
+        }
+    }
+    
     if (selectAllOffersEl) {
         selectAllOffersEl.checked = offersState.selectedOffers.size === offersState.filteredOffers.length && offersState.filteredOffers.length > 0;
     }
@@ -6220,6 +6329,12 @@ function openOfferPriceModal(offerId) {
     
     if (recommendedValueEl) {
         recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
+    }
+    
+    // Populate current market price
+    const marketPriceValueEl = document.getElementById('marketPriceValue');
+    if (marketPriceValueEl) {
+        marketPriceValueEl.textContent = `$${(offer.currentPrice || 0).toFixed(2)}`;
     }
     
     // Populate median price
@@ -6574,6 +6689,12 @@ function setupOffersListeners() {
     // Bulk adjust button
     if (bulkAdjustBtn) {
         bulkAdjustBtn.addEventListener('click', openBulkPriceModal);
+    }
+    
+    // Bulk delete button
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    if (bulkDeleteBtn) {
+        bulkDeleteBtn.addEventListener('click', bulkDeleteOffers);
     }
     
     // Scan Eldorado button (also refreshes offers after scan)

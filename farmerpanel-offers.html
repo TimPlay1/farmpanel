@@ -2776,6 +2776,10 @@ $7.5M/s">
                                 <i class="fas fa-edit"></i>
                                 Adjust Selected
                             </button>
+                            <button class="btn btn-danger btn-sm hidden" id="bulkDeleteBtn" disabled="" title="Delete selected paused/unverified offers">
+                                <i class="fas fa-trash"></i>
+                                Delete Selected
+                            </button>
                         </div>
                         <div class="search-box">
                             <i class="fas fa-search"></i>
@@ -4111,9 +4115,15 @@ $7.5M/s">
                             <span class="radiomark"></span>
                             <span>Custom Price:</span>
                         </label>
-                        <div class="input-group compact inline">
-                            <span>$</span>
-                            <input type="number" step="0.01" min="0" id="customPriceInput" placeholder="0.00">
+                        <div class="custom-price-row">
+                            <div class="current-market-price" id="currentMarketPrice" title="Current market price">
+                                <span class="market-label">Market:</span>
+                                <span class="market-value" id="marketPriceValue">$0.00</span>
+                            </div>
+                            <div class="input-group compact inline">
+                                <span>$</span>
+                                <input type="number" step="0.01" min="0" id="customPriceInput" placeholder="0.00">
+                            </div>
                         </div>
                     </div>
                 </div>

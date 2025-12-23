@@ -564,8 +564,13 @@ function parseIncomeRegex(title) {
 
 /**
  * Создаёт AI prompt с динамическими списками
+ * v9.10.15: Добавлена поддержка expectedBrainrot для проверки wrong_brainrot
+ * 
+ * @param {Array} offers - офферы для парсинга
+ * @param {Object} eldoradoLists - списки брейнротов/мутаций/рарити
+ * @param {string|null} expectedBrainrot - ожидаемое название брейнрота (опционально)
  */
-function createAIPrompt(offers, eldoradoLists) {
+function createAIPrompt(offers, eldoradoLists, expectedBrainrot = null) {
     const cleanedOffers = offers.map(o => ({
         ...o,
         cleanTitle: stripEmojis(o.title || o.offerTitle || '')
@@ -576,6 +581,24 @@ function createAIPrompt(offers, eldoradoLists) {
     const mutationsList = eldoradoLists.mutations.join(', ');
     const raritiesList = eldoradoLists.rarities.join(', ');
     
+    // v9.10.15: Дополнительный блок для проверки названия брейнрота
+    const brainrotCheckSection = expectedBrainrot ? `
+BRAINROT NAME CHECK - VERY IMPORTANT:
+Expected brainrot: "${expectedBrainrot}"
+- "b" (brainrot): Detected brainrot name in title, or "unknown" if not found
+- If title contains a DIFFERENT brainrot from the list (not "${expectedBrainrot}"), mark it!
+- Examples for "${expectedBrainrot}":
+  * "Los 25 100M/s" → b="${expectedBrainrot}" (matches)
+  * "Los 67 100M/s" → b="Los 67" (DIFFERENT brainrot!)
+  * "La Secret Combinasion 1.5B/s" → b="La Secret Combinasion" (DIFFERENT!)
+  * "100M/s fast delivery" → b="unknown" (no brainrot name found)
+- For "Los XX" patterns (Los 25, Los 67, etc.), the NUMBER matters! Los 25 ≠ Los 67
+` : '';
+
+    const outputFormat = expectedBrainrot 
+        ? '{"results":[{"i":1,"m":350,"b":"Los 25"},{"i":2,"m":null,"r":"range","b":"Los 67"}]}'
+        : '{"results":[{"i":1,"m":350},{"i":2,"m":null,"r":"range"}]}';
+
     return `TASK: Extract income values from Roblox "Steal a Brainrot" marketplace titles.
 
 CONTEXT - Known Brainrot Names (IGNORE these in income detection):
@@ -589,8 +612,8 @@ ${cleanedOffers.map((o, i) => `${i + 1}. "${o.cleanTitle}"`).join('\n')}
 
 EXTRACT for each offer:
 - "m" (income): Income in M/s (millions/second), or null
-- "r" (reason): If m=null: "range", "random", or "no_value"
-
+- "r" (reason): If m=null: "range", "random", or "no_value"${expectedBrainrot ? '\n- "b" (brainrot): Detected brainrot name or "unknown"' : ''}
+${brainrotCheckSection}
 INCOME FORMATS - CRITICAL - EXTRACT ANY NUMBER + M/m/K/B pattern:
 - "270M/s" → 270
 - "135m/s" → 135  
@@ -605,7 +628,7 @@ INCOME FORMATS - CRITICAL - EXTRACT ANY NUMBER + M/m/K/B pattern:
 CRITICAL RULES:
 1. Look for NUMBER + M/m/K/B ANYWHERE in title (start, middle, end)
 2. "m" alone after number = millions (e.g., "350 m" = 350 M/s)
-3. Ignore all brainrot names, mutations, rarities
+3. Ignore all brainrot names, mutations, rarities IN INCOME DETECTION
 4. Ignore prices ($4.50, $12, etc.)
 5. COMMA IN NUMBER (18,5) = DECIMAL (18.5), NOT A RANGE!
 
@@ -624,14 +647,19 @@ RANDOM = null (when title contains "random" word or similar):
 - "Mystery Box" → null, r="random"
 
 OUTPUT STRICT JSON (no markdown, no explanation):
-{"results":[{"i":1,"m":350},{"i":2,"m":null,"r":"range"}]}`;
+${outputFormat}`;
 }
 
 /**
  * AI парсер (Gemini gemma-3-27b-it)
+ * v9.10.15: Добавлен параметр expectedBrainrot для проверки wrong_brainrot
+ * 
+ * @param {Array} offers - офферы для парсинга
+ * @param {Object} eldoradoLists - списки брейнротов/мутаций/рарити  
+ * @param {string|null} expectedBrainrot - ожидаемое название брейнрота (опционально)
  */
-async function parseIncomeAI(offers, eldoradoLists) {
-    const prompt = createAIPrompt(offers, eldoradoLists);
+async function parseIncomeAI(offers, eldoradoLists, expectedBrainrot = null) {
+    const prompt = createAIPrompt(offers, eldoradoLists, expectedBrainrot);
     
     return new Promise((resolve, reject) => {
         const requestBody = JSON.stringify({
@@ -795,9 +823,15 @@ function createWaves(batches, maxTokens = MAX_TOKENS_PER_MINUTE, maxRequests = M
  * 2. AI парсит ВСЕ офферы параллельно (волнами)
  * 3. Сравниваем результаты: AI приоритет если найден
  * 4. Если AI ошибка → используем regex
+ * 
+ * v9.10.15: Добавлен параметр expectedBrainrot для проверки wrong_brainrot
+ * 
+ * @param {Array} offers - офферы для парсинга
+ * @param {Object} eldoradoLists - списки брейнротов/мутаций/рарити
+ * @param {string|null} expectedBrainrot - ожидаемое название брейнрота (опционально)
  */
-async function hybridParse(offers, eldoradoLists) {
-    console.log(`🔄 hybridParse: ${offers.length} offers`);
+async function hybridParse(offers, eldoradoLists, expectedBrainrot = null) {
+    console.log(`🔄 hybridParse: ${offers.length} offers${expectedBrainrot ? ` for "${expectedBrainrot}"` : ''}`);
     
     // Шаг 1: Быстрый Regex парсинг для ВСЕХ офферов
     const regexResults = offers.map((offer, i) => {
@@ -830,7 +864,8 @@ async function hybridParse(offers, eldoradoLists) {
         // Параллельная обработка батчей в волне
         const wavePromises = wave.batches.map(async (batch, batchIndex) => {
             try {
-                const aiResults = await parseIncomeAI(batch.offers, eldoradoLists);
+                // v9.10.15: Передаём expectedBrainrot в AI парсер
+                const aiResults = await parseIncomeAI(batch.offers, eldoradoLists, expectedBrainrot);
                 
                 // Сопоставляем результаты с оригинальными индексами
                 for (let j = 0; j < aiResults.length; j++) {
@@ -840,6 +875,7 @@ async function hybridParse(offers, eldoradoLists) {
                         aiResultsMap.set(offer.originalIndex, {
                             income: ai.m,
                             reason: ai.r,
+                            foundBrainrot: ai.b || null, // v9.10.15: AI-детектированный брейнрот
                             source: 'ai'
                         });
                     }
@@ -873,6 +909,25 @@ async function hybridParse(offers, eldoradoLists) {
     const finalResults = regexResults.map(r => {
         const ai = aiResultsMap.get(r.index);
         
+        // v9.10.15: Проверка wrong_brainrot от AI
+        if (ai && ai.foundBrainrot && expectedBrainrot) {
+            const expectedLower = expectedBrainrot.toLowerCase();
+            const foundLower = (ai.foundBrainrot || '').toLowerCase();
+            
+            // Если AI нашёл ДРУГОЙ брейнрот - помечаем как wrong_brainrot
+            if (foundLower !== 'unknown' && foundLower !== expectedLower && !expectedLower.includes(foundLower) && !foundLower.includes(expectedLower)) {
+                console.log(`   ⚠️ AI detected wrong brainrot: "${r.offer.title?.substring(0, 40)}..." - found: ${ai.foundBrainrot}, expected: ${expectedBrainrot}`);
+                return {
+                    ...r.offer,
+                    income: null,
+                    reason: 'wrong_brainrot',
+                    foundBrainrot: ai.foundBrainrot,
+                    source: 'ai',
+                    confidence: 0.9
+                };
+            }
+        }
+        
         // Логика по схеме: AI приоритет если нашёл значение
         if (ai && ai.income !== null && ai.source === 'ai') {
             // AI нашёл income - используем AI (даже если regex тоже нашёл)
@@ -888,6 +943,7 @@ async function hybridParse(offers, eldoradoLists) {
                 ...r.offer,
                 income: aiIncome,
                 reason: ai.reason,
+                foundBrainrot: ai.foundBrainrot, // v9.10.15: AI-детектированный брейнрот
                 source: 'ai',
                 regexIncome: regexIncome, // сохраняем для сравнения
                 confidence: 0.95

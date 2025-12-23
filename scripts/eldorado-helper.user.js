@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.32
+// @version      9.8.33
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.32
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.32
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.33
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.33
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.32';
+    const VERSION = '9.8.33';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -1704,6 +1704,133 @@
         
         log('Timeout waiting for Delete confirm button');
         return false;
+    }
+
+    // v9.8.25: Get cleanup data from localStorage (triggered by farmpanel bulk delete)
+    function getCleanupData() {
+        const data = localStorage.getItem('glitched_cleanup_offers');
+        if (data) {
+            try {
+                const parsed = JSON.parse(data);
+                // Only process if less than 5 minutes old
+                if (parsed.timestamp && Date.now() - parsed.timestamp < 300000) {
+                    return parsed;
+                }
+            } catch (e) {}
+        }
+        return null;
+    }
+
+    // v9.8.25: Process cleanup of specific offer codes from farmpanel
+    async function processCleanupOffers(cleanupData) {
+        if (!cleanupData || !cleanupData.offerIds || cleanupData.offerIds.length === 0) return;
+        
+        // Wait for any loading spinner first
+        if (!await waitForSpinner(15000, 'cleanupOffers')) {
+            return; // Page reloaded, will retry
+        }
+        
+        if (isCleaningOffers || isTogglingOffers) {
+            showNotification('⏳ Please wait, operation in progress...', 'warning');
+            return;
+        }
+        
+        isCleaningOffers = true;
+        
+        try {
+            const targetOfferIds = new Set(cleanupData.offerIds);
+            log(`Processing cleanup for ${targetOfferIds.size} offer IDs from farmpanel`);
+            showNotification(`🗑️ Cleaning up ${targetOfferIds.size} deleted offers...`, 'info');
+            
+            let totalDeleted = 0;
+            let totalFailed = 0;
+            let totalNotFound = 0;
+            
+            // Scroll to load all offers first
+            await scrollToLoadAllOffers();
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Get all offer items on page
+            const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+            
+            for (const item of items) {
+                const code = extractOfferCodeFromElement(item);
+                if (!code) continue;
+                
+                // Check if this offer matches any of the target IDs (by checking brainrot name or offer code)
+                // Since we don't have direct offerId mapping, check if offer is Closed status
+                // The farmpanel already deleted from DB, we need to find matching closed offers
+                if (!isOfferClosed(item)) continue;
+                
+                // Check if this is one of our offers
+                if (!userOfferCodes.has(code) && !userOfferCodes.has('#' + code)) continue;
+                
+                try {
+                    // Find Delete button (trash icon)
+                    const deleteIcon = item.querySelector('.icon-delete');
+                    if (!deleteIcon) {
+                        log(`⚠ ${code}: Delete button not found`);
+                        totalFailed++;
+                        continue;
+                    }
+                    
+                    const deleteBtn = deleteIcon.closest('button');
+                    if (!deleteBtn) {
+                        log(`⚠ ${code}: Delete button wrapper not found`);
+                        totalFailed++;
+                        continue;
+                    }
+                    
+                    // Scroll into view and click
+                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                    await new Promise(r => setTimeout(r, 400));
+                    
+                    log(`Clicking delete for ${code}...`);
+                    reliableClick(deleteBtn);
+                    
+                    // Wait for confirmation modal
+                    await new Promise(r => setTimeout(r, 800));
+                    
+                    // Find and click confirm Delete button in modal
+                    const confirmDeleted = await clickDeleteConfirmButton();
+                    
+                    if (confirmDeleted) {
+                        totalDeleted++;
+                        log(`✓ Deleted ${code}`);
+                        // Wait for UI to update after deletion
+                        await new Promise(r => setTimeout(r, 1000));
+                    } else {
+                        totalFailed++;
+                        log(`✗ Failed to confirm delete for ${code}`);
+                    }
+                } catch (e) {
+                    totalFailed++;
+                    logError(`Error deleting ${code}:`, e);
+                }
+                
+                highlightUserOffers();
+            }
+            
+            // Clear the cleanup signal
+            localStorage.removeItem('glitched_cleanup_offers');
+            
+            await new Promise(r => setTimeout(r, 1000));
+            highlightUserOffers();
+            
+            if (totalDeleted > 0 || totalFailed > 0) {
+                const statusMsg = `🗑️ Cleaned ${totalDeleted} offers${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
+                showNotification(statusMsg, totalFailed > 0 ? 'warning' : 'success');
+                logInfo(`Cleanup from farmpanel: ${totalDeleted} deleted, ${totalFailed} failed`);
+            } else {
+                showNotification('✓ No matching Closed offers found to clean', 'success');
+            }
+            
+            // Trigger refresh to sync with farmpanel
+            localStorage.setItem('glitched_refresh_offers', Date.now().toString());
+            
+        } finally {
+            isCleaningOffers = false;
+        }
     }
     
     // v9.7.2: Navigate to specific page
@@ -3474,20 +3601,48 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     }
 
     // ==================== КОРРЕКТИРОВКА ЦЕН ====================
+    // v9.8.33: Fixed - use correct selectors for dashboard offers page and extract code properly
     function findOfferCardByOfferId(offerId) {
+        // Primary: Search in dashboard offers list items (the correct selector for /dashboard/offers)
+        const dashboardItems = document.querySelectorAll('eld-dashboard-offers-list-item');
+        for (const item of dashboardItems) {
+            const code = extractOfferCodeFromElement(item);
+            // Compare without # prefix, case-insensitive
+            const normalizedOfferId = offerId.replace(/^#/, '').toUpperCase();
+            const normalizedCode = (code || '').replace(/^#/, '').toUpperCase();
+            if (normalizedCode === normalizedOfferId) {
+                log(`Found offer ${offerId} in dashboard item by extractOfferCodeFromElement`);
+                return item;
+            }
+        }
+        
+        // Fallback: Search in offer cards (for marketplace pages)
         const cards = document.querySelectorAll('eld-offer-item, .offer-card, [class*="offer-item"]');
         for (const card of cards) {
-            const title = card.querySelector('.offer-title')?.textContent || '';
-            if (title.includes(`#${offerId}`) || title.includes(offerId)) return card;
+            const title = card.querySelector('.offer-title, h5')?.textContent || '';
+            const normalizedOfferId = offerId.replace(/^#/, '').toUpperCase();
+            if (title.toUpperCase().includes(`#${normalizedOfferId}`) || title.toUpperCase().includes(normalizedOfferId)) {
+                log(`Found offer ${offerId} in card title`);
+                return card;
+            }
+            // Check full text as last resort
             const text = card.textContent || '';
-            if (text.includes(`#${offerId}`)) return card;
+            if (text.toUpperCase().includes(`#${normalizedOfferId}`)) {
+                log(`Found offer ${offerId} in card text`);
+                return card;
+            }
         }
+        
+        log(`Offer ${offerId} NOT found on current page`);
         return null;
     }
 
+    // v9.8.33: This is now only used as absolute last resort - prefer findOfferCardByOfferId
     function findMatchingOfferCards(brainrotName, currentPrice) {
+        log(`WARNING: Using fallback findMatchingOfferCards for ${brainrotName} @ $${currentPrice} - this may find wrong offer!`);
         const cards = [];
-        const allCards = document.querySelectorAll('.offer-card, [class*="offer-item"], .offers-list > div');
+        // Include dashboard items
+        const allCards = document.querySelectorAll('eld-dashboard-offers-list-item, .offer-card, [class*="offer-item"], .offers-list > div');
         for (const card of allCards) {
             const text = card.textContent || '';
             if (text.toLowerCase().includes(brainrotName.toLowerCase()) && 
@@ -3612,32 +3767,42 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
 
         for (const offer of adjustmentData.offers) {
             let found = false;
+            log(`Looking for offer: ${offer.offerId} (${offer.brainrotName}) @ $${offer.currentPrice} -> $${offer.newPrice}`);
+            
             for (let page = currentPage; page <= maxPages && !found; page++) {
                 updateStatus(`🔍 Ищем оффер ${offer.offerId} (стр. ${page})...`, 'working');
                 await new Promise(r => setTimeout(r, 500));
                 
+                // v9.8.33: ONLY use findOfferCardByOfferId - no fallback to prevent wrong offer changes
                 let card = findOfferCardByOfferId(offer.offerId);
-                if (!card) {
-                    const matchingCards = findMatchingOfferCards(offer.brainrotName, offer.currentPrice);
-                    if (matchingCards.length > 0) card = matchingCards[0];
-                }
                 
                 if (card) {
+                    log(`Found offer ${offer.offerId} on page ${page}, changing price to $${offer.newPrice}`);
                     const success = await changeOfferPrice(card, offer.newPrice);
-                    if (success) await updatePriceInPanel(offer.offerId, offer.newPrice);
+                    if (success) {
+                        log(`Successfully changed price for ${offer.offerId} to $${offer.newPrice}`);
+                        await updatePriceInPanel(offer.offerId, offer.newPrice);
+                    } else {
+                        log(`Failed to change price for ${offer.offerId}`, 'error');
+                    }
                     results.push({ offerId: offer.offerId, success, newPrice: offer.newPrice });
                     found = true;
                     currentPage = page;
                 } else {
+                    log(`Offer ${offer.offerId} not found on page ${page}, trying next page...`);
                     const hasNext = await goToNextPage();
                     if (!hasNext) {
+                        log(`No more pages, offer ${offer.offerId} not found`, 'error');
                         results.push({ offerId: offer.offerId, success: false, error: 'Not found' });
                         break;
                     }
                     currentPage = page + 1;
                 }
             }
-            if (!found) results.push({ offerId: offer.offerId, success: false, error: 'Not found' });
+            if (!found) {
+                log(`Offer ${offer.offerId} not found after checking all pages`, 'error');
+                results.push({ offerId: offer.offerId, success: false, error: 'Not found' });
+            }
         }
 
         localStorage.setItem('glitched_price_result', JSON.stringify({
@@ -4123,6 +4288,15 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 await new Promise(r => setTimeout(r, 1000));
                 await adjustPrices();
                 return;
+            }
+            
+            // v9.8.25: Check for cleanup signal from farmpanel (bulk delete)
+            const cleanupData = getCleanupData();
+            if (cleanupData) {
+                log(`Cleanup mode: processing ${cleanupData.offerIds?.length || 0} offers from farmpanel`);
+                await new Promise(r => setTimeout(r, 2000));
+                await processCleanupOffers(cleanupData);
+                // Don't return - continue with normal initialization after cleanup
             }
         }
         

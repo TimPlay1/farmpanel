@@ -712,18 +712,102 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             const titleLower = offerTitle.toLowerCase();
             const nameLower = brainrotName.toLowerCase();
             
-            // Функция проверки соответствия названия
+            // v9.10.15: Улучшенная функция проверки соответствия названия
+            // 
+            // ЛОГИКА:
+            // 1. СНАЧАЛА проверяем - содержит ли title наш целевой брейнрот
+            //    Если да - это наш оффер, пропускаем проверку на другие брейнроты
+            // 2. Если НЕТ нашего брейнрота - проверяем есть ли ДРУГОЙ известный брейнрот
+            //    Это защита от офферов типа "Los 67 100M/s" в фильтре "Los 25"
+            // 3. Офферы с похожими названиями (опечатки) передаются на AI перепроверку
+            //    вместо жёсткого отклонения
             const checkBrainrotMatch = () => {
-                // v9.10.14: Используем ДИНАМИЧЕСКИЙ список брейнротов из Eldorado API
-                // Проверяем что title НЕ содержит другой известный брейнрот
-                // dynamicBrainrotsCache загружается из API и содержит все 142+ брейнрота
+                // === ШАГИ 1: Проверяем содержит ли title наш брейнрот ===
+                const containsOurBrainrot = () => {
+                    // 1a. Точное совпадение полного имени
+                    if (titleLower.includes(nameLower)) return true;
+                    
+                    // 1b. Проверяем tradeEnvironmentValue (брейнрот из атрибутов Eldorado)
+                    if (envValue && (envValue.includes(nameLower) || nameLower.includes(envValue))) return true;
+                    
+                    // 1c. Для комбинированных имён проверяем ключевые слова
+                    // "Garama and Madundung" → ["garama", "madundung"]
+                    // "La Taco Combinasion" → ["taco", "combinasion"]
+                    // НО: для "Los XX" типа "Los 25" требуем точное совпадение числа!
+                    const isLosPattern = /^los\s+\d+$/i.test(nameLower);
+                    const isLaPattern = /^la\s+/i.test(nameLower);
+                    
+                    if (isLosPattern) {
+                        // Для "Los 25", "Los 67" и т.д. - требуем точное совпадение
+                        // "Los 25" должен матчить только "Los 25", не "Los 67"
+                        const numberMatch = nameLower.match(/\d+/);
+                        if (numberMatch) {
+                            // Ищем паттерн "Los XX" где XX = наш номер
+                            const pattern = new RegExp(`los\\s+${numberMatch[0]}(?!\\d)`, 'i');
+                            return pattern.test(titleLower);
+                        }
+                    }
+                    
+                    // Для остальных брейнротов - проверяем ключевые слова
+                    const nameWords = nameLower
+                        .replace(/\s+(and|the|of)\s+/gi, ' ')
+                        .split(/\s+/)
+                        .filter(w => w.length >= 4 && !['los', 'las', 'la'].includes(w));
+                    
+                    if (nameWords.length >= 2) {
+                        // Требуем минимум 2 совпадения из значимых слов
+                        const matchCount = nameWords.filter(w => titleLower.includes(w)).length;
+                        if (matchCount >= 2) return true;
+                    } else if (nameWords.length === 1 && nameWords[0].length >= 5) {
+                        // Для коротких имён требуем точное слово (минимум 5 символов)
+                        if (titleLower.includes(nameWords[0])) return true;
+                    }
+                    
+                    return false;
+                };
                 
-                // Разбиваем title на слова для более точного поиска
-                const titleWords = titleLower.split(/[\s\-_|,.!:]+/).filter(w => w.length >= 3);
+                // Если title содержит наш брейнрот - это наш оффер, разрешаем!
+                if (containsOurBrainrot()) {
+                    return true;
+                }
                 
+                // === ШАГ 2: Title НЕ содержит наш брейнрот ===
+                // Проверяем есть ли там ДРУГОЙ известный брейнрот из динамического списка
+                
+                // Пропускаем проверку на другие брейнроты если список пуст
+                if (dynamicBrainrotsCache.size === 0) {
+                    // Нет списка - не можем проверить, разрешаем оффер
+                    return true;
+                }
+                
+                // Проверяем только брейнроты достаточной длины для надёжного матчинга
                 for (const otherBrainrot of dynamicBrainrotsCache) {
-                    // Пропускаем если это наш брейнрот (или его часть)
+                    // Пропускаем слишком короткие названия (могут давать ложные срабатывания)
+                    if (otherBrainrot.length < 5) continue;
+                    
+                    // Пропускаем если это наш брейнрот или его часть
+                    if (nameLower === otherBrainrot) continue;
                     if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
+                    
+                    // Специальная обработка для паттерна "Los XX"
+                    // "Los 25" не должен конфликтовать с "Los 67", "Los Mobilis" и т.д.
+                    const isOtherLosPattern = /^los\s+\d+$/i.test(otherBrainrot);
+                    const isOurLosPattern = /^los\s+\d+$/i.test(nameLower);
+                    
+                    if (isOtherLosPattern && isOurLosPattern) {
+                        // Оба "Los XX" - проверяем точное совпадение номера
+                        const otherNumber = otherBrainrot.match(/\d+/)?.[0];
+                        const ourNumber = nameLower.match(/\d+/)?.[0];
+                        if (otherNumber && ourNumber && otherNumber !== ourNumber) {
+                            // Разные номера - проверяем есть ли ДРУГОЙ Los XX в title
+                            const pattern = new RegExp(`los\\s+${otherNumber}(?!\\d)`, 'i');
+                            if (pattern.test(titleLower)) {
+                                console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
+                                return false;
+                            }
+                        }
+                        continue; // Не проверяем полное совпадение для Los XX vs Los YY
+                    }
                     
                     // Проверяем полное имя брейнрота в title
                     if (titleLower.includes(otherBrainrot)) {
@@ -732,12 +816,12 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     }
                     
                     // Для многословных брейнротов (например "La Extinct Grande") проверяем ключевые слова
-                    // Минимум 5 символов чтобы избежать false positives на коротких словах (money, gold, etc)
+                    // Минимум 5 символов чтобы избежать false positives на коротких словах
                     const brainrotWords = otherBrainrot.split(/\s+/).filter(w => w.length >= 5);
                     if (brainrotWords.length >= 2) {
                         // Уникальные слова брейнрота найденные в title
                         const matchedWords = [...new Set(brainrotWords.filter(w => titleLower.includes(w)))];
-                        // Если 2+ УНИКАЛЬНЫХ ключевых слова найдены - это тот брейнрот
+                        // Если 2+ УНИКАЛЬНЫХ ключевых слова найдены - это другой брейнрот
                         if (matchedWords.length >= 2) {
                             console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found words: ${matchedWords.join(', ')} → ${otherBrainrot}, expected: ${brainrotName})`);
                             return false;
@@ -745,30 +829,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     }
                 }
                 
-                // 1. Точное совпадение имени в title
-                if (titleLower.includes(nameLower)) return true;
-                
-                // 2. Проверяем tradeEnvironmentValue (брейнрот из атрибутов Eldorado)
-                if (envValue && (envValue.includes(nameLower) || nameLower.includes(envValue))) return true;
-                
-                // 3. Для комбинированных имён проверяем ключевые слова
-                // "Garama and Madundung" → ["garama", "madundung"]
-                // "La Taco Combinasion" → ["taco", "combinasion"]
-                const nameWords = nameLower
-                    .replace(/\s+(and|the|of|los|la|las)\s+/gi, ' ')
-                    .split(/\s+/)
-                    .filter(w => w.length >= 4);
-                
-                if (nameWords.length >= 2) {
-                    // Требуем минимум 2 совпадения из значимых слов
-                    const matchCount = nameWords.filter(w => titleLower.includes(w)).length;
-                    if (matchCount >= 2) return true;
-                } else if (nameWords.length === 1) {
-                    // Для коротких имён требуем точное слово
-                    if (titleLower.includes(nameWords[0])) return true;
-                }
-                
-                return false;
+                // ШАГ 3: В title нет ни нашего брейнрота, ни других известных
+                // Это может быть валидный оффер с опечаткой или кастомным описанием
+                // РАЗРЕШАЕМ - AI парсер сможет перепроверить при необходимости
+                return true;
             };
             
             if (!checkBrainrotMatch()) continue;
@@ -880,13 +944,20 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     let aiParsedCount = 0;
     
     if (unparsedOffers.length > 0 && aiScanner && process.env.GEMINI_API_KEY) {
-        console.log(`🤖 AI re-parsing ${unparsedOffers.length} unparsed offers...`);
+        console.log(`🤖 AI re-parsing ${unparsedOffers.length} unparsed offers for "${brainrotName}"...`);
         try {
             const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
-            const aiResults = await aiScanner.hybridParse(unparsedOffers, eldoradoLists);
+            // v9.10.15: Передаём название брейнрота для проверки wrong_brainrot в AI
+            const aiResults = await aiScanner.hybridParse(unparsedOffers, eldoradoLists, brainrotName);
             
             // Обновляем income в allPageOffers на основе AI результатов
             for (const aiResult of aiResults) {
+                // v9.10.15: Пропускаем офферы которые AI определил как wrong_brainrot
+                if (aiResult.reason === 'wrong_brainrot') {
+                    console.log(`   ⚠️ AI skipped wrong brainrot: "${aiResult.title?.substring(0, 40)}..." (found: ${aiResult.foundBrainrot})`);
+                    continue;
+                }
+                
                 if (aiResult.income !== null && aiResult.source === 'ai') {
                     const originalOffer = allPageOffers.find(o => o.title === aiResult.title);
                     if (originalOffer) {

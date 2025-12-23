@@ -287,7 +287,16 @@ async function runPriceScan() {
                 priceSource: regexResult.priceSource,
                 competitorPrice: regexResult.competitorPrice,
                 competitorIncome: regexResult.competitorIncome,
-                targetMsRange: regexResult.targetMsRange
+                targetMsRange: regexResult.targetMsRange,
+                // v9.10.16: Added median and nextCompetitor fields
+                medianPrice: regexResult.medianPrice,
+                medianData: regexResult.medianData,
+                nextCompetitorPrice: regexResult.nextCompetitorPrice,
+                nextCompetitorData: regexResult.nextCompetitorData,
+                nextRangeChecked: regexResult.nextRangeChecked,
+                isInEldoradoList: regexResult.isInEldoradoList,
+                lowerPrice: regexResult.lowerPrice,
+                lowerIncome: regexResult.lowerIncome
             });
             
             // Проверяем изменилась ли цена
