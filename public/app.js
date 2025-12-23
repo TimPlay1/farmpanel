@@ -6169,18 +6169,8 @@ function toggleOfferSelection(offerId) {
     renderOffers();
 }
 
-// v9.7.6: Delete a paused offer from server (v10.0.1: with Eldorado cleanup option)
+// v9.7.6: Delete a paused offer from server (v10.2.0: no confirmations, always delete from both)
 async function deleteOffer(offerId, brainrotName) {
-    // Ask user if they want to also delete from Eldorado
-    const deleteFromEldorado = confirm(`Delete offer "${brainrotName}" (${offerId})?\n\n⚠️ Click OK to delete from BOTH farmpanel AND queue for Eldorado cleanup.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
-    
-    // User might want to cancel entirely - add second confirm for cancel
-    if (!deleteFromEldorado) {
-        if (!confirm(`Delete offer "${brainrotName}" (${offerId}) from farmpanel ONLY?\n\nThe offer on Eldorado will NOT be affected.`)) {
-            return;
-        }
-    }
-    
     try {
         const currentFarmKey = state.currentKey;
         if (!currentFarmKey) {
@@ -6208,34 +6198,28 @@ async function deleteOffer(offerId, brainrotName) {
         updateOffersStats();
         updateBulkActionsState();
         renderOffers();
-        showNotification(`✅ Offer "${brainrotName}" deleted from farmpanel`, 'success');
+        showNotification(`✅ Deleted "${brainrotName}"`, 'success');
         
-        // If user wants to delete from Eldorado too, save delete queue via API
-        if (deleteFromEldorado) {
-            try {
-                const deleteData = {
-                    farmKey: state.currentKey,
-                    offerCodes: [offerId],
-                    offerNames: [brainrotName]
-                };
-                
-                // Save to API
-                await fetch(`${API_BASE}/delete-queue`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(deleteData)
-                });
-                
-                showNotification('🔄 Opening Eldorado dashboard...', 'info');
-                
-                // Open Eldorado with flag to fetch delete queue
-                setTimeout(() => {
-                    window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
-                }, 500);
-            } catch (err) {
-                console.error('Failed to save delete queue:', err);
-                showNotification('❌ Failed to prepare Eldorado cleanup', 'error');
-            }
+        // Always delete from Eldorado too - save delete queue via API
+        try {
+            const deleteData = {
+                farmKey: state.currentKey,
+                offerCodes: [offerId],
+                offerNames: [brainrotName]
+            };
+            
+            // Save to API
+            await fetch(`${API_BASE}/delete-queue`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deleteData)
+            });
+            
+            // Open Eldorado with flag to fetch delete queue
+            window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
+        } catch (err) {
+            console.error('Failed to save delete queue:', err);
+            showNotification('❌ Failed to prepare Eldorado cleanup', 'error');
         }
         
     } catch (error) {
@@ -6244,7 +6228,7 @@ async function deleteOffer(offerId, brainrotName) {
     }
 }
 
-// v10.0.2: Bulk delete multiple paused/unverified offers ONLY
+// v10.2.0: Bulk delete multiple paused/unverified offers - no confirmations, always delete from both
 async function bulkDeleteOffers() {
     const selectedOfferIds = Array.from(offersState.selectedOffers);
     const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
@@ -6261,18 +6245,6 @@ async function bulkDeleteOffers() {
     if (deletableOffers.length === 0) {
         showNotification('⚠️ No paused/unverified offers selected', 'warning');
         return;
-    }
-    
-    const offerNames = deletableOffers.map(o => `${o.brainrotName} (${o.offerId})`).join('\n');
-    
-    // Ask user if they want to also delete from Eldorado
-    const deleteFromEldorado = confirm(`Delete ${deletableOffers.length} paused/unverified offers?\n\n${offerNames}\n\n⚠️ Click OK to delete from BOTH farmpanel AND Eldorado.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
-    
-    // If cancel, ask for farmpanel only
-    if (!deleteFromEldorado) {
-        if (!confirm(`Delete ${deletableOffers.length} offers from farmpanel ONLY?\n\nThe offers on Eldorado will NOT be affected.`)) {
-            return;
-        }
     }
     
     const currentFarmKey = state.currentKey;
@@ -6317,16 +6289,16 @@ async function bulkDeleteOffers() {
     renderOffers();
     
     if (failCount === 0) {
-        showNotification(`✅ ${successCount} offers deleted from farmpanel`, 'success');
+        showNotification(`✅ ${successCount} offers deleted`, 'success');
     } else {
         showNotification(`⚠️ ${successCount} deleted, ${failCount} failed`, 'warning');
     }
     
-    // If user wants to delete from Eldorado too, save delete queue via API
-    if (deleteFromEldorado && deletedOfferIds.length > 0) {
+    // Always delete from Eldorado too - save delete queue via API
+    if (deletedOfferIds.length > 0) {
         try {
             // Get names for deleted offers
-            const deletedOfferNames = deletableOffers.map(o => o.brainrotName);
+            const deletedOfferNames = deletableOffers.filter(o => deletedOfferIds.includes(o.offerId)).map(o => o.brainrotName);
             
             const deleteData = {
                 farmKey: state.currentKey,
@@ -6341,12 +6313,8 @@ async function bulkDeleteOffers() {
                 body: JSON.stringify(deleteData)
             });
             
-            showNotification('🔄 Opening Eldorado dashboard...', 'info');
-            
             // Open Eldorado with flag to fetch delete queue
-            setTimeout(() => {
-                window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
-            }, 500);
+            window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
         } catch (err) {
             console.error('Failed to save delete queue:', err);
             showNotification('❌ Failed to prepare Eldorado cleanup', 'error');
