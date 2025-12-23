@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.36
+// @version      9.8.37
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.36
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.36
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.37
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.37
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.36';
+    const VERSION = '9.8.37';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -1725,8 +1725,8 @@
         return null;
     }
 
-    // v9.8.34: Process cleanup of specific offer codes from farmpanel
-    // Searches for offers by their #GSXXXXXX codes and deletes them if Closed
+    // v9.8.37: Process cleanup of specific offer codes from farmpanel
+    // Searches for offers by their #GSXXXXXX codes and deletes them (any status)
     async function processCleanupOffers(cleanupData) {
         // Support both offerCodes and offerIds (for backwards compatibility)
         const targetCodes = cleanupData.offerCodes || cleanupData.offerIds || [];
@@ -1755,7 +1755,7 @@
             
             let totalDeleted = 0;
             let totalFailed = 0;
-            let totalNotClosed = 0;
+            let totalSkipped = 0;
             let totalNotFound = 0;
             
             // Track which codes we've processed
@@ -1800,11 +1800,19 @@
                     
                     log(`Found target offer: ${code}`);
                     
-                    // Check if offer is Closed (required for deletion)
-                    if (!isOfferClosed(item)) {
-                        log(`⚠ ${code}: Not Closed status, skipping`);
-                        totalNotClosed++;
-                        continue;
+                    // v9.8.37: Check if offer is Active - need to pause first before delete
+                    const isClosed = isOfferClosed(item);
+                    const isPaused = !isClosed && item.querySelector('.chip-status-gray, [aria-label="Paused"]');
+                    
+                    // If not closed and not paused (i.e. Active), we need to pause it first
+                    if (!isClosed && !isPaused) {
+                        log(`${code}: Active offer, trying to pause first...`);
+                        const pauseBtn = item.querySelector('button[aria-label*="Pause"], button .icon-pause')?.closest('button');
+                        if (pauseBtn) {
+                            reliableClick(pauseBtn);
+                            await new Promise(r => setTimeout(r, 1500));
+                            showNotification(`⏸️ Paused ${code} before delete`, 'info');
+                        }
                     }
                     
                     try {
@@ -1877,7 +1885,7 @@
             // Show results
             let statusParts = [];
             if (totalDeleted > 0) statusParts.push(`${totalDeleted} deleted`);
-            if (totalNotClosed > 0) statusParts.push(`${totalNotClosed} not Closed`);
+            if (totalSkipped > 0) statusParts.push(`${totalSkipped} skipped`);
             if (totalNotFound > 0) statusParts.push(`${totalNotFound} not found`);
             if (totalFailed > 0) statusParts.push(`${totalFailed} failed`);
             
