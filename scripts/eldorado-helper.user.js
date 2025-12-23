@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.33
+// @version      9.8.34
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -1716,14 +1716,24 @@
                 if (parsed.timestamp && Date.now() - parsed.timestamp < 300000) {
                     return parsed;
                 }
-            } catch (e) {}
+                // Clear old data
+                localStorage.removeItem('glitched_cleanup_offers');
+            } catch (e) {
+                localStorage.removeItem('glitched_cleanup_offers');
+            }
         }
         return null;
     }
 
-    // v9.8.25: Process cleanup of specific offer codes from farmpanel
+    // v9.8.34: Process cleanup of specific offer codes from farmpanel
+    // Searches for offers by their #GSXXXXXX codes and deletes them if Closed
     async function processCleanupOffers(cleanupData) {
-        if (!cleanupData || !cleanupData.offerIds || cleanupData.offerIds.length === 0) return;
+        // Support both offerCodes and offerIds (for backwards compatibility)
+        const targetCodes = cleanupData.offerCodes || cleanupData.offerIds || [];
+        if (!cleanupData || targetCodes.length === 0) {
+            log('No offer codes to cleanup');
+            return;
+        }
         
         // Wait for any loading spinner first
         if (!await waitForSpinner(15000, 'cleanupOffers')) {
@@ -1738,92 +1748,143 @@
         isCleaningOffers = true;
         
         try {
-            const targetOfferIds = new Set(cleanupData.offerIds);
-            log(`Processing cleanup for ${targetOfferIds.size} offer IDs from farmpanel`);
-            showNotification(`🗑️ Cleaning up ${targetOfferIds.size} deleted offers...`, 'info');
+            // Normalize codes - remove # prefix for comparison
+            const targetCodesSet = new Set(targetCodes.map(c => c.replace(/^#/, '').toUpperCase()));
+            log(`Processing cleanup for ${targetCodesSet.size} offer codes from farmpanel: ${[...targetCodesSet].join(', ')}`);
+            showNotification(`🗑️ Looking for ${targetCodesSet.size} offers to delete...`, 'info');
             
             let totalDeleted = 0;
             let totalFailed = 0;
+            let totalNotClosed = 0;
             let totalNotFound = 0;
             
-            // Scroll to load all offers first
-            await scrollToLoadAllOffers();
-            await new Promise(r => setTimeout(r, 500));
+            // Track which codes we've processed
+            const processedCodes = new Set();
             
-            // Get all offer items on page
-            const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+            // Get total pages
+            const totalPages = getTotalPages();
+            log(`Scanning ${totalPages} page(s) for target offers`);
             
-            for (const item of items) {
-                const code = extractOfferCodeFromElement(item);
-                if (!code) continue;
-                
-                // Check if this offer matches any of the target IDs (by checking brainrot name or offer code)
-                // Since we don't have direct offerId mapping, check if offer is Closed status
-                // The farmpanel already deleted from DB, we need to find matching closed offers
-                if (!isOfferClosed(item)) continue;
-                
-                // Check if this is one of our offers
-                if (!userOfferCodes.has(code) && !userOfferCodes.has('#' + code)) continue;
-                
-                try {
-                    // Find Delete button (trash icon)
-                    const deleteIcon = item.querySelector('.icon-delete');
-                    if (!deleteIcon) {
-                        log(`⚠ ${code}: Delete button not found`);
-                        totalFailed++;
-                        continue;
+            // Scan all pages
+            for (let page = 1; page <= totalPages; page++) {
+                if (page > 1) {
+                    const navigated = await goToPage(page);
+                    if (!navigated) {
+                        log(`Failed to navigate to page ${page}`);
+                        break;
                     }
-                    
-                    const deleteBtn = deleteIcon.closest('button');
-                    if (!deleteBtn) {
-                        log(`⚠ ${code}: Delete button wrapper not found`);
-                        totalFailed++;
-                        continue;
-                    }
-                    
-                    // Scroll into view and click
-                    item.scrollIntoView({ behavior: 'instant', block: 'center' });
-                    await new Promise(r => setTimeout(r, 400));
-                    
-                    log(`Clicking delete for ${code}...`);
-                    reliableClick(deleteBtn);
-                    
-                    // Wait for confirmation modal
-                    await new Promise(r => setTimeout(r, 800));
-                    
-                    // Find and click confirm Delete button in modal
-                    const confirmDeleted = await clickDeleteConfirmButton();
-                    
-                    if (confirmDeleted) {
-                        totalDeleted++;
-                        log(`✓ Deleted ${code}`);
-                        // Wait for UI to update after deletion
-                        await new Promise(r => setTimeout(r, 1000));
-                    } else {
-                        totalFailed++;
-                        log(`✗ Failed to confirm delete for ${code}`);
-                    }
-                } catch (e) {
-                    totalFailed++;
-                    logError(`Error deleting ${code}:`, e);
+                    await new Promise(r => setTimeout(r, 1500));
                 }
                 
-                highlightUserOffers();
+                // Scroll to load all offers on this page
+                await scrollToLoadAllOffers();
+                await new Promise(r => setTimeout(r, 500));
+                
+                // Get all offer items on page
+                const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+                log(`Page ${page}: Found ${items.length} offers`);
+                
+                for (const item of items) {
+                    const code = extractOfferCodeFromElement(item);
+                    if (!code) continue;
+                    
+                    // Normalize for comparison
+                    const normalizedCode = code.replace(/^#/, '').toUpperCase();
+                    
+                    // Check if this is one of our target codes
+                    if (!targetCodesSet.has(normalizedCode)) continue;
+                    
+                    // Already processed?
+                    if (processedCodes.has(normalizedCode)) continue;
+                    processedCodes.add(normalizedCode);
+                    
+                    log(`Found target offer: ${code}`);
+                    
+                    // Check if offer is Closed (required for deletion)
+                    if (!isOfferClosed(item)) {
+                        log(`⚠ ${code}: Not Closed status, skipping`);
+                        totalNotClosed++;
+                        continue;
+                    }
+                    
+                    try {
+                        // Find Delete button (trash icon)
+                        const deleteIcon = item.querySelector('.icon-delete');
+                        if (!deleteIcon) {
+                            log(`⚠ ${code}: Delete button not found`);
+                            totalFailed++;
+                            continue;
+                        }
+                        
+                        const deleteBtn = deleteIcon.closest('button');
+                        if (!deleteBtn) {
+                            log(`⚠ ${code}: Delete button wrapper not found`);
+                            totalFailed++;
+                            continue;
+                        }
+                        
+                        // Scroll into view and click
+                        item.scrollIntoView({ behavior: 'instant', block: 'center' });
+                        await new Promise(r => setTimeout(r, 400));
+                        
+                        log(`Clicking delete for ${code}...`);
+                        reliableClick(deleteBtn);
+                        
+                        // Wait for confirmation modal
+                        await new Promise(r => setTimeout(r, 800));
+                        
+                        // Find and click confirm Delete button in modal
+                        const confirmDeleted = await clickDeleteConfirmButton();
+                        
+                        if (confirmDeleted) {
+                            totalDeleted++;
+                            log(`✓ Deleted ${code}`);
+                            // Wait for UI to update after deletion
+                            await new Promise(r => setTimeout(r, 1000));
+                        } else {
+                            totalFailed++;
+                            log(`✗ Failed to confirm delete for ${code}`);
+                        }
+                    } catch (e) {
+                        totalFailed++;
+                        logError(`Error deleting ${code}:`, e);
+                    }
+                    
+                    highlightUserOffers();
+                }
+                
+                // Check if we've found all target codes
+                if (processedCodes.size >= targetCodesSet.size) {
+                    log('All target codes processed, stopping scan');
+                    break;
+                }
             }
+            
+            // Calculate not found
+            totalNotFound = targetCodesSet.size - processedCodes.size;
             
             // Clear the cleanup signal
             localStorage.removeItem('glitched_cleanup_offers');
             
+            // Return to first page
+            if (totalPages > 1) {
+                await goToPage(1);
+            }
+            
             await new Promise(r => setTimeout(r, 1000));
             highlightUserOffers();
             
-            if (totalDeleted > 0 || totalFailed > 0) {
-                const statusMsg = `🗑️ Cleaned ${totalDeleted} offers${totalFailed > 0 ? ` (${totalFailed} failed)` : ''}`;
-                showNotification(statusMsg, totalFailed > 0 ? 'warning' : 'success');
-                logInfo(`Cleanup from farmpanel: ${totalDeleted} deleted, ${totalFailed} failed`);
-            } else {
-                showNotification('✓ No matching Closed offers found to clean', 'success');
-            }
+            // Show results
+            let statusParts = [];
+            if (totalDeleted > 0) statusParts.push(`${totalDeleted} deleted`);
+            if (totalNotClosed > 0) statusParts.push(`${totalNotClosed} not Closed`);
+            if (totalNotFound > 0) statusParts.push(`${totalNotFound} not found`);
+            if (totalFailed > 0) statusParts.push(`${totalFailed} failed`);
+            
+            const hasIssues = totalFailed > 0 || totalNotFound > 0;
+            const statusMsg = `🗑️ Cleanup: ${statusParts.join(', ') || 'nothing to do'}`;
+            showNotification(statusMsg, hasIssues ? 'warning' : 'success');
+            logInfo(`Cleanup from farmpanel: ${statusMsg}`);
             
             // Trigger refresh to sync with farmpanel
             localStorage.setItem('glitched_refresh_offers', Date.now().toString());

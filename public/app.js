@@ -1220,6 +1220,7 @@ const offerSortDropdown = document.getElementById('offerSortDropdown');
 const offerStatusDropdown = document.getElementById('offerStatusDropdown');
 const selectAllOffersEl = document.getElementById('selectAllOffers');
 const bulkAdjustBtn = document.getElementById('bulkAdjustBtn');
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
 const bulkPriceModal = document.getElementById('bulkPriceModal');
 const offerPriceModal = document.getElementById('offerPriceModal');
 
@@ -6196,10 +6197,11 @@ async function bulkDeleteOffers() {
         return;
     }
     
+    const offerCodes = deletableOffers.map(o => o.offerId);
     const offerNames = deletableOffers.map(o => `${o.brainrotName} (${o.offerId})`).join('\n');
-    if (!confirm(`Delete ${deletableOffers.length} offers from farmpanel?\n\n${offerNames}\n\nThis will remove them from tracking. Offers on Eldorado will NOT be affected.\n\n💡 Tip: To also delete from Eldorado, you can use the Tampermonkey script cleanup feature.`)) {
-        return;
-    }
+    
+    // Ask user if they want to also delete from Eldorado
+    const deleteFromEldorado = confirm(`Delete ${deletableOffers.length} offers?\n\n${offerNames}\n\n⚠️ Click OK to delete from BOTH farmpanel AND Eldorado.\n(Will open Eldorado dashboard to clean Closed offers)\n\nClick Cancel to delete only from farmpanel.`);
     
     const currentFarmKey = state.currentKey;
     if (!currentFarmKey) {
@@ -6243,18 +6245,28 @@ async function bulkDeleteOffers() {
     renderOffers();
     
     if (failCount === 0) {
-        showNotification(`✅ ${successCount} offers deleted`, 'success');
+        showNotification(`✅ ${successCount} offers deleted from farmpanel`, 'success');
     } else {
         showNotification(`⚠️ ${successCount} deleted, ${failCount} failed`, 'warning');
     }
     
-    // Signal to Tampermonkey script for cleanup on Eldorado
-    const cleanupData = {
-        action: 'cleanup_offers',
-        offerIds: deletedOfferIds,
-        timestamp: Date.now()
-    };
-    localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+    // If user wants to delete from Eldorado too, set up cleanup queue and redirect
+    if (deleteFromEldorado && deletedOfferIds.length > 0) {
+        // Signal to Tampermonkey script for cleanup on Eldorado
+        const cleanupData = {
+            action: 'cleanup_offers',
+            offerCodes: deletedOfferIds,
+            timestamp: Date.now()
+        };
+        localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+        
+        showNotification('🔄 Opening Eldorado dashboard...', 'info');
+        
+        // Open Eldorado dashboard in new tab
+        setTimeout(() => {
+            window.open('https://www.eldorado.gg/dashboard/offers?category=CustomItem', '_blank');
+        }, 500);
+    }
 }
 
 // Toggle select all offers
@@ -6270,14 +6282,15 @@ function toggleSelectAllOffers() {
 
 // Update bulk actions button state
 function updateBulkActionsState() {
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    // Use global bulkDeleteBtn or find it if not defined
+    const deleteBtnEl = bulkDeleteBtn || document.getElementById('bulkDeleteBtn');
     
     if (bulkAdjustBtn) {
         bulkAdjustBtn.disabled = offersState.selectedOffers.size === 0;
     }
     
     // Show/enable bulk delete button only when paused/unverified offers are selected
-    if (bulkDeleteBtn) {
+    if (deleteBtnEl) {
         const selectedOfferIds = Array.from(offersState.selectedOffers);
         const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
         
@@ -6289,15 +6302,20 @@ function updateBulkActionsState() {
             return isPaused || isUnverified;
         }).length;
         
+        console.log('updateBulkActionsState: deletableCount =', deletableCount, 'selected =', selectedOfferIds.length);
+        
         // Show button if any deletable offers are selected
         if (deletableCount > 0) {
-            bulkDeleteBtn.classList.remove('hidden');
-            bulkDeleteBtn.disabled = false;
-            bulkDeleteBtn.innerHTML = `<i class="fas fa-trash"></i> Delete (${deletableCount})`;
+            deleteBtnEl.classList.remove('hidden');
+            deleteBtnEl.disabled = false;
+            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete (${deletableCount})`;
         } else {
-            bulkDeleteBtn.classList.add('hidden');
-            bulkDeleteBtn.disabled = true;
+            deleteBtnEl.classList.add('hidden');
+            deleteBtnEl.disabled = true;
+            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete Selected`;
         }
+    } else {
+        console.warn('bulkDeleteBtn not found in DOM');
     }
     
     if (selectAllOffersEl) {
@@ -6691,10 +6709,13 @@ function setupOffersListeners() {
         bulkAdjustBtn.addEventListener('click', openBulkPriceModal);
     }
     
-    // Bulk delete button
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-    if (bulkDeleteBtn) {
-        bulkDeleteBtn.addEventListener('click', bulkDeleteOffers);
+    // Bulk delete button - use global or find it
+    const deleteBtnEl = bulkDeleteBtn || document.getElementById('bulkDeleteBtn');
+    if (deleteBtnEl) {
+        deleteBtnEl.addEventListener('click', bulkDeleteOffers);
+        console.log('Bulk delete button listener attached');
+    } else {
+        console.warn('Bulk delete button not found during setup');
     }
     
     // Scan Eldorado button (also refreshes offers after scan)
