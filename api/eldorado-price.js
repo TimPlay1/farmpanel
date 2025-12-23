@@ -18,6 +18,12 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 минуты - чтобы не долби�
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
 
+// Алиасы для брейнротов с ошибками в названиях на Eldorado
+// Ключ = наше правильное название (lowercase), значение = название в системе Eldorado
+const BRAINROT_NAME_ALIASES = {
+    'chimnino': 'Chimino'  // Eldorado ошибочно записал как "Chimino" вместо "Chimnino"
+};
+
 // Загружаем mapping брейнротов -> ID из Eldorado (статический, для fallback)
 let BRAINROT_ID_MAP = new Map();
 let BRAINROT_MIN_PRICES = new Map();
@@ -28,6 +34,14 @@ try {
         BRAINROT_ID_MAP.set(item.name.toLowerCase(), { id: item.id, name: item.name });
         BRAINROT_MIN_PRICES.set(item.name.toLowerCase(), item.price);
     });
+    // Добавляем алиасы в BRAINROT_ID_MAP для правильной фильтрации
+    for (const [alias, eldoradoName] of Object.entries(BRAINROT_NAME_ALIASES)) {
+        const eldoradoData = BRAINROT_ID_MAP.get(eldoradoName.toLowerCase());
+        if (eldoradoData) {
+            BRAINROT_ID_MAP.set(alias, { ...eldoradoData, name: eldoradoName });
+            console.log(`Added alias: ${alias} -> ${eldoradoName}`);
+        }
+    }
     console.log('Loaded', BRAINROT_ID_MAP.size, 'Eldorado brainrot IDs (static fallback)');
 } catch (e) {
     console.error('Failed to load eldorado-brainrot-ids.json:', e.message);
@@ -88,6 +102,11 @@ async function getAvailableBrainrots() {
  */
 async function isBrainrotInEldorado(brainrotName) {
     const nameLower = brainrotName.toLowerCase();
+    
+    // 0. Проверяем алиасы (для исправления ошибок в названиях Eldorado)
+    if (BRAINROT_NAME_ALIASES[nameLower]) {
+        return true;
+    }
     
     // 1. Проверяем динамический кэш из API
     const dynamicList = await getAvailableBrainrots();
