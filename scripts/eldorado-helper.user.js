@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.35
+// @version      9.8.36
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.35
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.35
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.36
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.36
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.35';
+    const VERSION = '9.8.36';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -3349,10 +3349,16 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             }
             
             // 2. Mutations - v9.8.27: Используем мутацию из данных брейнрота
-            log('Step 2: Mutations -> ' + expectedMutation);
+            // v9.8.36: Маппинг исправлений названий мутаций на Eldorado
+            const mutationNameFixes = {
+                'YingYang': 'Ying Yang',  // На Eldorado название с пробелом
+                'yingyang': 'Ying Yang'
+            };
+            const fixedMutation = mutationNameFixes[expectedMutation] || expectedMutation;
+            log('Step 2: Mutations -> ' + fixedMutation);
             const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
             if (mutationSelect) {
-                const selected = await selectNgOption(mutationSelect, expectedMutation);
+                const selected = await selectNgOption(mutationSelect, fixedMutation);
                 verificationResults.mutations = selected;
                 if (!selected) log('⚠️ Mutations may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 300));
