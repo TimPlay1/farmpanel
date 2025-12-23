@@ -6210,21 +6210,32 @@ async function deleteOffer(offerId, brainrotName) {
         renderOffers();
         showNotification(`✅ Offer "${brainrotName}" deleted from farmpanel`, 'success');
         
-        // If user wants to delete from Eldorado too, pass data via URL parameter
+        // If user wants to delete from Eldorado too, save delete queue via API
         if (deleteFromEldorado) {
-            const deleteData = {
-                offerCodes: [offerId],
-                offerNames: [brainrotName],
-                timestamp: Date.now()
-            };
-            const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete=${encodeURIComponent(JSON.stringify(deleteData))}`;
-            
-            showNotification('🔄 Opening Eldorado dashboard...', 'info');
-            
-            // Open Eldorado dashboard in new tab
-            setTimeout(() => {
-                window.open(eldoradoUrl, '_blank');
-            }, 500);
+            try {
+                const deleteData = {
+                    farmKey: state.currentKey,
+                    offerCodes: [offerId],
+                    offerNames: [brainrotName]
+                };
+                
+                // Save to API
+                await fetch(`${API_BASE}/delete-queue`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(deleteData)
+                });
+                
+                showNotification('🔄 Opening Eldorado dashboard...', 'info');
+                
+                // Open Eldorado with flag to fetch delete queue
+                setTimeout(() => {
+                    window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
+                }, 500);
+            } catch (err) {
+                console.error('Failed to save delete queue:', err);
+                showNotification('❌ Failed to prepare Eldorado cleanup', 'error');
+            }
         }
         
     } catch (error) {
@@ -6311,24 +6322,35 @@ async function bulkDeleteOffers() {
         showNotification(`⚠️ ${successCount} deleted, ${failCount} failed`, 'warning');
     }
     
-    // If user wants to delete from Eldorado too, pass data via URL parameter
+    // If user wants to delete from Eldorado too, save delete queue via API
     if (deleteFromEldorado && deletedOfferIds.length > 0) {
-        // Get names for deleted offers
-        const deletedOfferNames = deletableOffers.map(o => o.brainrotName);
-        
-        const deleteData = {
-            offerCodes: deletedOfferIds,
-            offerNames: deletedOfferNames,
-            timestamp: Date.now()
-        };
-        const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete=${encodeURIComponent(JSON.stringify(deleteData))}`;
-        
-        showNotification('🔄 Opening Eldorado dashboard...', 'info');
-        
-        // Open Eldorado dashboard in new tab
-        setTimeout(() => {
-            window.open(eldoradoUrl, '_blank');
-        }, 500);
+        try {
+            // Get names for deleted offers
+            const deletedOfferNames = deletableOffers.map(o => o.brainrotName);
+            
+            const deleteData = {
+                farmKey: state.currentKey,
+                offerCodes: deletedOfferIds,
+                offerNames: deletedOfferNames
+            };
+            
+            // Save to API
+            await fetch(`${API_BASE}/delete-queue`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(deleteData)
+            });
+            
+            showNotification('🔄 Opening Eldorado dashboard...', 'info');
+            
+            // Open Eldorado with flag to fetch delete queue
+            setTimeout(() => {
+                window.open(`https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete_pending=1&farmKey=${encodeURIComponent(state.currentKey)}`, '_blank');
+            }, 500);
+        } catch (err) {
+            console.error('Failed to save delete queue:', err);
+            showNotification('❌ Failed to prepare Eldorado cleanup', 'error');
+        }
     }
 }
 

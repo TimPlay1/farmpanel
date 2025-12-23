@@ -2734,7 +2734,68 @@
         return null;
     }
 
-    // v10.1.0: Get delete data from URL (passed from farmpanel)
+    // v10.1.0: Check if delete pending flag is in URL
+    function hasDeletePending() {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('glitched_delete_pending') === '1';
+    }
+    
+    // v10.1.0: Get farmKey from URL for delete queue
+    function getFarmKeyFromURL() {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('farmKey') || CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+    }
+    
+    // v10.1.0: Fetch delete queue from API
+    async function fetchDeleteQueueFromAPI(farmKey) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: `${API_BASE}/delete-queue?farmKey=${encodeURIComponent(farmKey)}`,
+                onload: (response) => {
+                    try {
+                        const data = JSON.parse(response.responseText);
+                        if (data.success && data.offerCodes && data.offerCodes.length > 0) {
+                            log(`Fetched delete queue: ${data.offerCodes.length} offers`);
+                            resolve(data);
+                        } else {
+                            log('No delete queue found or empty');
+                            resolve(null);
+                        }
+                    } catch (e) {
+                        logError('Failed to parse delete queue response:', e);
+                        resolve(null);
+                    }
+                },
+                onerror: (e) => {
+                    logError('Failed to fetch delete queue:', e);
+                    resolve(null);
+                },
+                ontimeout: () => {
+                    logError('Delete queue fetch timeout');
+                    resolve(null);
+                }
+            });
+        });
+    }
+    
+    // v10.1.0: Clear delete queue from API after processing
+    async function clearDeleteQueueFromAPI(farmKey) {
+        return new Promise((resolve) => {
+            GM_xmlhttpRequest({
+                method: 'DELETE',
+                url: `${API_BASE}/delete-queue?farmKey=${encodeURIComponent(farmKey)}`,
+                onload: () => {
+                    log('Delete queue cleared from API');
+                    resolve(true);
+                },
+                onerror: () => resolve(false),
+                ontimeout: () => resolve(false)
+            });
+        });
+    }
+
+    // v10.1.0: Get delete data from URL (legacy - passed from farmpanel directly in URL)
     function getDeleteDataFromURL() {
         const url = new URL(window.location.href);
         const data = url.searchParams.get('glitched_delete');
@@ -4482,12 +4543,45 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 return;
             }
             
-            // v10.1.0: Check for delete signal from farmpanel (via URL parameter)
+            // v10.1.0: Check for delete pending flag (fetch from API)
+            if (hasDeletePending()) {
+                const farmKey = getFarmKeyFromURL();
+                if (farmKey) {
+                    log(`Delete pending detected, fetching queue for farmKey: ${farmKey}`);
+                    await new Promise(r => setTimeout(r, 2000));
+                    
+                    const deleteData = await fetchDeleteQueueFromAPI(farmKey);
+                    if (deleteData && deleteData.offerCodes && deleteData.offerCodes.length > 0) {
+                        const codes = deleteData.offerCodes;
+                        const names = deleteData.offerNames || [];
+                        log(`Delete mode: processing ${codes.length} offers from API`);
+                        
+                        // Create panel with names
+                        createCleanupPanel(codes, names);
+                        await new Promise(r => setTimeout(r, 500));
+                        await processCleanupOffers(deleteData);
+                        
+                        // Clear delete queue from API after processing
+                        await clearDeleteQueueFromAPI(farmKey);
+                    } else {
+                        showNotification('⚠️ No delete queue found', 'warning');
+                    }
+                    
+                    // Clear URL parameters after processing
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('glitched_delete_pending');
+                    url.searchParams.delete('farmKey');
+                    window.history.replaceState({}, '', url.toString());
+                }
+                // Don't return - continue with normal initialization after cleanup
+            }
+            
+            // v10.1.0: Legacy - Check for delete signal from farmpanel (via URL parameter - small data)
             const deleteData = getDeleteDataFromURL();
             if (deleteData) {
                 const codes = deleteData.offerCodes || [];
                 const names = deleteData.offerNames || [];
-                log(`Delete mode: processing ${codes.length} offers from farmpanel`);
+                log(`Delete mode (legacy URL): processing ${codes.length} offers from farmpanel`);
                 await new Promise(r => setTimeout(r, 2000));
                 // Create panel with names
                 createCleanupPanel(codes, names);
