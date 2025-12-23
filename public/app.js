@@ -1212,7 +1212,7 @@ const accountsGridEl = document.getElementById('accountsGrid');
 const accountsListEl = document.getElementById('accountsList');
 const farmKeysListEl = document.getElementById('farmKeysList');
 
-// Offers elements
+// Offers elements - Note: some elements may not exist at init time (loaded dynamically)
 const offersGridEl = document.getElementById('offersGrid');
 const offersStatsEl = document.getElementById('offersStats');
 const offerSearchEl = document.getElementById('offerSearch');
@@ -1220,7 +1220,7 @@ const offerSortDropdown = document.getElementById('offerSortDropdown');
 const offerStatusDropdown = document.getElementById('offerStatusDropdown');
 const selectAllOffersEl = document.getElementById('selectAllOffers');
 const bulkAdjustBtn = document.getElementById('bulkAdjustBtn');
-const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+// bulkDeleteBtn is found dynamically - may not exist at page load
 const bulkPriceModal = document.getElementById('bulkPriceModal');
 const offerPriceModal = document.getElementById('offerPriceModal');
 
@@ -6343,14 +6343,16 @@ function toggleSelectAllOffers() {
 
 // Update bulk actions button state
 function updateBulkActionsState() {
-    // Use global bulkDeleteBtn or find it if not defined
-    const deleteBtnEl = bulkDeleteBtn || document.getElementById('bulkDeleteBtn');
+    // Always find button dynamically - it may be loaded after page init
+    const deleteBtnEl = document.getElementById('bulkDeleteBtn');
+    const adjustBtnEl = document.getElementById('bulkAdjustBtn');
+    const selectAllEl = document.getElementById('selectAllOffers');
     
-    if (bulkAdjustBtn) {
-        bulkAdjustBtn.disabled = offersState.selectedOffers.size === 0;
+    if (adjustBtnEl) {
+        adjustBtnEl.disabled = offersState.selectedOffers.size === 0;
     }
     
-    // v10.0.2: Show bulk delete button ONLY when paused/unverified offers are selected
+    // v10.0.3: Show bulk delete button ONLY when paused/unverified offers are selected
     if (deleteBtnEl) {
         const selectedOfferIds = Array.from(offersState.selectedOffers);
         const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
@@ -6368,7 +6370,7 @@ function updateBulkActionsState() {
             selectedIds: selectedOfferIds,
             selectedOffers: selectedOffers.map(o => ({ id: o.offerId, status: o.status, lastScannedAt: o.lastScannedAt })),
             deletableCount: deletableOffers.length,
-            btnFound: !!deleteBtnEl
+            btnFound: true
         });
         
         // Show button ONLY if paused/unverified offers are selected
@@ -6381,12 +6383,11 @@ function updateBulkActionsState() {
             deleteBtnEl.disabled = true;
             deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete Selected`;
         }
-    } else {
-        console.warn('bulkDeleteBtn not found in DOM');
     }
+    // No warning if not found - button may not exist on current view
     
-    if (selectAllOffersEl) {
-        selectAllOffersEl.checked = offersState.selectedOffers.size === offersState.filteredOffers.length && offersState.filteredOffers.length > 0;
+    if (selectAllEl) {
+        selectAllEl.checked = offersState.selectedOffers.size === offersState.filteredOffers.length && offersState.filteredOffers.length > 0;
     }
     updateOffersStats();
 }
@@ -6766,23 +6767,32 @@ function setupOffersListeners() {
         filterAndRenderOffers();
     });
     
-    // Select all
-    if (selectAllOffersEl) {
-        selectAllOffersEl.addEventListener('change', toggleSelectAllOffers);
+    // Select all - find dynamically
+    const selectAllEl = document.getElementById('selectAllOffers');
+    if (selectAllEl) {
+        selectAllEl.addEventListener('change', toggleSelectAllOffers);
     }
     
-    // Bulk adjust button
-    if (bulkAdjustBtn) {
-        bulkAdjustBtn.addEventListener('click', openBulkPriceModal);
+    // Bulk adjust button - find dynamically
+    const adjustBtnEl = document.getElementById('bulkAdjustBtn');
+    if (adjustBtnEl) {
+        adjustBtnEl.addEventListener('click', openBulkPriceModal);
     }
     
-    // Bulk delete button - use global or find it
-    const deleteBtnEl = bulkDeleteBtn || document.getElementById('bulkDeleteBtn');
+    // Bulk delete button - find dynamically
+    const deleteBtnEl = document.getElementById('bulkDeleteBtn');
     if (deleteBtnEl) {
         deleteBtnEl.addEventListener('click', bulkDeleteOffers);
         console.log('Bulk delete button listener attached');
     } else {
-        console.warn('Bulk delete button not found during setup');
+        // Try again after a delay - element may be loading
+        setTimeout(() => {
+            const retryDeleteBtn = document.getElementById('bulkDeleteBtn');
+            if (retryDeleteBtn) {
+                retryDeleteBtn.addEventListener('click', bulkDeleteOffers);
+                console.log('Bulk delete button listener attached (delayed)');
+            }
+        }, 1000);
     }
     
     // Scan Eldorado button (also refreshes offers after scan)
