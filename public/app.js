@@ -6356,21 +6356,26 @@ function updateBulkActionsState() {
         const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
         
         // Count only paused or unverified offers
-        const deletableCount = selectedOffers.filter(o => {
+        const deletableOffers = selectedOffers.filter(o => {
             const isPaused = o.status === 'paused';
             const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
             const scanAgeMs = Date.now() - lastScannedAt;
             const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
             return isPaused || isUnverified;
-        }).length;
+        });
         
-        console.log('updateBulkActionsState: deletableCount =', deletableCount, 'selected =', selectedOfferIds.length);
+        console.log('updateBulkActionsState:', {
+            selectedIds: selectedOfferIds,
+            selectedOffers: selectedOffers.map(o => ({ id: o.offerId, status: o.status, lastScannedAt: o.lastScannedAt })),
+            deletableCount: deletableOffers.length,
+            btnFound: !!deleteBtnEl
+        });
         
         // Show button ONLY if paused/unverified offers are selected
-        if (deletableCount > 0) {
+        if (deletableOffers.length > 0) {
             deleteBtnEl.classList.remove('hidden');
             deleteBtnEl.disabled = false;
-            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete (${deletableCount})`;
+            deleteBtnEl.innerHTML = `<i class="fas fa-trash"></i> Delete ${deletableOffers.length}`;
         } else {
             deleteBtnEl.classList.add('hidden');
             deleteBtnEl.disabled = true;

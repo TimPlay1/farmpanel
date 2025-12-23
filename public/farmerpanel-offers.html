@@ -8,7 +8,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script><style type="text/css" id="operaUserStyle"></style>
-    <link rel="stylesheet" href="styles.css?v=13">
+    <link rel="stylesheet" href="styles.css?v=14">
     <!-- Inline critical loading styles -->
     <style>
         .loading-screen {
@@ -2776,16 +2776,16 @@ $7.5M/s">
                                 <i class="fas fa-edit"></i>
                                 Adjust Selected
                             </button>
-                            <button class="btn btn-danger btn-sm hidden" id="bulkDeleteBtn" disabled="" title="Delete selected paused/unverified offers">
-                                <i class="fas fa-trash"></i>
-                                Delete Selected
-                            </button>
                         </div>
                         <div class="search-box">
                             <i class="fas fa-search"></i>
                             <input type="text" id="offerSearch" placeholder="Search offers by name or ID..." autocomplete="off">
                         </div>
                         <div class="filter-group">
+                            <button class="btn btn-danger btn-sm hidden" id="bulkDeleteBtn" disabled="" data-tooltip="🗑️ Delete selected paused/unverified offers from farmpanel and Eldorado">
+                                <i class="fas fa-trash"></i>
+                                Delete Selected
+                            </button>
                             <div class="custom-dropdown" id="offerSortDropdown">
                                 <button class="dropdown-toggle" type="button">
                                     <span>Newest First</span>
@@ -4188,7 +4188,7 @@ $7.5M/s">
         </div>
     </div>
 
-    <script src="app.js?v=45"></script>
+    <script src="app.js?v=46"></script>
 
 
 
