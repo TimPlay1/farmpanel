@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.35
+// @version      9.8.34
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -263,12 +263,6 @@
     let userOffers = [];
     let userOfferCodes = new Set(); // Уникальные коды офферов типа #GSXXXXXX
     let userBrainrotNames = new Set(); // Имена brainrots для справки
-    
-    // v9.8.35: Маппинг исправлений опечаток Eldorado
-    // Наше название -> Название на Eldorado (с их опечаткой)
-    const ELDORADO_NAME_FIXES = {
-        'chimnino': 'chimino',  // Eldorado написали chimino вместо chimnino
-    };
     
     // ==================== СТИЛИ ====================
     GM_addStyle(`
@@ -2822,28 +2816,15 @@
 
     // v9.8.4: Special function for brainrot selection with "Other" fallback
     // This keeps the dropdown OPEN if brainrot not found, so we can select "Other" immediately
-    // v9.8.35: Added support for ELDORADO_NAME_FIXES to handle Eldorado typos
     async function selectBrainrotWithOtherFallback(ngSelect, searchName, originalName) {
         if (!ngSelect) return false;
         
-        // v9.8.35: Apply Eldorado name fix if exists (e.g. chimnino -> chimino)
-        const lowerSearchName = searchName.toLowerCase();
-        const eldoradoFixedName = ELDORADO_NAME_FIXES[lowerSearchName];
-        if (eldoradoFixedName) {
-            log(`Applying Eldorado name fix: "${searchName}" -> "${eldoradoFixedName}"`);
-        }
+        log(`Selecting brainrot: "${searchName}" (original: "${originalName}")`);
         
-        log(`Selecting brainrot: "${searchName}" (original: "${originalName}")${eldoradoFixedName ? ` [Eldorado: "${eldoradoFixedName}"]` : ''}`);
-        
-        // First check if already selected (check both original and fixed names)
-        const namesToCheck = [searchName, originalName];
-        if (eldoradoFixedName) namesToCheck.push(eldoradoFixedName);
-        
-        for (const nameCheck of namesToCheck) {
-            if (isValueSelected(ngSelect, nameCheck)) {
-                log(`Brainrot already selected`, 'success');
-                return true;
-            }
+        // First check if already selected
+        if (isValueSelected(ngSelect, searchName) || isValueSelected(ngSelect, originalName)) {
+            log(`Brainrot already selected`, 'success');
+            return true;
         }
         
         try {
@@ -2900,14 +2881,10 @@
             log('Dropdown opened, searching for brainrot...');
             
             const options = panel.querySelectorAll('.ng-option');
-            // v9.8.35: Include Eldorado fixed name in search list
-            const namesToTry = [searchName, originalName];
-            if (eldoradoFixedName) namesToTry.push(eldoradoFixedName);
-            // Remove duplicates
-            const uniqueNames = namesToTry.filter((v, i, a) => a.indexOf(v) === i);
+            const namesToTry = [searchName, originalName].filter((v, i, a) => a.indexOf(v) === i); // unique names
             
             // Try to find exact match for brainrot name
-            for (const nameToFind of uniqueNames) {
+            for (const nameToFind of namesToTry) {
                 const searchText = nameToFind.toLowerCase();
                 
                 // Exact match
