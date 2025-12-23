@@ -2628,6 +2628,9 @@ async function renderAccountsGrid(accounts) {
         
         return `
             <div class="account-card" id="${getAccountCardId(account)}" data-player="${account.playerName}">
+                <button class="account-delete-btn" onclick="deleteFarmer('${account.playerName}')" title="Delete farmer">
+                    <i class="fas fa-times"></i>
+                </button>
                 <div class="account-header">
                     <div class="account-avatar">
                         <img src="${avatarSrc}" alt="${account.playerName}" onerror="this.src='${getDefaultAvatar(account.playerName)}'">
@@ -4185,6 +4188,34 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             <i class="fas fa-tag" style="opacity: 0.5"></i>
             <span class="price-text" style="opacity: 0.5">No data</span>
         `;
+    }
+}
+
+/**
+ * Удалить фермера из системы
+ */
+async function deleteFarmer(playerName) {
+    if (!confirm(`Are you sure you want to delete farmer "${playerName}"?\n\nThis will remove all their brainrot data from the panel. They will reappear if the script runs again.`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/farmer/${encodeURIComponent(playerName)}?key=${encodeURIComponent(state.currentKey)}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            showNotification(`Farmer "${playerName}" deleted successfully`, 'success');
+            // Force refresh data
+            await fetchFarmerData();
+        } else {
+            showNotification(result.error || 'Failed to delete farmer', 'error');
+        }
+    } catch (err) {
+        console.error('Error deleting farmer:', err);
+        showNotification('Failed to delete farmer: ' + err.message, 'error');
     }
 }
 

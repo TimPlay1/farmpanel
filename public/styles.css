@@ -705,6 +705,37 @@ body {
     display: flex;
     flex-direction: column;
     min-height: 320px; /* Fixed minimum height for consistency */
+    position: relative;
+}
+
+.account-delete-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    border: none;
+    background: rgba(248, 113, 113, 0.1);
+    color: var(--accent-red);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    opacity: 0;
+    transition: all 0.2s;
+    z-index: 10;
+}
+
+.account-card:hover .account-delete-btn {
+    opacity: 1;
+}
+
+.account-delete-btn:hover {
+    background: var(--accent-red);
+    color: white;
+    transform: scale(1.1);
 }
 
 .account-card:hover {
