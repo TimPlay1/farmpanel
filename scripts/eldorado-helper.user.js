@@ -3386,12 +3386,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             // 5. Brainrot name
             log('Step 5: Brainrot -> ' + name);
             
-            // Маппинг исправлений опечаток на Eldorado
-            const brainrotNameFixes = {
-                'chimnino': 'chimino',  // Опечатка на Eldorado
-                'Chimnino': 'Chimino'
-            };
-            let searchName = brainrotNameFixes[name] || name;
+            let searchName = name;
             log('Searching for brainrot: ' + searchName);
             
             let brainrotSelect = null;
