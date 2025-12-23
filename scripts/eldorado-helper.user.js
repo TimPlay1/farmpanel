@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.38
+// @version      9.8.39
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -1725,7 +1725,73 @@
         return null;
     }
 
-    // v9.8.38: Process cleanup of specific offer codes from farmpanel
+    // v9.8.39: Create cleanup panel to show pending deletions
+    let cleanupPanelEl = null;
+    function createCleanupPanel(offerCodes) {
+        const existing = document.querySelector('.glitched-cleanup-panel');
+        if (existing) existing.remove();
+        
+        if (!offerCodes || offerCodes.length === 0) return;
+
+        const panel = document.createElement('div');
+        panel.className = 'glitched-cleanup-panel glitched-mini';
+        panel.innerHTML = `
+            <div class="header">
+                <div class="title">🗑️ Cleanup Queue</div>
+                <span class="close" id="g-cleanup-close">✕</span>
+            </div>
+            <div class="status" id="g-cleanup-status">⏳ Looking for Closed offers to delete...</div>
+            <div class="progress-list" id="g-cleanup-progress">
+                ${offerCodes.map(code => `
+                    <div class="progress-item" data-offer-code="${code}">
+                        <span class="icon">⏳</span>
+                        <span class="name">#${code.replace(/^#/, '')}</span>
+                        <span class="status-text">waiting...</span>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        document.body.appendChild(panel);
+        cleanupPanelEl = panel;
+        
+        document.getElementById('g-cleanup-close').onclick = () => {
+            panel.remove();
+            cleanupPanelEl = null;
+        };
+        
+        return panel;
+    }
+    
+    // Update cleanup panel status for an offer
+    function updateCleanupPanelItem(code, status, icon) {
+        if (!cleanupPanelEl) return;
+        const normalizedCode = code.replace(/^#/, '').toUpperCase();
+        const item = cleanupPanelEl.querySelector(`[data-offer-code="${normalizedCode}"], [data-offer-code="#${normalizedCode}"]`);
+        if (!item) {
+            // Try finding by partial match
+            const items = cleanupPanelEl.querySelectorAll('.progress-item');
+            for (const i of items) {
+                const itemCode = i.dataset.offerCode?.replace(/^#/, '').toUpperCase();
+                if (itemCode === normalizedCode) {
+                    i.querySelector('.icon').textContent = icon;
+                    i.querySelector('.status-text').textContent = status;
+                    return;
+                }
+            }
+            return;
+        }
+        item.querySelector('.icon').textContent = icon;
+        item.querySelector('.status-text').textContent = status;
+    }
+    
+    // Update cleanup panel main status
+    function updateCleanupPanelStatus(text) {
+        if (!cleanupPanelEl) return;
+        const statusEl = cleanupPanelEl.querySelector('#g-cleanup-status');
+        if (statusEl) statusEl.textContent = text;
+    }
+
+    // v9.8.39: Process cleanup of specific offer codes from farmpanel
     // Searches for offers by their #GSXXXXXX codes and deletes them ONLY if Closed status
     // This is a SAFE operation - only deletes offers that are already Closed
     async function processCleanupOffers(cleanupData) {
@@ -1800,12 +1866,14 @@
                     processedCodes.add(normalizedCode);
                     
                     log(`Found target offer: ${code}`);
+                    updateCleanupPanelItem(normalizedCode, 'found', '🔍');
                     
                     // v9.8.38: SAFETY CHECK - Only delete offers with Closed status!
                     // This prevents accidental deletion of active or paused offers
                     if (!isOfferClosed(item)) {
                         log(`⚠ ${code}: Not Closed status - SKIPPING for safety`);
                         totalNotClosed++;
+                        updateCleanupPanelItem(normalizedCode, 'not Closed!', '⚠️');
                         showNotification(`⚠️ ${code}: Not Closed, skipped`, 'warning');
                         continue;
                     }
@@ -1816,8 +1884,11 @@
                     if (!titleText.toUpperCase().includes(normalizedCode)) {
                         log(`⚠ ${code}: Code not found in title "${titleText}" - SKIPPING for safety`);
                         totalFailed++;
+                        updateCleanupPanelItem(normalizedCode, 'verify failed', '❌');
                         continue;
                     }
+                    
+                    updateCleanupPanelItem(normalizedCode, 'deleting...', '🗑️');
                     
                     try {
                         // Find Delete button (trash icon)
@@ -1825,6 +1896,7 @@
                         if (!deleteIcon) {
                             log(`⚠ ${code}: Delete button not found`);
                             totalFailed++;
+                            updateCleanupPanelItem(normalizedCode, 'no button', '❌');
                             continue;
                         }
                         
@@ -1832,6 +1904,7 @@
                         if (!deleteBtn) {
                             log(`⚠ ${code}: Delete button wrapper not found`);
                             totalFailed++;
+                            updateCleanupPanelItem(normalizedCode, 'no button', '❌');
                             continue;
                         }
                         
@@ -1851,15 +1924,18 @@
                         if (confirmDeleted) {
                             totalDeleted++;
                             log(`✓ Deleted ${code}`);
+                            updateCleanupPanelItem(normalizedCode, 'deleted!', '✅');
                             // Wait for UI to update after deletion
                             await new Promise(r => setTimeout(r, 1000));
                         } else {
                             totalFailed++;
                             log(`✗ Failed to confirm delete for ${code}`);
+                            updateCleanupPanelItem(normalizedCode, 'failed', '❌');
                         }
                     } catch (e) {
                         totalFailed++;
                         logError(`Error deleting ${code}:`, e);
+                        updateCleanupPanelItem(normalizedCode, 'error', '❌');
                     }
                     
                     highlightUserOffers();
@@ -1883,6 +1959,13 @@
                 await goToPage(1);
             }
             
+            // Mark not found offers in panel
+            for (const code of targetCodesSet) {
+                if (!processedCodes.has(code)) {
+                    updateCleanupPanelItem(code, 'not found', '🔍');
+                }
+            }
+            
             await new Promise(r => setTimeout(r, 1000));
             highlightUserOffers();
             
@@ -1895,6 +1978,7 @@
             
             const hasIssues = totalFailed > 0 || totalNotFound > 0;
             const statusMsg = `🗑️ Cleanup: ${statusParts.join(', ') || 'nothing to do'}`;
+            updateCleanupPanelStatus(statusMsg);
             showNotification(statusMsg, hasIssues ? 'warning' : 'success');
             logInfo(`Cleanup from farmpanel: ${statusMsg}`);
             
@@ -4378,8 +4462,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             // v9.8.25: Check for cleanup signal from farmpanel (bulk delete)
             const cleanupData = getCleanupData();
             if (cleanupData) {
-                log(`Cleanup mode: processing ${cleanupData.offerIds?.length || 0} offers from farmpanel`);
+                const codes = cleanupData.offerCodes || cleanupData.offerIds || [];
+                log(`Cleanup mode: processing ${codes.length} offers from farmpanel`);
                 await new Promise(r => setTimeout(r, 2000));
+                // v9.8.39: Create panel first to show progress
+                createCleanupPanel(codes);
+                await new Promise(r => setTimeout(r, 500));
                 await processCleanupOffers(cleanupData);
                 // Don't return - continue with normal initialization after cleanup
             }
