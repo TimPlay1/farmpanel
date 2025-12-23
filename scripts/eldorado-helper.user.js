@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Glitched Store - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.34
+// @version      9.8.35
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
 // @author       Glitched Store
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.33
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.33
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.35
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.35
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.33';
+    const VERSION = '9.8.35';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -731,7 +731,7 @@
     const QUICK_MESSAGES = {
         welcome: "Welcome to 👾Glitched Store👾!\nPlease give us a couple of minutes to get your brainrot from our stock!",
         sorry: "Our store sincerely apologizes for any inconvenience caused!",
-        friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list.",
+        friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list. After try joining by link.",
         wait: "We apologize! Please wait a few more minutes, we are rushing to get your order ready!",
         endDelivery: "Thank you❤️! Pls make review for fast deliver!) Have a good day and dont forget to mark order as \"Received\"!🔥   👾GLITCHED STORE👾",
         endDeliveryImage: "https://cdn.jsdelivr.net/gh/TimPlay1/farmpanel@main/public/enddelivery.jpg"
@@ -3993,6 +3993,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
     let quickChatPanel = null;
     let deliveredWatcher = null;
     let orderDelivered = false;
+    let endDeliveryUsed = false; // v9.8.35: Track if end delivery button was used on this page
     let lastKnownUrl = window.location.href;
     
     /**
@@ -4016,6 +4017,7 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             deliveredWatcher = null;
         }
         orderDelivered = false;
+        endDeliveryUsed = false; // v9.8.35: Reset end delivery used flag
     }
     
     /**
@@ -4183,7 +4185,8 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
         }
         
         const status = checkDeliveryStatus();
-        const showEndDelivery = orderDelivered || status === 'delivered' || status === 'completed';
+        // v9.8.35: Always show end delivery button until it's been used at least once
+        const showEndDelivery = !endDeliveryUsed;
         
         quickChatPanel = document.createElement('div');
         quickChatPanel.className = 'glitched-quick-chat';
@@ -4243,6 +4246,9 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                     await new Promise(r => setTimeout(r, 1000));
                     // Upload and send image (with confirmation button handling)
                     await sendChatImage(QUICK_MESSAGES.endDeliveryImage, this);
+                    // v9.8.35: Mark end delivery as used and hide the button
+                    endDeliveryUsed = true;
+                    createQuickChatPanel(); // Recreate panel to hide the end delivery section
                 } else {
                     const message = QUICK_MESSAGES[msgKey];
                     if (message) {
