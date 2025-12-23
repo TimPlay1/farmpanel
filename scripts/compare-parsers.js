@@ -383,7 +383,7 @@ function parseIncomeRegex(title, expectedBrainrot = null) {
         'burguro and fryuro', 'burrito bandito',
         // C
         'capitano moby', 'chicleteira bicicleteira', 'chicleteira noelteira', 
-        'chillin chili', 'chimnino', 'chimpanzini spiderini', 'chipso and queso',
+        'chillin chili', 'chimino', 'chimpanzini spiderini', 'chipso and queso',
         'chrismasmamat', 'cocoa assassino', 'cocofanto elefanto', 'cooki and milki',
         'cuadramat and pakrahmatmamat',
         // D-E
