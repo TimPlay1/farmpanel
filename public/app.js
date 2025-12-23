@@ -4200,7 +4200,7 @@ async function deleteFarmer(playerName) {
     }
     
     try {
-        const response = await fetch(`${API_BASE}/farmer/${encodeURIComponent(playerName)}?key=${encodeURIComponent(state.currentKey)}`, {
+        const response = await fetch(`${API_BASE}/delete-farmer?playerName=${encodeURIComponent(playerName)}&key=${encodeURIComponent(state.currentKey)}`, {
             method: 'DELETE'
         });
         
