@@ -1726,8 +1726,9 @@
     }
 
     // v9.8.39: Create cleanup panel to show pending deletions
+    // v10.1.0: Updated to support offer names from farmpanel
     let cleanupPanelEl = null;
-    function createCleanupPanel(offerCodes) {
+    function createCleanupPanel(offerCodes, offerNames = []) {
         const existing = document.querySelector('.glitched-cleanup-panel');
         if (existing) existing.remove();
         
@@ -1737,18 +1738,21 @@
         panel.className = 'glitched-cleanup-panel glitched-mini';
         panel.innerHTML = `
             <div class="header">
-                <div class="title">🗑️ Cleanup Queue</div>
+                <div class="title">🗑️ Delete Queue (${offerCodes.length})</div>
                 <span class="close" id="g-cleanup-close">✕</span>
             </div>
-            <div class="status" id="g-cleanup-status">⏳ Looking for Closed offers to delete...</div>
+            <div class="status" id="g-cleanup-status">⏳ Searching for Closed offers...</div>
             <div class="progress-list" id="g-cleanup-progress">
-                ${offerCodes.map(code => `
-                    <div class="progress-item" data-offer-code="${code}">
+                ${offerCodes.map((code, idx) => {
+                    const name = offerNames[idx] || '';
+                    const displayName = name ? `${name}` : '';
+                    return `
+                    <div class="progress-item" data-offer-code="${code.replace(/^#/, '').toUpperCase()}">
                         <span class="icon">⏳</span>
-                        <span class="name">#${code.replace(/^#/, '')}</span>
+                        <span class="name">${displayName ? `<strong>${displayName}</strong><br>` : ''}#${code.replace(/^#/, '')}</span>
                         <span class="status-text">waiting...</span>
                     </div>
-                `).join('')}
+                `}).join('')}
             </div>
         `;
         document.body.appendChild(panel);
@@ -2730,8 +2734,27 @@
         return null;
     }
 
+    // v10.1.0: Get delete data from URL (passed from farmpanel)
+    function getDeleteDataFromURL() {
+        const url = new URL(window.location.href);
+        const data = url.searchParams.get('glitched_delete');
+        if (data) {
+            try {
+                const parsed = JSON.parse(decodeURIComponent(data));
+                // Only process if less than 5 minutes old
+                if (parsed.timestamp && Date.now() - parsed.timestamp < 300000) {
+                    return parsed;
+                }
+            } catch (e) {
+                logError('Failed to parse delete data from URL:', e);
+            }
+        }
+        return null;
+    }
+
     function getPriceAdjustmentData() {
         const data = localStorage.getItem('glitched_price_adjustment');
+        if (data) {
         if (data) {
             try {
                 return JSON.parse(data);
@@ -4459,11 +4482,29 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 return;
             }
             
-            // v9.8.25: Check for cleanup signal from farmpanel (bulk delete)
+            // v10.1.0: Check for delete signal from farmpanel (via URL parameter)
+            const deleteData = getDeleteDataFromURL();
+            if (deleteData) {
+                const codes = deleteData.offerCodes || [];
+                const names = deleteData.offerNames || [];
+                log(`Delete mode: processing ${codes.length} offers from farmpanel`);
+                await new Promise(r => setTimeout(r, 2000));
+                // Create panel with names
+                createCleanupPanel(codes, names);
+                await new Promise(r => setTimeout(r, 500));
+                await processCleanupOffers(deleteData);
+                // Clear URL parameter after processing
+                const url = new URL(window.location.href);
+                url.searchParams.delete('glitched_delete');
+                window.history.replaceState({}, '', url.toString());
+                // Don't return - continue with normal initialization after cleanup
+            }
+            
+            // v9.8.25: Check for cleanup signal from farmpanel (bulk delete) - legacy localStorage support
             const cleanupData = getCleanupData();
             if (cleanupData) {
                 const codes = cleanupData.offerCodes || cleanupData.offerIds || [];
-                log(`Cleanup mode: processing ${codes.length} offers from farmpanel`);
+                log(`Cleanup mode (legacy): processing ${codes.length} offers from farmpanel`);
                 await new Promise(r => setTimeout(r, 2000));
                 // v9.8.39: Create panel first to show progress
                 createCleanupPanel(codes);

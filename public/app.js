@@ -6210,20 +6210,20 @@ async function deleteOffer(offerId, brainrotName) {
         renderOffers();
         showNotification(`✅ Offer "${brainrotName}" deleted from farmpanel`, 'success');
         
-        // If user wants to delete from Eldorado too, set up cleanup queue and redirect
+        // If user wants to delete from Eldorado too, pass data via URL parameter
         if (deleteFromEldorado) {
-            const cleanupData = {
-                action: 'cleanup_offers',
+            const deleteData = {
                 offerCodes: [offerId],
+                offerNames: [brainrotName],
                 timestamp: Date.now()
             };
-            localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+            const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete=${encodeURIComponent(JSON.stringify(deleteData))}`;
             
             showNotification('🔄 Opening Eldorado dashboard...', 'info');
             
             // Open Eldorado dashboard in new tab
             setTimeout(() => {
-                window.open('https://www.eldorado.gg/dashboard/offers?category=CustomItem', '_blank');
+                window.open(eldoradoUrl, '_blank');
             }, 500);
         }
         
@@ -6311,21 +6311,23 @@ async function bulkDeleteOffers() {
         showNotification(`⚠️ ${successCount} deleted, ${failCount} failed`, 'warning');
     }
     
-    // If user wants to delete from Eldorado too, set up cleanup queue and redirect
+    // If user wants to delete from Eldorado too, pass data via URL parameter
     if (deleteFromEldorado && deletedOfferIds.length > 0) {
-        // Signal to Tampermonkey script for cleanup on Eldorado
-        const cleanupData = {
-            action: 'cleanup_offers',
+        // Get names for deleted offers
+        const deletedOfferNames = deletableOffers.map(o => o.brainrotName);
+        
+        const deleteData = {
             offerCodes: deletedOfferIds,
+            offerNames: deletedOfferNames,
             timestamp: Date.now()
         };
-        localStorage.setItem('glitched_cleanup_offers', JSON.stringify(cleanupData));
+        const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_delete=${encodeURIComponent(JSON.stringify(deleteData))}`;
         
         showNotification('🔄 Opening Eldorado dashboard...', 'info');
         
         // Open Eldorado dashboard in new tab
         setTimeout(() => {
-            window.open('https://www.eldorado.gg/dashboard/offers?category=CustomItem', '_blank');
+            window.open(eldoradoUrl, '_blank');
         }, 500);
     }
 }
