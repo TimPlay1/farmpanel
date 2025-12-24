@@ -780,8 +780,34 @@
     /**
      * Check if Eldorado loading spinner is visible
      * The spinner has class "la-ball-spin-clockwise" inside a visible container
+     * v10.2.2: Also check for eld-spinner element
      */
     function isSpinnerVisible() {
+        // Check for eld-spinner element first (new spinner type)
+        const eldSpinner = document.querySelector('eld-spinner');
+        if (eldSpinner) {
+            const rect = eldSpinner.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const style = window.getComputedStyle(eldSpinner);
+                if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                    return true;
+                }
+            }
+        }
+        
+        // Check for app-spinner class
+        const appSpinner = document.querySelector('.app-spinner');
+        if (appSpinner) {
+            const rect = appSpinner.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const style = window.getComputedStyle(appSpinner);
+                if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                    return true;
+                }
+            }
+        }
+        
+        // Check for la-ball-spin-clockwise (original spinner)
         const spinner = document.querySelector('.la-ball-spin-clockwise');
         if (!spinner) return false;
         
@@ -794,7 +820,7 @@
         if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
         
         // Check parent container (usually has "app-circle" class and controls visibility)
-        const container = spinner.closest('.app-loading-overlay, .app-loader, [class*="loading"]');
+        const container = spinner.closest('.app-loading-overlay, .app-loader, [class*="loading"], eld-spinner');
         if (container) {
             const containerStyle = window.getComputedStyle(container);
             if (containerStyle.display === 'none' || containerStyle.visibility === 'hidden' || containerStyle.opacity === '0') {
@@ -1365,8 +1391,22 @@
                                 log(`Pausing ${offerCode} (attempt ${attempt})...`);
                                 reliableClick(pauseBtn);
                                 
-                                // Wait longer for Angular to process
-                                await new Promise(r => setTimeout(r, 1200));
+                                // v10.2.2: Wait for spinner to disappear before continuing
+                                await new Promise(r => setTimeout(r, 500));
+                                if (isSpinnerVisible()) {
+                                    log('⏳ Waiting for spinner...');
+                                    let spinnerWait = 0;
+                                    while (isSpinnerVisible() && spinnerWait < 10000) {
+                                        await new Promise(r => setTimeout(r, 200));
+                                        spinnerWait += 200;
+                                    }
+                                    if (spinnerWait >= 10000) {
+                                        log('⚠️ Spinner timeout, continuing anyway');
+                                    }
+                                }
+                                
+                                // Wait for Angular to process
+                                await new Promise(r => setTimeout(r, 800));
                                 
                                 // v9.7.4: Verify by finding element again (DOM may have changed)
                                 const freshItem = findOfferElementByCode(offerCode);
@@ -1437,7 +1477,22 @@
                                 log(`Resuming ${offerCode} (attempt ${attempt})...`);
                                 reliableClick(resumeBtn);
                                 
-                                await new Promise(r => setTimeout(r, 1200));
+                                // v10.2.2: Wait for spinner to disappear before continuing
+                                await new Promise(r => setTimeout(r, 500));
+                                if (isSpinnerVisible()) {
+                                    log('⏳ Waiting for spinner...');
+                                    let spinnerWait = 0;
+                                    while (isSpinnerVisible() && spinnerWait < 10000) {
+                                        await new Promise(r => setTimeout(r, 200));
+                                        spinnerWait += 200;
+                                    }
+                                    if (spinnerWait >= 10000) {
+                                        log('⚠️ Spinner timeout, continuing anyway');
+                                    }
+                                }
+                                
+                                // Wait for Angular to process
+                                await new Promise(r => setTimeout(r, 800));
                                 
                                 const freshItem = findOfferElementByCode(offerCode);
                                 if (!freshItem) {
