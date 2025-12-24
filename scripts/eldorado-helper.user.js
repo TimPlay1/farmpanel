@@ -1684,8 +1684,20 @@
                         if (confirmDeleted) {
                             totalDeleted++;
                             log(`✓ Deleted ${offerCode}`);
+                            
+                            // v10.2.2: Wait for spinner to disappear after deletion
+                            await new Promise(r => setTimeout(r, 500));
+                            if (isSpinnerVisible()) {
+                                log('⏳ Waiting for spinner after delete...');
+                                let spinnerWait = 0;
+                                while (isSpinnerVisible() && spinnerWait < 10000) {
+                                    await new Promise(r => setTimeout(r, 200));
+                                    spinnerWait += 200;
+                                }
+                            }
+                            
                             // Wait for UI to update after deletion
-                            await new Promise(r => setTimeout(r, 1000));
+                            await new Promise(r => setTimeout(r, 800));
                         } else {
                             totalFailed++;
                             log(`✗ Failed to confirm delete for ${offerCode}`);
@@ -1984,8 +1996,20 @@
                             totalDeleted++;
                             log(`✓ Deleted ${code}`);
                             updateCleanupPanelItem(normalizedCode, 'deleted!', '✅');
+                            
+                            // v10.2.2: Wait for spinner to disappear after deletion
+                            await new Promise(r => setTimeout(r, 500));
+                            if (isSpinnerVisible()) {
+                                log('⏳ Waiting for spinner after delete...');
+                                let spinnerWait = 0;
+                                while (isSpinnerVisible() && spinnerWait < 10000) {
+                                    await new Promise(r => setTimeout(r, 200));
+                                    spinnerWait += 200;
+                                }
+                            }
+                            
                             // Wait for UI to update after deletion
-                            await new Promise(r => setTimeout(r, 1000));
+                            await new Promise(r => setTimeout(r, 800));
                         } else {
                             totalFailed++;
                             log(`✗ Failed to confirm delete for ${code}`);
