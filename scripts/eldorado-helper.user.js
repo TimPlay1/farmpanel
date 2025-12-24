@@ -3529,9 +3529,15 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             
             // 2. Mutations - v9.8.27: Используем мутацию из данных брейнрота
             // v9.8.36: Маппинг исправлений названий мутаций на Eldorado
+            // v10.2.1: Eldorado uses "Yin-Yang" with hyphen
             const mutationNameFixes = {
-                'YingYang': 'Ying Yang',  // На Eldorado название с пробелом
-                'yingyang': 'Ying Yang'
+                'YingYang': 'Yin-Yang',   // На Eldorado название с дефисом
+                'yingyang': 'Yin-Yang',
+                'Ying Yang': 'Yin-Yang',  // С пробелом -> с дефисом
+                'ying yang': 'Yin-Yang',
+                'Yin Yang': 'Yin-Yang',
+                'yin yang': 'Yin-Yang',
+                'YinYang': 'Yin-Yang'
             };
             const fixedMutation = mutationNameFixes[expectedMutation] || expectedMutation;
             log('Step 2: Mutations -> ' + fixedMutation);
