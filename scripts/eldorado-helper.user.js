@@ -3676,10 +3676,10 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
                 needsRecheck = true;
             }
             
-            // Re-check Mutations - v9.8.28: используем expectedMutation вместо 'None'
-            if (mutationSelect && !isValueSelected(mutationSelect, expectedMutation)) {
-                log(`⚠️ Mutations lost, re-selecting to ${expectedMutation}...`, 'warn');
-                await selectNgOption(mutationSelect, expectedMutation);
+            // Re-check Mutations - v10.2.1: use fixedMutation (the corrected name for Eldorado)
+            if (mutationSelect && !isValueSelected(mutationSelect, fixedMutation)) {
+                log(`⚠️ Mutations lost, re-selecting to ${fixedMutation}...`, 'warn');
+                await selectNgOption(mutationSelect, fixedMutation);
                 needsRecheck = true;
             }
             
