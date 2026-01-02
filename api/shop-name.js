@@ -78,7 +78,7 @@ module.exports = async (req, res) => {
                 });
             }
             
-            const farmer = await farmersCollection.findOne({ key: farmKey });
+            const farmer = await farmersCollection.findOne({ farmKey });
             
             // Если farmer не найден - возвращаем пустой shopName (не ошибку)
             if (!farmer) {
@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
             }
             
             // Проверяем что farmer существует
-            const farmer = await farmersCollection.findOne({ key: farmKey });
+            const farmer = await farmersCollection.findOne({ farmKey });
             if (!farmer) {
                 return res.status(404).json({ 
                     success: false, 
@@ -139,7 +139,7 @@ module.exports = async (req, res) => {
             
             // Обновляем shop name
             await farmersCollection.updateOne(
-                { key: farmKey },
+                { farmKey },
                 { 
                     $set: { 
                         shopName: shopName,
