@@ -3480,22 +3480,33 @@
         return `${prefix}${code}`;
     }
     
-    // v9.9.2: Shop name cache
-    let cachedShopName = GM_getValue('shopName', null); // Load from local cache immediately
-    let shopNameLoadedForKey = GM_getValue('shopNameKey', null); // Track which farmKey the cached name belongs to
+    // v9.9.3: Shop name cache - load from GM storage immediately
+    let cachedShopName = GM_getValue('shopName', null);
+    let shopNameLoadedForKey = GM_getValue('shopNameKey', null);
     
-    // v9.9.3: Load shop name from API only when needed (first connect or cache miss)
+    // Debug: log initial state
+    console.log('[Glitched] Initial shop name state:', {
+        cachedShopName,
+        shopNameLoadedForKey,
+        currentFarmKey: GM_getValue('farmKey', '')
+    });
+    
+    // v9.9.3: Load shop name from API
     async function loadShopNameFromAPI(forceRefresh = false) {
-        if (!CONFIG.farmKey) return;
+        if (!CONFIG.farmKey) {
+            console.log('[Glitched] No farmKey, skipping shop name load');
+            return;
+        }
         
-        // Use cached value if available and belongs to current farmKey
+        // Use cached value if available and belongs to current farmKey (unless forced)
         if (!forceRefresh && shopNameLoadedForKey === CONFIG.farmKey && cachedShopName) {
             console.log('[Glitched] Using cached shop name:', cachedShopName);
             return;
         }
         
+        console.log('[Glitched] Loading shop name from API for:', CONFIG.farmKey, 'forceRefresh:', forceRefresh);
+        
         try {
-            console.log('[Glitched] Loading shop name from API for:', CONFIG.farmKey);
             const response = await fetch(`${API_BASE}/shop-name?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
             if (response.ok) {
                 const data = await response.json();
@@ -3507,11 +3518,16 @@
                     GM_setValue('shopNameKey', CONFIG.farmKey);
                     console.log('[Glitched] Shop name loaded and cached:', cachedShopName);
                 } else if (data.success && !data.shopName) {
-                    // No shop name configured yet - mark as loaded to avoid retry
+                    // No shop name configured yet
                     shopNameLoadedForKey = CONFIG.farmKey;
                     GM_setValue('shopNameKey', CONFIG.farmKey);
+                    // Clear cached shop name so default is used
+                    cachedShopName = null;
+                    GM_setValue('shopName', null);
                     console.log('[Glitched] No shop name configured in panel');
                 }
+            } else {
+                console.warn('[Glitched] Shop name API error:', response.status);
             }
         } catch (e) {
             console.warn('[Glitched] Failed to load shop name from API:', e);
@@ -3524,11 +3540,7 @@
         if (cachedShopName && shopNameLoadedForKey === CONFIG.farmKey) {
             return cachedShopName;
         }
-        // Fallback to GM storage or default
-        const stored = GM_getValue('shopName', null);
-        if (stored && GM_getValue('shopNameKey', null) === CONFIG.farmKey) {
-            return stored;
-        }
+        // Fallback to default
         return '👾Glitched Store👾';
     }
 
@@ -4740,15 +4752,13 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
         
-        // v9.9.3: Check if we need to load shop name from API
-        // Only load if no cached value or cache is for different farmKey
+        // v9.9.3: Always try to load shop name if not cached for current farmKey
         if (CONFIG.farmKey) {
-            const hasValidCache = cachedShopName && shopNameLoadedForKey === CONFIG.farmKey;
-            if (!hasValidCache) {
-                // Load in background - don't block init
-                loadShopNameFromAPI();
-            } else {
-                console.log('[Glitched] Using cached shop name:', cachedShopName);
+            const needsLoad = !cachedShopName || shopNameLoadedForKey !== CONFIG.farmKey;
+            console.log('[Glitched] Shop name check:', { needsLoad, cachedShopName, shopNameLoadedForKey, currentKey: CONFIG.farmKey });
+            if (needsLoad) {
+                // Load and wait for it - important for autofill
+                await loadShopNameFromAPI(true);
             }
         }
         
