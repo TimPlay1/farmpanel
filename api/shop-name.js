@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
     }
     
     try {
-        const db = await connectToDatabase();
+        const { db } = await connectToDatabase();
         const farmersCollection = db.collection('farmers');
         
         // GET - получить shop name для farmKey
