@@ -2,14 +2,13 @@ const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
 /**
- * Быстрый сканер офферов Glitched Store
- * Делает ОДИН запрос к Eldorado для получения всех офферов магазина
- * Затем сопоставляет с БД по кодам и обновляет статусы/цены
+ * Универсальный сканер офферов v9.9.4
+ * Ищет офферы по уникальным кодам (#XXXXXX) напрямую на Eldorado
+ * Поддерживает любые названия магазинов (не только Glitched Store)
  */
 
 const ELDORADO_GAME_ID = '259';
-const STORE_SEARCH_QUERY = 'Glitched Store'; // Название магазина в title офферов
-const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/'; // Правильный CDN для изображений офферов
+const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/';
 
 /**
  * Строит полный URL изображения из имени файла
@@ -71,15 +70,6 @@ function fetchEldoradoOffers(searchQuery, pageIndex = 1, pageSize = 100) {
 }
 
 /**
- * Извлекает код оффера из title (#GSXXXXXX)
- */
-function extractOfferCode(title) {
-    if (!title) return null;
-    const match = title.match(/#([A-Z0-9]{6,10})/i);
-    return match ? match[1].toUpperCase() : null;
-}
-
-/**
  * Парсит income из title
  */
 function parseIncomeFromTitle(title) {
@@ -99,119 +89,54 @@ function parseIncomeFromTitle(title) {
 }
 
 /**
- * Быстрое сканирование всех офферов Glitched Store
+ * Быстрое сканирование офферов - универсальный подход v9.9.4
+ * 1. Собирает все коды офферов из БД
+ * 2. Ищет каждый код на Eldorado напрямую по #CODE
+ * 3. Обновляет статусы в БД
  */
 async function scanGlitchedStore(db) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    console.log('🔍 Scanning Glitched Store offers on Eldorado...');
+    console.log('🔍 Universal offer scanner v9.9.4 starting...');
     
-    // Собираем все офферы магазина со всех страниц
-    const allEldoradoOffers = [];
-    let page = 1;
-    const maxPages = 10;
+    // Получаем все офферы из БД с кодами
+    const dbOffers = await offersCollection.find({ 
+        offerId: { $exists: true, $ne: null, $ne: '' }
+    }).toArray();
     
-    while (page <= maxPages) {
-        const response = await fetchEldoradoOffers(STORE_SEARCH_QUERY, page, 50); // pageSize=50 более надёжно
-        
-        if (response.error) {
-            console.error(`Error fetching page ${page}:`, response.error);
-            break;
-        }
-        
-        if (!response.results || response.results.length === 0) {
-            break;
-        }
-        
-        // Фильтруем только офферы с "Glitched Store" в названии
-        for (const item of response.results) {
-            const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            
-            if (title.includes('Glitched Store') || title.includes('👾')) {
-                const code = extractOfferCode(title);
-                const eldoradoId = offer.id;
-                
-                // Строим полный URL изображения
-                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
-                
-                // Добавляем все офферы магазина (с кодом или без)
-                allEldoradoOffers.push({
-                    code: code, // может быть null
-                    title: title,
-                    price: offer.pricePerUnitInUSD?.amount || 0,
-                    income: parseIncomeFromTitle(title),
-                    imageUrl: buildImageUrl(imageName),
-                    eldoradoId: eldoradoId,
-                    sellerName: item.user?.username || null
-                });
-            }
-        }
-        
-        console.log(`  Page ${page}: found ${response.results.length} offers, ${allEldoradoOffers.length} total Glitched`);
-        
-        // v9.8.8: Fixed pagination - was comparing with 100 but pageSize is 50
-        if (response.results.length < 50) break;
-        page++;
-        
-        // Небольшая задержка между страницами
-        await new Promise(r => setTimeout(r, 100));
+    console.log(`📂 Found ${dbOffers.length} offers with codes in database`);
+    
+    if (dbOffers.length === 0) {
+        return {
+            eldoradoCount: 0,
+            dbCount: 0,
+            updated: 0,
+            markedActive: 0,
+            markedPaused: 0,
+            timestamp: now.toISOString()
+        };
     }
-    
-    console.log(`📊 Found ${allEldoradoOffers.length} Glitched Store offers on Eldorado`);
-    
-    // Создаём Maps для быстрого поиска по коду и по eldoradoId
-    const eldoradoByCode = new Map();
-    const eldoradoById = new Map();
-    for (const offer of allEldoradoOffers) {
-        if (offer.code) {
-            eldoradoByCode.set(offer.code, offer);
-        }
-        if (offer.eldoradoId) {
-            eldoradoById.set(offer.eldoradoId, offer);
-        }
-    }
-    
-    // Получаем все офферы из БД (всех пользователей)
-    const dbOffers = await offersCollection.find({}).toArray();
-    console.log(`📂 Found ${dbOffers.length} offers in database`);
     
     let updated = 0;
     let markedActive = 0;
     let markedPaused = 0;
+    let foundOnEldorado = 0;
     
-    // Обновляем статусы
+    // Обрабатываем каждый оффер - ищем по коду на Eldorado
     for (const dbOffer of dbOffers) {
         const code = dbOffer.offerId?.replace(/^#/, '').toUpperCase();
+        if (!code || code.length < 6) continue;
         
-        // v9.8.9: Improved matching logic
-        // 1. First try to find by code (most reliable)
-        // 2. If not found by code, try by eldoradoId BUT only if codes match
-        let eldoradoOffer = null;
-        let matchedByCode = false;
+        // Небольшая задержка между запросами к API
+        await new Promise(r => setTimeout(r, 200));
         
-        if (code) {
-            eldoradoOffer = eldoradoByCode.get(code);
-            if (eldoradoOffer) matchedByCode = true;
-        }
-        
-        // If not found by code, try by eldoradoId
-        if (!eldoradoOffer && dbOffer.eldoradoOfferId) {
-            const byId = eldoradoById.get(dbOffer.eldoradoOfferId);
-            if (byId) {
-                // v9.8.9: Only match by eldoradoId if the code on Eldorado matches DB code
-                // OR if there's no code on Eldorado (title was edited to remove code)
-                if (!byId.code || byId.code === code) {
-                    eldoradoOffer = byId;
-                } else {
-                    // Code on Eldorado changed - this DB entry is stale/duplicate
-                    console.log(`  🔄 Code mismatch: DB has ${code}, Eldorado has ${byId.code} for same eldoradoId`);
-                }
-            }
-        }
+        // Ищем на Eldorado по коду
+        const eldoradoOffer = await findOfferByCode(code);
         
         if (eldoradoOffer) {
+            foundOnEldorado++;
+            
             // Найден на Eldorado - обновляем данные
             await offersCollection.updateOne(
                 { _id: dbOffer._id },
@@ -228,7 +153,10 @@ async function scanGlitchedStore(db) {
                 }
             );
             updated++;
-            if (dbOffer.status !== 'active') markedActive++;
+            if (dbOffer.status !== 'active') {
+                markedActive++;
+                console.log(`  ✅ Activated: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
+            }
         } else {
             // Не найден на Eldorado - помечаем как paused
             if (dbOffer.status === 'active') {
@@ -249,22 +177,54 @@ async function scanGlitchedStore(db) {
         }
     }
     
-    console.log(`✅ Scan complete: ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
-    
-    // v9.8.8: Log not found offers for debugging
-    const notFoundCount = dbOffers.length - updated;
-    if (notFoundCount > 0) {
-        console.log(`  ⚠️ ${notFoundCount} offers not found on Eldorado (already paused or sold)`);
-    }
+    console.log(`✅ Scan complete: ${foundOnEldorado} found on Eldorado, ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
     
     return {
-        eldoradoCount: allEldoradoOffers.length,
+        eldoradoCount: foundOnEldorado,
         dbCount: dbOffers.length,
         updated,
         markedActive,
         markedPaused,
         timestamp: now.toISOString()
     };
+}
+
+/**
+ * Ищет оффер на Eldorado по коду #XXXXXX
+ */
+async function findOfferByCode(code) {
+    const normalizedCode = code.toUpperCase();
+    
+    // Поиск по #CODE напрямую через searchQuery
+    const response = await fetchEldoradoOffers(`#${normalizedCode}`, 1, 20);
+    
+    if (response.error || !response.results?.length) {
+        return null;
+    }
+    
+    // Ищем оффер где код совпадает
+    for (const item of response.results) {
+        const offer = item.offer || item;
+        const title = (offer.offerTitle || '').toUpperCase();
+        const description = (offer.offerDescription || '').toUpperCase();
+        
+        // Проверяем что код есть в title или description
+        if (title.includes(`#${normalizedCode}`) || description.includes(`#${normalizedCode}`)) {
+            const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+            
+            return {
+                code: normalizedCode,
+                title: offer.offerTitle,
+                price: offer.pricePerUnitInUSD?.amount || 0,
+                income: parseIncomeFromTitle(offer.offerTitle),
+                imageUrl: buildImageUrl(imageName),
+                eldoradoId: offer.id,
+                sellerName: item.user?.username || null
+            };
+        }
+    }
+    
+    return null;
 }
 
 // Кэш последнего сканирования (чтобы не сканировать слишком часто)
@@ -286,12 +246,13 @@ module.exports = async (req, res) => {
         const { force, debug } = req.query;
         const now = Date.now();
         
-        // Debug mode - показывает сырой ответ от Eldorado
+        // Debug mode - тест поиска по коду
         if (debug) {
-            const rawResponse = await fetchEldoradoOffers(STORE_SEARCH_QUERY, 1, 5);
+            const testCode = req.query.code || 'TEST1234';
+            const rawResponse = await fetchEldoradoOffers(`#${testCode}`, 1, 5);
             return res.json({
                 debug: true,
-                searchQuery: STORE_SEARCH_QUERY,
+                searchQuery: `#${testCode}`,
                 rawResponse: rawResponse,
                 firstItem: rawResponse.results?.[0] || null
             });
