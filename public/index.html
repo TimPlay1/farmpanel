@@ -386,6 +386,9 @@
                             <button class="btn btn-icon btn-sm edit-shop-name" id="editShopNameBtn" title="Edit shop name">
                                 <i class="fas fa-edit"></i>
                             </button>
+                            <button class="btn btn-icon btn-sm" id="generatorSettingsBtn" title="Generator settings (Template ID)">
+                                <i class="fas fa-cog"></i>
+                            </button>
                         </div>
                         <div class="shop-name-hint" id="shopNameHint">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -791,6 +794,37 @@
         </div>
     </div>
     
+    <!-- Generator Settings Modal -->
+    <div id="generatorSettingsModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Generator Settings</h3>
+                <button class="modal-close" id="closeGeneratorSettingsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Configure your image generator template. Leave empty to use the default template.</p>
+                
+                <div class="input-group">
+                    <label for="templateIdInput">Supa Template ID</label>
+                    <input type="text" id="templateIdInput" placeholder="21223164 (default)" autocomplete="off">
+                    <small class="input-hint">Enter your custom Supa.ru template ID or leave empty for default</small>
+                </div>
+                
+                <div id="generatorSettingsError" class="modal-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelGeneratorSettings">Cancel</button>
+                <button class="btn btn-primary" id="confirmGeneratorSettings">
+                    <i class="fas fa-save"></i>
+                    Save Settings
+                </button>
+            </div>
+        </div>
+    </div>
+    
     <!-- Emoji Picker Popup -->
     <div id="emojiPickerPopup" class="emoji-picker-popup hidden">
         <div class="emoji-picker-header">
@@ -805,6 +839,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=53"></script>
+    <script src="app.js?v=54"></script>
 </body>
 </html>

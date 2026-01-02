@@ -4715,6 +4715,9 @@ async function generateSupaImage() {
     statusText.textContent = 'Загрузка изображения...';
     
     try {
+        // v9.9.5: Get custom template ID
+        const templateId = getTemplateId();
+        
         const response = await fetch('/api/supa-generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -4724,7 +4727,8 @@ async function generateSupaImage() {
                 imageUrl,
                 borderColor,
                 accountId,
-                accountName
+                accountName,
+                templateId // v9.9.5: Custom template support
             })
         });
         
@@ -5295,6 +5299,9 @@ async function doStartMassGeneration() {
             // Use panel color
             const borderColor = collectionState.panelColor || '#4ade80';
             
+            // v9.9.5: Get custom template ID if configured
+            const templateId = getTemplateId();
+            
             // Generate image
             const response = await fetch(`/api/supa-generate`, {
                 method: 'POST',
@@ -5305,7 +5312,8 @@ async function doStartMassGeneration() {
                     price: price ? `$${price.toFixed(2)}` : '',
                     imageUrl: group.imageUrl,
                     borderColor,
-                    quantity: group.quantity || 1
+                    quantity: group.quantity || 1,
+                    templateId // v9.9.5: Custom template support
                 })
             });
             
@@ -7258,6 +7266,96 @@ function setupInfoBannerListener() {
     }
 }
 
+// ============================================
+// GENERATOR SETTINGS MODAL
+// ============================================
+
+// Generator settings state
+let generatorSettings = {
+    templateId: localStorage.getItem('supa_template_id') || ''
+};
+
+function openGeneratorSettingsModal() {
+    const modal = document.getElementById('generatorSettingsModal');
+    if (!modal) return;
+    
+    // Load current value
+    const input = document.getElementById('templateIdInput');
+    if (input) {
+        input.value = generatorSettings.templateId;
+    }
+    
+    // Clear error
+    const errorEl = document.getElementById('generatorSettingsError');
+    if (errorEl) errorEl.textContent = '';
+    
+    modal.classList.remove('hidden');
+}
+
+function closeGeneratorSettingsModal() {
+    const modal = document.getElementById('generatorSettingsModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function saveGeneratorSettings() {
+    const input = document.getElementById('templateIdInput');
+    const errorEl = document.getElementById('generatorSettingsError');
+    
+    const value = input?.value?.trim() || '';
+    
+    // Validate if provided
+    if (value && !/^\d+$/.test(value)) {
+        if (errorEl) errorEl.textContent = 'Template ID must be a number';
+        return;
+    }
+    
+    // Save to localStorage
+    generatorSettings.templateId = value;
+    localStorage.setItem('supa_template_id', value);
+    
+    showNotification(`Generator settings saved${value ? ` (Template: ${value})` : ' (using default)'}`, 'success');
+    closeGeneratorSettingsModal();
+}
+
+function setupGeneratorSettingsListeners() {
+    // Open button
+    const openBtn = document.getElementById('generatorSettingsBtn');
+    if (openBtn) {
+        openBtn.addEventListener('click', openGeneratorSettingsModal);
+    }
+    
+    // Close button
+    const closeBtn = document.getElementById('closeGeneratorSettingsModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeGeneratorSettingsModal);
+    }
+    
+    // Cancel button
+    const cancelBtn = document.getElementById('cancelGeneratorSettings');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeGeneratorSettingsModal);
+    }
+    
+    // Confirm button
+    const confirmBtn = document.getElementById('confirmGeneratorSettings');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', saveGeneratorSettings);
+    }
+    
+    // Modal overlay
+    const modal = document.getElementById('generatorSettingsModal');
+    if (modal) {
+        modal.querySelector('.modal-overlay')?.addEventListener('click', closeGeneratorSettingsModal);
+    }
+}
+
+// Get current template ID for generation
+function getTemplateId() {
+    return generatorSettings.templateId || null;
+}
+
 // Setup offers event listeners
 function setupOffersListeners() {
     // Setup info banner listener
@@ -7534,6 +7632,7 @@ function initOffersView() {
 // Setup offers listeners on DOM ready
 setupOffersListeners();
 setupShopNameModalListeners();
+setupGeneratorSettingsListeners();
 
 // Check for returned data from Tampermonkey after price adjustment
 function checkForPriceAdjustmentResult() {

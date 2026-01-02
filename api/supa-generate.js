@@ -14,7 +14,7 @@ try {
 // Supa API Configuration
 const SUPA_API_KEY = process.env.SUPA_API_KEY || 'dZddxo0zt0u1MHC8YXoUgzBu5tW5JuiM';
 const SUPA_API_BASE = 'https://api.supa.ru/public/v2';
-const TEMPLATE_ID = 21157229;
+const DEFAULT_TEMPLATE_ID = 21223164; // v9.9.5: Updated default template
 
 // Template object names
 const TEMPLATE_OBJECTS = {
@@ -147,7 +147,7 @@ async function uploadImageToSupa(imageUrl) {
 
 // Request render
 async function requestRender(brainrotData) {
-    const { name, income, supaImageUrl, borderColor } = brainrotData;
+    const { name, income, supaImageUrl, borderColor, customTemplateId } = brainrotData;
 
     const objectsOverrides = {};
 
@@ -186,8 +186,11 @@ async function requestRender(brainrotData) {
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));
 
+    // v9.9.5: Use custom templateId if provided, otherwise use default
+    const templateId = customTemplateId || DEFAULT_TEMPLATE_ID;
+    
     const renderRequest = {
-        design_id: TEMPLATE_ID,
+        design_id: templateId,
         format: 'png',
         objects_overrides: objectsOverrides
     };
@@ -259,7 +262,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { name, income, imageUrl, borderColor, accountId, accountName } = req.body;
+        const { name, income, imageUrl, borderColor, accountId, accountName, templateId } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'name is required' });
@@ -289,11 +292,14 @@ module.exports = async (req, res) => {
         }
 
         // Request render
+        // v9.9.5: Support custom templateId
+        const customTemplateId = templateId ? parseInt(templateId, 10) : null;
         const renderResult = await requestRender({
             name,
             income,
             supaImageUrl,
-            borderColor
+            borderColor,
+            customTemplateId
         });
 
         console.log('Render requested with supaImageUrl:', supaImageUrl);
