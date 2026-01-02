@@ -5246,6 +5246,16 @@ async function doStartMassGeneration() {
     let errors = 0;
     const results = [];
     
+    // v9.9.4: Generate offer ID in panel for tracking
+    function generateOfferId() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+        let code = '';
+        for (let i = 0; i < 8; i++) {
+            code += chars[Math.floor(Math.random() * chars.length)];
+        }
+        return code;
+    }
+    
     // Queue for Eldorado
     const eldoradoQueue = [];
     
@@ -5334,6 +5344,7 @@ async function doStartMassGeneration() {
             }
             
             // Always add to Eldorado queue
+            const offerId = generateOfferId();
             eldoradoQueue.push({
                 name: group.name,
                 income: group.incomeText || formatIncome(group.income),
@@ -5341,7 +5352,8 @@ async function doStartMassGeneration() {
                 price: price || 0,
                 quantity: group.quantity || 1,
                 mutation: group.mutation || '', // v9.8.27: Мутация брейнрота
-                accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown'
+                accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown',
+                offerId: offerId // v9.9.4: Track offer by code
             });
             
             results.push({ success: true, name: group.name, resultUrl: result.resultUrl });
