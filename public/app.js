@@ -4825,9 +4825,10 @@ function showSupaError(message) {
 }
 
 // Post to Eldorado - opens eldorado.gg with brainrot data
-function postToEldorado() {
-    // v9.9.2: Проверяем, настроено ли имя магазина
-    if (!shopNameState.isConfigured || !shopNameState.fullName) {
+async function postToEldorado() {
+    // v9.9.3: Проверяем и загружаем имя магазина если нужно
+    const hasShopName = await ensureShopNameLoaded();
+    if (!hasShopName) {
         showSupaError('Please configure your shop name first');
         openShopNameModal(() => postToEldorado());
         return;
@@ -5473,8 +5474,9 @@ async function downloadAllMassGenImages() {
 
 // Start Eldorado queue from mass generation
 async function startMassEldoradoQueue() {
-    // v9.9.2: Проверяем, настроено ли имя магазина
-    if (!shopNameState.isConfigured || !shopNameState.fullName) {
+    // v9.9.3: Проверяем и загружаем имя магазина если нужно
+    const hasShopName = await ensureShopNameLoaded();
+    if (!hasShopName) {
         showNotification('Please configure your shop name first', 'error');
         openShopNameModal(() => startMassEldoradoQueue());
         return;
@@ -6783,10 +6785,12 @@ async function loadShopName() {
     if (!state.currentKey) return;
     
     try {
+        console.log('[ShopName] Loading from API for:', state.currentKey);
         const response = await fetch(`${API_BASE}/shop-name?farmKey=${encodeURIComponent(state.currentKey)}`);
         if (response.ok) {
             const data = await response.json();
-            if (data.shopName) {
+            console.log('[ShopName] API response:', data);
+            if (data.success && data.shopName) {
                 shopNameState.fullName = data.shopName;
                 shopNameState.isConfigured = true;
                 // Parse components
@@ -6795,6 +6799,10 @@ async function loadShopName() {
                 updateShopNameDisplay();
                 // Save to localStorage for Tampermonkey
                 localStorage.setItem('glitched_shop_name', data.shopName);
+                console.log('[ShopName] Loaded and configured:', data.shopName);
+                return true;
+            } else {
+                console.log('[ShopName] No shop name in response');
             }
         }
     } catch (e) {
@@ -6809,10 +6817,27 @@ async function loadShopName() {
             shopNameState.isConfigured = true;
             parseShopName(cached);
             updateShopNameDisplay();
+            console.log('[ShopName] Loaded from localStorage:', cached);
+            return true;
         }
     }
     
     updateShopNameDisplay();
+    return shopNameState.isConfigured;
+}
+
+// Ensure shop name is loaded before proceeding
+async function ensureShopNameLoaded() {
+    // If already configured, return true
+    if (shopNameState.isConfigured && shopNameState.fullName) {
+        console.log('[ShopName] Already configured:', shopNameState.fullName);
+        return true;
+    }
+    
+    // Try to load from server
+    await loadShopName();
+    
+    return shopNameState.isConfigured && shopNameState.fullName;
 }
 
 // Parse shop name into components (best effort)
