@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.9.4
+// @version      9.9.5
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -731,14 +731,18 @@
     `);
     
     // ==================== QUICK CHAT MESSAGES ====================
-    const QUICK_MESSAGES = {
-        welcome: "Welcome to 👾Glitched Store👾!\nPlease give us a couple of minutes to get your brainrot from our stock!",
-        sorry: "Our store sincerely apologizes for any inconvenience caused!",
-        friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list. After try joining by link.",
-        wait: "We apologize! Please wait a few more minutes, we are rushing to get your order ready!",
-        endDelivery: "Thank you❤️! Pls make review for fast deliver!) Have a good day and dont forget to mark order as \"Received\"!🔥   👾GLITCHED STORE👾",
-        endDeliveryImage: "https://cdn.jsdelivr.net/gh/TimPlay1/farmpanel@main/public/enddelivery.jpg"
-    };
+    // v9.9.4: Dynamic shop name in messages
+    function getQuickMessages() {
+        const shopName = getShopName();
+        return {
+            welcome: `Welcome to ${shopName}!\nPlease give us a couple of minutes to get your brainrot from our stock!`,
+            sorry: "Our store sincerely apologizes for any inconvenience caused!",
+            friend: "I sent you a friend request on Roblox. Please check your Connections and approve my request. It's the first one on the list. After try joining by link.",
+            wait: "We apologize! Please wait a few more minutes, we are rushing to get your order ready!",
+            endDelivery: `Thank you❤️! Pls make review for fast deliver!) Have a good day and dont forget to mark order as "Received"!🔥   ${shopName.toUpperCase()}`,
+            endDeliveryImage: "https://cdn.jsdelivr.net/gh/TimPlay1/farmpanel@main/public/enddelivery.jpg"
+        };
+    }
     
     // ==================== УТИЛИТЫ ====================
     // v9.7.7: Minimal logging - only important events
@@ -2266,7 +2270,7 @@
             <div class="header">
                 <div class="title">
                     <span>🔮</span>
-                    <span>Glitched Store v${VERSION}</span>
+                    <span>${getShopName()} v${VERSION}</span>
                 </div>
                 <span class="close-btn">×</span>
             </div>
@@ -2375,7 +2379,7 @@
                 const codePrefixInput = panel.querySelector('#glitched-code-prefix');
                 
                 if (shopNameInput) {
-                    const shopName = shopNameInput.value.trim() || '👾Glitched Store👾';
+                    const shopName = shopNameInput.value.trim() || getShopName();
                     GM_setValue('shopName', shopName);
                 }
                 
@@ -2408,7 +2412,7 @@
             inlineBtn.className = 'glitched-inline-btn';
             inlineBtn.innerHTML = '<span style="font-size: 18px;">🔮</span>';
             inlineBtn.onclick = showAuthPanel;
-            inlineBtn.title = 'Glitched Store Panel';
+            inlineBtn.title = 'Farmer Panel';
             container.appendChild(inlineBtn);
             
             // Sleep Mode кнопка (только на dashboard/offers)
@@ -2453,7 +2457,7 @@
         btn.className = 'glitched-mini-btn';
         btn.innerHTML = '<span style="font-size: 20px;">🔮</span>';
         btn.onclick = showAuthPanel;
-        btn.title = 'Glitched Store Panel';
+        btn.title = 'Farmer Panel';
         document.body.appendChild(btn);
         log('Panel button added as fixed position (fallback)');
     }
@@ -3541,7 +3545,7 @@
             return cachedShopName;
         }
         // Fallback to default
-        return '👾Glitched Store👾';
+        return '👾Glitched Store👾'; // Default fallback
     }
 
     function generateOfferTitle(brainrotName, income, offerId) {
@@ -4063,7 +4067,7 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         const qtyBadge = qty > 1 ? `<span style="color:#f59e0b;font-weight:bold;">x${qty}</span>` : '';
         panel.innerHTML = `
             <div class="header">
-                <div class="title">👾 Glitched Store${isFromQueue ? ' - Queue' : ''}</div>
+                <div class="title">� ${getShopName()}${isFromQueue ? ' - Queue' : ''}</div>
                 <span class="close" id="g-close">✕</span>
             </div>
             ${queueHtml}
@@ -4665,18 +4669,19 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         quickChatPanel.querySelectorAll('.qc-btn').forEach(btn => {
             btn.addEventListener('click', async function() {
                 const msgKey = this.dataset.msg;
+                const messages = getQuickMessages(); // v9.9.4: Dynamic messages
                 if (msgKey === 'endDelivery') {
                     // Send thank you message first
-                    await sendChatMessage(QUICK_MESSAGES.endDelivery, this);
+                    await sendChatMessage(messages.endDelivery, this);
                     // Wait a bit then try to send/attach image
                     await new Promise(r => setTimeout(r, 1000));
                     // Upload and send image (with confirmation button handling)
-                    await sendChatImage(QUICK_MESSAGES.endDeliveryImage, this);
+                    await sendChatImage(messages.endDeliveryImage, this);
                     // v9.8.35: Mark end delivery as used and hide the button
                     endDeliveryUsed = true;
                     createQuickChatPanel(); // Recreate panel to hide the end delivery section
                 } else {
-                    const message = QUICK_MESSAGES[msgKey];
+                    const message = messages[msgKey];
                     if (message) {
                         await sendChatMessage(message, this);
                     }
@@ -4751,7 +4756,7 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
     
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     async function init() {
-        logInfo(`Glitched Store v${VERSION} initialized`);
+        logInfo(`Farmer Panel Helper v${VERSION} initialized`);
         
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
