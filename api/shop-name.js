@@ -80,10 +80,13 @@ module.exports = async (req, res) => {
             
             const farmer = await farmersCollection.findOne({ key: farmKey });
             
+            // Если farmer не найден - возвращаем пустой shopName (не ошибку)
             if (!farmer) {
-                return res.status(404).json({ 
-                    success: false, 
-                    error: 'Farmer not found' 
+                return res.status(200).json({ 
+                    success: true,
+                    shopName: null,
+                    parsed: null,
+                    isConfigured: false
                 });
             }
             
