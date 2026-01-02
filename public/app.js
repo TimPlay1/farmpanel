@@ -6744,126 +6744,11 @@ async function saveOffer(offerData) {
 }
 
 // ============================================
-// UNIVERSAL CODE REGISTRATION SYSTEM
+// UNIVERSAL CODE TRACKING SYSTEM
 // ============================================
 
-// Register a new offer code
-async function registerOfferCode(code, brainrotName, income) {
-    if (!state.currentKey) {
-        showNotification('❌ No farm key selected', 'error');
-        return null;
-    }
-    
-    try {
-        const response = await fetch(`${API_BASE}/offer-codes`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                farmKey: state.currentKey,
-                code: code || null, // null = auto-generate
-                brainrotName: brainrotName || null,
-                income: income || 0
-            })
-        });
-        
-        const result = await response.json();
-        
-        if (result.error) {
-            showNotification(`❌ ${result.error}`, 'error');
-            return null;
-        }
-        
-        if (result.success) {
-            const action = result.created ? 'registered' : 'updated';
-            showNotification(`✅ Code #${result.code} ${action}`, 'success');
-            return result.code;
-        }
-    } catch (err) {
-        console.error('Error registering code:', err);
-        showNotification('❌ Failed to register code', 'error');
-    }
-    return null;
-}
-
-// Delete an offer code
-async function deleteOfferCode(code) {
-    if (!state.currentKey || !code) return false;
-    
-    try {
-        const response = await fetch(
-            `${API_BASE}/offer-codes?farmKey=${encodeURIComponent(state.currentKey)}&code=${encodeURIComponent(code)}`,
-            { method: 'DELETE' }
-        );
-        
-        const result = await response.json();
-        return result.success;
-    } catch (err) {
-        console.error('Error deleting code:', err);
-        return false;
-    }
-}
-
-// Load user's registered codes
-async function loadRegisteredCodes() {
-    if (!state.currentKey) return [];
-    
-    try {
-        const response = await fetch(`${API_BASE}/offer-codes?farmKey=${encodeURIComponent(state.currentKey)}`);
-        const result = await response.json();
-        return result.codes || [];
-    } catch (err) {
-        console.error('Error loading codes:', err);
-        return [];
-    }
-}
-
-// Setup register code form listeners
-function setupRegisterCodeListeners() {
-    // Toggle form visibility
-    const toggleBtn = document.getElementById('toggleRegisterCode');
-    const form = document.getElementById('registerCodeForm');
-    const header = document.querySelector('.register-code-header');
-    
-    if (header && toggleBtn && form) {
-        header.addEventListener('click', () => {
-            form.classList.toggle('hidden');
-            toggleBtn.classList.toggle('expanded');
-        });
-    }
-    
-    // Register button
-    const registerBtn = document.getElementById('registerCodeBtn');
-    if (registerBtn) {
-        registerBtn.addEventListener('click', async () => {
-            const codeInput = document.getElementById('newOfferCode');
-            const brainrotInput = document.getElementById('newOfferBrainrot');
-            const incomeInput = document.getElementById('newOfferIncome');
-            
-            const code = codeInput?.value.trim().toUpperCase().replace(/^#/, '') || null;
-            const brainrotName = brainrotInput?.value.trim() || null;
-            const income = parseFloat(incomeInput?.value) || 0;
-            
-            registerBtn.disabled = true;
-            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-            
-            const registeredCode = await registerOfferCode(code, brainrotName, income);
-            
-            if (registeredCode) {
-                // Clear form
-                if (codeInput) codeInput.value = '';
-                if (brainrotInput) brainrotInput.value = '';
-                if (incomeInput) incomeInput.value = '';
-                
-                // Refresh offers to show new code
-                await loadOffers(true);
-            }
-            
-            registerBtn.disabled = false;
-            registerBtn.innerHTML = '<i class="fas fa-plus"></i> Register';
-        });
-    }
-    
-    // Close info banner
+// Setup info banner close listener
+function setupInfoBannerListener() {
     const closeBannerBtn = document.getElementById('closeInfoBanner');
     const banner = document.getElementById('offersInfoBanner');
     if (closeBannerBtn && banner) {
@@ -6881,8 +6766,8 @@ function setupRegisterCodeListeners() {
 
 // Setup offers event listeners
 function setupOffersListeners() {
-    // Setup code registration listeners
-    setupRegisterCodeListeners();
+    // Setup info banner listener
+    setupInfoBannerListener();
     
     // Search
     if (offerSearchEl) {
