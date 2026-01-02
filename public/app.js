@@ -4826,6 +4826,13 @@ function showSupaError(message) {
 
 // Post to Eldorado - opens eldorado.gg with brainrot data
 function postToEldorado() {
+    // v9.9.2: Проверяем, настроено ли имя магазина
+    if (!shopNameState.isConfigured || !shopNameState.fullName) {
+        showSupaError('Please configure your shop name first');
+        openShopNameModal(() => postToEldorado());
+        return;
+    }
+    
     if (!currentSupaResult || !currentSupaResult.resultUrl) {
         showSupaError('Сначала сгенерируйте изображение');
         return;
@@ -5466,6 +5473,13 @@ async function downloadAllMassGenImages() {
 
 // Start Eldorado queue from mass generation
 async function startMassEldoradoQueue() {
+    // v9.9.2: Проверяем, настроено ли имя магазина
+    if (!shopNameState.isConfigured || !shopNameState.fullName) {
+        showNotification('Please configure your shop name first', 'error');
+        openShopNameModal(() => startMassEldoradoQueue());
+        return;
+    }
+    
     const queue = localStorage.getItem('eldoradoQueue');
     if (!queue) {
         showNotification('Очередь пуста. Сначала выполните генерацию с включённой опцией "Создать очередь для Eldorado"', 'error');
@@ -6883,9 +6897,9 @@ function buildShopName(leftEmoji, text, rightEmoji) {
 
 // Update preview in modal
 function updateShopNamePreview() {
-    const leftEmoji = document.getElementById('leftEmojiCustom')?.value || shopNameState.leftEmoji || '👾';
+    const leftEmoji = document.getElementById('leftEmojiDisplay')?.textContent || shopNameState.leftEmoji || '👾';
     const text = document.getElementById('shopNameText')?.value || 'Your Shop';
-    const rightEmoji = document.getElementById('rightEmojiCustom')?.value || shopNameState.rightEmoji || '👾';
+    const rightEmoji = document.getElementById('rightEmojiDisplay')?.textContent || shopNameState.rightEmoji || '👾';
     
     const preview = buildShopName(leftEmoji, text, rightEmoji);
     const previewEl = document.getElementById('shopNamePreview');
@@ -6900,6 +6914,111 @@ function updateShopNamePreview() {
     }
 }
 
+// All available emojis for picker
+const EMOJI_LIST = [
+    '👾', '🔥', '⭐', '💎', '🎮', '🏪', '🛒', '💰', '🚀', '✨', '🌟', '💫',
+    '🎯', '🎪', '🎨', '🎭', '🎬', '🎤', '🎧', '🎵', '🎶', '🎹', '🎸', '🎺',
+    '🏆', '🥇', '🥈', '🥉', '🏅', '🎖️', '🏵️', '🎗️', '🎁', '🎀', '🎊', '🎉',
+    '💝', '💖', '💗', '💓', '💕', '💞', '💘', '❤️', '🧡', '💛', '💚', '💙',
+    '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💟', '☮️', '✝️', '☪️', '🕉️', '☸️',
+    '🔱', '⚜️', '🔰', '⭕', '✅', '☑️', '✔️', '❌', '❎', '➕', '➖', '➗',
+    '💯', '💢', '💥', '💦', '💨', '🕳️', '💣', '💬', '👁️‍🗨️', '🗨️', '🗯️', '💭',
+    '🌈', '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️',
+    '💎', '💍', '👑', '🎩', '🧢', '👓', '🕶️', '🥽', '🌂', '☂️', '🎒', '👜',
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮',
+    '🐷', '🐸', '🐵', '🙈', '🙉', '🙊', '🐔', '🐧', '🐦', '🐤', '🦆', '🦅',
+    '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋', '🐌', '🐞', '🐜',
+    '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑',
+    '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑',
+    '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏩', '🏪', '🏫', '🏬',
+    '⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '🏓'
+];
+
+// Current emoji picker target
+let currentEmojiPickerTarget = null;
+
+// Open emoji picker popup
+function openEmojiPicker(target, buttonEl) {
+    const popup = document.getElementById('emojiPickerPopup');
+    if (!popup) return;
+    
+    currentEmojiPickerTarget = target;
+    
+    // Position popup near the button
+    const rect = buttonEl.getBoundingClientRect();
+    popup.style.top = `${rect.bottom + 10}px`;
+    popup.style.left = `${Math.max(10, rect.left - 120)}px`;
+    
+    // Populate grid if empty
+    const grid = document.getElementById('emojiPickerGrid');
+    if (grid && grid.children.length === 0) {
+        EMOJI_LIST.forEach(emoji => {
+            const item = document.createElement('button');
+            item.className = 'emoji-picker-item';
+            item.textContent = emoji;
+            item.type = 'button';
+            item.addEventListener('click', () => selectEmoji(emoji));
+            grid.appendChild(item);
+        });
+    }
+    
+    // Clear search
+    const searchInput = document.getElementById('emojiSearchInput');
+    if (searchInput) searchInput.value = '';
+    filterEmojis('');
+    
+    popup.classList.remove('hidden');
+}
+
+// Close emoji picker popup
+function closeEmojiPicker() {
+    const popup = document.getElementById('emojiPickerPopup');
+    if (popup) popup.classList.add('hidden');
+    currentEmojiPickerTarget = null;
+}
+
+// Select emoji from picker
+function selectEmoji(emoji) {
+    if (currentEmojiPickerTarget === 'left') {
+        const display = document.getElementById('leftEmojiDisplay');
+        if (display) display.textContent = emoji;
+        shopNameState.leftEmoji = emoji;
+        
+        // If "same emoji" is checked, also update right
+        const sameCheckbox = document.getElementById('sameEmojiCheckbox');
+        if (sameCheckbox?.checked) {
+            const rightDisplay = document.getElementById('rightEmojiDisplay');
+            if (rightDisplay) rightDisplay.textContent = emoji;
+            shopNameState.rightEmoji = emoji;
+        }
+    } else if (currentEmojiPickerTarget === 'right') {
+        const display = document.getElementById('rightEmojiDisplay');
+        if (display) display.textContent = emoji;
+        shopNameState.rightEmoji = emoji;
+    }
+    
+    updateShopNamePreview();
+    closeEmojiPicker();
+}
+
+// Filter emojis by search
+function filterEmojis(query) {
+    const grid = document.getElementById('emojiPickerGrid');
+    if (!grid) return;
+    
+    const items = grid.querySelectorAll('.emoji-picker-item');
+    const q = query.toLowerCase();
+    
+    items.forEach(item => {
+        // Simple visibility - show all if no query
+        item.style.display = q ? 'none' : 'flex';
+        if (!q) return;
+        
+        // Check if emoji matches (basic - just show all for now as emoji search is complex)
+        item.style.display = 'flex';
+    });
+}
+
 // Open shop name modal
 function openShopNameModal(callback = null) {
     const modal = document.getElementById('shopNameModal');
@@ -6908,28 +7027,23 @@ function openShopNameModal(callback = null) {
     shopNameState.pendingCallback = callback;
     
     // Pre-fill with current values
-    const leftEmojiInput = document.getElementById('leftEmojiCustom');
+    const leftDisplay = document.getElementById('leftEmojiDisplay');
     const textInput = document.getElementById('shopNameText');
-    const rightEmojiInput = document.getElementById('rightEmojiCustom');
+    const rightDisplay = document.getElementById('rightEmojiDisplay');
+    const sameCheckbox = document.getElementById('sameEmojiCheckbox');
     
-    if (leftEmojiInput) leftEmojiInput.value = shopNameState.leftEmoji || '👾';
+    if (leftDisplay) leftDisplay.textContent = shopNameState.leftEmoji || '👾';
     if (textInput) textInput.value = shopNameState.text || '';
-    if (rightEmojiInput) rightEmojiInput.value = shopNameState.rightEmoji || '👾';
+    if (rightDisplay) rightDisplay.textContent = shopNameState.rightEmoji || '👾';
     
-    // Clear selections
-    document.querySelectorAll('.emoji-option').forEach(opt => opt.classList.remove('selected'));
+    // Check if same emoji
+    if (sameCheckbox) {
+        sameCheckbox.checked = shopNameState.leftEmoji === shopNameState.rightEmoji;
+    }
     
-    // Pre-select emojis if matching
-    document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(opt => {
-        if (opt.dataset.emoji === shopNameState.leftEmoji) {
-            opt.classList.add('selected');
-        }
-    });
-    document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(opt => {
-        if (opt.dataset.emoji === shopNameState.rightEmoji) {
-            opt.classList.add('selected');
-        }
-    });
+    // Clear error
+    const errorEl = document.getElementById('shopNameError');
+    if (errorEl) errorEl.textContent = '';
     
     updateShopNamePreview();
     modal.classList.remove('hidden');
@@ -6941,14 +7055,15 @@ function closeShopNameModal() {
     if (modal) {
         modal.classList.add('hidden');
     }
+    closeEmojiPicker();
     shopNameState.pendingCallback = null;
 }
 
 // Confirm shop name from modal
 async function confirmShopNameModal() {
-    const leftEmoji = document.getElementById('leftEmojiCustom')?.value || '👾';
+    const leftEmoji = document.getElementById('leftEmojiDisplay')?.textContent || '👾';
     const text = document.getElementById('shopNameText')?.value?.trim() || '';
-    const rightEmoji = document.getElementById('rightEmojiCustom')?.value || '👾';
+    const rightEmoji = document.getElementById('rightEmojiDisplay')?.textContent || '👾';
     const errorEl = document.getElementById('shopNameError');
     
     // Validation
@@ -7018,24 +7133,32 @@ function setupShopNameModalListeners() {
         editBtn.addEventListener('click', () => openShopNameModal());
     }
     
-    // Emoji options click handlers
-    document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(opt => {
-        opt.addEventListener('click', () => {
-            document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
-            opt.classList.add('selected');
-            document.getElementById('leftEmojiCustom').value = opt.dataset.emoji;
-            updateShopNamePreview();
-        });
-    });
+    // Left emoji button
+    const leftEmojiBtn = document.getElementById('leftEmojiBtn');
+    if (leftEmojiBtn) {
+        leftEmojiBtn.addEventListener('click', () => openEmojiPicker('left', leftEmojiBtn));
+    }
     
-    document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(opt => {
-        opt.addEventListener('click', () => {
-            document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
-            opt.classList.add('selected');
-            document.getElementById('rightEmojiCustom').value = opt.dataset.emoji;
-            updateShopNamePreview();
+    // Right emoji button
+    const rightEmojiBtn = document.getElementById('rightEmojiBtn');
+    if (rightEmojiBtn) {
+        rightEmojiBtn.addEventListener('click', () => openEmojiPicker('right', rightEmojiBtn));
+    }
+    
+    // Same emoji checkbox
+    const sameEmojiCheckbox = document.getElementById('sameEmojiCheckbox');
+    if (sameEmojiCheckbox) {
+        sameEmojiCheckbox.addEventListener('change', () => {
+            if (sameEmojiCheckbox.checked) {
+                // Copy left emoji to right
+                const leftEmoji = document.getElementById('leftEmojiDisplay')?.textContent || '👾';
+                const rightDisplay = document.getElementById('rightEmojiDisplay');
+                if (rightDisplay) rightDisplay.textContent = leftEmoji;
+                shopNameState.rightEmoji = leftEmoji;
+                updateShopNamePreview();
+            }
         });
-    });
+    }
     
     // Text input change
     const textInput = document.getElementById('shopNameText');
@@ -7043,21 +7166,31 @@ function setupShopNameModalListeners() {
         textInput.addEventListener('input', updateShopNamePreview);
     }
     
-    // Custom emoji inputs
-    const leftCustom = document.getElementById('leftEmojiCustom');
-    const rightCustom = document.getElementById('rightEmojiCustom');
-    if (leftCustom) {
-        leftCustom.addEventListener('input', () => {
-            document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
-            updateShopNamePreview();
-        });
+    // Emoji picker close button
+    const closePickerBtn = document.getElementById('closeEmojiPicker');
+    if (closePickerBtn) {
+        closePickerBtn.addEventListener('click', closeEmojiPicker);
     }
-    if (rightCustom) {
-        rightCustom.addEventListener('input', () => {
-            document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
-            updateShopNamePreview();
-        });
+    
+    // Emoji search
+    const emojiSearch = document.getElementById('emojiSearchInput');
+    if (emojiSearch) {
+        emojiSearch.addEventListener('input', (e) => filterEmojis(e.target.value));
     }
+    
+    // Close emoji picker when clicking outside
+    document.addEventListener('click', (e) => {
+        const popup = document.getElementById('emojiPickerPopup');
+        if (!popup || popup.classList.contains('hidden')) return;
+        
+        const isClickInside = popup.contains(e.target) || 
+                             e.target.closest('#leftEmojiBtn') || 
+                             e.target.closest('#rightEmojiBtn');
+        
+        if (!isClickInside) {
+            closeEmojiPicker();
+        }
+    });
 }
 
 // Check if shop name is configured before generation

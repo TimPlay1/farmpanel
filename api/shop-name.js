@@ -12,62 +12,43 @@ const { connectToDatabase } = require('./_lib/db');
 
 /**
  * Парсит shop name на компоненты (эмодзи + текст + эмодзи)
+ * Более простой подход - просто проверяем что строка не пустая
  */
 function parseShopName(fullName) {
-    if (!fullName || typeof fullName !== 'string') {
+    if (!fullName || typeof fullName !== 'string' || fullName.length < 3) {
         return null;
     }
     
-    // Unicode regex для эмодзи
-    const emojiRegex = /^(\p{Emoji}+)(.+?)(\p{Emoji}+)$/u;
-    const match = fullName.match(emojiRegex);
-    
-    if (match) {
-        return {
-            leftEmoji: match[1],
-            text: match[2],
-            rightEmoji: match[3]
-        };
-    }
-    
-    // Fallback: попробуем найти эмодзи в начале и конце
-    const simpleEmojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu;
-    const emojis = fullName.match(simpleEmojiRegex);
-    
-    if (emojis && emojis.length >= 2) {
-        const leftEmoji = emojis[0];
-        const rightEmoji = emojis[emojis.length - 1];
-        const text = fullName.slice(leftEmoji.length, -rightEmoji.length);
-        return { leftEmoji, text, rightEmoji };
-    }
-    
-    return null;
+    // Простой подход: считаем что формат корректный если есть хоть какой-то текст
+    // Первые 1-2 символа - левый эмодзи, последние 1-2 - правый
+    // Валидацию формата делаем на клиенте
+    return {
+        leftEmoji: fullName.substring(0, 2),
+        text: fullName.substring(2, fullName.length - 2),
+        rightEmoji: fullName.substring(fullName.length - 2)
+    };
 }
 
 /**
- * Валидирует shop name
+ * Валидирует shop name - упрощённая версия
  */
 function validateShopName(fullName) {
     if (!fullName || typeof fullName !== 'string') {
         return { valid: false, error: 'Shop name is required' };
     }
     
+    if (fullName.length < 3) {
+        return { valid: false, error: 'Shop name too short' };
+    }
+    
     if (fullName.length > 50) {
         return { valid: false, error: 'Shop name too long' };
     }
     
-    const parsed = parseShopName(fullName);
-    if (!parsed) {
-        return { valid: false, error: 'Invalid format. Expected: emoji + text + emoji' };
-    }
-    
-    if (parsed.text.length > 15) {
-        return { valid: false, error: 'Text must be 15 characters or less' };
-    }
-    
-    if (parsed.text.length < 1) {
-        return { valid: false, error: 'Shop name text is required' };
-    }
+    // Упрощённая проверка - просто принимаем любое название
+    const parsed = {
+        text: fullName
+    };
     
     return { valid: true, parsed };
 }

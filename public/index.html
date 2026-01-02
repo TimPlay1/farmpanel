@@ -731,7 +731,7 @@
     <!-- Shop Name Setup Modal -->
     <div id="shopNameModal" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content">
+        <div class="modal-content modal-shop-name">
             <div class="modal-header">
                 <h3><i class="fas fa-store"></i> Configure Shop Name</h3>
                 <button class="modal-close" id="closeShopNameModal">
@@ -739,51 +739,38 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p class="modal-description">Your shop name appears in offer titles and descriptions on Eldorado. Choose wisely!</p>
+                <p class="modal-description">Your shop name appears in offer titles and descriptions on Eldorado. Format: Emoji + Name + Emoji</p>
                 
-                <div class="shop-name-builder">
-                    <div class="emoji-selector">
-                        <label>Left Emoji:</label>
-                        <div class="emoji-options" id="leftEmojiOptions">
-                            <span class="emoji-option" data-emoji="👾">👾</span>
-                            <span class="emoji-option" data-emoji="🔥">🔥</span>
-                            <span class="emoji-option" data-emoji="⭐">⭐</span>
-                            <span class="emoji-option" data-emoji="💎">💎</span>
-                            <span class="emoji-option" data-emoji="🎮">🎮</span>
-                            <span class="emoji-option" data-emoji="🏪">🏪</span>
-                            <span class="emoji-option" data-emoji="🛒">🛒</span>
-                            <span class="emoji-option" data-emoji="💰">💰</span>
-                            <span class="emoji-option" data-emoji="🚀">🚀</span>
-                            <span class="emoji-option" data-emoji="✨">✨</span>
-                            <span class="emoji-option" data-emoji="🌟">🌟</span>
-                            <span class="emoji-option" data-emoji="💫">💫</span>
+                <div class="shop-name-builder-new">
+                    <div class="emoji-picker-row">
+                        <div class="emoji-picker-group">
+                            <label>Left Emoji</label>
+                            <button class="emoji-picker-btn" id="leftEmojiBtn" type="button">
+                                <span class="emoji-display" id="leftEmojiDisplay">👾</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
                         </div>
-                        <input type="text" id="leftEmojiCustom" class="emoji-custom" placeholder="Or type" maxlength="2">
+                        
+                        <div class="shop-text-input-new">
+                            <label>Shop Name <span class="char-counter">(<span id="shopNameCharCount">0</span>/15)</span></label>
+                            <input type="text" id="shopNameText" placeholder="Your Shop" maxlength="15">
+                        </div>
+                        
+                        <div class="emoji-picker-group">
+                            <label>Right Emoji</label>
+                            <button class="emoji-picker-btn" id="rightEmojiBtn" type="button">
+                                <span class="emoji-display" id="rightEmojiDisplay">👾</span>
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        </div>
                     </div>
                     
-                    <div class="shop-text-input">
-                        <label>Shop Name (max 15 chars):</label>
-                        <input type="text" id="shopNameText" placeholder="Your Shop Name" maxlength="15">
-                        <span class="char-counter"><span id="shopNameCharCount">0</span>/15</span>
-                    </div>
-                    
-                    <div class="emoji-selector">
-                        <label>Right Emoji:</label>
-                        <div class="emoji-options" id="rightEmojiOptions">
-                            <span class="emoji-option" data-emoji="👾">👾</span>
-                            <span class="emoji-option" data-emoji="🔥">🔥</span>
-                            <span class="emoji-option" data-emoji="⭐">⭐</span>
-                            <span class="emoji-option" data-emoji="💎">💎</span>
-                            <span class="emoji-option" data-emoji="🎮">🎮</span>
-                            <span class="emoji-option" data-emoji="🏪">🏪</span>
-                            <span class="emoji-option" data-emoji="🛒">🛒</span>
-                            <span class="emoji-option" data-emoji="💰">💰</span>
-                            <span class="emoji-option" data-emoji="🚀">🚀</span>
-                            <span class="emoji-option" data-emoji="✨">✨</span>
-                            <span class="emoji-option" data-emoji="🌟">🌟</span>
-                            <span class="emoji-option" data-emoji="💫">💫</span>
-                        </div>
-                        <input type="text" id="rightEmojiCustom" class="emoji-custom" placeholder="Or type" maxlength="2">
+                    <div class="same-emoji-option">
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="sameEmojiCheckbox" checked>
+                            <span class="checkmark"></span>
+                            Use same emoji on both sides
+                        </label>
                     </div>
                 </div>
                 
@@ -803,9 +790,21 @@
             </div>
         </div>
     </div>
+    
+    <!-- Emoji Picker Popup -->
+    <div id="emojiPickerPopup" class="emoji-picker-popup hidden">
+        <div class="emoji-picker-header">
+            <span>Select Emoji</span>
+            <button class="emoji-picker-close" id="closeEmojiPicker"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="emoji-picker-search">
+            <input type="text" id="emojiSearchInput" placeholder="Search emoji...">
+        </div>
+        <div class="emoji-picker-grid" id="emojiPickerGrid">
+            <!-- Emojis will be populated by JavaScript -->
+        </div>
+    </div>
 
-    <script src="app.js?v=49"></script>
+    <script src="app.js?v=51"></script>
 </body>
 </html>
-
-
