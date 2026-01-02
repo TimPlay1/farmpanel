@@ -4752,7 +4752,21 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
         
-        // v9.9.3: Always try to load shop name if not cached for current farmKey
+        const isDashboard = window.location.pathname.includes('/dashboard/offers');
+        const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
+        
+        // v9.9.3: Get farmKey from URL first (for create page)
+        if (isCreatePage) {
+            const urlOfferData = getOfferDataFromURL();
+            if (urlOfferData?.farmKey) {
+                CONFIG.farmKey = urlOfferData.farmKey;
+                GM_setValue('farmKey', urlOfferData.farmKey);
+                localStorage.setItem('glitched_farm_key', urlOfferData.farmKey);
+                console.log('[Glitched] Got farmKey from URL:', urlOfferData.farmKey);
+            }
+        }
+        
+        // v9.9.3: Load shop name - wait for it before autofill
         if (CONFIG.farmKey) {
             const needsLoad = !cachedShopName || shopNameLoadedForKey !== CONFIG.farmKey;
             console.log('[Glitched] Shop name check:', { needsLoad, cachedShopName, shopNameLoadedForKey, currentKey: CONFIG.farmKey });
@@ -4761,9 +4775,6 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
                 await loadShopNameFromAPI(true);
             }
         }
-        
-        const isDashboard = window.location.pathname.includes('/dashboard/offers');
-        const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
         
         // Check if we have a pending action after page reload (spinner timeout)
         // This must be checked before normal flow to restore state
