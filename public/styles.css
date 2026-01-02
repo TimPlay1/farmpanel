@@ -4580,13 +4580,15 @@ body {
 .offer-status-badge.pending {
     background: rgba(251, 191, 36, 0.2);
     color: #fbbf24;
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
+    gap: 3px;
+    line-height: 1;
+    overflow: hidden;
 }
 
 .offer-status-badge.pending i {
-    font-size: 0.8rem;
+    font-size: 0.65rem;
     animation: pulse 2s ease-in-out infinite;
 }
 
