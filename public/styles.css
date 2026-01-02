@@ -3130,7 +3130,216 @@ body {
     color: var(--text-primary);
 }
 
-/* Register Code Section */
+/* Shop Name Section */
+.shop-name-section {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.shop-name-display {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.shop-name-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.shop-name-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.shop-name-value.not-configured {
+    color: var(--accent-yellow);
+    background: rgba(251, 191, 36, 0.15);
+    border-color: rgba(251, 191, 36, 0.3);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.edit-shop-name {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.edit-shop-name:hover {
+    background: var(--bg-hover);
+    color: var(--accent-primary);
+    border-color: var(--accent-primary);
+}
+
+.shop-name-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--accent-yellow);
+    padding: 0.5rem 0.75rem;
+    background: rgba(251, 191, 36, 0.1);
+    border-radius: 6px;
+}
+
+.shop-name-hint.hidden {
+    display: none;
+}
+
+/* Shop Name Modal Styles */
+.shop-name-builder {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+}
+
+.emoji-selector {
+    flex: 1;
+    min-width: 120px;
+}
+
+.emoji-selector label,
+.shop-text-input label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.emoji-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.emoji-option {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    background: var(--bg-tertiary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.emoji-option:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent-primary);
+    transform: scale(1.1);
+}
+
+.emoji-option.selected {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);
+}
+
+.emoji-custom {
+    width: 60px;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    text-align: center;
+}
+
+.emoji-custom:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.shop-text-input {
+    flex: 2;
+    min-width: 200px;
+    position: relative;
+}
+
+.shop-text-input input {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 1rem;
+    transition: border-color 0.2s;
+}
+
+.shop-text-input input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.char-counter {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(25%);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.shop-name-preview {
+    margin-top: 1rem;
+}
+
+.shop-name-preview label {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.preview-box {
+    padding: 1rem 1.5rem;
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    border: 2px solid var(--accent-primary);
+    border-radius: 12px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+}
+
+.modal-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+/* Register Code Section - kept for backwards compatibility but not used */
 .register-code-section {
     background: var(--bg-card);
     border: 1px solid var(--border-color);

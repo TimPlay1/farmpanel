@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.9.0
-// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking
+// @version      9.9.1
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
@@ -3477,8 +3477,13 @@
         return `${prefix}${code}`;
     }
     
-    // v9.9: Get shop name from config or default
+    // v9.9: Get shop name from localStorage (synced from panel) or GM storage
     function getShopName() {
+        // Priority: localStorage (set by panel) > GM_getValue > default
+        const fromLocalStorage = localStorage.getItem('glitched_shop_name');
+        if (fromLocalStorage) {
+            return fromLocalStorage;
+        }
         return GM_getValue('shopName', '👾Glitched Store👾');
     }
 

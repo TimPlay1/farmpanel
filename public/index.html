@@ -10,7 +10,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="styles.css?v=13">
+    <link rel="stylesheet" href="styles.css?v=14">
     <!-- Inline critical loading styles -->
     <style>
         .loading-screen {
@@ -378,6 +378,21 @@
                         <div class="offers-stats" id="offersStats"></div>
                     </div>
                     
+                    <!-- Shop Name Section -->
+                    <div class="shop-name-section" id="shopNameSection">
+                        <div class="shop-name-display">
+                            <span class="shop-name-label">Your Shop:</span>
+                            <span class="shop-name-value" id="shopNameValue">Not configured</span>
+                            <button class="btn btn-icon btn-sm edit-shop-name" id="editShopNameBtn" title="Edit shop name">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                        </div>
+                        <div class="shop-name-hint" id="shopNameHint">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            Configure your shop name to create offers
+                        </div>
+                    </div>
+                    
                     <!-- Universal Code System Info Banner -->
                     <div class="offers-info-banner" id="offersInfoBanner">
                         <div class="info-banner-icon"><i class="fas fa-info-circle"></i></div>
@@ -713,7 +728,83 @@
         </div>
     </div>
 
-    <script src="app.js?v=47"></script>
+    <!-- Shop Name Setup Modal -->
+    <div id="shopNameModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-store"></i> Configure Shop Name</h3>
+                <button class="modal-close" id="closeShopNameModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-description">Your shop name appears in offer titles and descriptions on Eldorado. Choose wisely!</p>
+                
+                <div class="shop-name-builder">
+                    <div class="emoji-selector">
+                        <label>Left Emoji:</label>
+                        <div class="emoji-options" id="leftEmojiOptions">
+                            <span class="emoji-option" data-emoji="👾">👾</span>
+                            <span class="emoji-option" data-emoji="🔥">🔥</span>
+                            <span class="emoji-option" data-emoji="⭐">⭐</span>
+                            <span class="emoji-option" data-emoji="💎">💎</span>
+                            <span class="emoji-option" data-emoji="🎮">🎮</span>
+                            <span class="emoji-option" data-emoji="🏪">🏪</span>
+                            <span class="emoji-option" data-emoji="🛒">🛒</span>
+                            <span class="emoji-option" data-emoji="💰">💰</span>
+                            <span class="emoji-option" data-emoji="🚀">🚀</span>
+                            <span class="emoji-option" data-emoji="✨">✨</span>
+                            <span class="emoji-option" data-emoji="🌟">🌟</span>
+                            <span class="emoji-option" data-emoji="💫">💫</span>
+                        </div>
+                        <input type="text" id="leftEmojiCustom" class="emoji-custom" placeholder="Or type" maxlength="2">
+                    </div>
+                    
+                    <div class="shop-text-input">
+                        <label>Shop Name (max 15 chars):</label>
+                        <input type="text" id="shopNameText" placeholder="Your Shop Name" maxlength="15">
+                        <span class="char-counter"><span id="shopNameCharCount">0</span>/15</span>
+                    </div>
+                    
+                    <div class="emoji-selector">
+                        <label>Right Emoji:</label>
+                        <div class="emoji-options" id="rightEmojiOptions">
+                            <span class="emoji-option" data-emoji="👾">👾</span>
+                            <span class="emoji-option" data-emoji="🔥">🔥</span>
+                            <span class="emoji-option" data-emoji="⭐">⭐</span>
+                            <span class="emoji-option" data-emoji="💎">💎</span>
+                            <span class="emoji-option" data-emoji="🎮">🎮</span>
+                            <span class="emoji-option" data-emoji="🏪">🏪</span>
+                            <span class="emoji-option" data-emoji="🛒">🛒</span>
+                            <span class="emoji-option" data-emoji="💰">💰</span>
+                            <span class="emoji-option" data-emoji="🚀">🚀</span>
+                            <span class="emoji-option" data-emoji="✨">✨</span>
+                            <span class="emoji-option" data-emoji="🌟">🌟</span>
+                            <span class="emoji-option" data-emoji="💫">💫</span>
+                        </div>
+                        <input type="text" id="rightEmojiCustom" class="emoji-custom" placeholder="Or type" maxlength="2">
+                    </div>
+                </div>
+                
+                <div class="shop-name-preview">
+                    <label>Preview:</label>
+                    <div class="preview-box" id="shopNamePreview">👾Your Shop👾</div>
+                </div>
+                
+                <div id="shopNameError" class="modal-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelShopName">Cancel</button>
+                <button class="btn btn-primary" id="confirmShopName">
+                    <i class="fas fa-save"></i>
+                    Save Shop Name
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=49"></script>
 </body>
 </html>
 

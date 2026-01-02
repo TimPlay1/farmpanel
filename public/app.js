@@ -5185,8 +5185,15 @@ function closeMassGenerationModal() {
     }
 }
 
-// Start mass generation
-async function startMassGeneration() {
+// Start mass generation (with shop name check)
+function startMassGenerationWithCheck() {
+    requireShopName(() => {
+        doStartMassGeneration();
+    });
+}
+
+// Start mass generation (actual logic)
+async function doStartMassGeneration() {
     const list = document.getElementById('massGenList');
     const items = list.querySelectorAll('.mass-gen-item');
     const progressEl = document.getElementById('massGenProgress');
@@ -5549,7 +5556,7 @@ function setupMassSelectionListeners() {
     }
     
     if (startBtn) {
-        startBtn.addEventListener('click', startMassGeneration);
+        startBtn.addEventListener('click', startMassGenerationWithCheck);
     }
     
     if (modalOverlay) {
@@ -6747,6 +6754,323 @@ async function saveOffer(offerData) {
 // UNIVERSAL CODE TRACKING SYSTEM
 // ============================================
 
+// Shop name state
+let shopNameState = {
+    leftEmoji: '👾',
+    rightEmoji: '👾',
+    text: '',
+    fullName: null,  // Full shop name like "👾Glitched Store👾"
+    isConfigured: false,
+    pendingCallback: null  // Callback after shop name is configured
+};
+
+// Load shop name from server
+async function loadShopName() {
+    if (!state.currentKey) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/shop-name?farmKey=${encodeURIComponent(state.currentKey)}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.shopName) {
+                shopNameState.fullName = data.shopName;
+                shopNameState.isConfigured = true;
+                // Parse components
+                parseShopName(data.shopName);
+                // Update display
+                updateShopNameDisplay();
+                // Save to localStorage for Tampermonkey
+                localStorage.setItem('glitched_shop_name', data.shopName);
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load shop name:', e);
+    }
+    
+    // Check localStorage as fallback
+    if (!shopNameState.isConfigured) {
+        const cached = localStorage.getItem('glitched_shop_name');
+        if (cached && cached !== '👾Glitched Store👾') {
+            shopNameState.fullName = cached;
+            shopNameState.isConfigured = true;
+            parseShopName(cached);
+            updateShopNameDisplay();
+        }
+    }
+    
+    updateShopNameDisplay();
+}
+
+// Parse shop name into components (best effort)
+function parseShopName(fullName) {
+    if (!fullName) return;
+    
+    // Try to extract emojis and text
+    // Emoji regex pattern
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu;
+    const emojis = fullName.match(emojiRegex) || [];
+    
+    if (emojis.length >= 2) {
+        shopNameState.leftEmoji = emojis[0];
+        shopNameState.rightEmoji = emojis[emojis.length - 1];
+        // Extract text between emojis
+        const text = fullName.replace(emojiRegex, '').trim();
+        shopNameState.text = text;
+    } else if (emojis.length === 1) {
+        shopNameState.leftEmoji = emojis[0];
+        shopNameState.rightEmoji = emojis[0];
+        shopNameState.text = fullName.replace(emojiRegex, '').trim();
+    } else {
+        shopNameState.text = fullName;
+    }
+}
+
+// Save shop name to server
+async function saveShopName(fullName) {
+    if (!state.currentKey) return false;
+    
+    try {
+        const response = await fetch(`${API_BASE}/shop-name`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                farmKey: state.currentKey,
+                shopName: fullName
+            })
+        });
+        
+        if (response.ok) {
+            shopNameState.fullName = fullName;
+            shopNameState.isConfigured = true;
+            localStorage.setItem('glitched_shop_name', fullName);
+            updateShopNameDisplay();
+            return true;
+        }
+    } catch (e) {
+        console.error('Failed to save shop name:', e);
+    }
+    return false;
+}
+
+// Update shop name display in UI
+function updateShopNameDisplay() {
+    const valueEl = document.getElementById('shopNameValue');
+    const hintEl = document.getElementById('shopNameHint');
+    
+    if (valueEl) {
+        if (shopNameState.isConfigured && shopNameState.fullName) {
+            valueEl.textContent = shopNameState.fullName;
+            valueEl.classList.remove('not-configured');
+        } else {
+            valueEl.textContent = 'Not configured';
+            valueEl.classList.add('not-configured');
+        }
+    }
+    
+    if (hintEl) {
+        if (shopNameState.isConfigured) {
+            hintEl.classList.add('hidden');
+        } else {
+            hintEl.classList.remove('hidden');
+        }
+    }
+}
+
+// Build full shop name from components
+function buildShopName(leftEmoji, text, rightEmoji) {
+    return `${leftEmoji}${text}${rightEmoji}`;
+}
+
+// Update preview in modal
+function updateShopNamePreview() {
+    const leftEmoji = document.getElementById('leftEmojiCustom')?.value || shopNameState.leftEmoji || '👾';
+    const text = document.getElementById('shopNameText')?.value || 'Your Shop';
+    const rightEmoji = document.getElementById('rightEmojiCustom')?.value || shopNameState.rightEmoji || '👾';
+    
+    const preview = buildShopName(leftEmoji, text, rightEmoji);
+    const previewEl = document.getElementById('shopNamePreview');
+    if (previewEl) {
+        previewEl.textContent = preview;
+    }
+    
+    // Update char counter
+    const charCountEl = document.getElementById('shopNameCharCount');
+    if (charCountEl) {
+        charCountEl.textContent = text.length;
+    }
+}
+
+// Open shop name modal
+function openShopNameModal(callback = null) {
+    const modal = document.getElementById('shopNameModal');
+    if (!modal) return;
+    
+    shopNameState.pendingCallback = callback;
+    
+    // Pre-fill with current values
+    const leftEmojiInput = document.getElementById('leftEmojiCustom');
+    const textInput = document.getElementById('shopNameText');
+    const rightEmojiInput = document.getElementById('rightEmojiCustom');
+    
+    if (leftEmojiInput) leftEmojiInput.value = shopNameState.leftEmoji || '👾';
+    if (textInput) textInput.value = shopNameState.text || '';
+    if (rightEmojiInput) rightEmojiInput.value = shopNameState.rightEmoji || '👾';
+    
+    // Clear selections
+    document.querySelectorAll('.emoji-option').forEach(opt => opt.classList.remove('selected'));
+    
+    // Pre-select emojis if matching
+    document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(opt => {
+        if (opt.dataset.emoji === shopNameState.leftEmoji) {
+            opt.classList.add('selected');
+        }
+    });
+    document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(opt => {
+        if (opt.dataset.emoji === shopNameState.rightEmoji) {
+            opt.classList.add('selected');
+        }
+    });
+    
+    updateShopNamePreview();
+    modal.classList.remove('hidden');
+}
+
+// Close shop name modal
+function closeShopNameModal() {
+    const modal = document.getElementById('shopNameModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    shopNameState.pendingCallback = null;
+}
+
+// Confirm shop name from modal
+async function confirmShopNameModal() {
+    const leftEmoji = document.getElementById('leftEmojiCustom')?.value || '👾';
+    const text = document.getElementById('shopNameText')?.value?.trim() || '';
+    const rightEmoji = document.getElementById('rightEmojiCustom')?.value || '👾';
+    const errorEl = document.getElementById('shopNameError');
+    
+    // Validation
+    if (!text) {
+        if (errorEl) errorEl.textContent = 'Please enter a shop name';
+        return;
+    }
+    
+    if (text.length > 15) {
+        if (errorEl) errorEl.textContent = 'Shop name must be 15 characters or less';
+        return;
+    }
+    
+    const fullName = buildShopName(leftEmoji, text, rightEmoji);
+    
+    // Save to server
+    const saved = await saveShopName(fullName);
+    
+    if (saved) {
+        shopNameState.leftEmoji = leftEmoji;
+        shopNameState.text = text;
+        shopNameState.rightEmoji = rightEmoji;
+        
+        showNotification(`✅ Shop name saved: ${fullName}`, 'success');
+        closeShopNameModal();
+        
+        // Execute callback if pending (e.g., continue with generation)
+        if (shopNameState.pendingCallback) {
+            const callback = shopNameState.pendingCallback;
+            shopNameState.pendingCallback = null;
+            callback();
+        }
+    } else {
+        if (errorEl) errorEl.textContent = 'Failed to save shop name. Please try again.';
+    }
+}
+
+// Setup shop name modal listeners
+function setupShopNameModalListeners() {
+    // Close button
+    const closeBtn = document.getElementById('closeShopNameModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeShopNameModal);
+    }
+    
+    // Cancel button
+    const cancelBtn = document.getElementById('cancelShopName');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeShopNameModal);
+    }
+    
+    // Confirm button
+    const confirmBtn = document.getElementById('confirmShopName');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmShopNameModal);
+    }
+    
+    // Modal overlay
+    const modal = document.getElementById('shopNameModal');
+    if (modal) {
+        modal.querySelector('.modal-overlay')?.addEventListener('click', closeShopNameModal);
+    }
+    
+    // Edit button in offers view
+    const editBtn = document.getElementById('editShopNameBtn');
+    if (editBtn) {
+        editBtn.addEventListener('click', () => openShopNameModal());
+    }
+    
+    // Emoji options click handlers
+    document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            document.getElementById('leftEmojiCustom').value = opt.dataset.emoji;
+            updateShopNamePreview();
+        });
+    });
+    
+    document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
+            opt.classList.add('selected');
+            document.getElementById('rightEmojiCustom').value = opt.dataset.emoji;
+            updateShopNamePreview();
+        });
+    });
+    
+    // Text input change
+    const textInput = document.getElementById('shopNameText');
+    if (textInput) {
+        textInput.addEventListener('input', updateShopNamePreview);
+    }
+    
+    // Custom emoji inputs
+    const leftCustom = document.getElementById('leftEmojiCustom');
+    const rightCustom = document.getElementById('rightEmojiCustom');
+    if (leftCustom) {
+        leftCustom.addEventListener('input', () => {
+            document.querySelectorAll('#leftEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
+            updateShopNamePreview();
+        });
+    }
+    if (rightCustom) {
+        rightCustom.addEventListener('input', () => {
+            document.querySelectorAll('#rightEmojiOptions .emoji-option').forEach(o => o.classList.remove('selected'));
+            updateShopNamePreview();
+        });
+    }
+}
+
+// Check if shop name is configured before generation
+function requireShopName(callback) {
+    if (shopNameState.isConfigured && shopNameState.fullName) {
+        callback();
+        return;
+    }
+    
+    // Open modal and set callback
+    openShopNameModal(callback);
+}
+
 // Setup info banner close listener
 function setupInfoBannerListener() {
     const closeBannerBtn = document.getElementById('closeInfoBanner');
@@ -7019,6 +7343,9 @@ function stopOffersAutoRefresh() {
 function initOffersView() {
     console.log('📋 Offers view opened');
     
+    // Load shop name for display
+    loadShopName();
+    
     // v9.8.7: Smart refresh - check if we need to load or use cache
     const timeSinceLastRefresh = Date.now() - lastOffersRefreshTime;
     const needsRefresh = lastOffersRefreshTime === 0 || timeSinceLastRefresh >= OFFERS_REFRESH_INTERVAL;
@@ -7036,6 +7363,7 @@ function initOffersView() {
 
 // Setup offers listeners on DOM ready
 setupOffersListeners();
+setupShopNameModalListeners();
 
 // Check for returned data from Tampermonkey after price adjustment
 function checkForPriceAdjustmentResult() {
