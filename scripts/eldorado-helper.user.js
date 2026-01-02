@@ -22,14 +22,14 @@
 // @connect      localhost
 // @connect      *
 // @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.0
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.2
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.3
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.9.2';
+    const VERSION = '9.9.3';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -3492,14 +3492,20 @@
         if (shopNameLoadedForKey === CONFIG.farmKey && cachedShopName) return;
         
         try {
+            console.log('[Glitched] Loading shop name from API for:', CONFIG.farmKey);
             const response = await fetch(`${API_BASE}/shop-name?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
             if (response.ok) {
                 const data = await response.json();
+                console.log('[Glitched] Shop name API response:', data);
                 if (data.success && data.shopName) {
                     cachedShopName = data.shopName;
                     shopNameLoadedForKey = CONFIG.farmKey;
                     GM_setValue('shopName', data.shopName);
                     console.log('[Glitched] Shop name loaded from API:', cachedShopName);
+                } else if (data.success && !data.shopName) {
+                    // No shop name configured yet - mark as loaded to avoid retry
+                    shopNameLoadedForKey = CONFIG.farmKey;
+                    console.log('[Glitched] No shop name configured in panel');
                 }
             }
         } catch (e) {
@@ -4724,9 +4730,9 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
         
-        // v9.9.2: Load shop name from API at startup
+        // v9.9.2: Load shop name from API at startup (with await to ensure it's loaded)
         if (CONFIG.farmKey) {
-            loadShopNameFromAPI();
+            await loadShopNameFromAPI();
         }
         
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
