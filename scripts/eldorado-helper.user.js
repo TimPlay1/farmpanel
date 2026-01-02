@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         Glitched Store - Eldorado Helper
+// @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.8.39
-// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll
-// @author       Glitched Store
+// @version      9.9.0
+// @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking
+// @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
 // @match        https://eldorado.gg/*
 // @match        https://*.talkjs.com/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.38
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.8.38
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.0
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.0
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.8.38';
+    const VERSION = '9.9.0';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -248,6 +248,9 @@
         currentIndex: 0,
         completed: []
     };
+    
+    // v9.9: User's code prefix for offer generation
+    let userCodePrefix = GM_getValue('codePrefix', '');
     
     // ==================== КОНФИГУРАЦИЯ ====================
     let CONFIG = {
@@ -942,12 +945,12 @@
     
     // ==================== SLEEP MODE ====================
     
-    // v9.7: Extract offer code from element text (h5 title contains #GSXXXXXX)
+    // v9.9: Extract offer code from element text - universal pattern (#XXXXXX)
     function extractOfferCodeFromElement(item) {
         // Look for h5 title which contains the code
         const h5 = item.querySelector('h5');
         if (h5) {
-            const match = h5.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+            const match = h5.textContent?.match(/#[A-Z0-9]{4,12}\b/i);
             if (match) {
                 return match[0].toUpperCase().replace(/^#/, '');
             }
@@ -955,13 +958,13 @@
         // v9.8.2: Check tooltip (eld-tooltip) for sold orders page
         const tooltip = item.querySelector('eld-tooltip .tooltip-inner');
         if (tooltip) {
-            const match = tooltip.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+            const match = tooltip.textContent?.match(/#[A-Z0-9]{4,12}\b/i);
             if (match) {
                 return match[0].toUpperCase().replace(/^#/, '');
             }
         }
         // Fallback: search entire text
-        const match = item.textContent?.match(/#?GS[A-Z0-9]{5,8}/i);
+        const match = item.textContent?.match(/#[A-Z0-9]{4,12}\b/i);
         if (match) {
             return match[0].toUpperCase().replace(/^#/, '');
         }
@@ -2291,6 +2294,18 @@
                 <button class="btn-secondary" id="glitched-toggle-highlight">
                     ${CONFIG.highlightEnabled ? '🔴 Disable' : '🟢 Enable'} Highlighting
                 </button>
+                
+                <div class="settings-section" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #9ca3af;">Shop Name (for titles):</label>
+                    <input type="text" id="glitched-shop-name" placeholder="Your Shop Name" value="${getShopName()}" style="width: 100%; margin-bottom: 8px;">
+                    
+                    <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #9ca3af;">Code Prefix (2 letters):</label>
+                    <input type="text" id="glitched-code-prefix" placeholder="XX" maxlength="2" value="${userCodePrefix}" style="width: 60px; text-transform: uppercase;">
+                </div>
+                
+                <button class="btn-secondary" id="glitched-save-settings" style="margin-top: 10px;">
+                    💾 Save Settings
+                </button>
                 <button class="btn-secondary" id="glitched-logout">
                     Logout
                 </button>
@@ -2341,9 +2356,33 @@
                 GM_setValue('farmKey', '');
                 userOffers = [];
                 userOfferCodes.clear();
+                userCodePrefix = '';
+                GM_setValue('codePrefix', '');
                 highlightUserOffers();
                 showAuthPanel();
                 showNotification('Logged out', 'info');
+            };
+        }
+        
+        // v9.9: Save settings button
+        const saveSettingsBtn = panel.querySelector('#glitched-save-settings');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.onclick = () => {
+                const shopNameInput = panel.querySelector('#glitched-shop-name');
+                const codePrefixInput = panel.querySelector('#glitched-code-prefix');
+                
+                if (shopNameInput) {
+                    const shopName = shopNameInput.value.trim() || '👾Glitched Store👾';
+                    GM_setValue('shopName', shopName);
+                }
+                
+                if (codePrefixInput) {
+                    const prefix = codePrefixInput.value.trim().toUpperCase().substring(0, 2);
+                    userCodePrefix = prefix;
+                    GM_setValue('codePrefix', prefix);
+                }
+                
+                showNotification('✓ Settings saved!', 'success');
             };
         }
     }
@@ -2461,10 +2500,11 @@
     // v9.8.5: Fetch data with parallel requests
     async function fetchAndCacheOfferData(silent = false) {
         try {
-            // Parallel fetch both endpoints for faster loading
-            const [syncResponse, offersResponse] = await Promise.all([
+            // v9.9: Parallel fetch all endpoints including registered codes
+            const [syncResponse, offersResponse, codesResponse] = await Promise.all([
                 fetch(`${API_BASE}/sync?key=${encodeURIComponent(CONFIG.farmKey)}`),
-                fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null)
+                fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null),
+                fetch(`${API_BASE}/offer-codes?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null)
             ]);
             
             if (!syncResponse.ok) {
@@ -2523,6 +2563,32 @@
                     log(`Loaded ${apiOffers.length} offers from API`);
                 } catch (offersErr) {
                     logError('Could not parse offers:', offersErr);
+                }
+            }
+            
+            // v9.9: Process registered codes from offer-codes API and extract user prefix
+            if (codesResponse && codesResponse.ok) {
+                try {
+                    const codesData = await codesResponse.json();
+                    const registeredCodes = codesData.codes || [];
+                    
+                    for (const codeEntry of registeredCodes) {
+                        if (codeEntry.code) {
+                            const code = codeEntry.code.toUpperCase().replace(/^#/, '');
+                            userOfferCodes.add(code);
+                            userOfferCodes.add('#' + code);
+                            
+                            // v9.9: Extract prefix from first registered code (first 2 chars)
+                            if (!userCodePrefix && code.length >= 2) {
+                                userCodePrefix = code.substring(0, 2);
+                                GM_setValue('codePrefix', userCodePrefix);
+                                log(`Set code prefix to: ${userCodePrefix}`);
+                            }
+                        }
+                    }
+                    log(`Loaded ${registeredCodes.length} registered codes from offer-codes API`);
+                } catch (codesErr) {
+                    logError('Could not parse registered codes:', codesErr);
                 }
             }
             
@@ -2652,13 +2718,13 @@
         return text.replace(/\s+/g, ' ').trim().toUpperCase();
     }
     
-    // Проверяем наличие уникального кода оффера (#GSXXXXXX) в тексте
+    // Проверяем наличие уникального кода оффера (#XXXXXXXX) в тексте - v9.9 Universal codes
     function containsOfferCode(text) {
         if (!text) return false;
         const normalizedText = normalizeText(text);
         
-        // Ищем паттерн #GS + 6-8 символов (буквы/цифры)
-        const codeMatches = normalizedText.match(/#?GS[A-Z0-9]{5,8}/g);
+        // v9.9: Универсальный паттерн - любой код #XXXXXX (4-12 буквенно-цифровых символов)
+        const codeMatches = normalizedText.match(/#[A-Z0-9]{4,12}\b/g);
         if (!codeMatches) return false;
         
         for (const match of codeMatches) {
@@ -3387,19 +3453,43 @@
     }
 
     // ==================== ГЕНЕРАТОРЫ ====================
+    // v9.9: Universal code generation - uses user's prefix or defaults to random
     function generateOfferId() {
         const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
         let code = '';
-        for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
-        return `GS${code}`;
+        
+        // Use user's prefix if set, otherwise generate 2 random characters
+        let prefix = userCodePrefix || '';
+        if (prefix.length < 2) {
+            // Generate random prefix if none set
+            for (let i = prefix.length; i < 2; i++) {
+                prefix += chars[Math.floor(Math.random() * chars.length)];
+            }
+        }
+        // Take only first 2 characters of prefix
+        prefix = prefix.substring(0, 2).toUpperCase();
+        
+        // Generate 6 random characters
+        for (let i = 0; i < 6; i++) {
+            code += chars[Math.floor(Math.random() * chars.length)];
+        }
+        
+        return `${prefix}${code}`;
+    }
+    
+    // v9.9: Get shop name from config or default
+    function getShopName() {
+        return GM_getValue('shopName', '👾Glitched Store👾');
     }
 
     function generateOfferTitle(brainrotName, income, offerId) {
-        const base = `🔥${brainrotName} l ${income || '0/s'}🔥 Fast Delivery🚚 👾Glitched Store👾`;
+        const shopName = getShopName();
+        const base = `🔥${brainrotName} l ${income || '0/s'}🔥 Fast Delivery🚚 ${shopName}`;
         return (base + ` #${offerId}`).substring(0, 160);
     }
 
     function generateOfferDescription(offerId) {
+        const shopName = getShopName();
         return `📦 How We Delivery
 1️⃣ After purchase, send your Roblox username in live chat.
 2️⃣ I will send you a private sever's link to join or direct add if cant join by link.
@@ -3410,12 +3500,12 @@ NOTE: please read before buy
 💥 Every Private sever we sent to you is 100% New Generated which mean ONLY you and me know that link. If I saw any other person than you (@username given) and me join the room → WE WILL CANCEL THE ORDER IMMEDIATELY.
 💥 If you cant join link. We will add you by your @username given by you. WE NOT ACCEPT ADDING FROM YOUR SIDE so please dont buy if you can't give us your @username to add.
 
-❤️ Why Choosing Us - 👾Glitched Store👾
+❤️ Why Choosing Us - ${shopName}
 1️⃣ Fast Delivery and Respond
 2️⃣ All brainrot/item are clean. (No dupe/exploit)
 3️⃣ Safe for information
 
-Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
+Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
 
 #${offerId}`;
     }
@@ -3657,9 +3747,12 @@ Thanks for choosing and working with 👾Glitched Store👾! Cheers 🎁🎁
             log('Step 5: Brainrot -> ' + name);
             
             // Маппинг исправлений опечаток на Eldorado
+            // Если брейнрота нет в списке Eldorado - ставим "Other"
             const brainrotNameFixes = {
                 'chimnino': 'chimino',  // Опечатка на Eldorado
-                'Chimnino': 'Chimino'
+                'Chimnino': 'Chimino',
+                'Los Nooo My Hotspotsitos': 'Other',  // Нет в списке Eldorado
+                'los nooo my hotspotsitos': 'Other'   // lowercase версия
             };
             let searchName = brainrotNameFixes[name] || name;
             log('Searching for brainrot: ' + searchName);

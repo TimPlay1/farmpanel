@@ -3,11 +3,15 @@ const https = require('https');
 
 /**
  * API для отслеживания офферов на Eldorado
- * Офферы идентифицируются по уникальному коду #GS-XXX в описании
+ * 
+ * УНИВЕРСАЛЬНАЯ СИСТЕМА v2.0:
+ * - Офферы идентифицируются по уникальным кодам в тайтлах (#XXXXXXXX)
+ * - Коды регистрируются в offer_codes и автоматически привязываются к farmKey
+ * - Универсальный сканер находит все офферы и распределяет по пользователям
  * 
  * При GET запросе:
- * 1. Запускает быстрый фоновый сканер Glitched Store (не блокирует ответ)
- * 2. Возвращает офферы с recommendedPrice из global_brainrot_prices
+ * 1. Запускает универсальный фоновый сканер (не блокирует ответ)
+ * 2. Возвращает офферы пользователя с recommendedPrice из price_cache
  */
 
 // Кэш последнего сканирования
@@ -15,7 +19,7 @@ let lastBackgroundScanTime = 0;
 const BACKGROUND_SCAN_INTERVAL = 60000; // 60 секунд между фоновыми сканами
 
 /**
- * Запуск фонового сканирования (не блокирует)
+ * Запуск универсального фонового сканирования (не блокирует)
  */
 function triggerBackgroundScan() {
     const now = Date.now();
@@ -24,12 +28,12 @@ function triggerBackgroundScan() {
     }
     lastBackgroundScanTime = now;
     
-    // Запускаем сканер асинхронно (не ждём результата)
+    // Запускаем универсальный сканер асинхронно
     const options = {
         hostname: 'farmpanel.vercel.app',
-        path: '/api/scan-glitched',
+        path: '/api/universal-scan',
         method: 'GET',
-        timeout: 25000
+        timeout: 60000 // Больший таймаут для полного скана
     };
     
     const req = https.request(options, (res) => {
@@ -38,7 +42,7 @@ function triggerBackgroundScan() {
         res.on('end', () => {
             try {
                 const result = JSON.parse(data);
-                console.log('Background scan completed:', result.updated, 'updated');
+                console.log(`Universal scan completed: ${result.matched || 0} matched, ${result.totalScanned || 0} scanned`);
             } catch (e) {}
         });
     });

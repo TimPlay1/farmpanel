@@ -5853,6 +5853,9 @@ function filterAndRenderOffers() {
     // Status filter
     if (offersState.statusFilter === 'active') {
         filtered = filtered.filter(o => o.status === 'active');
+    } else if (offersState.statusFilter === 'pending') {
+        // Pending = registered but not yet found on Eldorado
+        filtered = filtered.filter(o => o.status === 'pending' || !o.eldoradoOfferId);
     } else if (offersState.statusFilter === 'paused') {
         filtered = filtered.filter(o => o.status === 'paused');
     } else if (offersState.statusFilter === 'needs-update') {
@@ -5907,7 +5910,6 @@ function filterAndRenderOffers() {
     renderOffers();
     updateOffersStats();
 }
-
 // Calculate price difference percentage
 // Shows how much the price needs to change: positive = can raise price, negative = need to lower
 function calculatePriceDiff(currentPrice, recommendedPrice) {
@@ -6003,21 +6005,23 @@ function renderOffers() {
         
         // v9.6: Show paused status
         const isPaused = offer.status === 'paused';
+        const isPending = offer.status === 'pending' || !offer.eldoradoOfferId;
         
         // v9.8.22: Check if offer was recently scanned (within 1 hour)
         const lastScannedAt = offer.lastScannedAt ? new Date(offer.lastScannedAt).getTime() : 0;
         const scanAgeMs = Date.now() - lastScannedAt;
-        const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000; // > 1 hour = unverified
+        const isUnverified = !isPaused && !isPending && scanAgeMs > 60 * 60 * 1000; // > 1 hour = unverified
         
-        let statusBadgeClass = isPaused ? 'paused' : (isUnverified ? 'unverified' : (needsUpdate ? 'needs-update' : 'active'));
-        // v9.7: Better paused icon using FontAwesome
-        let statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : 
+        let statusBadgeClass = isPending ? 'pending' : (isPaused ? 'paused' : (isUnverified ? 'unverified' : (needsUpdate ? 'needs-update' : 'active')));
+        // v9.7: Better status icons using FontAwesome
+        let statusBadgeText = isPending ? '<i class="fas fa-clock"></i> Pending' :
+                              (isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : 
                               (isUnverified ? '<i class="fas fa-question-circle"></i> Unverified' :
-                              (needsUpdate ? 'Needs Update' : 'Active'));
+                              (needsUpdate ? 'Needs Update' : 'Active')));
         
         // v9.8.24: Count brainrots in collection with same name AND income for paused offers
         let brainrotsCountBadge = '';
-        if (isPaused) {
+        if (isPaused || isPending) {
             const brainrotsCount = countBrainrotsWithSameNameAndIncome(offer.brainrotName, offer.income, offer.incomeRaw, offer.mutation);
             if (brainrotsCount > 0) {
                 brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
@@ -6052,10 +6056,12 @@ function renderOffers() {
             } else {
                 pausedInfo = `<div class="offer-paused-info urgent">Will be deleted soon</div>`;
             }
+        } else if (isPending) {
+            pausedInfo = `<div class="offer-paused-info pending-info">Add #${offer.offerId} to your Eldorado offer title</div>`;
         }
         
         return `
-        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''} ${offer.mutation ? 'has-mutation' : ''}" data-offer-id="${offer.offerId}" ${offer.mutation ? `style="border-color: ${getMutationColor(offer.mutation)}; box-shadow: 0 0 12px ${getMutationColor(offer.mutation)}40;"` : ''}>
+        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''} ${isPending ? 'pending' : ''} ${offer.mutation ? 'has-mutation' : ''}" data-offer-id="${offer.offerId}" ${offer.mutation ? `style="border-color: ${getMutationColor(offer.mutation)}; box-shadow: 0 0 12px ${getMutationColor(offer.mutation)}40;"` : ''}>
             ${brainrotsCountBadge}
             <div class="offer-card-checkbox">
                 <label class="checkbox-wrapper">
@@ -6737,8 +6743,147 @@ async function saveOffer(offerData) {
     }
 }
 
+// ============================================
+// UNIVERSAL CODE REGISTRATION SYSTEM
+// ============================================
+
+// Register a new offer code
+async function registerOfferCode(code, brainrotName, income) {
+    if (!state.currentKey) {
+        showNotification('❌ No farm key selected', 'error');
+        return null;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/offer-codes`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                farmKey: state.currentKey,
+                code: code || null, // null = auto-generate
+                brainrotName: brainrotName || null,
+                income: income || 0
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.error) {
+            showNotification(`❌ ${result.error}`, 'error');
+            return null;
+        }
+        
+        if (result.success) {
+            const action = result.created ? 'registered' : 'updated';
+            showNotification(`✅ Code #${result.code} ${action}`, 'success');
+            return result.code;
+        }
+    } catch (err) {
+        console.error('Error registering code:', err);
+        showNotification('❌ Failed to register code', 'error');
+    }
+    return null;
+}
+
+// Delete an offer code
+async function deleteOfferCode(code) {
+    if (!state.currentKey || !code) return false;
+    
+    try {
+        const response = await fetch(
+            `${API_BASE}/offer-codes?farmKey=${encodeURIComponent(state.currentKey)}&code=${encodeURIComponent(code)}`,
+            { method: 'DELETE' }
+        );
+        
+        const result = await response.json();
+        return result.success;
+    } catch (err) {
+        console.error('Error deleting code:', err);
+        return false;
+    }
+}
+
+// Load user's registered codes
+async function loadRegisteredCodes() {
+    if (!state.currentKey) return [];
+    
+    try {
+        const response = await fetch(`${API_BASE}/offer-codes?farmKey=${encodeURIComponent(state.currentKey)}`);
+        const result = await response.json();
+        return result.codes || [];
+    } catch (err) {
+        console.error('Error loading codes:', err);
+        return [];
+    }
+}
+
+// Setup register code form listeners
+function setupRegisterCodeListeners() {
+    // Toggle form visibility
+    const toggleBtn = document.getElementById('toggleRegisterCode');
+    const form = document.getElementById('registerCodeForm');
+    const header = document.querySelector('.register-code-header');
+    
+    if (header && toggleBtn && form) {
+        header.addEventListener('click', () => {
+            form.classList.toggle('hidden');
+            toggleBtn.classList.toggle('expanded');
+        });
+    }
+    
+    // Register button
+    const registerBtn = document.getElementById('registerCodeBtn');
+    if (registerBtn) {
+        registerBtn.addEventListener('click', async () => {
+            const codeInput = document.getElementById('newOfferCode');
+            const brainrotInput = document.getElementById('newOfferBrainrot');
+            const incomeInput = document.getElementById('newOfferIncome');
+            
+            const code = codeInput?.value.trim().toUpperCase().replace(/^#/, '') || null;
+            const brainrotName = brainrotInput?.value.trim() || null;
+            const income = parseFloat(incomeInput?.value) || 0;
+            
+            registerBtn.disabled = true;
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            const registeredCode = await registerOfferCode(code, brainrotName, income);
+            
+            if (registeredCode) {
+                // Clear form
+                if (codeInput) codeInput.value = '';
+                if (brainrotInput) brainrotInput.value = '';
+                if (incomeInput) incomeInput.value = '';
+                
+                // Refresh offers to show new code
+                await loadOffers(true);
+            }
+            
+            registerBtn.disabled = false;
+            registerBtn.innerHTML = '<i class="fas fa-plus"></i> Register';
+        });
+    }
+    
+    // Close info banner
+    const closeBannerBtn = document.getElementById('closeInfoBanner');
+    const banner = document.getElementById('offersInfoBanner');
+    if (closeBannerBtn && banner) {
+        closeBannerBtn.addEventListener('click', () => {
+            banner.classList.add('hidden');
+            localStorage.setItem('offers_banner_hidden', 'true');
+        });
+        
+        // Check if banner was previously hidden
+        if (localStorage.getItem('offers_banner_hidden') === 'true') {
+            banner.classList.add('hidden');
+        }
+    }
+}
+
 // Setup offers event listeners
 function setupOffersListeners() {
+    // Setup code registration listeners
+    setupRegisterCodeListeners();
+    
     // Search
     if (offerSearchEl) {
         offerSearchEl.addEventListener('input', (e) => {
@@ -6828,7 +6973,7 @@ function setupOffersListeners() {
     });
 }
 
-// Refresh offers from server (data already contains recommendedPrice from global cache)
+// Universal scan - scans ALL Eldorado offers and matches codes to users
 async function scanEldoradoOffers() {
     const scanBtn = document.getElementById('scanOffersBtn');
     const progressEl = document.getElementById('offersScanProgress');
@@ -6844,13 +6989,13 @@ async function scanEldoradoOffers() {
     
     const originalContent = scanBtn.innerHTML;
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
     
     // Show progress bar
     if (progressEl) {
         progressEl.classList.remove('hidden');
         if (progressFill) progressFill.style.width = '0%';
-        if (progressText) progressText.textContent = '0%';
+        if (progressText) progressText.textContent = 'Starting...';
     }
     
     const updateProgress = (percent, text) => {
@@ -6859,14 +7004,27 @@ async function scanEldoradoOffers() {
     };
     
     try {
-        updateProgress(30, 'Загрузка...');
+        updateProgress(10, 'Scanning Eldorado...');
         
-        // Just reload offers from server - they already include recommendedPrice
+        // Call universal scanner
+        const scanResponse = await fetch(`${API_BASE}/universal-scan?farmKey=${encodeURIComponent(state.currentKey)}&force=1`);
+        const scanResult = await scanResponse.json();
+        
+        updateProgress(60, 'Processing results...');
+        
+        if (scanResult.success) {
+            console.log(`Universal scan: ${scanResult.totalScanned} scanned, ${scanResult.matched} matched`);
+        }
+        
+        updateProgress(80, 'Loading offers...');
+        
+        // Reload offers from server
         await loadOffers(true);
         
-        updateProgress(100, 'Готово!');
+        updateProgress(100, 'Done!');
         
         const activeCount = offersState.offers.filter(o => o.status === 'active').length;
+        const pendingCount = offersState.offers.filter(o => o.status === 'pending').length;
         const pausedCount = offersState.offers.filter(o => o.status === 'paused').length;
         const total = offersState.offers.length;
         
@@ -6875,26 +7033,22 @@ async function scanEldoradoOffers() {
         let type = 'success';
         
         if (total === 0) {
-            message = 'ℹ️ Нет офферов';
+            message = `ℹ️ No registered codes found. Scanned ${scanResult.totalScanned || 0} offers.`;
             type = 'info';
-        } else if (activeCount > 0 && pausedCount > 0) {
-            message = `✅ ${activeCount} активных, ${pausedCount} на паузе`;
-        } else if (activeCount > 0) {
-            message = `✅ ${activeCount} офферов обновлено`;
-        } else if (pausedCount > 0) {
-            message = `⚠️ ${pausedCount} офферов на паузе`;
-            type = 'warning';
         } else {
-            message = `ℹ️ ${total} офферов загружено`;
-            type = 'info';
+            const parts = [];
+            if (activeCount > 0) parts.push(`${activeCount} active`);
+            if (pendingCount > 0) parts.push(`${pendingCount} pending`);
+            if (pausedCount > 0) parts.push(`${pausedCount} paused`);
+            message = `✅ ${parts.join(', ')} (scanned ${scanResult.totalScanned || 0})`;
         }
         
         showNotification(message, type);
         
     } catch (err) {
-        console.error('Refresh error:', err);
-        updateProgress(0, 'Ошибка');
-        showNotification('❌ Ошибка загрузки: ' + err.message, 'error');
+        console.error('Scan error:', err);
+        updateProgress(0, 'Error');
+        showNotification('❌ Scan error: ' + err.message, 'error');
     } finally {
         scanBtn.disabled = false;
         scanBtn.innerHTML = originalContent;
