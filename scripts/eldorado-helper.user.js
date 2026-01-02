@@ -22,14 +22,14 @@
 // @connect      localhost
 // @connect      *
 // @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.0
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.0
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.9.2
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.9.0';
+    const VERSION = '9.9.2';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -2335,6 +2335,9 @@
             showNotification('Connecting...', 'info');
             await loadUserOffers();
             
+            // v9.9.2: Load shop name from API after connecting
+            await loadShopNameFromAPI();
+            
             // Обновляем панель
             showAuthPanel();
         };
@@ -3477,12 +3480,38 @@
         return `${prefix}${code}`;
     }
     
-    // v9.9: Get shop name from localStorage (synced from panel) or GM storage
+    // v9.9.2: Shop name cache
+    let cachedShopName = null;
+    let shopNameLoadedForKey = null;
+    
+    // v9.9.2: Load shop name from API
+    async function loadShopNameFromAPI() {
+        if (!CONFIG.farmKey) return;
+        
+        // Skip if already loaded for this farmKey
+        if (shopNameLoadedForKey === CONFIG.farmKey && cachedShopName) return;
+        
+        try {
+            const response = await fetch(`${API_BASE}/shop-name?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.shopName) {
+                    cachedShopName = data.shopName;
+                    shopNameLoadedForKey = CONFIG.farmKey;
+                    GM_setValue('shopName', data.shopName);
+                    console.log('[Glitched] Shop name loaded from API:', cachedShopName);
+                }
+            }
+        } catch (e) {
+            console.warn('[Glitched] Failed to load shop name from API:', e);
+        }
+    }
+    
+    // v9.9.2: Get shop name - now uses cached value from API
     function getShopName() {
-        // Priority: localStorage (set by panel) > GM_getValue > default
-        const fromLocalStorage = localStorage.getItem('glitched_shop_name');
-        if (fromLocalStorage) {
-            return fromLocalStorage;
+        // Priority: cachedShopName (from API) > GM_getValue > default
+        if (cachedShopName) {
+            return cachedShopName;
         }
         return GM_getValue('shopName', '👾Glitched Store👾');
     }
@@ -4694,6 +4723,11 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
     // ==================== ИНИЦИАЛИЗАЦИЯ ====================
     async function init() {
         logInfo(`Glitched Store v${VERSION} initialized`);
+        
+        // v9.9.2: Load shop name from API at startup
+        if (CONFIG.farmKey) {
+            loadShopNameFromAPI();
+        }
         
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');

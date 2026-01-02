@@ -3344,6 +3344,19 @@ body {
     max-width: 500px;
 }
 
+/* Shop Name Modal - higher z-index to appear on top of other modals */
+#shopNameModal {
+    z-index: 10000 !important;
+}
+
+#shopNameModal .modal-overlay {
+    z-index: 10000;
+}
+
+#shopNameModal .modal-content {
+    z-index: 10001;
+}
+
 .shop-name-builder-new {
     display: flex;
     flex-direction: column;
