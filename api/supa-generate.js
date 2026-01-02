@@ -14,7 +14,7 @@ try {
 // Supa API Configuration
 const SUPA_API_KEY = process.env.SUPA_API_KEY || 'dZddxo0zt0u1MHC8YXoUgzBu5tW5JuiM';
 const SUPA_API_BASE = 'https://api.supa.ru/public/v2';
-const DEFAULT_TEMPLATE_ID = 21223164; // v9.9.5: Updated default template
+const DEFAULT_TEMPLATE_ID = 21157229; // Default Supa template
 
 // Template object names
 const TEMPLATE_OBJECTS = {
