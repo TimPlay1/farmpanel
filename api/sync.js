@@ -198,13 +198,19 @@ module.exports = async (req, res) => {
         // GET с base64 данными (обход блокировки POST)
         if (req.method === 'GET' && (req.query.data || req.query.syncData)) {
             try {
-                const base64Data = req.query.data || req.query.syncData;
+                let base64Data = req.query.data || req.query.syncData;
+                // Конвертируем base64url в стандартный base64
+                base64Data = base64Data.replace(/-/g, '+').replace(/_/g, '/');
+                // Добавляем padding если нужно
+                while (base64Data.length % 4) {
+                    base64Data += '=';
+                }
                 const jsonString = Buffer.from(base64Data, 'base64').toString('utf8');
                 const parsed = JSON.parse(jsonString);
                 if (parsed.farmKey && parsed.accounts) {
                     syncData = parsed;
                     isSyncRequest = true;
-                    console.log('[SYNC] Received GET-based sync request (base64)');
+                    console.log('[SYNC] Received GET-based sync request (base64url), accounts:', parsed.accounts?.length || 0);
                 }
             } catch (e) {
                 console.error('[SYNC] Failed to parse base64 data:', e.message);
