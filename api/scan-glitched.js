@@ -2,9 +2,14 @@ const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
 /**
- * Универсальный сканер офферов v9.9.4
+ * Универсальный сканер офферов v10.3.0
  * Ищет офферы по уникальным кодам (#XXXXXX) напрямую на Eldorado
  * Поддерживает любые названия магазинов (не только Glitched Store)
+ * 
+ * v10.3.0 изменения:
+ * - Добавлен retry при ошибках API
+ * - Статус paused ставится только после 3 неудачных сканов (notFoundCount)
+ * - Ошибки API не влияют на статус оффера
  */
 
 const ELDORADO_GAME_ID = '259';
@@ -122,6 +127,7 @@ async function scanGlitchedStore(db) {
     let markedActive = 0;
     let markedPaused = 0;
     let foundOnEldorado = 0;
+    let skippedDueToError = 0;
     
     // Обрабатываем каждый оффер - ищем по коду на Eldorado
     for (const dbOffer of dbOffers) {
@@ -129,12 +135,13 @@ async function scanGlitchedStore(db) {
         if (!code || code.length < 6) continue;
         
         // Небольшая задержка между запросами к API
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 250));
         
         // Ищем на Eldorado по коду
-        const eldoradoOffer = await findOfferByCode(code);
+        const result = await findOfferByCode(code);
         
-        if (eldoradoOffer) {
+        // v10.3.0: Улучшенная обработка результатов
+        if (result.found) {
             foundOnEldorado++;
             
             // Найден на Eldorado - обновляем данные
@@ -143,12 +150,13 @@ async function scanGlitchedStore(db) {
                 {
                     $set: {
                         status: 'active',
-                        currentPrice: eldoradoOffer.price,
-                        income: eldoradoOffer.income || dbOffer.income,
-                        imageUrl: eldoradoOffer.imageUrl || dbOffer.imageUrl,
-                        eldoradoOfferId: eldoradoOffer.eldoradoId,
+                        currentPrice: result.price,
+                        income: result.income || dbOffer.income,
+                        imageUrl: result.imageUrl || dbOffer.imageUrl,
+                        eldoradoOfferId: result.eldoradoId,
                         lastScannedAt: now,
-                        updatedAt: now
+                        updatedAt: now,
+                        notFoundCount: 0 // Сбрасываем счётчик
                     }
                 }
             );
@@ -157,27 +165,59 @@ async function scanGlitchedStore(db) {
                 markedActive++;
                 console.log(`  ✅ Activated: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
             }
-        } else {
-            // Не найден на Eldorado - помечаем как paused
-            if (dbOffer.status === 'active') {
+        } else if (result.error) {
+            // Ошибка API (timeout, rate limit) - НЕ помечаем как paused
+            skippedDueToError++;
+            console.log(`  ⚠️ Skipped due to error: ${dbOffer.offerId} (${result.error})`);
+            // Обновляем только lastScannedAt
+            await offersCollection.updateOne(
+                { _id: dbOffer._id },
+                {
+                    $set: {
+                        lastScannedAt: now
+                    }
+                }
+            );
+        } else if (result.notFound) {
+            // Точно не найден - используем счётчик notFoundCount
+            // Помечаем как paused только после 3 неудачных сканов подряд
+            const notFoundCount = (dbOffer.notFoundCount || 0) + 1;
+            
+            if (notFoundCount >= 3) {
+                // 3+ раза не найден - помечаем как paused
+                if (dbOffer.status === 'active') {
+                    await offersCollection.updateOne(
+                        { _id: dbOffer._id },
+                        {
+                            $set: {
+                                status: 'paused',
+                                pausedAt: now,
+                                lastScannedAt: now,
+                                updatedAt: now,
+                                notFoundCount: notFoundCount
+                            }
+                        }
+                    );
+                    markedPaused++;
+                    console.log(`  ⏸️ Marked paused (not found ${notFoundCount}x): ${dbOffer.offerId} (${dbOffer.brainrotName})`);
+                }
+            } else {
+                // Меньше 3 раз - просто увеличиваем счётчик, статус не меняем
                 await offersCollection.updateOne(
                     { _id: dbOffer._id },
                     {
                         $set: {
-                            status: 'paused',
-                            pausedAt: now,
                             lastScannedAt: now,
-                            updatedAt: now
+                            notFoundCount: notFoundCount
                         }
                     }
                 );
-                markedPaused++;
-                console.log(`  ⏸️ Marked paused: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
+                console.log(`  ⚠️ Not found (${notFoundCount}/3): ${dbOffer.offerId} (${dbOffer.brainrotName})`);
             }
         }
     }
     
-    console.log(`✅ Scan complete: ${foundOnEldorado} found on Eldorado, ${updated} updated, ${markedActive} activated, ${markedPaused} paused`);
+    console.log(`✅ Scan complete: ${foundOnEldorado} found, ${updated} updated, ${markedActive} activated, ${markedPaused} paused, ${skippedDueToError} skipped (errors)`);
     
     return {
         eldoradoCount: foundOnEldorado,
@@ -185,46 +225,73 @@ async function scanGlitchedStore(db) {
         updated,
         markedActive,
         markedPaused,
+        skippedDueToError,
         timestamp: now.toISOString()
     };
 }
 
 /**
  * Ищет оффер на Eldorado по коду #XXXXXX
+ * v10.3.0: Добавлен retry и улучшенная обработка ошибок
  */
-async function findOfferByCode(code) {
+async function findOfferByCode(code, retries = 2) {
     const normalizedCode = code.toUpperCase();
     
-    // Поиск по #CODE напрямую через searchQuery
-    const response = await fetchEldoradoOffers(`#${normalizedCode}`, 1, 20);
-    
-    if (response.error || !response.results?.length) {
-        return null;
-    }
-    
-    // Ищем оффер где код совпадает
-    for (const item of response.results) {
-        const offer = item.offer || item;
-        const title = (offer.offerTitle || '').toUpperCase();
-        const description = (offer.offerDescription || '').toUpperCase();
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        // Поиск по #CODE напрямую через searchQuery
+        const response = await fetchEldoradoOffers(`#${normalizedCode}`, 1, 20);
         
-        // Проверяем что код есть в title или description
-        if (title.includes(`#${normalizedCode}`) || description.includes(`#${normalizedCode}`)) {
-            const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+        // Если ошибка (timeout, rate limit) - retry
+        if (response.error) {
+            console.log(`   ⚠️ Search error for #${normalizedCode} (attempt ${attempt}/${retries}): ${response.error}`);
+            if (attempt < retries) {
+                await new Promise(r => setTimeout(r, 500 * attempt)); // Увеличивающаяся задержка
+                continue;
+            }
+            return { notFound: false, error: response.error }; // Не можем точно сказать - не найден или ошибка
+        }
+        
+        // Если пустые результаты
+        if (!response.results?.length) {
+            // Пробуем ещё раз (API Eldorado иногда возвращает пустой результат)
+            if (attempt < retries) {
+                await new Promise(r => setTimeout(r, 300));
+                continue;
+            }
+            return { notFound: true }; // Точно не найден после всех попыток
+        }
+        
+        // Ищем оффер где код совпадает
+        for (const item of response.results) {
+            const offer = item.offer || item;
+            const title = (offer.offerTitle || '').toUpperCase();
+            const description = (offer.offerDescription || '').toUpperCase();
             
-            return {
-                code: normalizedCode,
-                title: offer.offerTitle,
-                price: offer.pricePerUnitInUSD?.amount || 0,
-                income: parseIncomeFromTitle(offer.offerTitle),
-                imageUrl: buildImageUrl(imageName),
-                eldoradoId: offer.id,
-                sellerName: item.user?.username || null
-            };
+            // Проверяем что код есть в title или description
+            if (title.includes(`#${normalizedCode}`) || description.includes(`#${normalizedCode}`)) {
+                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                
+                return {
+                    found: true,
+                    code: normalizedCode,
+                    title: offer.offerTitle,
+                    price: offer.pricePerUnitInUSD?.amount || 0,
+                    income: parseIncomeFromTitle(offer.offerTitle),
+                    imageUrl: buildImageUrl(imageName),
+                    eldoradoId: offer.id,
+                    sellerName: item.user?.username || null
+                };
+            }
+        }
+        
+        // Нашли результаты но нет точного совпадения кода - retry
+        if (attempt < retries) {
+            await new Promise(r => setTimeout(r, 300));
+            continue;
         }
     }
     
-    return null;
+    return { notFound: true }; // Не найден после всех попыток
 }
 
 // Кэш последнего сканирования (чтобы не сканировать слишком часто)

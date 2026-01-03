@@ -2,6 +2,15 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
+// v10.3.0: Импортируем подключение к БД для загрузки пользователей панели
+let connectToDatabase = null;
+try {
+    connectToDatabase = require('./_lib/db').connectToDatabase;
+    console.log('Database connection module loaded');
+} catch (e) {
+    console.warn('Database connection not available:', e.message);
+}
+
 // Импортируем AI сканер для гибридного парсинга
 let aiScanner = null;
 try {
@@ -14,6 +23,91 @@ try {
 // Серверный кэш для цен (хранится в памяти)
 const priceCache = new Map();
 const CACHE_TTL = 2 * 60 * 1000; // 2 минуты - чтобы не долбить Eldorado API
+
+// v10.3.0: Кэш пользователей панели (shopNames и offer codes)
+let panelUsersCache = {
+    shopNames: new Set(),      // Все shopName пользователей панели (lowercase)
+    offerCodes: new Set(),     // Все активные коды офферов (#XXXXXX)
+    lastUpdate: 0
+};
+const PANEL_USERS_CACHE_TTL = 5 * 60 * 1000; // 5 минут
+
+/**
+ * v10.3.0: Загружает всех пользователей панели и их коды офферов
+ * Используется для фильтрации "своих" офферов при расчёте цен
+ */
+async function loadPanelUsersCache() {
+    // Проверяем актуальность кэша
+    if (Date.now() - panelUsersCache.lastUpdate < PANEL_USERS_CACHE_TTL) {
+        return panelUsersCache;
+    }
+    
+    if (!connectToDatabase) {
+        console.warn('Cannot load panel users: database not available');
+        return panelUsersCache;
+    }
+    
+    try {
+        const { db } = await connectToDatabase();
+        
+        // Загружаем все shopNames из farmers
+        const farmers = await db.collection('farmers').find(
+            { shopName: { $exists: true, $ne: null, $ne: '' } },
+            { projection: { shopName: 1 } }
+        ).toArray();
+        
+        const shopNames = new Set();
+        for (const farmer of farmers) {
+            if (farmer.shopName) {
+                // Добавляем как есть и lowercase версию
+                shopNames.add(farmer.shopName.toLowerCase());
+                // Также добавляем без эмодзи для надёжного сравнения
+                const textOnly = farmer.shopName.replace(/[^\w\s]/g, '').trim().toLowerCase();
+                if (textOnly.length >= 3) {
+                    shopNames.add(textOnly);
+                }
+            }
+        }
+        
+        // Загружаем все активные коды офферов
+        const codes = await db.collection('offer_codes').find(
+            { status: { $ne: 'deleted' } },
+            { projection: { code: 1 } }
+        ).toArray();
+        
+        const offerCodes = new Set();
+        for (const doc of codes) {
+            if (doc.code) {
+                offerCodes.add(doc.code.toUpperCase().replace(/^#/, ''));
+            }
+        }
+        
+        // Также загружаем коды из offers коллекции
+        const offers = await db.collection('offers').find(
+            { offerId: { $exists: true, $ne: null, $ne: '' } },
+            { projection: { offerId: 1 } }
+        ).toArray();
+        
+        for (const offer of offers) {
+            if (offer.offerId) {
+                offerCodes.add(offer.offerId.toUpperCase().replace(/^#/, ''));
+            }
+        }
+        
+        panelUsersCache = {
+            shopNames,
+            offerCodes,
+            lastUpdate: Date.now()
+        };
+        
+        console.log(`📋 Panel users cache updated: ${shopNames.size} shop names, ${offerCodes.size} offer codes`);
+        
+    } catch (e) {
+        console.error('Failed to load panel users cache:', e.message);
+    }
+    
+    return panelUsersCache;
+}
 
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
@@ -251,20 +345,51 @@ function calculateReduction(competitorPrice, lowerPrice = 0) {
 }
 
 /**
- * Проверяет является ли оффер от нашего магазина Glitched Store
- * По коду #GS или по названию магазина в title
+ * v10.3.0: Проверяет является ли оффер от пользователя нашей панели
+ * Проверяет по:
+ * 1. Кодам офферов (#XXXXXX) в title/description
+ * 2. Названиям магазинов (shopName) в title
+ * 3. Старые хардкодные проверки для совместимости
+ * 
+ * @param {Object} offer - оффер с Eldorado
+ * @param {Object} panelUsers - кэш пользователей панели {shopNames, offerCodes}
  */
-function isOurStoreOffer(offer) {
+function isOurStoreOffer(offer, panelUsers = null) {
     const title = (offer.offerTitle || '').toLowerCase();
-    const description = (offer.description || '').toLowerCase();
+    const description = (offer.offerDescription || offer.description || '').toLowerCase();
+    const fullText = title + ' ' + description;
     
-    // Проверяем по коду #GS (наш уникальный идентификатор)
+    // 1. Проверяем по кодам офферов панели (#XXXXXX)
+    // Ищем все коды в формате #XXXXXX (6-8 символов)
+    const codeMatches = fullText.match(/#([A-Z0-9]{6,8})/gi) || [];
+    if (panelUsers?.offerCodes && codeMatches.length > 0) {
+        for (const match of codeMatches) {
+            const code = match.replace('#', '').toUpperCase();
+            if (panelUsers.offerCodes.has(code)) {
+                console.log(`   🚫 Skipping panel user offer (code #${code})`);
+                return true;
+            }
+        }
+    }
+    
+    // 2. Проверяем по названиям магазинов пользователей панели
+    if (panelUsers?.shopNames) {
+        for (const shopName of panelUsers.shopNames) {
+            if (shopName.length >= 5 && title.includes(shopName)) {
+                console.log(`   🚫 Skipping panel user offer (shop: ${shopName})`);
+                return true;
+            }
+        }
+    }
+    
+    // 3. Старые хардкодные проверки для совместимости
+    // Проверяем по коду #GS (старый уникальный идентификатор)
     if (title.includes('#gs') || description.includes('#gs')) {
         return true;
     }
     
-    // Проверяем по названию магазина
-    if (title.includes('glitched store') || title.includes('glitched') && title.includes('store')) {
+    // Проверяем по названию магазина (старое)
+    if (title.includes('glitched store') || (title.includes('glitched') && title.includes('store'))) {
         return true;
     }
     
@@ -620,6 +745,7 @@ function generateSearchVariants(name) {
  * 5. Сортировка ascending (low to high по цене)
  * 6. Ищем upper (income >= наш) на ВСЕХ страницах
  * 7. Lower ищем на ТОЙ ЖЕ странице что и upper
+ * 8. v10.3.0: Пропускаем офферы других пользователей панели
  * 
  * @param {string} brainrotName - имя брейнрота
  * @param {number} targetIncome - целевой income
@@ -636,7 +762,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     // Проверяем динамически есть ли брейнрот в системе Eldorado
     const isInEldoradoList = await isBrainrotInEldorado(brainrotName);
     
-    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In Eldorado:', isInEldoradoList);
+    // v10.3.0: Загружаем кэш пользователей панели для фильтрации
+    const panelUsers = await loadPanelUsersCache();
+    const panelOffersSkipped = { count: 0 }; // Счётчик пропущенных офферов панели
+    
+    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In Eldorado:', isInEldoradoList, '| Panel users cached:', panelUsers.shopNames.size, 'shops,', panelUsers.offerCodes.size, 'codes');
     
     let upperOffer = null;
     let lowerOffer = null;
@@ -858,8 +988,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             // НЕ проверяем M/s атрибут - API уже отфильтровал по offerAttributeIdsCsv
             
-            // Пропускаем офферы от нашего магазина
-            if (isOurStoreOffer(offer)) continue;
+            // v10.3.0: Пропускаем офферы от пользователей нашей панели
+            if (isOurStoreOffer(offer, panelUsers)) {
+                panelOffersSkipped.count++;
+                continue;
+            }
             
             const offerId = offer.id;
             if (seenIds.has(offerId)) continue;
@@ -956,7 +1089,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const searchWasReliable = filterMode === 'name' || allPageOffers.length > 0;
     const usedNameFilter = filterMode === 'name' ? eldoradoName : (filterMode === 'other' ? 'Other' : null);
     
-    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| NextCompetitor:', nextCompetitor ? `${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable);
+    // v10.3.0: Добавляем информацию о пропущенных офферах панели
+    console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| NextCompetitor:', nextCompetitor ? `${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable, '| Panel offers skipped:', panelOffersSkipped.count);
     
     // AI RE-PARSING: для офферов где regex не справился - пробуем AI
     const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
