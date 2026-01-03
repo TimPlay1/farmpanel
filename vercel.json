@@ -17,27 +17,14 @@
       ]
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1",
-      "headers": {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, Accept, Origin"
-      }
+      "source": "/brainrots/:path*",
+      "destination": "/public/brainrots/:path*"
     },
     {
-      "src": "/brainrots/(.*)",
-      "dest": "/public/brainrots/$1"
-    },
-    {
-      "src": "/brainrots-mapping.json",
-      "dest": "/public/brainrots-mapping.json"
-    },
-    {
-      "src": "/((?!api/).*)",
-      "dest": "/public/$1"
+      "source": "/brainrots-mapping.json",
+      "destination": "/public/brainrots-mapping.json"
     }
   ]
 }
