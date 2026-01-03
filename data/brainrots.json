@@ -56,6 +56,11 @@
       "hasImage": true
     },
     {
+      "name": "Agarrini la Palini",
+      "image": "Agarrini_la_Palini.png",
+      "hasImage": true
+    },
+    {
       "name": "Agarrini La Palini",
       "image": "Agarrini_La_Palini.png",
       "hasImage": true
@@ -296,6 +301,11 @@
       "hasImage": true
     },
     {
+      "name": "Buho de Noelo",
+      "image": "Buho_de_Noelo.png",
+      "hasImage": true
+    },
+    {
       "name": "Buho de Nuelo",
       "image": "Buho_de_Nuelo.png",
       "hasImage": true
@@ -303,6 +313,11 @@
     {
       "name": "Bulbito Bandito Traktorito",
       "image": "Bulbito_Bandito_Traktorito.png",
+      "hasImage": true
+    },
+    {
+      "name": "Bunito Bunito Spinito",
+      "image": "Bunito_Bunito_Spinito.png",
       "hasImage": true
     },
     {
@@ -781,6 +796,11 @@
       "hasImage": true
     },
     {
+      "name": "Ginger Gerat",
+      "image": "Ginger_Gerat.png",
+      "hasImage": true
+    },
+    {
       "name": "Ginger Globo",
       "image": "Ginger_Globo.png",
       "hasImage": true
@@ -813,6 +833,11 @@
     {
       "name": "Gobblino Uniciclino",
       "image": "Gobblino_Uniciclino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Gold Elf",
+      "image": "Gold_Elf.png",
       "hasImage": true
     },
     {
@@ -923,6 +948,11 @@
     {
       "name": "John Pork 1",
       "image": "John_Pork_1.png",
+      "hasImage": true
+    },
+    {
+      "name": "Jolly Jolly Sahur",
+      "image": "Jolly_Jolly_Sahur.png",
       "hasImage": true
     },
     {
@@ -1168,6 +1198,11 @@
     {
       "name": "Los Jobcitos",
       "image": "Los_Jobcitos.png",
+      "hasImage": true
+    },
+    {
+      "name": "Los Jolly Combinasionas",
+      "image": "Los_Jolly_Combinasionas.png",
       "hasImage": true
     },
     {
@@ -1481,6 +1516,11 @@
       "hasImage": true
     },
     {
+      "name": "Nооbini Pizzanini",
+      "image": "Nооbini_Pizzanini.png",
+      "hasImage": true
+    },
+    {
       "name": "Naughty Naughty",
       "image": "Naughty_Naughty.png",
       "hasImage": true
@@ -1511,7 +1551,7 @@
       "hasImage": true
     },
     {
-      "name": "Noobini Pizzanini",
+      "name": "Noobini Pizzanini 1",
       "image": "Noobini_Pizzanini_1.png",
       "hasImage": true
     },
@@ -1686,6 +1726,16 @@
       "hasImage": true
     },
     {
+      "name": "Pluh Teh Valleh",
+      "image": "Pluh_Teh_Valleh.png",
+      "hasImage": true
+    },
+    {
+      "name": "Pluh Teh Valleh/La Aquatic Combonasion",
+      "image": "Pluh_Teh_Valleh_La_Aquatic_Combonasion.png",
+      "hasImage": true
+    },
+    {
       "name": "Pop Pop Sahur",
       "image": "Pop_Pop_Sahur.png",
       "hasImage": true
@@ -1723,6 +1773,11 @@
     {
       "name": "Quesadillo Vampiro",
       "image": "Quesadillo_Vampiro.png",
+      "hasImage": true
+    },
+    {
+      "name": "Quivioli Ameleonni",
+      "image": "Quivioli_Ameleonni.png",
       "hasImage": true
     },
     {
@@ -1773,6 +1828,11 @@
     {
       "name": "Robux Shop",
       "image": "Robux_Shop.png",
+      "hasImage": true
+    },
+    {
+      "name": "Rocco Disco",
+      "image": "Rocco_Disco.png",
       "hasImage": true
     },
     {
@@ -2076,6 +2136,11 @@
       "hasImage": true
     },
     {
+      "name": "To To To Sahur",
+      "image": "To_To_To_Sahur.png",
+      "hasImage": true
+    },
+    {
       "name": "Tob Tobi Tobi",
       "image": "Tob_Tobi_Tobi.png",
       "hasImage": true
@@ -2083,6 +2148,11 @@
     {
       "name": "Toiletto Focaccino",
       "image": "Toiletto_Focaccino.png",
+      "hasImage": true
+    },
+    {
+      "name": "Tootini Shrimpini",
+      "image": "Tootini_Shrimpini.png",
       "hasImage": true
     },
     {
@@ -2166,6 +2236,11 @@
       "hasImage": true
     },
     {
+      "name": "Tuff Toucan",
+      "image": "Tuff_Toucan.png",
+      "hasImage": true
+    },
+    {
       "name": "Tukanno Bananno",
       "image": "Tukanno_Bananno.png",
       "hasImage": true
@@ -2233,6 +2308,11 @@
     {
       "name": "Urubini Flamenguini",
       "image": "Urubini_Flamenguini.png",
+      "hasImage": true
+    },
+    {
+      "name": "Vampira Cappuccina",
+      "image": "Vampira_Cappuccina.png",
       "hasImage": true
     },
     {
