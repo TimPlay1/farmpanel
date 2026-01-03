@@ -151,15 +151,18 @@ async function fetchAvatarsForAccounts(accounts, existingAvatars = {}, avatarsCo
 }
 
 module.exports = async (req, res) => {
-    // CORS headers
+    // CORS headers - максимально разрешающие для Roblox эксплоитов
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, HEAD');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, User-Agent, Content-Length, X-Farm-Key, X-Sync-Data');
+    res.setHeader('Access-Control-Max-Age', '86400');
+    res.setHeader('Access-Control-Allow-Credentials', 'false');
     // Disable caching for real-time data
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     
+    // Handle preflight OPTIONS request
     if (req.method === 'OPTIONS') {
         return res.status(200).end();
     }
@@ -174,9 +177,60 @@ module.exports = async (req, res) => {
         const { db } = await connectToDatabase();
         const farmersCollection = db.collection('farmers');
 
-        // POST - Sync data from Lua script
-        if (req.method === 'POST') {
-            const { farmKey, accounts, timestamp } = req.body;
+        // ============ SYNC DATA EXTRACTION ============
+        // Поддерживаем несколько способов получения данных для sync:
+        // 1. POST с JSON body (стандартный)
+        // 2. PUT с JSON body (альтернатива POST)
+        // 3. GET с ?data=base64 параметром (обход блокировок POST)
+        // 4. GET с ?farmKey=X&syncData=base64 (ещё один вариант)
+        
+        let syncData = null;
+        let isSyncRequest = false;
+        
+        // POST или PUT с body
+        if ((req.method === 'POST' || req.method === 'PUT') && req.body) {
+            if (req.body.farmKey && req.body.accounts) {
+                syncData = req.body;
+                isSyncRequest = true;
+            }
+        }
+        
+        // GET с base64 данными (обход блокировки POST)
+        if (req.method === 'GET' && (req.query.data || req.query.syncData)) {
+            try {
+                const base64Data = req.query.data || req.query.syncData;
+                const jsonString = Buffer.from(base64Data, 'base64').toString('utf8');
+                const parsed = JSON.parse(jsonString);
+                if (parsed.farmKey && parsed.accounts) {
+                    syncData = parsed;
+                    isSyncRequest = true;
+                    console.log('[SYNC] Received GET-based sync request (base64)');
+                }
+            } catch (e) {
+                console.error('[SYNC] Failed to parse base64 data:', e.message);
+            }
+        }
+        
+        // GET с farmKey в header или query (для простого ping/update)
+        if (req.method === 'GET' && req.query.farmKey && req.headers['x-sync-data']) {
+            try {
+                const base64Data = req.headers['x-sync-data'];
+                const jsonString = Buffer.from(base64Data, 'base64').toString('utf8');
+                const parsed = JSON.parse(jsonString);
+                parsed.farmKey = req.query.farmKey;
+                if (parsed.accounts) {
+                    syncData = parsed;
+                    isSyncRequest = true;
+                    console.log('[SYNC] Received header-based sync request');
+                }
+            } catch (e) {
+                console.error('[SYNC] Failed to parse header data:', e.message);
+            }
+        }
+
+        // ============ PROCESS SYNC REQUEST ============
+        if (isSyncRequest && syncData) {
+            const { farmKey, accounts, timestamp } = syncData;
             
             if (!farmKey || !accounts) {
                 return res.status(400).json({ error: 'Missing farmKey or accounts' });
@@ -348,16 +402,17 @@ module.exports = async (req, res) => {
             return res.status(200).json({ 
                 success: true, 
                 username: farmer.username,
-                avatar: farmer.avatar
+                avatar: farmer.avatar,
+                method: req.method // Для отладки - показываем каким методом пришёл запрос
             });
         }
 
-        // GET - Get farmer data by key
-        if (req.method === 'GET') {
+        // GET - Get farmer data by key (только если НЕ sync запрос)
+        if (req.method === 'GET' && !isSyncRequest) {
             const { key } = req.query;
             
             if (!key) {
-                return res.status(400).json({ error: 'Missing farm key' });
+                return res.status(400).json({ error: 'Farm key required' });
             }
 
             const farmer = await farmersCollection.findOne({ farmKey: key });
