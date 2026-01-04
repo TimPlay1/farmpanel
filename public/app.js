@@ -761,6 +761,8 @@ async function savePricesToServer() {
 
 /**
  * Загрузить кэш цен из localStorage
+ * v9.11.14: Загружаем ВСЕ цены (даже устаревшие) для мгновенного отображения
+ * Устаревшие цены будут обновлены в фоне
  */
 function loadPriceCacheFromStorage() {
     try {
@@ -776,16 +778,26 @@ function loadPriceCacheFromStorage() {
                 return;
             }
             
-            // Загружаем только не истёкшие записи
+            // v9.11.14: Загружаем ВСЕ записи для мгновенного отображения
+            // Устаревшие будут помечены и обновлены в фоне
+            let freshCount = 0;
+            let staleCount = 0;
             for (const [name, entry] of Object.entries(data.brainrotPrices || {})) {
-                if (entry.timestamp && now - entry.timestamp < PRICE_CACHE_TTL) {
+                if (entry.data && entry.timestamp) {
                     state.brainrotPrices[name] = entry.data;
-                    // Также сохраняем timestamp для проверки обновления
                     state.brainrotPrices[name]._timestamp = entry.timestamp;
+                    
+                    if (now - entry.timestamp < PRICE_CACHE_TTL) {
+                        freshCount++;
+                    } else {
+                        staleCount++;
+                        // Помечаем устаревшие для обновления в фоне
+                        state.brainrotPrices[name]._stale = true;
+                    }
                 }
             }
             
-            console.log(`Loaded ${Object.keys(state.brainrotPrices).length} prices from localStorage`);
+            console.log(`Loaded ${freshCount} fresh + ${staleCount} stale prices from localStorage`);
         }
         
         // Загружаем предыдущие цены для отображения % изменения
@@ -839,10 +851,13 @@ function savePriceCacheToStorage() {
 }
 
 /**
- * Проверить нужно ли обновить цену (старше 5 минут)
+ * Проверить нужно ли обновить цену (старше 3 минут)
+ * v9.11.14: Также проверяем флаг _stale для устаревших записей
  */
 function isPriceStale(priceData) {
     if (!priceData || !priceData._timestamp) return true;
+    // Если помечено как устаревшее - нужно обновить
+    if (priceData._stale) return true;
     return Date.now() - priceData._timestamp > PRICE_CACHE_TTL;
 }
 
@@ -1691,6 +1706,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                         updateUI();
                         renderFarmKeys();
+                        // v9.11.14: Перерисовываем коллекцию с новыми ценами
+                        if (collectionState.allBrainrots.length > 0) {
+                            renderCollection();
+                        }
                     }
                 }).catch(e => console.warn('Prices load failed:', e));
                 
