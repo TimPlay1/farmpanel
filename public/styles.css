@@ -2210,10 +2210,10 @@ body {
     /* No special styling for mutated cards - glow is on badge */
 }
 
-/* Has Offer Badge - Top Left Corner - shopping cart indicator */
+/* Has Offer Badge - Bottom Left Corner - shopping cart indicator */
 .brainrot-offer-badge {
     position: absolute;
-    top: 0.5rem;
+    bottom: 0.5rem;
     left: 0.5rem;
     width: 26px;
     height: 26px;
