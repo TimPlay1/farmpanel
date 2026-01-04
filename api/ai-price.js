@@ -141,6 +141,11 @@ async function forceAIPrice(brainrotName, ourIncome) {
         console.log(`🤖 Force AI parsing for ${brainrotName} @ ${ourIncome}M/s...`);
         rateLimit.recordRequest();
         
+        // Проверяем что aiScanner загружен
+        if (!aiScanner) {
+            throw new Error('AI Scanner module not loaded');
+        }
+        
         // Получаем офферы с Eldorado
         const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome);
         

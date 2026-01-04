@@ -107,8 +107,6 @@ async function connectToDatabase() {
         connectionPromise = null;
     }
 }
-    }, 3, 1000);
-}
 
 // Avatar icons - unique geometric patterns
 const AVATAR_ICONS = [
