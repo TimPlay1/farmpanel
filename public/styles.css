@@ -2349,6 +2349,137 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+/* v9.11.4: New current price row */
+.offer-current-price-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    gap: 0.5rem;
+}
+
+.offer-current-price-row .offer-price-label {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.offer-current-price-row .offer-price-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex: 1;
+}
+
+.offer-current-price-row .offer-diff-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 4px;
+}
+
+/* v9.11.4: Price variants for offers (similar to collection cards) */
+.offer-price-variants {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.offer-price-variant {
+    flex: 1;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all 0.2s ease;
+}
+
+.offer-price-variant.mutated {
+    border-color: var(--mutation-glow, rgba(255, 255, 255, 0.1));
+    box-shadow: 0 0 8px var(--mutation-glow, transparent);
+}
+
+.offer-variant-header {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 0.35rem;
+}
+
+.offer-variant-label {
+    font-size: 0.55rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.offer-variant-label.default {
+    background: rgba(100, 116, 139, 0.3);
+    color: #94a3b8;
+}
+
+.offer-variant-label.mutation {
+    font-size: 0.5rem;
+    box-shadow: 0 0 6px var(--glow-color, #888);
+}
+
+.offer-variant-price {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--accent-green);
+}
+
+.offer-variant-price.no-price {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.offer-variant-extra {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 0.25rem;
+    font-size: 0.65rem;
+    color: #60a5fa;
+}
+
+.offer-variant-extra i {
+    font-size: 0.55rem;
+}
+
+/* Inline additional prices for non-mutation offers */
+.offer-additional-prices-inline {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.offer-alt-inline {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.7rem;
+    padding: 2px 5px;
+    border-radius: 4px;
+}
+
+.offer-alt-inline.median {
+    color: #60a5fa;
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.offer-alt-inline.next {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+}
+
+.offer-alt-inline i {
+    font-size: 0.6rem;
+}
+
 .offer-alt-price {
     display: flex;
     align-items: center;
@@ -2456,6 +2587,12 @@ body {
 .brainrot-mutation-line {
     margin-top: 2px;
     margin-bottom: 2px;
+    min-height: 18px; /* v9.11.4: Fixed height for alignment */
+}
+
+/* v9.11.4: Placeholder for cards without mutation to maintain alignment */
+.brainrot-mutation-placeholder {
+    visibility: hidden;
 }
 
 .brainrot-mutation-badge-inline {
@@ -4305,12 +4442,13 @@ body {
 
 .offer-card-prices {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0.5rem 0.75rem;
     background: var(--bg-tertiary);
     border-radius: 8px;
     flex-shrink: 0; /* Don't shrink prices */
+    gap: 0.3rem;
 }
 
 /* Wrapper for bottom section to ensure alignment across cards */
@@ -4792,6 +4930,89 @@ body {
     color: var(--text-muted);
 }
 
+/* v9.11.4: Mutation badge in preview */
+.offer-preview-mutation {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+}
+
+/* v9.11.4: Variant selector in offer modal */
+.offer-variant-selector {
+    margin-bottom: 1rem;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.offer-variant-selector.hidden {
+    display: none;
+}
+
+.variant-selector-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.variant-selector-options {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.variant-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.6rem;
+    background: var(--bg-secondary);
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.variant-btn:hover {
+    background: var(--bg-primary);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+
+.variant-btn.active {
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.variant-btn.mutation.active {
+    border-color: var(--mutation-glow, var(--accent-primary));
+    box-shadow: 0 0 10px var(--mutation-glow, transparent);
+}
+
+.variant-btn-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+}
+
+.variant-btn.default .variant-btn-label {
+    background: rgba(100, 116, 139, 0.3);
+    color: #94a3b8;
+}
+
+.variant-btn-price {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--accent-green);
+}
+
 .price-options {
     display: flex;
     flex-direction: column;
@@ -4805,6 +5026,27 @@ body {
     padding: 0.75rem;
     background: var(--bg-tertiary);
     border-radius: 8px;
+}
+
+/* v9.11.4: Custom price option with current price hint */
+.custom-price-option {
+    flex-wrap: wrap;
+}
+
+.custom-price-wrapper-modal {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.current-price-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.current-price-hint strong {
+    color: var(--text-primary);
 }
 
 .input-group.compact {

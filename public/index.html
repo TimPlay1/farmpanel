@@ -630,6 +630,8 @@
             </div>
             <div class="modal-body">
                 <div class="offer-preview" id="offerPreview"></div>
+                <!-- v9.11.4: Mutation variant selector -->
+                <div id="offerVariantSelector" class="offer-variant-selector hidden"></div>
                 <div class="price-options">
                     <div class="price-option">
                         <label class="radio-wrapper">
@@ -661,15 +663,18 @@
                             </span>
                         </label>
                     </div>
-                    <div class="price-option">
+                    <div class="price-option custom-price-option">
                         <label class="radio-wrapper">
                             <input type="radio" name="priceType" value="custom">
                             <span class="radiomark"></span>
                             <span>Custom Price:</span>
                         </label>
-                        <div class="input-group compact inline">
-                            <span>$</span>
-                            <input type="number" step="0.01" min="0" id="customPriceInput" placeholder="0.00">
+                        <div class="custom-price-wrapper-modal">
+                            <div class="input-group compact inline">
+                                <span>$</span>
+                                <input type="number" step="0.01" min="0" id="customPriceInput" placeholder="0.00">
+                            </div>
+                            <span class="current-price-hint" id="currentPriceHint">(current: <strong id="currentPriceHintValue">$0.00</strong>)</span>
                         </div>
                     </div>
                 </div>

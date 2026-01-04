@@ -1,3 +1,4 @@
+// FarmerPanel App v9.11.4 - Mutation Price Variants in Offers
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -4338,7 +4339,7 @@ async function renderCollection() {
                         const mStyles = getMutationStyles(group.mutation);
                         const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
                         return `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(group.mutation)}</span></div>`;
-                    })() : ''}
+                    })() : '<div class="brainrot-mutation-line brainrot-mutation-placeholder"></div>'}
                     <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
                     <div class="brainrot-account" title="${accountsList}">
                         <i class="fas fa-user${group.quantity > 1 ? 's' : ''}"></i>
@@ -6437,28 +6438,59 @@ async function updateOffersRecommendedPrices() {
         if (offer.brainrotName && offer.income) {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
-            // v9.8.23: Use exact same key as collection - no offsets needed
-            // getPriceCacheKey already rounds to 10, so all similar incomes match
-            const priceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
-            const priceData = state.brainrotPrices[priceKey];
+            const hasMutation = cleanMutationText(offer.mutation);
             
-            if (priceData && priceData.suggestedPrice && priceData.suggestedPrice > 0) {
+            // v9.11.4: Get both default and mutation prices for mutated offers
+            const defaultPriceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome);
+            const defaultPriceData = state.brainrotPrices[defaultPriceKey];
+            
+            // Get mutation price if offer has mutation
+            let mutationPriceData = null;
+            if (hasMutation) {
+                const mutationPriceKey = getPriceCacheKey(offer.brainrotName, normalizedIncome, offer.mutation);
+                mutationPriceData = state.brainrotPrices[mutationPriceKey];
+            }
+            
+            // Store default price data
+            if (defaultPriceData && defaultPriceData.suggestedPrice && defaultPriceData.suggestedPrice > 0) {
+                offer.defaultSuggestedPrice = defaultPriceData.suggestedPrice;
+                offer.defaultRecommendedPrice = getSelectedPrice(defaultPriceData);
+                offer.defaultMedianPrice = defaultPriceData.medianPrice || null;
+                offer.defaultNextCompetitorPrice = defaultPriceData.nextCompetitorPrice || null;
+                offer.defaultSource = defaultPriceData.source || defaultPriceData.parsingSource || 'regex';
+                offer.defaultNextRangeChecked = defaultPriceData.nextRangeChecked || false;
+            }
+            
+            // Store mutation price data
+            if (hasMutation && mutationPriceData && mutationPriceData.suggestedPrice && mutationPriceData.suggestedPrice > 0) {
+                offer.mutationSuggestedPrice = mutationPriceData.suggestedPrice;
+                offer.mutationRecommendedPrice = getSelectedPrice(mutationPriceData);
+                offer.mutationMedianPrice = mutationPriceData.medianPrice || null;
+                offer.mutationNextCompetitorPrice = mutationPriceData.nextCompetitorPrice || null;
+                offer.mutationSource = mutationPriceData.source || mutationPriceData.parsingSource || 'regex';
+                offer.mutationNextRangeChecked = mutationPriceData.nextRangeChecked || false;
+            }
+            
+            // Use mutation price as primary if available, otherwise default
+            const primaryPriceData = (hasMutation && mutationPriceData) ? mutationPriceData : defaultPriceData;
+            
+            if (primaryPriceData && primaryPriceData.suggestedPrice && primaryPriceData.suggestedPrice > 0) {
                 // Store previous recommended price before updating
-                if (offer.recommendedPrice && offer.recommendedPrice !== priceData.suggestedPrice) {
+                if (offer.recommendedPrice && offer.recommendedPrice !== primaryPriceData.suggestedPrice) {
                     offer.previousRecommendedPrice = offer.recommendedPrice;
                 }
                 // v9.9.7: Используем выбранный тип цены
-                offer.recommendedPrice = getSelectedPrice(priceData);
-                offer.suggestedPrice = priceData.suggestedPrice; // Сохраняем оригинал
+                offer.recommendedPrice = getSelectedPrice(primaryPriceData);
+                offer.suggestedPrice = primaryPriceData.suggestedPrice; // Сохраняем оригинал
                 // v9.9.0: Сохраняем дополнительные варианты цен
-                offer.medianPrice = priceData.medianPrice || null;
-                offer.medianData = priceData.medianData || null;
-                offer.nextCompetitorPrice = priceData.nextCompetitorPrice || null;
-                offer.nextCompetitorData = priceData.nextCompetitorData || null;
+                offer.medianPrice = primaryPriceData.medianPrice || null;
+                offer.medianData = primaryPriceData.medianData || null;
+                offer.nextCompetitorPrice = primaryPriceData.nextCompetitorPrice || null;
+                offer.nextCompetitorData = primaryPriceData.nextCompetitorData || null;
                 // v9.9.5: Флаг что цена из следующего диапазона
-                offer.nextRangeChecked = priceData.nextRangeChecked || false;
+                offer.nextRangeChecked = primaryPriceData.nextRangeChecked || false;
                 // v9.10.5: Source (ai/regex) для отображения бейджа
-                offer.source = priceData.source || priceData.parsingSource || 'regex';
+                offer.source = primaryPriceData.source || primaryPriceData.parsingSource || 'regex';
                 // Spike logic removed - centralized cache has verified prices
                 updated++;
             } else {
@@ -6741,15 +6773,44 @@ function renderOffers() {
                 </div>
             </div>
             <div class="offer-card-bottom">
+                <div class="offer-current-price-row">
+                    <div class="offer-price-label">Current Price</div>
+                    <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
+                    <div class="offer-diff-badge ${diffClass}">${diffText}</div>
+                </div>
+                ${cleanMutationText(offer.mutation) ? `
+                <div class="offer-price-variants">
+                    <div class="offer-price-variant default" data-price="${offer.defaultRecommendedPrice || 0}">
+                        <div class="offer-variant-header">
+                            <span class="offer-variant-label default">DEFAULT</span>
+                            ${offer.defaultNextRangeChecked 
+                                ? (offer.defaultSource === 'ai' 
+                                    ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
+                                    : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                : (offer.defaultSource === 'ai' 
+                                    ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
+                                    : '')}
+                        </div>
+                        <div class="offer-variant-price ${offer.defaultRecommendedPrice > 0 ? '' : 'no-price'}">${offer.defaultRecommendedPrice > 0 ? '$' + offer.defaultRecommendedPrice.toFixed(2) : 'N/A'}</div>
+                        ${offer.defaultMedianPrice ? `<div class="offer-variant-extra"><i class="fas fa-chart-bar"></i>$${offer.defaultMedianPrice.toFixed(2)}</div>` : ''}
+                    </div>
+                    <div class="offer-price-variant mutated" data-price="${offer.mutationRecommendedPrice || 0}" style="--mutation-glow: ${getMutationStyles(offer.mutation).glowColor}40; --mutation-bg: ${getMutationStyles(offer.mutation).background};">
+                        <div class="offer-variant-header">
+                            <span class="offer-variant-label mutation" style="background: ${getMutationStyles(offer.mutation).background}; color: ${getMutationStyles(offer.mutation).textColor};">${cleanMutationText(offer.mutation)}</span>
+                            ${offer.mutationNextRangeChecked 
+                                ? (offer.mutationSource === 'ai' 
+                                    ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
+                                    : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                : (offer.mutationSource === 'ai' 
+                                    ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
+                                    : '')}
+                        </div>
+                        <div class="offer-variant-price ${offer.mutationRecommendedPrice > 0 ? '' : 'no-price'}">${offer.mutationRecommendedPrice > 0 ? '$' + offer.mutationRecommendedPrice.toFixed(2) : 'N/A'}</div>
+                        ${offer.mutationMedianPrice ? `<div class="offer-variant-extra"><i class="fas fa-chart-bar"></i>$${offer.mutationMedianPrice.toFixed(2)}</div>` : ''}
+                    </div>
+                </div>
+                ` : `
                 <div class="offer-card-prices">
-                    <div class="offer-price-item">
-                        <div class="offer-price-label">Current</div>
-                        <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
-                    </div>
-                    <div class="offer-price-diff">
-                        <div class="offer-diff-badge ${diffClass}">${diffText}</div>
-                        ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
-                    </div>
                     <div class="offer-price-item">
                         <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked 
                             ? (offer.source === 'ai' 
@@ -6758,25 +6819,14 @@ function renderOffers() {
                             : ''}</div>
                         <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                     </div>
-                </div>
-                ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
-                <div class="offer-additional-prices">
-                    ${offer.medianPrice ? `
-                    <div class="offer-alt-price median" title="${offer.medianData ? 'Median of ' + offer.medianData.offersUsed + ' offers (page ' + offer.medianData.pageNumber + ')' : 'Median price'}">
-                        <i class="fas fa-chart-bar"></i>
-                        <span class="offer-alt-price-label">Median</span>
-                        <span class="offer-alt-price-value">$${offer.medianPrice.toFixed(2)}</span>
-                    </div>
-                    ` : ''}
-                    ${offer.nextCompetitorPrice ? `
-                    <div class="offer-alt-price next-comp" title="${offer.nextCompetitorData ? 'Next: ' + offer.nextCompetitorData.income + 'M/s @ $' + offer.nextCompetitorData.price?.toFixed(2) : 'Next competitor price'}">
-                        <i class="fas fa-arrow-up"></i>
-                        <span class="offer-alt-price-label">Next</span>
-                        <span class="offer-alt-price-value">$${offer.nextCompetitorPrice.toFixed(2)}</span>
+                    ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
+                    <div class="offer-additional-prices-inline">
+                        ${offer.medianPrice ? `<span class="offer-alt-inline median" title="Median"><i class="fas fa-chart-bar"></i>$${offer.medianPrice.toFixed(2)}</span>` : ''}
+                        ${offer.nextCompetitorPrice ? `<span class="offer-alt-inline next" title="Next Competitor"><i class="fas fa-arrow-up"></i>$${offer.nextCompetitorPrice.toFixed(2)}</span>` : ''}
                     </div>
                     ` : ''}
                 </div>
-                ` : ''}
+                `}
                 <div class="offer-card-actions">
                     <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
                         <i class="fas fa-edit"></i>
@@ -7052,59 +7102,140 @@ function openOfferPriceModal(offerId) {
     const previewEl = document.getElementById('offerPreview');
     const recommendedValueEl = document.getElementById('recommendedPriceValue');
     const customInputEl = document.getElementById('customPriceInput');
+    const hasMutation = cleanMutationText(offer.mutation);
+    
+    // v9.11.4: Setup mutation variant selector
+    const variantSelectorContainer = document.getElementById('offerVariantSelector');
+    if (variantSelectorContainer) {
+        if (hasMutation) {
+            const mStyles = getMutationStyles(offer.mutation);
+            variantSelectorContainer.innerHTML = `
+                <div class="variant-selector-label">Price Variant:</div>
+                <div class="variant-selector-options">
+                    <button class="variant-btn default active" data-variant="default">
+                        <span class="variant-btn-label">DEFAULT</span>
+                        <span class="variant-btn-price">$${(offer.defaultRecommendedPrice || 0).toFixed(2)}</span>
+                    </button>
+                    <button class="variant-btn mutation" data-variant="mutation" style="--mutation-bg: ${mStyles.background}; --mutation-color: ${mStyles.textColor}; --mutation-glow: ${mStyles.glowColor};">
+                        <span class="variant-btn-label" style="background: ${mStyles.background}; color: ${mStyles.textColor};">${cleanMutationText(offer.mutation)}</span>
+                        <span class="variant-btn-price">$${(offer.mutationRecommendedPrice || 0).toFixed(2)}</span>
+                    </button>
+                </div>
+            `;
+            variantSelectorContainer.classList.remove('hidden');
+            
+            // Add event listeners
+            variantSelectorContainer.querySelectorAll('.variant-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    variantSelectorContainer.querySelectorAll('.variant-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    updateOfferModalPrices(offer, btn.dataset.variant);
+                });
+            });
+        } else {
+            variantSelectorContainer.classList.add('hidden');
+            variantSelectorContainer.innerHTML = '';
+        }
+    }
+    
+    // Helper to update prices based on selected variant
+    function updateOfferModalPrices(offer, variant) {
+        const isMutation = variant === 'mutation';
+        const recPrice = isMutation ? (offer.mutationRecommendedPrice || 0) : (offer.defaultRecommendedPrice || offer.recommendedPrice || 0);
+        const medPrice = isMutation ? (offer.mutationMedianPrice || 0) : (offer.defaultMedianPrice || offer.medianPrice || 0);
+        const nextPrice = isMutation ? (offer.mutationNextCompetitorPrice || 0) : (offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0);
+        
+        if (recommendedValueEl) {
+            recommendedValueEl.textContent = `$${recPrice.toFixed(2)}`;
+        }
+        
+        const medianValueEl = document.getElementById('medianPriceValue');
+        const medianRadio = document.querySelector('input[name="priceType"][value="median"]');
+        if (medianValueEl && medianRadio) {
+            if (medPrice > 0) {
+                medianValueEl.textContent = `$${medPrice.toFixed(2)}`;
+                medianRadio.disabled = false;
+                medianRadio.closest('.price-option')?.classList.remove('disabled');
+            } else {
+                medianValueEl.textContent = 'N/A';
+                medianRadio.disabled = true;
+                medianRadio.closest('.price-option')?.classList.add('disabled');
+            }
+        }
+        
+        const nextCompValueEl = document.getElementById('nextCompetitorPriceValue');
+        const nextCompRadio = document.querySelector('input[name="priceType"][value="nextCompetitor"]');
+        if (nextCompValueEl && nextCompRadio) {
+            if (nextPrice > 0) {
+                nextCompValueEl.textContent = `$${nextPrice.toFixed(2)}`;
+                nextCompRadio.disabled = false;
+                nextCompRadio.closest('.price-option')?.classList.remove('disabled');
+            } else {
+                nextCompValueEl.textContent = 'N/A';
+                nextCompRadio.disabled = true;
+                nextCompRadio.closest('.price-option')?.classList.add('disabled');
+            }
+        }
+    }
     
     if (previewEl) {
         previewEl.innerHTML = `
             ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : ''}
             <div class="offer-preview-info">
                 <h4>${offer.brainrotName || 'Unknown'}</h4>
-                <p>${offer.income || '0/s'} • Current: $${(offer.currentPrice || 0).toFixed(2)}</p>
+                ${hasMutation ? `<span class="offer-preview-mutation" style="background: ${getMutationStyles(offer.mutation).background}; color: ${getMutationStyles(offer.mutation).textColor};">${cleanMutationText(offer.mutation)}</span>` : ''}
+                <p>${offer.incomeRaw || formatIncomeSec(offer.income)} • Current: $${(offer.currentPrice || 0).toFixed(2)}</p>
             </div>
         `;
     }
     
-    if (recommendedValueEl) {
-        recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
-    }
-    
-    // Populate current market price
-    const marketPriceValueEl = document.getElementById('marketPriceValue');
-    if (marketPriceValueEl) {
-        marketPriceValueEl.textContent = `$${(offer.currentPrice || 0).toFixed(2)}`;
-    }
-    
-    // Populate median price
-    const medianValueEl = document.getElementById('medianPriceValue');
-    const medianRadio = document.querySelector('input[name="priceType"][value="median"]');
-    if (medianValueEl && medianRadio) {
-        if (offer.medianPrice && offer.medianPrice > 0) {
-            medianValueEl.textContent = `$${offer.medianPrice.toFixed(2)}`;
-            medianRadio.disabled = false;
-            medianRadio.closest('.price-option')?.classList.remove('disabled');
-        } else {
-            medianValueEl.textContent = 'N/A';
-            medianRadio.disabled = true;
-            medianRadio.closest('.price-option')?.classList.add('disabled');
+    // Set initial prices based on mutation status
+    if (hasMutation) {
+        updateOfferModalPrices(offer, 'default');
+    } else {
+        if (recommendedValueEl) {
+            recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
         }
-    }
-    
-    // Populate next competitor price
-    const nextCompValueEl = document.getElementById('nextCompetitorPriceValue');
-    const nextCompRadio = document.querySelector('input[name="priceType"][value="nextCompetitor"]');
-    if (nextCompValueEl && nextCompRadio) {
-        if (offer.nextCompetitorPrice && offer.nextCompetitorPrice > 0) {
-            nextCompValueEl.textContent = `$${offer.nextCompetitorPrice.toFixed(2)}`;
-            nextCompRadio.disabled = false;
-            nextCompRadio.closest('.price-option')?.classList.remove('disabled');
-        } else {
-            nextCompValueEl.textContent = 'N/A';
-            nextCompRadio.disabled = true;
-            nextCompRadio.closest('.price-option')?.classList.add('disabled');
+        
+        // Populate median price
+        const medianValueEl = document.getElementById('medianPriceValue');
+        const medianRadio = document.querySelector('input[name="priceType"][value="median"]');
+        if (medianValueEl && medianRadio) {
+            if (offer.medianPrice && offer.medianPrice > 0) {
+                medianValueEl.textContent = `$${offer.medianPrice.toFixed(2)}`;
+                medianRadio.disabled = false;
+                medianRadio.closest('.price-option')?.classList.remove('disabled');
+            } else {
+                medianValueEl.textContent = 'N/A';
+                medianRadio.disabled = true;
+                medianRadio.closest('.price-option')?.classList.add('disabled');
+            }
+        }
+        
+        // Populate next competitor price
+        const nextCompValueEl = document.getElementById('nextCompetitorPriceValue');
+        const nextCompRadio = document.querySelector('input[name="priceType"][value="nextCompetitor"]');
+        if (nextCompValueEl && nextCompRadio) {
+            if (offer.nextCompetitorPrice && offer.nextCompetitorPrice > 0) {
+                nextCompValueEl.textContent = `$${offer.nextCompetitorPrice.toFixed(2)}`;
+                nextCompRadio.disabled = false;
+                nextCompRadio.closest('.price-option')?.classList.remove('disabled');
+            } else {
+                nextCompValueEl.textContent = 'N/A';
+                nextCompRadio.disabled = true;
+                nextCompRadio.closest('.price-option')?.classList.add('disabled');
+            }
         }
     }
     
     if (customInputEl) {
         customInputEl.value = offer.currentPrice || '';
+    }
+    
+    // v9.11.4: Show current price hint
+    const currentPriceHintEl = document.getElementById('currentPriceHintValue');
+    if (currentPriceHintEl) {
+        currentPriceHintEl.textContent = `$${(offer.currentPrice || 0).toFixed(2)}`;
     }
     
     // Reset radio to recommended
@@ -7257,23 +7388,34 @@ async function confirmOfferPriceAdjustment() {
     if (!offer) return;
     
     const priceType = document.querySelector('input[name="priceType"]:checked')?.value;
+    
+    // v9.11.4: Get selected variant (default/mutation)
+    const activeVariantBtn = document.querySelector('#offerVariantSelector .variant-btn.active');
+    const selectedVariant = activeVariantBtn?.dataset.variant || 'default';
+    const isMutationVariant = selectedVariant === 'mutation';
+    
+    // Get prices based on selected variant
+    const recPrice = isMutationVariant ? (offer.mutationRecommendedPrice || offer.recommendedPrice) : (offer.defaultRecommendedPrice || offer.recommendedPrice);
+    const medPrice = isMutationVariant ? (offer.mutationMedianPrice || offer.medianPrice) : (offer.defaultMedianPrice || offer.medianPrice);
+    const nextPrice = isMutationVariant ? (offer.mutationNextCompetitorPrice || offer.nextCompetitorPrice) : (offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice);
+    
     let newPrice;
     
     switch (priceType) {
         case 'recommended':
-            newPrice = offer.recommendedPrice;
+            newPrice = recPrice;
             break;
         case 'median':
-            newPrice = offer.medianPrice;
+            newPrice = medPrice;
             break;
         case 'nextCompetitor':
-            newPrice = offer.nextCompetitorPrice;
+            newPrice = nextPrice;
             break;
         case 'custom':
             newPrice = parseFloat(document.getElementById('customPriceInput')?.value);
             break;
         default:
-            newPrice = offer.recommendedPrice;
+            newPrice = recPrice;
     }
     
     if (!newPrice || newPrice <= 0) {
