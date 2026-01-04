@@ -2692,12 +2692,15 @@ body {
 .brainrot-mutation-line {
     margin-top: 2px;
     margin-bottom: 2px;
-    min-height: 18px; /* v9.11.4: Fixed height for alignment */
+    min-height: 20px; /* v9.11.17: Increased for better alignment */
+    display: flex;
+    align-items: center;
 }
 
-/* v9.11.4: Placeholder for cards without mutation to maintain alignment */
+/* v9.11.17: Placeholder for cards without mutation to maintain alignment */
 .brainrot-mutation-placeholder {
-    visibility: hidden;
+    display: block;
+    height: 20px; /* Same as mutation badge height */
 }
 
 .brainrot-mutation-badge-inline {
