@@ -118,18 +118,32 @@ module.exports = async (req, res) => {
             const mutationsMapExact = new Map();  // name_income -> mutation
             const mutationsMapFallback = new Map(); // name -> mutation (последняя найденная)
             
-            // Для точного match нужно также учитывать incomeText (может быть числовой или текстовый)
-            const parseIncomeValue = (income, incomeText) => {
-                // Если есть числовой income - используем его
-                if (typeof income === 'number' && income > 0) return income;
+            // Для точного match нужно конвертировать income в M/s и округлять
+            // В farmers income хранится как полное число (1012500000 = 1.0B/s = 1012.5M/s)
+            // В offers income хранится как M/s (236.2 = $236.2M/s)
+            const parseIncomeToMs = (income, incomeText) => {
+                // Если есть числовой income - это может быть полное число или M/s
+                if (typeof income === 'number' && income > 0) {
+                    // Если income > 10000, это полное число - конвертируем в M/s
+                    if (income > 10000) {
+                        return income / 1000000; // Конвертируем в M/s
+                    }
+                    // Иначе уже в M/s
+                    return income;
+                }
                 if (typeof income === 'string') {
                     const parsed = parseFloat(income);
-                    if (!isNaN(parsed) && parsed > 0) return parsed;
+                    if (!isNaN(parsed) && parsed > 0) {
+                        if (parsed > 10000) return parsed / 1000000;
+                        return parsed;
+                    }
                 }
-                // Парсим из incomeText (формат "$247.5M/s" или "247.5M/s")
+                // Парсим из incomeText (формат "$247.5M/s" или "$1.0B/s")
                 if (incomeText) {
-                    const match = incomeText.match(/\$?(\d+\.?\d*)\s*[MB]/i);
-                    if (match) return parseFloat(match[1]);
+                    const bMatch = incomeText.match(/\$?(\d+\.?\d*)\s*B/i);
+                    if (bMatch) return parseFloat(bMatch[1]) * 1000; // B -> M
+                    const mMatch = incomeText.match(/\$?(\d+\.?\d*)\s*M/i);
+                    if (mMatch) return parseFloat(mMatch[1]);
                 }
                 return null;
             };
@@ -143,10 +157,10 @@ module.exports = async (req, res) => {
                                 // Fallback - просто по имени (перезапишется если много)
                                 mutationsMapFallback.set(nameLower, b.mutation);
                                 
-                                // Точный ключ с income
-                                const incomeValue = parseIncomeValue(b.income, b.incomeText);
-                                if (incomeValue !== null) {
-                                    const roundedIncome = Math.floor(incomeValue / 10) * 10;
+                                // Точный ключ с income (конвертируем в M/s)
+                                const incomeMs = parseIncomeToMs(b.income, b.incomeText);
+                                if (incomeMs !== null) {
+                                    const roundedIncome = Math.floor(incomeMs / 10) * 10;
                                     const exactKey = `${nameLower}_${roundedIncome}`;
                                     mutationsMapExact.set(exactKey, b.mutation);
                                 }
@@ -196,16 +210,16 @@ module.exports = async (req, res) => {
                     const nameLower = offer.brainrotName.toLowerCase();
                     let mutation = null;
                     
-                    // Точный поиск по name+income - используем parseIncomeValue для оффера тоже
-                    const offerIncome = parseIncomeValue(offer.income, offer.incomeRaw);
-                    if (offerIncome !== null) {
-                        const roundedIncome = Math.floor(offerIncome / 10) * 10;
+                    // Точный поиск по name+income - конвертируем income в M/s
+                    const offerIncomeMs = parseIncomeToMs(offer.income, offer.incomeRaw);
+                    if (offerIncomeMs !== null) {
+                        const roundedIncome = Math.floor(offerIncomeMs / 10) * 10;
                         const exactKey = `${nameLower}_${roundedIncome}`;
                         mutation = mutationsMapExact.get(exactKey);
                         
                         // Debug для Los 67
                         if (nameLower.includes('los 67')) {
-                            console.log(`Los 67 lookup: offerIncome=${offerIncome}, rounded=${roundedIncome}, exactKey=${exactKey}, found=${mutation || 'none'}`);
+                            console.log(`Los 67 lookup: offerIncome=${offerIncomeMs}Ms, rounded=${roundedIncome}, exactKey=${exactKey}, found=${mutation || 'none'}`);
                             console.log(`  Available exact keys for los 67:`, [...mutationsMapExact.keys()].filter(k => k.includes('los 67')));
                         }
                     }
