@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.25 - Fix chart: update after history load, better retry logic
+// FarmerPanel App v9.11.26 - Fix chart loading: longer timeout, updateChart on success, force render
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -398,6 +398,8 @@ async function loadBalanceHistory() {
             if (data.history && data.history.length > 0) {
                 state.balanceHistory[state.currentKey] = data.history;
                 console.log(`✅ Loaded ${data.history.length} balance history records from server`);
+                // v9.11.26: Обновляем график сразу после загрузки данных
+                updateBalanceChart();
                 return;
             } else {
                 console.log('loadBalanceHistory: no history records on server');
@@ -1799,11 +1801,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 await delay(200);
                 
-                // 3. История баланса - v9.11.25: обновляем график после загрузки
-                await withTimeout(loadBalanceHistory(), 8000).then(() => {
-                    console.log('✅ Balance history loaded, updating chart...');
-                    updateBalanceChart();
-                }).catch(e => console.warn('Balance history:', e.message));
+                // 3. История баланса - v9.11.26: увеличен timeout, updateChart внутри loadBalanceHistory
+                await withTimeout(loadBalanceHistory(), 15000).catch(e => {
+                    console.warn('Balance history:', e.message);
+                    // v9.11.26: Пробуем обновить график даже при timeout (данные могли загрузиться)
+                    if (state.balanceHistory[state.currentKey]?.length > 1) {
+                        updateBalanceChart();
+                    }
+                });
                 
                 await delay(200);
                 
@@ -9256,21 +9261,28 @@ function _doUpdateBalanceChart(period) {
     // v9.11.25: Check if section is visible (parent may be hidden)
     const isVisible = chartSection && chartSection.offsetParent !== null;
     
+    // v9.11.26: Use getBoundingClientRect for accurate size detection
+    const rect = chartContainer.getBoundingClientRect();
+    const hasSize = rect.width > 0 && rect.height > 0;
+    
     // Check if canvas is properly sized - retry later if not ready yet (with limit)
-    if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
+    if (!hasSize) {
         if (chartRetryCount < MAX_CHART_RETRIES) {
             chartRetryCount++;
             isChartUpdating = false;
             // v9.11.25: Longer delay if section not visible (waiting for tab switch)
-            const delay = isVisible ? 100 : 300;
-            setTimeout(() => _doUpdateBalanceChart(period), delay);
+            const retryDelay = isVisible ? 100 : 300;
+            setTimeout(() => _doUpdateBalanceChart(period), retryDelay);
         } else {
-            console.warn('Chart container not ready after', MAX_CHART_RETRIES, 'retries, isVisible:', isVisible);
-            isChartUpdating = false;
-            // v9.11.24: Reset for next attempt
+            // v9.11.26: Force render anyway - Chart.js can handle it
+            console.warn('Chart container size issue, forcing render. rect:', rect.width, 'x', rect.height);
             chartRetryCount = 0;
+            // Don't return - try to render anyway
         }
-        return;
+        // Only return if we're still retrying
+        if (chartRetryCount > 0) {
+            return;
+        }
     }
     
     // Reset retry count on success
