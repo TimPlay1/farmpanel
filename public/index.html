@@ -16,22 +16,30 @@
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
     <!-- Preload критических ресурсов -->
     <link rel="preload" href="/brainrots-mapping.json" as="fetch" crossorigin>
-    <link rel="preload" href="styles.css?v=14" as="style">
+    <link rel="preload" href="styles.css?v=15" as="style">
     <link rel="preload" href="app.js" as="script">
     <!-- Стили -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <link rel="stylesheet" href="styles.css?v=14">
+    <link rel="stylesheet" href="styles.css?v=15">
     <!-- Inline critical loading styles -->
     <style>
+        :root {
+            --bg-primary: #0f0f14;
+            --bg-secondary: #16161d;
+            --accent-primary: #6366f1;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --border-color: #2a2a3a;
+        }
         .loading-screen {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, #0f0f14 0%, #1a1a24 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -45,26 +53,26 @@
         }
         .loading-logo {
             font-size: 3rem;
-            color: #6366f1;
+            color: var(--accent-primary);
             margin-bottom: 1.5rem;
             animation: pulse 1.5s ease-in-out infinite;
         }
         .loading-title {
             font-size: 1.5rem;
-            color: #ffffff;
+            color: var(--text-primary);
             margin-bottom: 0.5rem;
             font-weight: 600;
         }
         .loading-subtitle {
-            color: #a0a0b0;
+            color: var(--text-secondary);
             margin-bottom: 2rem;
             font-size: 0.9rem;
         }
         .loading-spinner {
             width: 40px;
             height: 40px;
-            border: 3px solid #2a2a3a;
-            border-top-color: #6366f1;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--accent-primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
@@ -76,13 +84,33 @@
             50% { transform: scale(1.1); opacity: 0.8; }
         }
     </style>
+    <!-- Apply saved theme BEFORE page renders to prevent flash -->
+    <script>
+        (function() {
+            const THEMES = {
+                dark: { bgPrimary: '#0f0f14', bgSecondary: '#16161d', accentPrimary: '#6366f1', textPrimary: '#ffffff', textSecondary: '#a0a0b0', borderColor: '#2a2a3a' },
+                light: { bgPrimary: '#f5f5f7', bgSecondary: '#ffffff', accentPrimary: '#6366f1', textPrimary: '#1a1a1a', textSecondary: '#4a4a4a', borderColor: '#d1d1d6' },
+                purple: { bgPrimary: '#1a1025', bgSecondary: '#231432', accentPrimary: '#a855f7', textPrimary: '#ffffff', textSecondary: '#c9b8db', borderColor: '#4a2d6e' },
+                green: { bgPrimary: '#0a1410', bgSecondary: '#0f1f18', accentPrimary: '#22c55e', textPrimary: '#ffffff', textSecondary: '#a8d4b8', borderColor: '#2a5040' }
+            };
+            const saved = localStorage.getItem('farmerPanel_theme');
+            const theme = THEMES[saved] || THEMES.dark;
+            const root = document.documentElement;
+            root.style.setProperty('--bg-primary', theme.bgPrimary);
+            root.style.setProperty('--bg-secondary', theme.bgSecondary);
+            root.style.setProperty('--accent-primary', theme.accentPrimary);
+            root.style.setProperty('--text-primary', theme.textPrimary);
+            root.style.setProperty('--text-secondary', theme.textSecondary);
+            root.style.setProperty('--border-color', theme.borderColor);
+        })();
+    </script>
 </head>
 <body>
     <!-- Loading Screen (shown immediately) -->
     <div id="loadingScreen" class="loading-screen">
         <i class="fas fa-seedling loading-logo"></i>
         <div class="loading-title">Farmer Panel</div>
-        <div class="loading-subtitle">Loading your farm data...</div>
+        <div class="loading-subtitle" data-i18n="loading_data">Loading your farm data...</div>
         <div class="loading-spinner"></div>
     </div>
 
@@ -92,7 +120,7 @@
             <div class="login-header">
                 <i class="fas fa-seedling login-icon"></i>
                 <h1>Farmer Panel</h1>
-                <p>Enter your farm key to access the panel</p>
+                <p data-i18n="login_subtitle">Enter your farm key to access the panel</p>
             </div>
             <form id="loginForm" class="login-form">
                 <div class="input-group">
@@ -101,12 +129,12 @@
                 </div>
                 <button type="submit" class="login-btn">
                     <i class="fas fa-sign-in-alt"></i>
-                    Access Panel
+                    <span data-i18n="access_panel">Access Panel</span>
                 </button>
                 <div id="loginError" class="login-error"></div>
             </form>
             <div class="login-footer">
-                <p>Your farm key is generated by the farm script</p>
+                <p data-i18n="login_footer">Your farm key is generated by the farm script</p>
             </div>
         </div>
     </div>
@@ -122,27 +150,27 @@
                 <nav class="nav-tabs">
                     <button class="nav-tab active" data-view="dashboard">
                         <i class="fas fa-chart-line"></i>
-                        Dashboard
+                        <span data-i18n="nav_dashboard">Dashboard</span>
                     </button>
                     <button class="nav-tab" data-view="top">
                         <i class="fas fa-trophy"></i>
-                        Top
+                        <span data-i18n="nav_top">Top</span>
                     </button>
                     <button class="nav-tab" data-view="accounts">
                         <i class="fas fa-users"></i>
-                        Accounts
+                        <span data-i18n="nav_accounts">Accounts</span>
                     </button>
                     <button class="nav-tab" data-view="farmers">
                         <i class="fas fa-key"></i>
-                        Farm Keys
+                        <span data-i18n="nav_farm_keys">Farm Keys</span>
                     </button>
                     <button class="nav-tab" data-view="collection">
                         <i class="fas fa-layer-group"></i>
-                        Collection
+                        <span data-i18n="nav_collection">Collection</span>
                     </button>
                     <button class="nav-tab" data-view="offers">
                         <i class="fas fa-store"></i>
-                        Offers
+                        <span data-i18n="nav_offers">Offers</span>
                     </button>
                 </nav>
             </div>
@@ -158,12 +186,15 @@
                     </div>
                     <div class="account-dropdown hidden" id="accountDropdownPanel">
                         <div class="account-dropdown-header">
-                            <span>Switch Account</span>
+                        <span data-i18n="switch_account">Switch Account</span>
                         </div>
                         <div class="account-dropdown-list" id="accountDropdownList"></div>
                     </div>
                 </div>
-                <button class="logout-btn" id="logoutBtn">
+                <button class="settings-btn" id="settingsBtn" data-i18n-title="settings">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="logout-btn" id="logoutBtn" data-i18n-title="logout">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
             </div>
@@ -177,35 +208,35 @@
                         <div class="stat-icon"><i class="fas fa-users"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="totalAccounts">0</div>
-                            <div class="stat-label">Total Accounts</div>
+                            <div class="stat-label" data-i18n="total_accounts">Total Accounts</div>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-circle" style="color: #4ade80;"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="onlineAccounts">0</div>
-                            <div class="stat-label">Online</div>
+                            <div class="stat-label" data-i18n="online">Online</div>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-coins"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="totalIncome">$0/s</div>
-                            <div class="stat-label">Combined Income</div>
+                            <div class="stat-label" data-i18n="combined_income">Combined Income</div>
                         </div>
                     </div>
                     <div class="stat-card">
                         <div class="stat-icon"><i class="fas fa-brain"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="totalBrainrots">0</div>
-                            <div class="stat-label">Total Brainrots</div>
+                            <div class="stat-label" data-i18n="total_brainrots">Total Brainrots</div>
                         </div>
                     </div>
                     <div class="stat-card stat-value-card">
                         <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
                         <div class="stat-info">
                             <div class="stat-value" id="totalValue">$0.00</div>
-                            <div class="stat-label">Est. Value <span id="totalValueChange" class="value-change"></span></div>
+                            <div class="stat-label"><span data-i18n="est_value">Est. Value</span> <span id="totalValueChange" class="value-change"></span></div>
                         </div>
                     </div>
                 </div>
@@ -213,7 +244,7 @@
                 <!-- Balance Chart -->
                 <div class="balance-chart-section" id="balanceChartSection">
                     <div class="chart-header">
-                        <h3><i class="fas fa-chart-line"></i> Balance History</h3>
+                        <h3><i class="fas fa-chart-line"></i> <span data-i18n="balance_history">Balance History</span></h3>
                         <div class="chart-period-tabs">
                             <button class="period-tab" data-period="300000">RT</button>
                             <button class="period-tab" data-period="3600000">1H</button>
@@ -226,7 +257,7 @@
                         <canvas id="balanceChart"></canvas>
                         <div class="chart-empty" id="chartEmpty">
                             <i class="fas fa-clock"></i>
-                            <p>Collecting data...</p>
+                            <p data-i18n="collecting_data">Collecting data...</p>
                         </div>
                     </div>
                     <div class="chart-stats" id="chartStats"></div>
@@ -235,7 +266,7 @@
                 <div class="section">
                     <h2 class="section-title">
                         <i class="fas fa-users"></i>
-                        Active Farmers
+                        <span data-i18n="active_farmers">Active Farmers</span>
                     </h2>
                     <div class="accounts-grid" id="accountsGrid"></div>
                 </div>
@@ -246,20 +277,20 @@
                 <div class="section">
                     <h2 class="section-title">
                         <i class="fas fa-trophy"></i>
-                        Leaderboards
+                        <span data-i18n="leaderboards">Leaderboards</span>
                     </h2>
                     <div class="top-tabs">
                         <button class="top-tab active" data-top="income">
                             <i class="fas fa-coins"></i>
-                            Best Income Brainrot
+                            <span data-i18n="best_income_brainrot">Best Income Brainrot</span>
                         </button>
                         <button class="top-tab" data-top="value">
                             <i class="fas fa-gem"></i>
-                            Most Valuable Brainrot
+                            <span data-i18n="most_valuable_brainrot">Most Valuable Brainrot</span>
                         </button>
                         <button class="top-tab" data-top="total">
                             <i class="fas fa-chart-bar"></i>
-                            Total Panel Income
+                            <span data-i18n="total_panel_income">Total Panel Income</span>
                         </button>
                     </div>
                     <div class="top-content" id="topContent">
@@ -273,7 +304,7 @@
                 <div class="section">
                     <h2 class="section-title">
                         <i class="fas fa-list"></i>
-                        All Accounts
+                        <span data-i18n="all_accounts">All Accounts</span>
                     </h2>
                     <div class="accounts-list" id="accountsList"></div>
                 </div>
@@ -285,16 +316,16 @@
                     <div class="section-header">
                         <h2 class="section-title">
                             <i class="fas fa-layer-group"></i>
-                            All Brainrots
+                            <span data-i18n="all_brainrots">All Brainrots</span>
                         </h2>
                         <div class="collection-stats" id="collectionStats"></div>
                     </div>
                     <div class="collection-controls">
                         <div class="search-box">
                             <i class="fas fa-search"></i>
-                            <input type="text" id="brainrotSearch" placeholder="Search by name or income (e.g. 100, >50, <200)..." autocomplete="off">
+                            <input type="text" id="brainrotSearch" data-i18n-placeholder="search_placeholder" placeholder="Search by name or income (e.g. 100, >50, <200)..." autocomplete="off">
                         </div>
-                        <button class="btn btn-secondary btn-sm" onclick="clearPriceCache()" title="Refresh prices from Eldorado">
+                        <button class="btn btn-secondary btn-sm" onclick="clearPriceCache()" data-i18n-title="refresh_prices_title">
                             <i class="fas fa-sync-alt"></i> Refresh Prices
                         </button>
                         <div class="filter-group">
@@ -399,11 +430,11 @@
                     <div class="section-header">
                         <h2 class="section-title">
                             <i class="fas fa-key"></i>
-                            Saved Farm Keys
+                            <span data-i18n="saved_farm_keys">Saved Farm Keys</span>
                         </h2>
                         <button class="add-key-btn" id="addKeyBtn">
                             <i class="fas fa-plus"></i>
-                            Add Key
+                            <span data-i18n="add_key">Add Key</span>
                         </button>
                     </div>
                     <div class="farm-keys-list" id="farmKeysList"></div>
@@ -416,7 +447,7 @@
                     <div class="section-header">
                         <h2 class="section-title">
                             <i class="fas fa-store"></i>
-                            Eldorado Offers
+                            <span data-i18n="eldorado_offers">Eldorado Offers</span>
                         </h2>
                         <div class="offers-stats" id="offersStats"></div>
                     </div>
@@ -907,6 +938,58 @@
         </div>
     </div>
 
-    <script src="app.js?v=54"></script>
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content settings-modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> <span data-i18n="settings_title">Settings</span></h3>
+                <button class="modal-close" id="closeSettingsModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body settings-modal-body">
+                <!-- Language Selection -->
+                <div class="settings-section">
+                    <h4><i class="fas fa-language"></i> <span data-i18n="language">Language</span></h4>
+                    <div class="settings-options">
+                        <button class="settings-option-btn" data-lang="en">
+                            <span class="option-flag">🇺🇸</span>
+                            <span class="option-label">English</span>
+                        </button>
+                        <button class="settings-option-btn" data-lang="ru">
+                            <span class="option-flag">🇷🇺</span>
+                            <span class="option-label">Русский</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Theme Selection -->
+                <div class="settings-section">
+                    <h4><i class="fas fa-palette"></i> <span data-i18n="theme">Theme</span></h4>
+                    <div class="settings-options theme-options">
+                        <button class="settings-option-btn theme-btn" data-theme="dark">
+                            <span class="theme-preview theme-preview-dark"></span>
+                            <span class="option-label" data-i18n="theme_dark">Dark</span>
+                        </button>
+                        <button class="settings-option-btn theme-btn" data-theme="light">
+                            <span class="theme-preview theme-preview-light"></span>
+                            <span class="option-label" data-i18n="theme_light">Light</span>
+                        </button>
+                        <button class="settings-option-btn theme-btn" data-theme="purple">
+                            <span class="theme-preview theme-preview-purple"></span>
+                            <span class="option-label" data-i18n="theme_purple">Purple</span>
+                        </button>
+                        <button class="settings-option-btn theme-btn" data-theme="green">
+                            <span class="theme-preview theme-preview-green"></span>
+                            <span class="option-label" data-i18n="theme_green">Green</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js?v=55"></script>
 </body>
 </html>
