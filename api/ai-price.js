@@ -7,10 +7,14 @@
  * 3. При изменении цены regex → добавляет в очередь AI валидации
  * 4. AI результат имеет приоритет над regex
  * 
+ * v2.5.0: Глобальный rate limiter через MongoDB
+ * 
  * Эндпоинт: /api/ai-price?name=BrainrotName&income=100
  */
 
 // Импорты
+const { checkGlobalRateLimit, recordAIUsage, getAIUsageStats } = require('./_lib/db');
+
 let aiScanner = null;
 let eldoradoPrice = null;
 
@@ -39,28 +43,9 @@ const previousPrices = new Map();
 const aiValidationQueue = [];
 let isProcessingQueue = false;
 
-// Rate limiting для Gemini (7 req/min, 14K tokens/min)
-const rateLimit = {
-    requests: [],
-    maxPerMinute: 7,
-    
-    canMakeRequest() {
-        const now = Date.now();
-        // Удаляем запросы старше минуты
-        this.requests = this.requests.filter(t => now - t < 60000);
-        return this.requests.length < this.maxPerMinute;
-    },
-    
-    recordRequest() {
-        this.requests.push(Date.now());
-    },
-    
-    getWaitTime() {
-        if (this.requests.length === 0) return 0;
-        const oldest = Math.min(...this.requests);
-        return Math.max(0, 60000 - (Date.now() - oldest));
-    }
-};
+// УДАЛЁН локальный rate limiter - используем глобальный из db.js
+// Старый локальный лимитер не работает между serverless инстансами!
+// Теперь используем checkGlobalRateLimit() и recordAIUsage() из db.js
 
 /**
  * Основной метод - получает цену
@@ -124,22 +109,28 @@ async function forceAIPrice(brainrotName, ourIncome) {
         return { ...cached.data, source: 'ai', fromCache: true };
     }
     
-    // Проверяем rate limit
-    if (!rateLimit.canMakeRequest()) {
-        console.log(`⏳ Rate limit, wait ${rateLimit.getWaitTime()}ms`);
+    // Проверяем ГЛОБАЛЬНЫЙ rate limit (MongoDB)
+    const estimatedTokens = 1500; // ~1500 токенов на запрос
+    const rateCheck = await checkGlobalRateLimit(estimatedTokens);
+    
+    if (!rateCheck.allowed) {
+        console.log(`⏳ Global rate limit hit (${rateCheck.currentTokens} tokens, ${rateCheck.currentRequests} reqs), using regex`);
         // Возвращаем regex как fallback
         const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
         return {
             ...regexResult,
             source: 'regex',
-            aiError: 'Rate limit exceeded',
-            waitTime: Math.round(rateLimit.getWaitTime() / 1000)
+            aiError: 'Global rate limit exceeded',
+            waitTime: Math.round((rateCheck.waitMs || 30000) / 1000),
+            globalRateLimit: {
+                tokens: rateCheck.currentTokens,
+                requests: rateCheck.currentRequests
+            }
         };
     }
     
     try {
         console.log(`🤖 Force AI parsing for ${brainrotName} @ ${ourIncome}M/s...`);
-        rateLimit.recordRequest();
         
         // Проверяем что aiScanner загружен
         if (!aiScanner) {
@@ -152,6 +143,9 @@ async function forceAIPrice(brainrotName, ourIncome) {
         if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
             throw new Error('No offers found on Eldorado');
         }
+        
+        // Записываем использование AI ПЕРЕД вызовом (чтобы другие инстансы видели)
+        await recordAIUsage(estimatedTokens, 'forceAIPrice');
         
         // AI парсинг через hybridParse
         const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
@@ -336,7 +330,7 @@ function queueForAIValidation(brainrotName, ourIncome, regexResult) {
 
 /**
  * Обрабатывает очередь AI валидации в фоне
- * Волнами по схеме: 7 запросов в минуту
+ * Использует глобальный rate limiter через MongoDB
  */
 async function processAIQueue() {
     if (isProcessingQueue || aiValidationQueue.length === 0) return;
@@ -345,10 +339,13 @@ async function processAIQueue() {
     console.log(`🤖 Starting AI queue processing: ${aiValidationQueue.length} items`);
     
     while (aiValidationQueue.length > 0) {
-        // Проверяем rate limit
-        if (!rateLimit.canMakeRequest()) {
-            const waitTime = rateLimit.getWaitTime();
-            console.log(`⏳ Rate limit hit, waiting ${Math.round(waitTime/1000)}s...`);
+        // Проверяем ГЛОБАЛЬНЫЙ rate limit (MongoDB)
+        const estimatedTokens = 1500;
+        const rateCheck = await checkGlobalRateLimit(estimatedTokens);
+        
+        if (!rateCheck.allowed) {
+            const waitTime = rateCheck.waitMs || 30000;
+            console.log(`⏳ Global rate limit (${rateCheck.currentTokens} tokens, ${rateCheck.currentRequests} reqs), waiting ${Math.round(waitTime/1000)}s...`);
             await new Promise(r => setTimeout(r, waitTime + 1000));
             continue;
         }
@@ -395,16 +392,15 @@ async function processAIQueue() {
 /**
  * Возвращает статус AI системы
  */
-function getStats() {
+async function getStats() {
+    // Получаем глобальную статистику из MongoDB
+    const globalStats = await getAIUsageStats();
+    
     return {
         cacheSize: aiCache.size,
         queueLength: aiValidationQueue.length,
         isProcessing: isProcessingQueue,
-        rateLimit: {
-            used: rateLimit.requests.length,
-            max: rateLimit.maxPerMinute,
-            waitTime: Math.round(rateLimit.getWaitTime() / 1000)
-        },
+        globalRateLimit: globalStats, // Глобальная статистика из MongoDB
         previousPricesTracked: previousPrices.size
     };
 }
@@ -437,7 +433,8 @@ module.exports = async (req, res) => {
     
     // Статистика
     if (getStatsFlag !== undefined) {
-        return res.status(200).json(getStats());
+        const stats = await getStats();
+        return res.status(200).json(stats);
     }
     
     // Очистка кэша

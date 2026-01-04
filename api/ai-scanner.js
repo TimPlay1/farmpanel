@@ -5,13 +5,13 @@
  * 1. Динамическая загрузка списков брейнротов/мутаций/рарити с Eldorado
  * 2. Парсинг income через Gemini AI (gemma-3-27b-it)
  * 3. Гибридная система: сначала Regex, потом AI валидация
- * 4. Очередь для обработки измененных цен
+ * 4. ГЛОБАЛЬНЫЙ rate limiter через MongoDB для координации serverless инстансов
  */
 
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const { connectToDatabase } = require('./_lib/db');
+const { connectToDatabase, checkGlobalRateLimit, recordAIUsage } = require('./_lib/db');
 
 // Gemini AI Configuration
 // IMPORTANT: API key should be set via environment variable GEMINI_API_KEY
@@ -22,8 +22,8 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 // Eldorado Configuration
 const ELDORADO_GAME_ID = '259';
 
-// Rate Limits (gemma-3-27b free tier: 15K tokens/min, 30 req/min, 14.4K req/day)
-// Используем консервативные значения чтобы оставить запас для других пользователей
+// Local rate limits (backup, global limiter is primary)
+// Используем консервативные значения - глобальный лимитер в MongoDB основной
 const MAX_TOKENS_PER_MINUTE = 10000;  // Реально 15K, но оставляем запас
 const MAX_REQUESTS_PER_MINUTE = 5;     // Реально 30, но оставляем запас для пользователей
 const BASE_PROMPT_TOKENS = 1200;       // Сокращённый промпт
@@ -819,6 +819,7 @@ function createWaves(batches, maxTokens = MAX_TOKENS_PER_MINUTE, maxRequests = M
  * 4. Если AI ошибка → используем regex
  * 
  * v9.10.15: Добавлен параметр expectedBrainrot для проверки wrong_brainrot
+ * v2.5.0: Глобальный rate limiter через MongoDB
  * 
  * @param {Array} offers - офферы для парсинга
  * @param {Object} eldoradoLists - списки брейнротов/мутаций/рарити
@@ -842,60 +843,78 @@ async function hybridParse(offers, eldoradoLists, expectedBrainrot = null) {
     
     console.log(`   Regex: ${regexResults.filter(r => r.regex.income !== null).length}/${offers.length} parsed`);
     
-    // Шаг 2: AI парсинг для ВСЕХ офферов (параллельно с отображением regex)
+    // Шаг 2: AI парсинг с ГЛОБАЛЬНЫМ rate limiter
     const offersForAI = regexResults.map(r => ({ ...r.offer, originalIndex: r.index }));
     const batches = createTokenAwareBatches(offersForAI, 2000);
-    const waves = createWaves(batches);
     
-    console.log(`   AI: ${batches.length} batches, ${waves.length} waves`);
+    console.log(`   AI: ${batches.length} batches (sequential with global rate limit)`);
     
     const aiResultsMap = new Map();
     
-    for (let waveIndex = 0; waveIndex < waves.length; waveIndex++) {
-        const wave = waves[waveIndex];
-        console.log(`   Wave ${waveIndex + 1}/${waves.length}: ${wave.batches.length} batches`);
+    // v2.5.0: Последовательная обработка батчей с глобальным rate limiter
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        const estimatedTokens = batch.estimatedTokens || (BASE_PROMPT_TOKENS + batch.offers.length * TOKENS_PER_OFFER);
         
-        // Параллельная обработка батчей в волне
-        const wavePromises = wave.batches.map(async (batch, batchIndex) => {
-            try {
-                // v9.10.15: Передаём expectedBrainrot в AI парсер
-                const aiResults = await parseIncomeAI(batch.offers, eldoradoLists, expectedBrainrot);
-                
-                // Сопоставляем результаты с оригинальными индексами
-                for (let j = 0; j < aiResults.length; j++) {
-                    const ai = aiResults[j];
-                    const offer = batch.offers[ai.i - 1]; // ai.i is 1-based
-                    if (offer && offer.originalIndex !== undefined) {
-                        aiResultsMap.set(offer.originalIndex, {
-                            income: ai.m,
-                            reason: ai.r,
-                            foundBrainrot: ai.b || null, // v9.10.15: AI-детектированный брейнрот
-                            source: 'ai'
-                        });
-                    }
-                }
-            } catch (e) {
-                console.error(`   Batch ${batchIndex} error:`, e.message);
-                // При ошибке - помечаем как failed, будет использован regex
-                for (const offer of batch.offers) {
-                    if (offer.originalIndex !== undefined) {
-                        aiResultsMap.set(offer.originalIndex, {
-                            income: null,
-                            reason: 'ai_error',
-                            source: 'ai_failed',
-                            error: e.message
-                        });
-                    }
+        // Проверяем глобальный rate limit перед каждым батчем
+        const rateCheck = await checkGlobalRateLimit(estimatedTokens);
+        
+        if (!rateCheck.allowed) {
+            console.log(`   ⏳ Global rate limit (${rateCheck.reason}): ${rateCheck.currentTokens}/${rateCheck.limit} tokens, waiting ${Math.round(rateCheck.waitMs/1000)}s...`);
+            
+            // Если лимит превышен - возвращаем regex результаты без AI
+            // НЕ ждём - пользователь получит regex сразу, AI обновит позже через cron/queue
+            console.log(`   ⚠️ Skipping AI for this request, returning regex results`);
+            break;
+        }
+        
+        try {
+            console.log(`   Batch ${batchIndex + 1}/${batches.length}: ${batch.offers.length} offers (~${estimatedTokens} tokens)`);
+            
+            // v9.10.15: Передаём expectedBrainrot в AI парсер
+            const aiResults = await parseIncomeAI(batch.offers, eldoradoLists, expectedBrainrot);
+            
+            // Записываем использование в глобальный rate limiter
+            await recordAIUsage(estimatedTokens, 'hybridParse');
+            
+            // Сопоставляем результаты с оригинальными индексами
+            for (let j = 0; j < aiResults.length; j++) {
+                const ai = aiResults[j];
+                const offer = batch.offers[ai.i - 1]; // ai.i is 1-based
+                if (offer && offer.originalIndex !== undefined) {
+                    aiResultsMap.set(offer.originalIndex, {
+                        income: ai.m,
+                        reason: ai.r,
+                        foundBrainrot: ai.b || null, // v9.10.15: AI-детектированный брейнрот
+                        source: 'ai'
+                    });
                 }
             }
-        });
-        
-        await Promise.all(wavePromises);
-        
-        // Пауза между волнами для rate limit
-        if (waveIndex < waves.length - 1) {
-            console.log(`   Waiting 9s before next wave...`);
-            await new Promise(r => setTimeout(r, 9000));
+            
+            // Небольшая пауза между батчами (2 сек)
+            if (batchIndex < batches.length - 1) {
+                await new Promise(r => setTimeout(r, 2000));
+            }
+            
+        } catch (e) {
+            console.error(`   Batch ${batchIndex} error:`, e.message);
+            // При ошибке - помечаем как failed, будет использован regex
+            for (const offer of batch.offers) {
+                if (offer.originalIndex !== undefined) {
+                    aiResultsMap.set(offer.originalIndex, {
+                        income: null,
+                        reason: 'ai_error',
+                        source: 'ai_failed',
+                        error: e.message
+                    });
+                }
+            }
+            
+            // Если ошибка quota - прерываем обработку
+            if (e.message?.includes('quota') || e.message?.includes('exceeded')) {
+                console.log(`   ⛔ Quota exceeded, stopping AI processing`);
+                break;
+            }
         }
     }
     

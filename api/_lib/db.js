@@ -154,10 +154,183 @@ function generateUsername() {
     return `Aboba_${randomNum}`;
 }
 
+/**
+ * Глобальный Rate Limiter для Gemini API
+ * Хранит счётчики в MongoDB для координации между serverless инстансами
+ * 
+ * Лимиты gemma-3-27b-it:
+ * - 15,000 tokens/min
+ * - 30 requests/min
+ * 
+ * Используем консервативные значения:
+ * - 12,000 tokens/min (80%)
+ * - 25 requests/min (83%)
+ */
+const GLOBAL_RATE_LIMIT = {
+    MAX_TOKENS_PER_MINUTE: 12000,
+    MAX_REQUESTS_PER_MINUTE: 25,
+    WINDOW_MS: 60000  // 1 минута
+};
+
+/**
+ * Проверяет можно ли сделать AI запрос
+ * @param {number} estimatedTokens - предполагаемое количество токенов
+ * @returns {Promise<{allowed: boolean, waitMs?: number, currentTokens?: number, currentRequests?: number}>}
+ */
+async function checkGlobalRateLimit(estimatedTokens = 1500) {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('rate_limits');
+        
+        const now = Date.now();
+        const windowStart = now - GLOBAL_RATE_LIMIT.WINDOW_MS;
+        
+        // Получаем текущие счётчики за последнюю минуту
+        const stats = await collection.aggregate([
+            { $match: { timestamp: { $gte: windowStart } } },
+            { $group: { 
+                _id: null, 
+                totalTokens: { $sum: '$tokens' },
+                totalRequests: { $sum: 1 }
+            }}
+        ]).toArray();
+        
+        const currentTokens = stats[0]?.totalTokens || 0;
+        const currentRequests = stats[0]?.totalRequests || 0;
+        
+        // Проверяем лимиты
+        if (currentTokens + estimatedTokens > GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE) {
+            // Находим самую старую запись чтобы понять когда освободится место
+            const oldest = await collection.findOne(
+                { timestamp: { $gte: windowStart } },
+                { sort: { timestamp: 1 } }
+            );
+            const waitMs = oldest ? (oldest.timestamp + GLOBAL_RATE_LIMIT.WINDOW_MS - now + 1000) : 10000;
+            
+            return {
+                allowed: false,
+                reason: 'tokens',
+                waitMs: Math.max(1000, waitMs),
+                currentTokens,
+                currentRequests,
+                limit: GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE
+            };
+        }
+        
+        if (currentRequests >= GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE) {
+            const oldest = await collection.findOne(
+                { timestamp: { $gte: windowStart } },
+                { sort: { timestamp: 1 } }
+            );
+            const waitMs = oldest ? (oldest.timestamp + GLOBAL_RATE_LIMIT.WINDOW_MS - now + 1000) : 10000;
+            
+            return {
+                allowed: false,
+                reason: 'requests',
+                waitMs: Math.max(1000, waitMs),
+                currentTokens,
+                currentRequests,
+                limit: GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE
+            };
+        }
+        
+        return {
+            allowed: true,
+            currentTokens,
+            currentRequests,
+            remainingTokens: GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE - currentTokens,
+            remainingRequests: GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE - currentRequests
+        };
+        
+    } catch (e) {
+        console.error('Rate limit check error:', e.message);
+        // При ошибке - разрешаем (лучше работать чем падать)
+        return { allowed: true, error: e.message };
+    }
+}
+
+/**
+ * Записывает использование AI запроса
+ * @param {number} tokens - количество использованных токенов
+ * @param {string} source - источник запроса (ai-price, cron, etc)
+ */
+async function recordAIUsage(tokens, source = 'unknown') {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('rate_limits');
+        
+        await collection.insertOne({
+            timestamp: Date.now(),
+            tokens,
+            source,
+            createdAt: new Date()
+        });
+        
+        // Очищаем старые записи (старше 2 минут)
+        const twoMinutesAgo = Date.now() - 120000;
+        await collection.deleteMany({ timestamp: { $lt: twoMinutesAgo } });
+        
+    } catch (e) {
+        console.error('Record AI usage error:', e.message);
+    }
+}
+
+/**
+ * Получает статистику использования AI
+ */
+async function getAIUsageStats() {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('rate_limits');
+        
+        const now = Date.now();
+        const windowStart = now - GLOBAL_RATE_LIMIT.WINDOW_MS;
+        
+        const stats = await collection.aggregate([
+            { $match: { timestamp: { $gte: windowStart } } },
+            { $group: { 
+                _id: '$source',
+                tokens: { $sum: '$tokens' },
+                requests: { $sum: 1 }
+            }}
+        ]).toArray();
+        
+        const total = await collection.aggregate([
+            { $match: { timestamp: { $gte: windowStart } } },
+            { $group: { 
+                _id: null,
+                totalTokens: { $sum: '$tokens' },
+                totalRequests: { $sum: 1 }
+            }}
+        ]).toArray();
+        
+        return {
+            bySource: stats,
+            total: {
+                tokens: total[0]?.totalTokens || 0,
+                requests: total[0]?.totalRequests || 0
+            },
+            limits: GLOBAL_RATE_LIMIT,
+            usage: {
+                tokensPercent: Math.round((total[0]?.totalTokens || 0) / GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE * 100),
+                requestsPercent: Math.round((total[0]?.totalRequests || 0) / GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE * 100)
+            }
+        };
+    } catch (e) {
+        console.error('Get AI usage stats error:', e.message);
+        return null;
+    }
+}
+
 module.exports = {
     connectToDatabase,
     generateAvatar,
     generateUsername,
     AVATAR_ICONS,
-    AVATAR_COLORS
+    AVATAR_COLORS,
+    // Global rate limiter
+    checkGlobalRateLimit,
+    recordAIUsage,
+    getAIUsageStats,
+    GLOBAL_RATE_LIMIT
 };
