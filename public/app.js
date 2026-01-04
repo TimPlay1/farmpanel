@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.23 - Chart: points visible only on hover
+// FarmerPanel App v9.11.24 - Fix chart not loading (reset retry count properly)
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -9185,6 +9185,7 @@ function saveChartPeriod(period) {
 let chartUpdateTimer = null;
 let lastChartDataHash = null; // Track if data actually changed
 let isChartUpdating = false; // Prevent concurrent updates
+let chartRetryCount = 0; // v9.11.24: Moved here for proper reset
 
 // Update balance chart with debounce (non-blocking)
 function updateBalanceChart(period = currentChartPeriod) {
@@ -9192,6 +9193,9 @@ function updateBalanceChart(period = currentChartPeriod) {
     if (chartUpdateTimer) {
         clearTimeout(chartUpdateTimer);
     }
+    
+    // v9.11.24: Reset retry count on new user-initiated update
+    chartRetryCount = 0;
     
     // v9.11.22: Don't skip if updating - queue instead
     // Debounce chart updates to prevent flickering
@@ -9212,9 +9216,8 @@ function getChartDataHash(chartData) {
     return `${vals.length}_${vals[0]?.toFixed(2)}_${vals[vals.length-1]?.toFixed(2)}_${sum.toFixed(2)}`;
 }
 
-// Track chart retry count to avoid infinite loops
-let chartRetryCount = 0;
-const MAX_CHART_RETRIES = 5; // v9.11.22: Reduced from 10
+// v9.11.24: MAX_CHART_RETRIES - increased back, retry count is now reset properly
+const MAX_CHART_RETRIES = 15;
 
 // Actual chart update implementation
 function _doUpdateBalanceChart(period) {
@@ -9240,10 +9243,12 @@ function _doUpdateBalanceChart(period) {
         if (chartRetryCount < MAX_CHART_RETRIES) {
             chartRetryCount++;
             isChartUpdating = false;
-            setTimeout(() => _doUpdateBalanceChart(period), 100); // v9.11.22: Faster retry
+            setTimeout(() => _doUpdateBalanceChart(period), 150); // v9.11.24: Slightly longer retry
         } else {
             console.warn('Chart container not ready after', MAX_CHART_RETRIES, 'retries');
             isChartUpdating = false;
+            // v9.11.24: Reset for next attempt
+            chartRetryCount = 0;
         }
         return;
     }
