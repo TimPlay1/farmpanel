@@ -1108,11 +1108,16 @@ function normalizeIncomeForApi(income, incomeText) {
 
 /**
  * Получить ключ кэша для цены (имя + income)
+ * @param {string} name - имя брейнрота
+ * @param {number} income - доходность M/s
+ * @param {string} mutation - мутация (опционально)
  */
-function getPriceCacheKey(name, income) {
+function getPriceCacheKey(name, income, mutation = null) {
     // Округляем income до 10 для группировки близких значений
     const roundedIncome = Math.floor(income / 10) * 10;
-    return `${name.toLowerCase()}_${roundedIncome}`;
+    // v9.11.0: Добавляем мутацию в ключ для отдельного кэширования цен мутаций
+    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    return `${name.toLowerCase()}_${roundedIncome}${mutationKey}`;
 }
 
 /**
@@ -1121,10 +1126,11 @@ function getPriceCacheKey(name, income) {
  * 
  * @param {string} brainrotName - имя брейнрота
  * @param {number} income - доходность M/s
+ * @param {string} mutation - v9.11.0: мутация для фильтрации (опционально)
  * @returns {Promise<object>} - данные о цене
  */
-async function fetchEldoradoPrice(brainrotName, income) {
-    const cacheKey = getPriceCacheKey(brainrotName, income);
+async function fetchEldoradoPrice(brainrotName, income, mutation = null) {
+    const cacheKey = getPriceCacheKey(brainrotName, income, mutation);
     
     // Проверяем кэш
     const cached = state.eldoradoPrices[cacheKey];
@@ -1132,7 +1138,7 @@ async function fetchEldoradoPrice(brainrotName, income) {
         // Если в кэше regex результат и AI pending - пробуем обновить
         if (cached.data && cached.data.aiPending && cached.data.source === 'regex') {
             // Проверяем AI статус в фоне (не блокируем)
-            checkAIStatus(brainrotName, income, cacheKey);
+            checkAIStatus(brainrotName, income, cacheKey, mutation);
         }
         return cached.data;
     }
@@ -1143,13 +1149,18 @@ async function fetchEldoradoPrice(brainrotName, income) {
             income: income.toString()
         });
         
+        // v9.11.0: Добавляем мутацию в запрос
+        if (mutation && mutation !== 'None' && mutation !== 'Default') {
+            params.set('mutation', mutation);
+        }
+        
         // Пробуем AI-first эндпоинт
         let data = null;
         try {
             const aiResponse = await fetch(`${API_BASE}/ai-price?${params}`);
             if (aiResponse.ok) {
                 data = await aiResponse.json();
-                console.log(`🤖 AI price for ${brainrotName}: $${data.suggestedPrice} (source: ${data.source})`);
+                console.log(`🤖 AI price for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${data.suggestedPrice} (source: ${data.source})`);
             }
         } catch (aiError) {
             console.warn('AI price endpoint failed, falling back to regex:', aiError.message);
@@ -1181,13 +1192,18 @@ async function fetchEldoradoPrice(brainrotName, income) {
 /**
  * Проверяет статус AI парсинга в фоне и обновляет кэш
  */
-async function checkAIStatus(brainrotName, income, cacheKey) {
+async function checkAIStatus(brainrotName, income, cacheKey, mutation = null) {
     try {
         const params = new URLSearchParams({
             name: brainrotName,
             income: income.toString(),
             status: ''
         });
+        
+        // v9.11.0: Добавляем мутацию если есть
+        if (mutation && mutation !== 'None' && mutation !== 'Default') {
+            params.set('mutation', mutation);
+        }
         
         const response = await fetch(`${API_BASE}/ai-price?${params}`);
         if (!response.ok) return;
@@ -1201,11 +1217,14 @@ async function checkAIStatus(brainrotName, income, cacheKey) {
                 name: brainrotName,
                 income: income.toString()
             });
+            if (mutation && mutation !== 'None' && mutation !== 'Default') {
+                aiParams.set('mutation', mutation);
+            }
             const aiResponse = await fetch(`${API_BASE}/ai-price?${aiParams}`);
             if (aiResponse.ok) {
                 const aiData = await aiResponse.json();
                 if (aiData.source === 'ai') {
-                    console.log(`🤖 AI update for ${brainrotName}: $${aiData.suggestedPrice}`);
+                    console.log(`🤖 AI update for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${aiData.suggestedPrice}`);
                     state.eldoradoPrices[cacheKey] = {
                         data: aiData,
                         timestamp: Date.now()
@@ -1283,6 +1302,96 @@ async function fetchBulkEldoradoPrices(brainrots) {
 function formatPrice(price) {
     if (!price || price <= 0) return '—';
     return '$' + price.toFixed(2);
+}
+
+/**
+ * v9.11.0: Рендер блока цен с вариантами (Default и Mutation)
+ * Используется когда у брейнрота есть мутация
+ * 
+ * @param {string} brainrotName - имя брейнрота
+ * @param {number} income - доходность M/s  
+ * @param {string} mutation - название мутации
+ * @returns {string} - HTML блока цен
+ */
+function renderPriceVariants(brainrotName, income, mutation) {
+    // Ключи кэша для default и mutation
+    const defaultCacheKey = getPriceCacheKey(brainrotName, income);
+    const mutationCacheKey = getPriceCacheKey(brainrotName, income, mutation);
+    
+    const defaultPrice = state.brainrotPrices[defaultCacheKey];
+    const mutationPrice = state.brainrotPrices[mutationCacheKey];
+    
+    // Стили для мутации
+    const mStyles = getMutationStyles(mutation);
+    const cleanMutation = cleanMutationText(mutation);
+    
+    // Рендер одного варианта цены
+    const renderVariant = (priceData, type, label) => {
+        if (!priceData) {
+            return `
+                <div class="price-variant ${type}" data-price-loading="true">
+                    <div class="price-variant-header">
+                        <span class="price-variant-label ${type}">${label}</span>
+                    </div>
+                    <div class="price-variant-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Loading...</span>
+                    </div>
+                </div>`;
+        }
+        
+        if (priceData.error) {
+            return `
+                <div class="price-variant ${type}">
+                    <div class="price-variant-header">
+                        <span class="price-variant-label ${type}">${label}</span>
+                    </div>
+                    <div class="price-variant-no-data">No data</div>
+                </div>`;
+        }
+        
+        const selectedPrice = getSelectedPrice(priceData);
+        const isAboveMarket = priceData.priceSource && priceData.priceSource.includes('above market');
+        const competitorInfo = priceData.competitorPrice 
+            ? `${isAboveMarket ? 'max' : '~'}$${priceData.competitorPrice.toFixed(2)}` 
+            : '';
+        
+        // Additional prices (median, next competitor)
+        let additionalHtml = '';
+        if (priceData.medianPrice || priceData.nextCompetitorPrice) {
+            additionalHtml = '<div class="price-variant-additional">';
+            if (priceData.medianPrice) {
+                additionalHtml += `<div class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</div>`;
+            }
+            if (priceData.nextCompetitorPrice) {
+                additionalHtml += `<div class="additional-price next-comp" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</div>`;
+            }
+            additionalHtml += '</div>';
+        }
+        
+        return `
+            <div class="price-variant ${type}" 
+                 ${type === 'mutated' ? `style="--mutation-glow: ${mStyles.glowColor}40; --mutation-bg: ${mStyles.background}; --mutation-color: ${mStyles.textColor};"` : ''}>
+                <div class="price-variant-header">
+                    <span class="price-variant-label ${type === 'mutated' ? 'mutation' : type}" 
+                          ${type === 'mutated' ? `style="background: ${mStyles.background}; color: ${mStyles.textColor};"` : ''}>${label}</span>
+                </div>
+                <div class="price-variant-main">
+                    <span class="price-text">${formatPrice(selectedPrice)}</span>
+                    ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
+                </div>
+                ${additionalHtml}
+            </div>`;
+    };
+    
+    return `
+        <div class="brainrot-price-variants" 
+             data-brainrot-name="${brainrotName}" 
+             data-brainrot-income="${income}"
+             data-brainrot-mutation="${mutation}">
+            ${renderVariant(defaultPrice, 'default', 'DEFAULT')}
+            ${renderVariant(mutationPrice, 'mutated', cleanMutation)}
+        </div>`;
 }
 
 // DOM Elements
@@ -3996,18 +4105,26 @@ async function renderCollection() {
         
         let priceHtml;
         
-        // v9.9.7: Получаем выбранную цену на основе настройки
-        const selectedPrice = getSelectedPrice(cachedPrice);
+        // v9.11.0: Если есть мутация - показываем два варианта цен (Default + Mutation)
+        const hasMutation = group.mutation && cleanMutationText(group.mutation);
         
-        if (cachedPrice && selectedPrice) {
-            // competitorPrice - это цена конкурента (может быть upper или max на рынке)
-            // Если priceSource содержит "above market" - показываем "max" вместо "~"
-            const isAboveMarket = cachedPrice.priceSource && cachedPrice.priceSource.includes('above market');
-            const competitorInfo = cachedPrice.competitorPrice 
-                ? `${isAboveMarket ? 'max ' : '~'}$${cachedPrice.competitorPrice.toFixed(2)}` 
-                : '';
-            const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
-            const changeHtml = formatPriceChange(priceChange);
+        if (hasMutation) {
+            // Используем новый рендер с вариантами
+            priceHtml = renderPriceVariants(group.name, income, group.mutation);
+        } else {
+            // Обычный рендер цены для брейнротов без мутации
+            // v9.9.7: Получаем выбранную цену на основе настройки
+            const selectedPrice = getSelectedPrice(cachedPrice);
+            
+            if (cachedPrice && selectedPrice) {
+                // competitorPrice - это цена конкурента (может быть upper или max на рынке)
+                // Если priceSource содержит "above market" - показываем "max" вместо "~"
+                const isAboveMarket = cachedPrice.priceSource && cachedPrice.priceSource.includes('above market');
+                const competitorInfo = cachedPrice.competitorPrice 
+                    ? `${isAboveMarket ? 'max ' : '~'}$${cachedPrice.competitorPrice.toFixed(2)}` 
+                    : '';
+                const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
+                const changeHtml = formatPriceChange(priceChange);
             
             // v9.10.2: Check if next competitor price is >100% higher than current competitor (opportunity)
             // v9.10.9: Don't show opportunity if we already switched to next range (opportunity already used)
@@ -4020,7 +4137,10 @@ async function renderCollection() {
             const source = cachedPrice.source || cachedPrice.parsingSource || 'regex';
             let sourceBadge = '';
             
-            if (source === 'ai') {
+            // v9.10.5: При AI + nextRangeChecked показываем brain + желтую стрелку вместе
+            if (source === 'ai' && cachedPrice.nextRangeChecked) {
+                sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+            } else if (source === 'ai') {
                 sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
             } else if (source === 'hybrid') {
                 sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
@@ -4029,8 +4149,8 @@ async function renderCollection() {
                 sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
             }
             
-            // v9.9.5: Иконка для цены из следующего диапазона
-            const nextRangeBadge = cachedPrice.nextRangeChecked 
+            // v9.9.5: Иконка для цены из следующего диапазона (только для regex, AI уже включает стрелку)
+            const nextRangeBadge = (cachedPrice.nextRangeChecked && source !== 'ai')
                 ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
                 : '';
             
@@ -4090,6 +4210,7 @@ async function renderCollection() {
                     <span class="price-text">Loading...</span>
                 </div>`;
         }
+        } // End of else (!hasMutation)
         
         // Определяем статус генерации: все сгенерированы, частично, или ни одного
         const allGenerated = notGeneratedCount === 0;
@@ -4176,16 +4297,39 @@ async function loadBrainrotPrices(brainrots) {
         return;
     }
     
-    // Сохраняем порядок брейнротов (сверху вниз, слева направо)
-    // Фильтруем только те у которых цены ещё нет или они устарели
+    // v9.11.0: Собираем задачи загрузки
+    // Для брейнротов с мутациями добавляем ДВЕ задачи: default + mutation
     const toLoad = [];
     for (const b of brainrots) {
         const income = normalizeIncomeForApi(b.income, b.incomeText);
-        const cacheKey = getPriceCacheKey(b.name, income);
-        const cached = state.brainrotPrices[cacheKey];
-        // Загружаем если нет в кэше или устарело
-        if (!cached || isPriceStale(cached)) {
-            toLoad.push({ ...b, _income: income, _cacheKey: cacheKey });
+        const hasMutation = b.mutation && cleanMutationText(b.mutation);
+        
+        // 1. Default price (всегда)
+        const defaultCacheKey = getPriceCacheKey(b.name, income);
+        const defaultCached = state.brainrotPrices[defaultCacheKey];
+        if (!defaultCached || isPriceStale(defaultCached)) {
+            toLoad.push({ 
+                ...b, 
+                _income: income, 
+                _cacheKey: defaultCacheKey,
+                _mutation: null,
+                _type: 'default'
+            });
+        }
+        
+        // 2. Mutation price (только если есть мутация)
+        if (hasMutation) {
+            const mutationCacheKey = getPriceCacheKey(b.name, income, b.mutation);
+            const mutationCached = state.brainrotPrices[mutationCacheKey];
+            if (!mutationCached || isPriceStale(mutationCached)) {
+                toLoad.push({ 
+                    ...b, 
+                    _income: income, 
+                    _cacheKey: mutationCacheKey,
+                    _mutation: b.mutation,
+                    _type: 'mutation'
+                });
+            }
         }
     }
     
@@ -4196,7 +4340,9 @@ async function loadBrainrotPrices(brainrots) {
     // Сохраняем текущие цены как предыдущие ПЕРЕД загрузкой новых
     savePreviousPrices();
     
-    console.log('Loading prices for', toLoad.length, 'brainrots (stale or missing)');
+    const defaultCount = toLoad.filter(t => t._type === 'default').length;
+    const mutationCount = toLoad.filter(t => t._type === 'mutation').length;
+    console.log(`[Prices] Loading ${toLoad.length} prices: ${defaultCount} default, ${mutationCount} mutation`);
     collectionState.pricesLoading = true;
     
     // Оптимизация: загружаем параллельно по 3 запроса с задержкой 150ms между batch'ами
@@ -4214,13 +4360,15 @@ async function loadBrainrotPrices(brainrots) {
             const promises = batch.map(async (b) => {
                 const cacheKey = b._cacheKey;
                 const income = b._income;
+                const mutation = b._mutation; // v9.11.0: Может быть null или название мутации
                 
                 // Пропускаем если уже загружено свежее
                 const cached = state.brainrotPrices[cacheKey];
                 if (cached && !isPriceStale(cached)) return;
                 
                 try {
-                    const priceData = await fetchEldoradoPrice(b.name, income);
+                    // v9.11.0: Передаем мутацию в API
+                    const priceData = await fetchEldoradoPrice(b.name, income, mutation);
                     
                     // Сохраняем в глобальный кэш с timestamp
                     if (priceData) {
@@ -4230,14 +4378,14 @@ async function loadBrainrotPrices(brainrots) {
                         state.brainrotPrices[cacheKey] = { error: true, _timestamp: Date.now() };
                     }
                     
-                    // Обновляем DOM сразу
-                    updatePriceInDOM(b.name, income, priceData);
+                    // v9.11.0: Обновляем DOM - для мутаций обновится весь блок вариантов
+                    updatePriceInDOM(b.name, income, priceData, mutation);
                     loadedCount++;
                     
                 } catch (err) {
-                    console.warn('Error loading price for', b.name, income, err);
+                    console.warn('Error loading price for', b.name, income, mutation || 'default', err);
                     state.brainrotPrices[cacheKey] = { error: true, _timestamp: Date.now() };
-                    updatePriceInDOM(b.name, income, null);
+                    updatePriceInDOM(b.name, income, null, mutation);
                 }
             });
             
@@ -4276,10 +4424,10 @@ async function loadBrainrotPrices(brainrots) {
 /**
  * Обновить цену в DOM для конкретного брейнрота
  */
-function updatePriceInDOM(brainrotName, income, priceData) {
+function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
     // Округляем income для поиска (так же как при рендере)
     const roundedIncome = Math.floor(income / 10) * 10;
-    const cacheKey = getPriceCacheKey(brainrotName, income);
+    const cacheKey = getPriceCacheKey(brainrotName, income, mutation);
     
     // Ищем карточку по имени и income
     const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
@@ -4299,6 +4447,33 @@ function updatePriceInDOM(brainrotName, income, priceData) {
     // Если не нашли по точному income, берём первую карточку с таким именем
     if (!card) card = cards[0];
     
+    // v9.11.0: Проверяем есть ли у карточки мутация (класс brainrot-mutated)
+    const isMutatedCard = card.classList.contains('brainrot-mutated');
+    
+    // Если карточка с мутацией - перерендериваем весь блок вариантов цен
+    if (isMutatedCard) {
+        // Находим блок с вариантами или .brainrot-price
+        const variantsEl = card.querySelector('.brainrot-price-variants');
+        const priceEl = card.querySelector('.brainrot-price');
+        
+        // Получаем мутацию из карточки (ищем бейдж)
+        const mutationBadge = card.querySelector('.brainrot-mutation-badge-inline');
+        const cardMutation = mutationBadge ? mutationBadge.textContent.trim() : null;
+        
+        if (cardMutation) {
+            // Рендерим обновленный блок вариантов
+            const newVariantsHtml = renderPriceVariants(brainrotName, income, cardMutation);
+            
+            if (variantsEl) {
+                variantsEl.outerHTML = newVariantsHtml;
+            } else if (priceEl) {
+                priceEl.outerHTML = newVariantsHtml;
+            }
+        }
+        return;
+    }
+    
+    // Обычная логика для карточек без мутации
     const priceEl = card.querySelector('.brainrot-price');
     if (!priceEl) return;
     
@@ -4326,7 +4501,10 @@ function updatePriceInDOM(brainrotName, income, priceData) {
         const source = priceData.source || priceData.parsingSource || 'regex';
         let sourceBadge = '';
         
-        if (source === 'ai') {
+        // v9.10.5: При AI + nextRangeChecked показываем brain + желтую стрелку вместе
+        if (source === 'ai' && priceData.nextRangeChecked) {
+            sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+        } else if (source === 'ai') {
             sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
         } else if (source === 'hybrid') {
             sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
@@ -4334,8 +4512,8 @@ function updatePriceInDOM(brainrotName, income, priceData) {
             sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
         }
         
-        // v9.9.5: Иконка для цены из следующего диапазона
-        const nextRangeBadge = priceData.nextRangeChecked 
+        // v9.9.5: Иконка для цены из следующего диапазона (только для regex, AI уже включает стрелку)
+        const nextRangeBadge = (priceData.nextRangeChecked && source !== 'ai')
             ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
             : '';
         
@@ -6031,6 +6209,8 @@ async function updateOffersRecommendedPrices() {
                 offer.nextCompetitorData = priceData.nextCompetitorData || null;
                 // v9.9.5: Флаг что цена из следующего диапазона
                 offer.nextRangeChecked = priceData.nextRangeChecked || false;
+                // v9.10.5: Source (ai/regex) для отображения бейджа
+                offer.source = priceData.source || priceData.parsingSource || 'regex';
                 // Spike logic removed - centralized cache has verified prices
                 updated++;
             } else {
@@ -6323,7 +6503,11 @@ function renderOffers() {
                         ${isSpike && offer.pendingPrice ? `<div class="offer-pending-price">Pending: $${offer.pendingPrice.toFixed(2)}</div>` : ''}
                     </div>
                     <div class="offer-price-item">
-                        <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked ? ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>' : ''}</div>
+                        <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked 
+                            ? (offer.source === 'ai' 
+                                ? ' <span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>' 
+                                : ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>') 
+                            : ''}</div>
                         <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                     </div>
                 </div>

@@ -581,13 +581,14 @@ function parseIncomeFromMsRange(msRange) {
  * Использует официальные параметры из swagger API:
  * - tradeEnvironmentValue0 = "Brainrot" (тип item)
  * - tradeEnvironmentValue2 = имя брейнрота (фильтр по конкретному брейнроту)
- * - offerAttributeIdsCsv = ID атрибута M/s range
+ * - offerAttributeIdsCsv = ID атрибутов (M/s range и/или мутация через запятую)
  * @param {number} pageIndex - номер страницы
  * @param {string} msRangeAttrId - ID атрибута M/s range (например "0-8" для 1+ B/s)
  * @param {string} brainrotName - имя брейнрота для фильтрации (опционально, "Other" для неизвестных)
  * @param {string} searchQuery - текстовый поиск в title оффера (для брейнротов не в списке Eldorado)
+ * @param {string} mutationAttrId - v9.11.0: ID атрибута мутации (например "1-1" для Gold)
  */
-function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null, searchQuery = null) {
+function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null, searchQuery = null, mutationAttrId = null) {
     return new Promise((resolve) => {
         // Используем официальные параметры из swagger
         const params = new URLSearchParams({
@@ -600,9 +601,13 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
             isAscending: 'true'
         });
         
-        // Добавляем фильтр по M/s диапазону
-        if (msRangeAttrId) {
-            params.set('offerAttributeIdsCsv', msRangeAttrId);
+        // v9.11.0: Собираем атрибуты для фильтрации (M/s range + мутация)
+        const attrIds = [];
+        if (msRangeAttrId) attrIds.push(msRangeAttrId);
+        if (mutationAttrId) attrIds.push(mutationAttrId);
+        
+        if (attrIds.length > 0) {
+            params.set('offerAttributeIdsCsv', attrIds.join(','));
         }
         
         // Добавляем фильтр по имени брейнрота
@@ -700,6 +705,36 @@ function getMsRangeAttrId(msRange) {
 }
 
 /**
+ * v9.11.0: Маппинг атрибутов мутаций для фильтрации на Eldorado
+ * Получено через анализ API ответов
+ */
+const MUTATION_ATTR_IDS = {
+    'None': '1-0',
+    'Gold': '1-1',
+    'Diamond': '1-2',
+    'Bloodrot': '1-3',
+    'Candy': '1-4',
+    'Lava': '1-5',
+    'Galaxy': '1-6',
+    'Yin-Yang': '1-7',
+    'YinYang': '1-7',   // альтернативное написание
+    'Radioactive': '1-8',
+    'Rainbow': '1-9'
+};
+
+/**
+ * v9.11.0: Возвращает attr_id для мутации (для фильтрации на Eldorado)
+ * @param {string} mutation - название мутации (Gold, Diamond, etc.)
+ * @returns {string|null} - ID атрибута или null если не найден
+ */
+function getMutationAttrId(mutation) {
+    if (!mutation || mutation === 'None' || mutation === 'Default' || mutation === '') {
+        return null; // Для дефолтных брейнротов не фильтруем по мутации
+    }
+    return MUTATION_ATTR_IDS[mutation] || null;
+}
+
+/**
  * Генерирует варианты поискового запроса для брейнрота
  * Например "Tictac Sahur" -> ["Tictac Sahur", "Tic tac Sahur", "tictac sahur"]
  */
@@ -750,17 +785,20 @@ function generateSearchVariants(name) {
  * @param {string} brainrotName - имя брейнрота
  * @param {number} targetIncome - целевой income
  * @param {number} maxPages - максимум страниц для поиска
- * @param {Object} options - опции (disableAI: boolean)
+ * @param {Object} options - опции (disableAI: boolean, mutation: string)
  * @returns {Object} - upper оффер, lower оффер, все офферы страницы
  */
 async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50, options = {}) {
-    const { disableAI = false } = options;
+    const { disableAI = false, mutation = null } = options;
     
     const eldoradoInfo = findEldoradoBrainrot(brainrotName);
     // Используем точное имя из mapping или оригинальное имя
     const eldoradoName = eldoradoInfo?.name || brainrotName;
     const targetMsRange = getMsRange(targetIncome);
     const msRangeAttrId = getMsRangeAttrId(targetMsRange);
+    
+    // v9.11.0: Получаем ID атрибута мутации для фильтрации
+    const mutationAttrId = getMutationAttrId(mutation);
     
     // Проверяем динамически есть ли брейнрот в системе Eldorado
     const isInEldoradoList = await isBrainrotInEldorado(brainrotName);
@@ -769,7 +807,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const panelUsers = await loadPanelUsersCache();
     const panelOffersSkipped = { count: 0 }; // Счётчик пропущенных офферов панели
     
-    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, '| Target income:', targetIncome, '| In Eldorado:', isInEldoradoList, '| Panel users cached:', panelUsers.shopNames.size, 'shops,', panelUsers.offerCodes.size, 'codes');
+    console.log('Searching:', brainrotName, '| Eldorado name:', eldoradoName, '| Target M/s:', targetMsRange, '| attr_id:', msRangeAttrId, mutation ? '| Mutation: ' + mutation + ' (' + mutationAttrId + ')' : '', '| Target income:', targetIncome, '| In Eldorado:', isInEldoradoList, '| Panel users cached:', panelUsers.shopNames.size, 'shops,', panelUsers.offerCodes.size, 'codes');
     
     let upperOffer = null;
     let lowerOffer = null;
@@ -793,18 +831,19 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         }
         // filterMode === 'none' → filterName = null
         
-        let response = await fetchEldorado(page, msRangeAttrId, filterName, useSearchQuery);
+        // v9.11.0: Передаём mutationAttrId для фильтрации по мутации
+        let response = await fetchEldorado(page, msRangeAttrId, filterName, useSearchQuery, mutationAttrId);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName, useSearchQuery ? '| Search: ' + useSearchQuery : '');
+            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName, useSearchQuery ? '| Search: ' + useSearchQuery : '', mutationAttrId ? '| Mutation filter: ' + mutationAttrId : '');
             
             // Если с фильтром по имени 0 результатов - пробуем "Other" + searchQuery
             if (totalPages === 0 && filterMode === 'name') {
                 console.log('No results with name filter "' + eldoradoName + '", trying "Other" + searchQuery...');
                 filterMode = 'search';
                 useSearchQuery = brainrotName; // Используем оригинальное имя для поиска
-                response = await fetchEldorado(page, msRangeAttrId, 'Other', useSearchQuery);
+                response = await fetchEldorado(page, msRangeAttrId, 'Other', useSearchQuery, mutationAttrId);
                 totalPages = response.totalPages || 0;
                 console.log('With "Other" + searchQuery - total pages:', totalPages);
                 
@@ -813,7 +852,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     console.log('No results with searchQuery, trying just "Other" category...');
                     filterMode = 'other';
                     useSearchQuery = null;
-                    response = await fetchEldorado(page, msRangeAttrId, 'Other');
+                    response = await fetchEldorado(page, msRangeAttrId, 'Other', null, mutationAttrId);
                     totalPages = response.totalPages || 0;
                     console.log('With "Other" filter only - total pages:', totalPages);
                 }
@@ -822,7 +861,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 if (totalPages === 0) {
                     console.log('No results in "Other" category, trying without name filter...');
                     filterMode = 'none';
-                    response = await fetchEldorado(page, msRangeAttrId, null);
+                    response = await fetchEldorado(page, msRangeAttrId, null, null, mutationAttrId);
                     totalPages = response.totalPages || 0;
                     console.log('Without name filter - total pages:', totalPages);
                 }
@@ -1156,7 +1195,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         isInEldoradoList,
         usedNameFilter,
         searchWasReliable,
-        aiParsedCount
+        aiParsedCount,
+        mutation             // v9.11.0: Мутация для которой искали (или null для Default)
     };
 }
 
@@ -1169,10 +1209,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
  * 3. Если diff (upper - lower) >= $1 → рекомендуем upper - $1
  * 4. Если diff < $1 или нет lower → рекомендуем upper - $0.50
  * 5. Если upper не найден (мы выше рынка) → используем max price среди max income - $0.50
- * @param {Object} options - опции (disableAI: boolean)
+ * @param {Object} options - опции (disableAI: boolean, mutation: string)
  */
 async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
-    const { disableAI = false } = options;
+    const { disableAI = false, mutation = null } = options;
     // Парсим income если передан как строка ("80M/s" -> 80)
     let numericIncome = ourIncome;
     if (typeof ourIncome === 'string') {
@@ -1187,9 +1227,10 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
         }
     }
     
-    // Кэш по M/s диапазону + точному income (округлённому до 5)
+    // v9.11.0: Кэш по M/s диапазону + точному income (округлённому до 5) + мутация
     const targetMsRange = getMsRangeForIncome(numericIncome);
-    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(numericIncome / 5) * 5}`;
+    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    const cacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(numericIncome / 5) * 5}${mutationKey}`;
     
     // Проверяем кэш
     const cached = priceCache.get(cacheKey);
@@ -1199,8 +1240,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
 
     try {
         // Ищем офферы брейнрота в нужном M/s диапазоне
-        // Передаём disableAI чтобы cron не использовал AI и не тратил квоту
-        const searchResult = await searchBrainrotOffers(brainrotName, numericIncome, 50, { disableAI });
+        // v9.11.0: Передаём mutation для фильтрации по мутации
+        const searchResult = await searchBrainrotOffers(brainrotName, numericIncome, 50, { disableAI, mutation });
         const { 
             upperOffer, lowerOffer, nextCompetitor, upperPage, offersByPage,
             allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount 
@@ -1551,6 +1592,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
             lowerParsingSource,
             aiParsedCount: aiParsedCount || 0,
             brainrotName,
+            mutation: mutation || null,  // v9.11.0: Мутация для которой рассчитана цена
             competitorPrice,
             competitorIncome,
             lowerPrice,
@@ -1619,13 +1661,15 @@ module.exports = async (req, res) => {
 
     const brainrotName = req.query.name || req.query.brainrot;
     const income = parseFloat(req.query.income) || 0;
+    // v9.11.0: Поддержка мутации для фильтрации
+    const mutation = req.query.mutation || null;
 
     if (!brainrotName) {
         return res.status(400).json({ error: 'Missing brainrot name' });
     }
 
     try {
-        const result = await calculateOptimalPrice(brainrotName, income);
+        const result = await calculateOptimalPrice(brainrotName, income, { mutation });
         return res.status(200).json(result);
     } catch (err) {
         return res.status(500).json({ error: err.message });
