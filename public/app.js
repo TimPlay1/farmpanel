@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.24 - Fix chart not loading (reset retry count properly)
+// FarmerPanel App v9.11.25 - Fix chart: update after history load, better retry logic
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -385,14 +385,25 @@ async function loadBalanceHistory() {
     
     try {
         // Загружаем только из сервера (localStorage отключен для экономии места)
-        const response = await fetch(`${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`);
+        const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
+        console.log('loadBalanceHistory: fetching from', url);
+        
+        const response = await fetch(url);
+        console.log('loadBalanceHistory: response status', response.status);
+        
         if (response.ok) {
             const data = await response.json();
+            console.log('loadBalanceHistory: received data', data.count, 'records');
+            
             if (data.history && data.history.length > 0) {
                 state.balanceHistory[state.currentKey] = data.history;
-                console.log(`Loaded ${data.history.length} balance history records from server`);
+                console.log(`✅ Loaded ${data.history.length} balance history records from server`);
                 return;
+            } else {
+                console.log('loadBalanceHistory: no history records on server');
             }
+        } else {
+            console.warn('loadBalanceHistory: server returned', response.status);
         }
     } catch (e) {
         console.warn('Failed to load balance history from server:', e);
@@ -1788,8 +1799,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 await delay(200);
                 
-                // 3. История баланса
-                await withTimeout(loadBalanceHistory(), 8000).catch(e => console.warn('Balance history:', e.message));
+                // 3. История баланса - v9.11.25: обновляем график после загрузки
+                await withTimeout(loadBalanceHistory(), 8000).then(() => {
+                    console.log('✅ Balance history loaded, updating chart...');
+                    updateBalanceChart();
+                }).catch(e => console.warn('Balance history:', e.message));
                 
                 await delay(200);
                 
@@ -9217,7 +9231,7 @@ function getChartDataHash(chartData) {
 }
 
 // v9.11.24: MAX_CHART_RETRIES - increased back, retry count is now reset properly
-const MAX_CHART_RETRIES = 15;
+const MAX_CHART_RETRIES = 20;
 
 // Actual chart update implementation
 function _doUpdateBalanceChart(period) {
@@ -9230,6 +9244,7 @@ function _doUpdateBalanceChart(period) {
     isChartUpdating = true;
     
     const chartContainer = document.getElementById('balanceChart');
+    const chartSection = document.getElementById('balanceChartSection');
     const chartEmpty = document.querySelector('.chart-empty');
     const chartStats = document.querySelector('.chart-stats');
     
@@ -9238,14 +9253,19 @@ function _doUpdateBalanceChart(period) {
         return;
     }
     
+    // v9.11.25: Check if section is visible (parent may be hidden)
+    const isVisible = chartSection && chartSection.offsetParent !== null;
+    
     // Check if canvas is properly sized - retry later if not ready yet (with limit)
     if (chartContainer.offsetWidth === 0 || chartContainer.offsetHeight === 0) {
         if (chartRetryCount < MAX_CHART_RETRIES) {
             chartRetryCount++;
             isChartUpdating = false;
-            setTimeout(() => _doUpdateBalanceChart(period), 150); // v9.11.24: Slightly longer retry
+            // v9.11.25: Longer delay if section not visible (waiting for tab switch)
+            const delay = isVisible ? 100 : 300;
+            setTimeout(() => _doUpdateBalanceChart(period), delay);
         } else {
-            console.warn('Chart container not ready after', MAX_CHART_RETRIES, 'retries');
+            console.warn('Chart container not ready after', MAX_CHART_RETRIES, 'retries, isVisible:', isVisible);
             isChartUpdating = false;
             // v9.11.24: Reset for next attempt
             chartRetryCount = 0;
