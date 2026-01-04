@@ -1812,7 +1812,7 @@ body {
     min-width: 0;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    /* v9.11.1: Removed justify-content: center to allow price blocks at bottom */
 }
 
 .brainrot-name {
@@ -2034,6 +2034,101 @@ body {
     white-space: nowrap;
 }
 
+/* v9.11.1: Unified price block for normal cards (no mutation) */
+.brainrot-price-block {
+    margin-top: auto;
+    padding-top: 0.4rem;
+    width: 100%;
+}
+
+.brainrot-price-single {
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(100, 116, 139, 0.3);
+    text-align: center;
+}
+
+.brainrot-price-single:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(100, 116, 139, 0.5);
+}
+
+.brainrot-price-single .price-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-bottom: 0.2rem;
+}
+
+.brainrot-price-single .price-label {
+    font-size: 0.55rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.brainrot-price-single .price-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.brainrot-price-single .price-badges .parsing-source-badge {
+    font-size: 0.5rem;
+}
+
+.brainrot-price-single .price-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+}
+
+.brainrot-price-single .price-main .price-text {
+    color: #4ade80;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.brainrot-price-single .price-main .price-market {
+    font-size: 0.6rem;
+    opacity: 0.6;
+    color: var(--text-muted);
+}
+
+.brainrot-price-single .price-additional {
+    display: flex;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+}
+
+.brainrot-price-single .price-additional .additional-price {
+    font-size: 0.55rem;
+    padding: 1px 4px;
+}
+
+.brainrot-price-single .price-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    opacity: 0.5;
+    padding: 0.3rem 0;
+}
+
+.brainrot-price-single .price-no-data {
+    font-size: 0.7rem;
+    opacity: 0.4;
+    text-align: center;
+}
+
 /* v9.9.0: Additional prices (median, next competitor) */
 .brainrot-additional-prices {
     display: flex;
@@ -2101,17 +2196,21 @@ body {
 /* v9.11.0: Mutation price variants - two columns for Default and Mutation prices */
 .brainrot-price-variants {
     display: flex;
-    gap: 0.5rem;
-    margin-top: 0.3rem;
+    gap: 0.4rem;
+    margin-top: auto;
+    padding-top: 0.4rem;
+    width: 100%;
 }
 
 .price-variant {
     flex: 1;
-    padding: 0.4rem 0.5rem;
+    padding: 0.35rem 0.4rem;
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     transition: all 0.2s ease;
+    min-width: 0;
+    text-align: center;
 }
 
 .price-variant:hover {
@@ -2131,15 +2230,15 @@ body {
 .price-variant-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 0.25rem;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-bottom: 0.2rem;
 }
 
 .price-variant-label {
-    font-size: 0.6rem;
+    font-size: 0.55rem;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    opacity: 0.7;
+    letter-spacing: 0.3px;
     font-weight: 600;
 }
 
@@ -2148,51 +2247,87 @@ body {
 }
 
 .price-variant-label.mutation {
-    padding: 1px 5px;
+    padding: 1px 4px;
     border-radius: 3px;
     background: var(--mutation-bg, rgba(167, 139, 250, 0.2));
     color: var(--mutation-color, #a78bfa);
+    font-size: 0.5rem;
+}
+
+/* Badges inside price variants */
+.price-variant-badges {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    margin-left: 3px;
+}
+
+.price-variant-badges .parsing-source-badge {
+    font-size: 0.5rem;
+    padding: 1px 3px;
+}
+
+.price-variant-badges .next-range-badge {
+    font-size: 0.45rem;
+    padding: 1px 2px;
 }
 
 .price-variant-main {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    justify-content: center;
+    gap: 0.25rem;
     font-weight: 600;
 }
 
 .price-variant-main .price-text {
     color: #4ade80;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
 }
 
 .price-variant-main .price-market {
-    font-size: 0.65rem;
+    font-size: 0.6rem;
     opacity: 0.6;
+    color: var(--text-muted);
 }
 
 .price-variant-additional {
     display: flex;
-    gap: 0.3rem;
-    margin-top: 0.2rem;
+    justify-content: center;
+    gap: 0.25rem;
+    margin-top: 0.15rem;
 }
 
 .price-variant-additional .additional-price {
-    font-size: 0.55rem;
+    font-size: 0.5rem;
     padding: 1px 3px;
+    border-radius: 3px;
+}
+
+.price-variant-additional .additional-price.median {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60a5fa;
+}
+
+.price-variant-additional .additional-price.next-comp {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
 }
 
 .price-variant-loading {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
-    font-size: 0.75rem;
+    justify-content: center;
+    gap: 0.25rem;
+    font-size: 0.7rem;
     opacity: 0.5;
+    padding: 0.2rem 0;
 }
 
 .price-variant-no-data {
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     opacity: 0.4;
+    text-align: center;
 }
 
 /* Offer additional prices */
@@ -3077,6 +3212,63 @@ body {
     margin-top: 0.5rem;
 }
 
+/* v9.11.1: Mutation variant selector */
+.supa-mutation-selector {
+    margin-top: 0.5rem;
+}
+
+.supa-variant-options {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.3rem;
+}
+
+.supa-variant-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem;
+    background: var(--bg-tertiary);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.supa-variant-option:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.supa-variant-option:has(input:checked) {
+    border-color: var(--accent-primary);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.supa-variant-option input[type="radio"] {
+    width: 14px;
+    height: 14px;
+    margin-right: 0.4rem;
+    accent-color: var(--accent-primary);
+}
+
+.supa-variant-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.supa-variant-label.default {
+    color: #94a3b8;
+}
+
+.supa-variant-label.mutation {
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
 .supa-price-options {
     display: flex;
     flex-direction: column;
@@ -3103,6 +3295,28 @@ body {
 .supa-price-option.disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+/* v9.11.1: Custom price option */
+.supa-price-option.custom .supa-price-label {
+    flex-wrap: wrap;
+}
+
+.supa-custom-price-input {
+    width: 70px;
+    padding: 0.25rem 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    background: var(--bg-card);
+    color: var(--accent-green);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: auto;
+}
+
+.supa-custom-price-input:focus {
+    outline: none;
+    border-color: var(--accent-primary);
 }
 
 /* Disabled state for price options in offers modal */
@@ -5683,6 +5897,26 @@ body {
 .mass-gen-price-selector {
     margin-left: auto;
     margin-right: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    align-items: flex-end;
+}
+
+.mass-gen-variant-select {
+    padding: 0.3rem 0.5rem;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    min-width: 80px;
+}
+
+.mass-gen-variant-select:focus {
+    outline: none;
+    border-color: var(--accent-secondary);
 }
 
 .mass-gen-price-select {
@@ -5703,6 +5937,40 @@ body {
 
 .mass-gen-price-select option:disabled {
     color: var(--text-tertiary);
+}
+
+.mass-gen-custom-price {
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.75rem;
+    min-width: 80px;
+    max-width: 90px;
+    text-align: right;
+}
+
+.mass-gen-custom-price:focus {
+    outline: none;
+    border-color: var(--accent-primary);
+}
+
+.mass-gen-custom-price.hidden {
+    display: none;
+}
+
+/* Mass gen mutation badge */
+.mass-gen-mutation-badge {
+    display: inline-block;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%);
+    color: #1e1b4b;
+    margin-left: 0.25rem;
+    vertical-align: middle;
 }
 
 .mass-gen-item-remove {

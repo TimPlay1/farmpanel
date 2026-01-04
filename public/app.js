@@ -1305,6 +1305,126 @@ function formatPrice(price) {
 }
 
 /**
+ * v9.11.1: Рендер единого блока цены для обычных карточек (без мутации)
+ * Новый стиль, соответствующий карточкам с мутациями
+ * 
+ * @param {object} priceData - данные цены из кэша
+ * @param {string} cacheKey - ключ кэша для изменений цены
+ * @returns {string} - HTML блока цены
+ */
+function renderPriceBlock(priceData, cacheKey) {
+    // Loading state
+    if (!priceData) {
+        return `
+            <div class="brainrot-price-block">
+                <div class="brainrot-price-single" data-price-loading="true">
+                    <div class="price-loading">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <span>Loading...</span>
+                    </div>
+                </div>
+            </div>`;
+    }
+    
+    // Error state
+    if (priceData.error) {
+        return `
+            <div class="brainrot-price-block">
+                <div class="brainrot-price-single">
+                    <div class="price-no-data">No data</div>
+                </div>
+            </div>`;
+    }
+    
+    const selectedPrice = getSelectedPrice(priceData);
+    if (!selectedPrice) {
+        return `
+            <div class="brainrot-price-block">
+                <div class="brainrot-price-single">
+                    <div class="price-no-data">No price</div>
+                </div>
+            </div>`;
+    }
+    
+    const isAboveMarket = priceData.priceSource && priceData.priceSource.includes('above market');
+    const competitorInfo = priceData.competitorPrice 
+        ? `${isAboveMarket ? 'max ' : '~'}$${priceData.competitorPrice.toFixed(2)}` 
+        : '';
+    const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
+    const changeHtml = formatPriceChange(priceChange);
+    
+    // Source badge
+    const source = priceData.source || priceData.parsingSource || 'regex';
+    let sourceBadge = '';
+    
+    if (source === 'ai' && priceData.nextRangeChecked) {
+        sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+    } else if (source === 'ai') {
+        sourceBadge = `<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>`;
+    } else if (source === 'hybrid') {
+        sourceBadge = `<span class="parsing-source-badge hybrid" title="Hybrid"><i class="fas fa-brain"></i></span>`;
+    } else {
+        sourceBadge = `<span class="parsing-source-badge regex" title="Regex"><i class="fas fa-robot"></i></span>`;
+    }
+    
+    // Next range badge (only for regex when nextRangeChecked)
+    const nextRangeBadge = (priceData.nextRangeChecked && source !== 'ai')
+        ? `<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>` 
+        : '';
+    
+    // Price type badge
+    const priceTypeLabel = collectionState.priceType !== 'suggested' ? getSelectedPriceLabel() : '';
+    const priceTypeBadge = priceTypeLabel ? `<span class="price-type-badge">${priceTypeLabel}</span>` : '';
+    
+    // Additional prices
+    let additionalHtml = '';
+    const hasNextOpportunity = priceData.nextCompetitorPrice && priceData.competitorPrice && 
+        !priceData.nextRangeChecked &&
+        ((priceData.nextCompetitorPrice / priceData.competitorPrice) > 2);
+    
+    if (priceData.medianPrice || priceData.nextCompetitorPrice) {
+        additionalHtml = '<div class="price-additional">';
+        if (priceData.medianPrice) {
+            const medianTooltip = priceData.medianData 
+                ? `Median of ${priceData.medianData.offersUsed} offers` 
+                : 'Median price';
+            additionalHtml += `<span class="additional-price median" title="${medianTooltip}"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
+        }
+        if (priceData.nextCompetitorPrice) {
+            const nextTooltip = priceData.nextCompetitorData 
+                ? `Next: ${priceData.nextCompetitorData.income}M/s @ $${priceData.nextCompetitorData.price?.toFixed(2)}` 
+                : 'Next competitor';
+            additionalHtml += `<span class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
+        }
+        additionalHtml += '</div>';
+    }
+    
+    return `
+        <div class="brainrot-price-block">
+            <div class="brainrot-price-single" 
+                 title="${priceData.priceSource || ''}"
+                 data-suggested="${priceData.suggestedPrice || 0}"
+                 data-median="${priceData.medianPrice || 0}"
+                 data-next="${priceData.nextCompetitorPrice || 0}">
+                <div class="price-header">
+                    <span class="price-label">PRICE</span>
+                    <span class="price-badges">
+                        ${priceTypeBadge}
+                        ${sourceBadge}
+                        ${nextRangeBadge}
+                    </span>
+                </div>
+                <div class="price-main">
+                    <span class="price-text">${formatPrice(selectedPrice)}</span>
+                    ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
+                    ${changeHtml}
+                </div>
+                ${additionalHtml}
+            </div>
+        </div>`;
+}
+
+/**
  * v9.11.0: Рендер блока цен с вариантами (Default и Mutation)
  * Используется когда у брейнрота есть мутация
  * 
@@ -1324,6 +1444,33 @@ function renderPriceVariants(brainrotName, income, mutation) {
     // Стили для мутации
     const mStyles = getMutationStyles(mutation);
     const cleanMutation = cleanMutationText(mutation);
+    
+    // v9.11.1: Рендер бейджей источника (AI/regex/next-range)
+    const renderSourceBadges = (priceData) => {
+        if (!priceData || priceData.error) return '';
+        
+        const source = priceData.source || priceData.parsingSource || 'regex';
+        let badges = '<span class="price-variant-badges">';
+        
+        // AI + nextRangeChecked = brain + yellow arrow
+        if (source === 'ai' && priceData.nextRangeChecked) {
+            badges += `<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+        } else if (source === 'ai') {
+            badges += `<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>`;
+        } else if (source === 'hybrid') {
+            badges += `<span class="parsing-source-badge hybrid" title="Hybrid"><i class="fas fa-brain"></i></span>`;
+        } else {
+            badges += `<span class="parsing-source-badge regex" title="Regex"><i class="fas fa-robot"></i></span>`;
+        }
+        
+        // Next range badge (only for regex)
+        if (priceData.nextRangeChecked && source !== 'ai') {
+            badges += `<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>`;
+        }
+        
+        badges += '</span>';
+        return badges;
+    };
     
     // Рендер одного варианта цены
     const renderVariant = (priceData, type, label) => {
@@ -1356,25 +1503,33 @@ function renderPriceVariants(brainrotName, income, mutation) {
             ? `${isAboveMarket ? 'max' : '~'}$${priceData.competitorPrice.toFixed(2)}` 
             : '';
         
+        // Source badges
+        const sourceBadges = renderSourceBadges(priceData);
+        
         // Additional prices (median, next competitor)
         let additionalHtml = '';
         if (priceData.medianPrice || priceData.nextCompetitorPrice) {
             additionalHtml = '<div class="price-variant-additional">';
             if (priceData.medianPrice) {
-                additionalHtml += `<div class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</div>`;
+                additionalHtml += `<span class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
             }
             if (priceData.nextCompetitorPrice) {
-                additionalHtml += `<div class="additional-price next-comp" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</div>`;
+                additionalHtml += `<span class="additional-price next-comp" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
             }
             additionalHtml += '</div>';
         }
         
         return `
             <div class="price-variant ${type}" 
+                 data-price-type="${type}"
+                 data-suggested="${priceData.suggestedPrice || 0}"
+                 data-median="${priceData.medianPrice || 0}"
+                 data-next="${priceData.nextCompetitorPrice || 0}"
                  ${type === 'mutated' ? `style="--mutation-glow: ${mStyles.glowColor}40; --mutation-bg: ${mStyles.background}; --mutation-color: ${mStyles.textColor};"` : ''}>
                 <div class="price-variant-header">
                     <span class="price-variant-label ${type === 'mutated' ? 'mutation' : type}" 
                           ${type === 'mutated' ? `style="background: ${mStyles.background}; color: ${mStyles.textColor};"` : ''}>${label}</span>
+                    ${sourceBadges}
                 </div>
                 <div class="price-variant-main">
                     <span class="price-text">${formatPrice(selectedPrice)}</span>
@@ -4112,105 +4267,9 @@ async function renderCollection() {
             // Используем новый рендер с вариантами
             priceHtml = renderPriceVariants(group.name, income, group.mutation);
         } else {
-            // Обычный рендер цены для брейнротов без мутации
-            // v9.9.7: Получаем выбранную цену на основе настройки
-            const selectedPrice = getSelectedPrice(cachedPrice);
-            
-            if (cachedPrice && selectedPrice) {
-                // competitorPrice - это цена конкурента (может быть upper или max на рынке)
-                // Если priceSource содержит "above market" - показываем "max" вместо "~"
-                const isAboveMarket = cachedPrice.priceSource && cachedPrice.priceSource.includes('above market');
-                const competitorInfo = cachedPrice.competitorPrice 
-                    ? `${isAboveMarket ? 'max ' : '~'}$${cachedPrice.competitorPrice.toFixed(2)}` 
-                    : '';
-                const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
-                const changeHtml = formatPriceChange(priceChange);
-            
-            // v9.10.2: Check if next competitor price is >100% higher than current competitor (opportunity)
-            // v9.10.9: Don't show opportunity if we already switched to next range (opportunity already used)
-            const hasNextOpportunity = cachedPrice.nextCompetitorPrice && cachedPrice.competitorPrice && 
-                !cachedPrice.nextRangeChecked &&
-                ((cachedPrice.nextCompetitorPrice / cachedPrice.competitorPrice) > 2);
-            
-            // Parsing source badge (regex, ai, or hybrid)
-            // Приоритет: source (новый AI-first API) > parsingSource (старый)
-            const source = cachedPrice.source || cachedPrice.parsingSource || 'regex';
-            let sourceBadge = '';
-            
-            // v9.10.5: При AI + nextRangeChecked показываем brain + желтую стрелку вместе
-            if (source === 'ai' && cachedPrice.nextRangeChecked) {
-                sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
-            } else if (source === 'ai') {
-                sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
-            } else if (source === 'hybrid') {
-                sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
-            } else {
-                // Regex source
-                sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
-            }
-            
-            // v9.9.5: Иконка для цены из следующего диапазона (только для regex, AI уже включает стрелку)
-            const nextRangeBadge = (cachedPrice.nextRangeChecked && source !== 'ai')
-                ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
-                : '';
-            
-            // v9.9.0: Дополнительные варианты цен (медиана и следующий компетитор)
-            let additionalPricesHtml = '';
-            if (cachedPrice.medianPrice || cachedPrice.nextCompetitorPrice) {
-                additionalPricesHtml = `<div class="brainrot-additional-prices">`;
-                if (cachedPrice.medianPrice) {
-                    const medianTooltip = cachedPrice.medianData 
-                        ? `Median of ${cachedPrice.medianData.offersUsed} offers (page ${cachedPrice.medianData.pageNumber})` 
-                        : 'Median price';
-                    additionalPricesHtml += `
-                        <div class="additional-price median" title="${medianTooltip}">
-                            <i class="fas fa-chart-bar"></i>
-                            <span>${formatPrice(cachedPrice.medianPrice)}</span>
-                        </div>`;
-                }
-                if (cachedPrice.nextCompetitorPrice) {
-                    const nextTooltip = cachedPrice.nextCompetitorData 
-                        ? `Next: ${cachedPrice.nextCompetitorData.income}M/s @ $${cachedPrice.nextCompetitorData.price?.toFixed(2)}${hasNextOpportunity ? ' 🔥 >100% gap!' : ''}` 
-                        : 'Next competitor price';
-                    // v9.10.2: Анимация если разница > 100%
-                    additionalPricesHtml += `
-                        <div class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}">
-                            <i class="fas fa-arrow-up"></i>
-                            <span>${formatPrice(cachedPrice.nextCompetitorPrice)}</span>
-                        </div>`;
-                }
-                additionalPricesHtml += `</div>`;
-            }
-            
-            // v9.9.7: Показываем выбранную цену как основную
-            const priceTypeLabel = collectionState.priceType !== 'suggested' ? getSelectedPriceLabel() : '';
-            const priceTypeBadge = priceTypeLabel ? `<span class="price-type-badge" title="Using ${priceTypeLabel} price">${priceTypeLabel}</span>` : '';
-            
-            priceHtml = `
-                <div class="brainrot-price" title="${cachedPrice.priceSource || ''}">
-                    <i class="fas fa-tag"></i>
-                    <span class="price-text suggested">${formatPrice(selectedPrice)}</span>
-                    ${priceTypeBadge}
-                    ${sourceBadge}
-                    ${nextRangeBadge}
-                    ${changeHtml}
-                    ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
-                </div>
-                ${additionalPricesHtml}`;
-        } else if (cachedPrice && cachedPrice.error) {
-            priceHtml = `
-                <div class="brainrot-price">
-                    <i class="fas fa-tag" style="opacity: 0.5"></i>
-                    <span class="price-text" style="opacity: 0.5">No data</span>
-                </div>`;
-        } else {
-            priceHtml = `
-                <div class="brainrot-price" data-price-loading="true">
-                    <i class="fas fa-spinner fa-spin"></i>
-                    <span class="price-text">Loading...</span>
-                </div>`;
+            // v9.11.1: Используем унифицированный блок цены для обычных карточек
+            priceHtml = renderPriceBlock(cachedPrice, cacheKey);
         }
-        } // End of else (!hasMutation)
         
         // Определяем статус генерации: все сгенерированы, частично, или ни одного
         const allGenerated = notGeneratedCount === 0;
@@ -4813,31 +4872,74 @@ function openSupaGenerator(brainrotData) {
     
     // v9.9.0: Заполняем варианты цен
     const normalizedIncome = normalizeIncomeForApi(brainrotData.income, brainrotData.incomeText);
-    const priceKey = getPriceCacheKey(brainrotData.name, normalizedIncome);
-    const priceData = state.brainrotPrices[priceKey];
+    const hasMutation = brainrotData.mutation && cleanMutationText(brainrotData.mutation);
     
-    const suggestedEl = document.getElementById('supaPriceSuggested');
-    const medianEl = document.getElementById('supaPriceMedian');
-    const nextEl = document.getElementById('supaPriceNext');
+    // v9.11.1: Настройка mutation selector
+    const mutationSelectorEl = document.getElementById('supaMutationSelector');
+    const mutationLabelEl = document.getElementById('supaMutationLabel');
+    const defaultVariantRadio = document.querySelector('input[name="supaPriceVariant"][value="default"]');
     
-    if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${priceData.suggestedPrice.toFixed(2)}` : 'N/A';
-    if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${priceData.medianPrice.toFixed(2)}` : 'N/A';
-    if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${priceData.nextCompetitorPrice.toFixed(2)}` : 'N/A';
-    
-    // Disable options if price not available
-    const medianOption = document.querySelector('input[name="supaPriceType"][value="median"]');
-    const nextOption = document.querySelector('input[name="supaPriceType"][value="nextCompetitor"]');
-    if (medianOption) {
-        medianOption.disabled = !priceData?.medianPrice;
-        medianOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.medianPrice);
+    if (hasMutation && mutationSelectorEl) {
+        mutationSelectorEl.classList.remove('hidden');
+        if (mutationLabelEl) {
+            const mStyles = getMutationStyles(brainrotData.mutation);
+            mutationLabelEl.textContent = cleanMutationText(brainrotData.mutation);
+            mutationLabelEl.style.background = mStyles.background;
+            mutationLabelEl.style.color = mStyles.textColor;
+        }
+        if (defaultVariantRadio) defaultVariantRadio.checked = true;
+    } else if (mutationSelectorEl) {
+        mutationSelectorEl.classList.add('hidden');
     }
-    if (nextOption) {
-        nextOption.disabled = !priceData?.nextCompetitorPrice;
-        nextOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.nextCompetitorPrice);
-    }
+    
+    // v9.11.1: Функция обновления цен на основе выбранного варианта
+    const updatePricesForVariant = () => {
+        const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
+        let priceKey;
+        
+        if (selectedVariant === 'mutation' && hasMutation) {
+            priceKey = getPriceCacheKey(brainrotData.name, normalizedIncome, brainrotData.mutation);
+        } else {
+            priceKey = getPriceCacheKey(brainrotData.name, normalizedIncome);
+        }
+        
+        const priceData = state.brainrotPrices[priceKey];
+        
+        const suggestedEl = document.getElementById('supaPriceSuggested');
+        const medianEl = document.getElementById('supaPriceMedian');
+        const nextEl = document.getElementById('supaPriceNext');
+        
+        if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${priceData.suggestedPrice.toFixed(2)}` : 'N/A';
+        if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${priceData.medianPrice.toFixed(2)}` : 'N/A';
+        if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${priceData.nextCompetitorPrice.toFixed(2)}` : 'N/A';
+        
+        // Disable options if price not available
+        const medianOption = document.querySelector('input[name="supaPriceType"][value="median"]');
+        const nextOption = document.querySelector('input[name="supaPriceType"][value="nextCompetitor"]');
+        if (medianOption) {
+            medianOption.disabled = !priceData?.medianPrice;
+            medianOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.medianPrice);
+        }
+        if (nextOption) {
+            nextOption.disabled = !priceData?.nextCompetitorPrice;
+            nextOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.nextCompetitorPrice);
+        }
+    };
+    
+    // Вызываем начальное обновление
+    updatePricesForVariant();
+    
+    // Добавляем listener для смены варианта
+    document.querySelectorAll('input[name="supaPriceVariant"]').forEach(radio => {
+        radio.onchange = updatePricesForVariant;
+    });
     
     // Reset to suggested
     document.querySelector('input[name="supaPriceType"][value="suggested"]').checked = true;
+    
+    // Reset custom price
+    const customPriceInput = document.getElementById('supaCustomPrice');
+    if (customPriceInput) customPriceInput.value = '';
     
     // Используем единый цвет панели для границы
     const panelColor = collectionState.panelColor || '#4ade80';
@@ -4922,6 +5024,20 @@ function createSupaGeneratorModal() {
                         <label><i class="fas fa-image"></i> URL изображения</label>
                         <input type="url" id="supaImageUrl" placeholder="https://..." onchange="updateSupaImagePreview(this.value)">
                     </div>
+                    <!-- v9.11.1: Mutation price selector (hidden if no mutation) -->
+                    <div class="supa-form-group supa-mutation-selector hidden" id="supaMutationSelector">
+                        <label><i class="fas fa-dna"></i> Вариант цены</label>
+                        <div class="supa-variant-options">
+                            <label class="supa-variant-option">
+                                <input type="radio" name="supaPriceVariant" value="default" checked>
+                                <span class="supa-variant-label default">DEFAULT</span>
+                            </label>
+                            <label class="supa-variant-option" id="supaMutationOption">
+                                <input type="radio" name="supaPriceVariant" value="mutation">
+                                <span class="supa-variant-label mutation" id="supaMutationLabel">MUTATION</span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="supa-form-group supa-price-selector">
                         <label><i class="fas fa-dollar-sign"></i> Цена для Eldorado</label>
                         <div class="supa-price-options" id="supaPriceOptions">
@@ -4947,6 +5063,14 @@ function createSupaGeneratorModal() {
                                     <i class="fas fa-arrow-up"></i>
                                     <span>След. компетитор</span>
                                     <strong id="supaPriceNext">$0.00</strong>
+                                </span>
+                            </label>
+                            <label class="supa-price-option custom">
+                                <input type="radio" name="supaPriceType" value="custom">
+                                <span class="supa-price-label">
+                                    <i class="fas fa-edit"></i>
+                                    <span>Своя цена</span>
+                                    <input type="number" step="0.01" min="0" id="supaCustomPrice" class="supa-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=supaPriceType][value=custom]').checked = true;">
                                 </span>
                             </label>
                         </div>
@@ -5200,17 +5324,32 @@ async function postToEldorado() {
     // v9.9.0: Получаем выбранный тип цены
     const selectedPriceType = document.querySelector('input[name="supaPriceType"]:checked')?.value || 'suggested';
     
+    // v9.11.1: Получаем выбранный вариант цены (default/mutation)
+    const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
+    const hasMutation = currentSupaBrainrot?.mutation && cleanMutationText(currentSupaBrainrot?.mutation);
+    
     // Получаем цену из кэша или из данных брейнрота
     let minPrice = 0;
     let maxPrice = 0;
     
-    // Получаем цену по ключу name + income
+    // v9.11.1: Получаем цену по ключу с учетом варианта (default/mutation)
     const normalizedIncome = normalizeIncomeForApi(currentSupaBrainrot?.income, income);
-    const priceKey = getPriceCacheKey(name, normalizedIncome);
+    let priceKey;
+    if (selectedVariant === 'mutation' && hasMutation) {
+        priceKey = getPriceCacheKey(name, normalizedIncome, currentSupaBrainrot.mutation);
+    } else {
+        priceKey = getPriceCacheKey(name, normalizedIncome);
+    }
     const priceData = state.brainrotPrices[priceKey];
     
+    // v9.11.1: Проверяем кастомную цену
+    const customPriceInput = document.getElementById('supaCustomPrice');
+    const customPrice = customPriceInput ? parseFloat(customPriceInput.value) : 0;
+    
     // v9.9.0: Выбираем цену в зависимости от типа
-    if (priceData) {
+    if (selectedPriceType === 'custom' && customPrice > 0) {
+        maxPrice = customPrice;
+    } else if (priceData) {
         switch (selectedPriceType) {
             case 'median':
                 maxPrice = priceData.medianPrice || priceData.suggestedPrice || 0;
@@ -5221,8 +5360,8 @@ async function postToEldorado() {
             default:
                 maxPrice = priceData.suggestedPrice || 0;
         }
-        minPrice = Math.floor(maxPrice * 0.9);
     }
+    minPrice = Math.floor(maxPrice * 0.9);
     
     // Количество одинаковых брейнротов (для Eldorado Quantity)
     const quantity = currentSupaBrainrot?.quantity || 1;
@@ -5236,6 +5375,7 @@ async function postToEldorado() {
         minPrice: minPrice,
         maxPrice: maxPrice,
         priceType: selectedPriceType, // v9.9.0: Тип выбранной цены
+        priceVariant: selectedVariant, // v9.11.1: Вариант цены (default/mutation)
         quantity: quantity, // Количество для Eldorado Total Quantity
         rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
         mutation: currentSupaBrainrot?.mutation || '', // v9.8.27: Мутация брейнрота (YinYang, Diamond, etc)
@@ -5474,23 +5614,52 @@ function openMassGenerationModal() {
         const medianPrice = cachedPrice?.medianPrice || 0;
         const nextCompPrice = cachedPrice?.nextCompetitorPrice || 0;
         
+        // v9.11.1: Если есть мутация - также показываем цены мутации
+        const hasMutation = group.mutation && cleanMutationText(group.mutation);
+        let mutationPriceData = null;
+        let mutSuggested = 0, mutMedian = 0, mutNext = 0;
+        
+        if (hasMutation) {
+            const mutCacheKey = getPriceCacheKey(group.name, income, group.mutation);
+            mutationPriceData = state.brainrotPrices[mutCacheKey];
+            mutSuggested = mutationPriceData?.suggestedPrice || 0;
+            mutMedian = mutationPriceData?.medianPrice || 0;
+            mutNext = mutationPriceData?.nextCompetitorPrice || 0;
+        }
+        
+        const mStyles = hasMutation ? getMutationStyles(group.mutation) : {};
+        const cleanMut = hasMutation ? cleanMutationText(group.mutation) : '';
+        
         return `
-            <div class="mass-gen-item" data-item-index="${i}" data-group-key="${group.groupKey}">
+            <div class="mass-gen-item" data-item-index="${i}" data-group-key="${group.groupKey}" data-has-mutation="${hasMutation ? 'true' : 'false'}" data-mutation="${group.mutation || ''}">
                 <img class="mass-gen-item-img" src="${group.imageUrl || ''}" alt="${group.name}" 
                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%231a1a2e%22 width=%2240%22 height=%2240%22/></svg>'">
                 <div class="mass-gen-item-info">
-                    <div class="mass-gen-item-name">${group.name}${group.quantity > 1 ? ` <span style="color:#f59e0b;">x${group.quantity}</span>` : ''}</div>
+                    <div class="mass-gen-item-name">
+                        ${group.name}${group.quantity > 1 ? ` <span style="color:#f59e0b;">x${group.quantity}</span>` : ''}
+                        ${hasMutation ? `<span class="mass-gen-mutation-badge" style="background:${mStyles.background};color:${mStyles.textColor};padding:1px 4px;border-radius:3px;font-size:0.6rem;margin-left:4px;">${cleanMut}</span>` : ''}
+                    </div>
                     <div class="mass-gen-item-details">
                         <span><i class="fas fa-coins"></i> ${group.incomeText || formatIncome(group.income)}</span>
                         <span><i class="fas fa-user"></i> ${accountsList}</span>
                     </div>
                 </div>
                 <div class="mass-gen-price-selector" data-price-index="${i}">
-                    <select class="mass-gen-price-select" data-index="${i}">
+                    ${hasMutation ? `
+                    <select class="mass-gen-variant-select" data-index="${i}" onchange="updateMassGenPriceOptions(${i})">
+                        <option value="default">DEFAULT</option>
+                        <option value="mutation">${cleanMut}</option>
+                    </select>
+                    ` : ''}
+                    <select class="mass-gen-price-select" data-index="${i}"
+                            data-def-suggested="${suggestedPrice}" data-def-median="${medianPrice}" data-def-next="${nextCompPrice}"
+                            data-mut-suggested="${mutSuggested}" data-mut-median="${mutMedian}" data-mut-next="${mutNext}">
                         <option value="suggested" ${suggestedPrice > 0 ? '' : 'disabled'}>💰 $${suggestedPrice.toFixed(2)}</option>
                         <option value="median" ${medianPrice > 0 ? '' : 'disabled'}>📊 $${medianPrice.toFixed(2)}</option>
                         <option value="nextCompetitor" ${nextCompPrice > 0 ? '' : 'disabled'}>⬆️ $${nextCompPrice.toFixed(2)}</option>
+                        <option value="custom">✏️ Custom</option>
                     </select>
+                    <input type="number" step="0.01" min="0" class="mass-gen-custom-price hidden" data-index="${i}" placeholder="$0.00">
                 </div>
                 <div class="mass-gen-item-status pending" data-status-index="${i}">
                     <i class="fas fa-clock"></i>
@@ -5508,6 +5677,59 @@ function openMassGenerationModal() {
     }
     modal.classList.remove('hidden');
 }
+
+// v9.11.1: Update price options when variant changes in mass gen
+function updateMassGenPriceOptions(index) {
+    const item = document.querySelector(`.mass-gen-item[data-item-index="${index}"]`);
+    if (!item) return;
+    
+    const variantSelect = item.querySelector('.mass-gen-variant-select');
+    const priceSelect = item.querySelector('.mass-gen-price-select');
+    if (!priceSelect) return;
+    
+    const variant = variantSelect?.value || 'default';
+    const isDefault = variant === 'default';
+    
+    const suggested = parseFloat(priceSelect.dataset[isDefault ? 'defSuggested' : 'mutSuggested']) || 0;
+    const median = parseFloat(priceSelect.dataset[isDefault ? 'defMedian' : 'mutMedian']) || 0;
+    const next = parseFloat(priceSelect.dataset[isDefault ? 'defNext' : 'mutNext']) || 0;
+    
+    // Update option text and disabled state
+    const options = priceSelect.options;
+    options[0].textContent = `💰 $${suggested.toFixed(2)}`;
+    options[0].disabled = suggested <= 0;
+    options[1].textContent = `📊 $${median.toFixed(2)}`;
+    options[1].disabled = median <= 0;
+    options[2].textContent = `⬆️ $${next.toFixed(2)}`;
+    options[2].disabled = next <= 0;
+    
+    // Reset to suggested if current selection is disabled
+    if (priceSelect.options[priceSelect.selectedIndex].disabled) {
+        priceSelect.selectedIndex = 0;
+    }
+}
+
+// v9.11.1: Toggle custom price input visibility and handle variant change
+document.addEventListener('change', (e) => {
+    // Handle price type select change - show/hide custom price input
+    if (e.target.classList.contains('mass-gen-price-select')) {
+        const index = e.target.dataset.index;
+        const item = document.querySelector(`.mass-gen-item[data-item-index="${index}"]`);
+        const customInput = item?.querySelector('.mass-gen-custom-price');
+        if (customInput) {
+            customInput.classList.toggle('hidden', e.target.value !== 'custom');
+            if (e.target.value === 'custom') {
+                customInput.focus();
+            }
+        }
+    }
+    
+    // Handle variant select change - update price options
+    if (e.target.classList.contains('mass-gen-variant-select')) {
+        const index = e.target.dataset.index;
+        updateMassGenPriceOptions(parseInt(index, 10));
+    }
+});
 
 // Remove item from mass generation list
 function removeMassGenItem(itemIndex) {
@@ -5629,26 +5851,40 @@ async function doStartMassGeneration() {
         }
         
         try {
-            // Get price from cache based on selected price type
+            // v9.11.1: Get variant selection and use correct cache key
+            const variantSelect = list.querySelector(`.mass-gen-variant-select[data-index="${idx}"]`);
+            const selectedVariant = variantSelect?.value || 'default';
+            const isUsingMutationPrice = selectedVariant === 'mutation';
+            
+            // Get price from cache based on selected variant and price type
             const income = normalizeIncomeForApi(group.income, group.incomeText);
-            const cacheKey = getPriceCacheKey(group.name, income);
+            const cacheKey = getPriceCacheKey(group.name, income, isUsingMutationPrice ? (group.mutation || '') : '');
             const cachedPrice = state.brainrotPrices[cacheKey];
             
             // Get selected price type from dropdown
             const priceSelect = list.querySelector(`.mass-gen-price-select[data-index="${idx}"]`);
             const selectedPriceType = priceSelect?.value || 'suggested';
             
+            // v9.11.1: Get custom price input
+            const customPriceInput = list.querySelector(`.mass-gen-custom-price[data-index="${idx}"]`);
+            const customPriceValue = parseFloat(customPriceInput?.value) || 0;
+            
             let price = 0;
-            switch (selectedPriceType) {
-                case 'median':
-                    price = cachedPrice?.medianPrice || cachedPrice?.suggestedPrice || 0;
-                    break;
-                case 'nextCompetitor':
-                    price = cachedPrice?.nextCompetitorPrice || cachedPrice?.suggestedPrice || 0;
-                    break;
-                case 'suggested':
-                default:
-                    price = cachedPrice?.suggestedPrice || 0;
+            if (selectedPriceType === 'custom' && customPriceValue > 0) {
+                // v9.11.1: Use custom price if selected and valid
+                price = customPriceValue;
+            } else {
+                switch (selectedPriceType) {
+                    case 'median':
+                        price = cachedPrice?.medianPrice || cachedPrice?.suggestedPrice || 0;
+                        break;
+                    case 'nextCompetitor':
+                        price = cachedPrice?.nextCompetitorPrice || cachedPrice?.suggestedPrice || 0;
+                        break;
+                    case 'suggested':
+                    default:
+                        price = cachedPrice?.suggestedPrice || 0;
+                }
             }
             
             // Use panel color
@@ -5708,13 +5944,15 @@ async function doStartMassGeneration() {
             
             // Always add to Eldorado queue
             const offerId = generateOfferId();
+            // v9.11.1: Pass mutation only if using mutation variant
+            const effectiveMutation = isUsingMutationPrice ? (group.mutation || '') : '';
             eldoradoQueue.push({
                 name: group.name,
                 income: group.incomeText || formatIncome(group.income),
                 imageUrl: result.resultUrl,
                 price: price || 0,
                 quantity: group.quantity || 1,
-                mutation: group.mutation || '', // v9.8.27: Мутация брейнрота
+                mutation: effectiveMutation, // v9.11.1: Use effective mutation based on variant selection
                 accountName: group.items?.map(i => i.accountName).join(', ') || 'Unknown',
                 offerId: offerId // v9.9.4: Track offer by code
             });
