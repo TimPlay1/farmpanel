@@ -642,10 +642,14 @@ async function loadPricesFromServer() {
                 }
                 
                 // Загружаем цены в state (включая medianPrice, nextCompetitorPrice и др.)
+                // ВАЖНО: _timestamp = Date.now() чтобы считать данные свежими
+                // (updatedAt - время обновления на сервере cron'ом, может быть давно)
+                const loadTime = Date.now();
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = {
                         ...priceData,
-                        _timestamp: priceData.updatedAt ? new Date(priceData.updatedAt).getTime() : Date.now()
+                        _timestamp: loadTime, // Время загрузки клиентом, не сервера!
+                        _serverUpdatedAt: priceData.updatedAt // Сохраняем оригинал для справки
                     };
                 }
                 
@@ -675,10 +679,12 @@ async function loadPricesFromServer() {
                 }
                 
                 // Загружаем цены в state (добавляем _timestamp для кэширования)
+                // ВАЖНО: _timestamp = Date.now() - время загрузки клиентом
+                const loadTime = Date.now();
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = {
                         ...priceData,
-                        _timestamp: priceData._timestamp || Date.now()
+                        _timestamp: loadTime // Время загрузки клиентом
                     };
                 }
                 
