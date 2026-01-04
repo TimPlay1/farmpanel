@@ -447,18 +447,23 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
     
-    // Проверяем авторизацию для ручного вызова (не cron)
+    // Проверяем авторизацию
+    // Vercel Cron использует User-Agent: vercel-cron/1.0
+    const userAgent = req.headers['user-agent'] || '';
+    const isCronRequest = userAgent.includes('vercel-cron');
     const authHeader = req.headers.authorization;
-    const isCronRequest = req.headers['x-vercel-cron'] === '1';
     
-    // Разрешаем только cron или авторизованные запросы
+    // Разрешаем cron запросы (по User-Agent) или авторизованные запросы
     if (!isCronRequest) {
         // Для ручного вызова требуем secret
         const expectedSecret = process.env.CRON_SECRET || 'price-scanner-secret';
         if (authHeader !== `Bearer ${expectedSecret}`) {
+            console.log('Unauthorized request - not cron, no valid auth');
             return res.status(401).json({ error: 'Unauthorized' });
         }
     }
+    
+    console.log(`📅 Cron price scanner triggered (isCron: ${isCronRequest})`);
     
     try {
         const result = await runPriceScan();

@@ -117,6 +117,23 @@ module.exports = async (req, res) => {
             // ВАЖНО: один brainrot (Los 67) может иметь РАЗНЫЕ мутации при разных income
             const mutationsMapExact = new Map();  // name_income -> mutation
             const mutationsMapFallback = new Map(); // name -> mutation (последняя найденная)
+            
+            // Для точного match нужно также учитывать incomeText (может быть числовой или текстовый)
+            const parseIncomeValue = (income, incomeText) => {
+                // Если есть числовой income - используем его
+                if (typeof income === 'number' && income > 0) return income;
+                if (typeof income === 'string') {
+                    const parsed = parseFloat(income);
+                    if (!isNaN(parsed) && parsed > 0) return parsed;
+                }
+                // Парсим из incomeText (формат "$247.5M/s" или "247.5M/s")
+                if (incomeText) {
+                    const match = incomeText.match(/\$?(\d+\.?\d*)\s*[MB]/i);
+                    if (match) return parseFloat(match[1]);
+                }
+                return null;
+            };
+            
             if (farmer && farmer.accounts) {
                 for (const account of farmer.accounts) {
                     if (account.brainrots) {
@@ -126,9 +143,10 @@ module.exports = async (req, res) => {
                                 // Fallback - просто по имени (перезапишется если много)
                                 mutationsMapFallback.set(nameLower, b.mutation);
                                 
-                                // Точный ключ с income (если есть)
-                                if (b.income !== undefined && b.income !== null) {
-                                    const roundedIncome = Math.floor((b.income || 0) / 10) * 10;
+                                // Точный ключ с income
+                                const incomeValue = parseIncomeValue(b.income, b.incomeText);
+                                if (incomeValue !== null) {
+                                    const roundedIncome = Math.floor(incomeValue / 10) * 10;
                                     const exactKey = `${nameLower}_${roundedIncome}`;
                                     mutationsMapExact.set(exactKey, b.mutation);
                                 }
@@ -137,6 +155,8 @@ module.exports = async (req, res) => {
                     }
                 }
             }
+            
+            console.log(`Mutation maps: exact=${mutationsMapExact.size}, fallback=${mutationsMapFallback.size}`);
             
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
@@ -176,11 +196,18 @@ module.exports = async (req, res) => {
                     const nameLower = offer.brainrotName.toLowerCase();
                     let mutation = null;
                     
-                    // Точный поиск по name+income
-                    if (offer.income !== undefined && offer.income !== null) {
-                        const roundedIncome = Math.floor((offer.income || 0) / 10) * 10;
+                    // Точный поиск по name+income - используем parseIncomeValue для оффера тоже
+                    const offerIncome = parseIncomeValue(offer.income, offer.incomeRaw);
+                    if (offerIncome !== null) {
+                        const roundedIncome = Math.floor(offerIncome / 10) * 10;
                         const exactKey = `${nameLower}_${roundedIncome}`;
                         mutation = mutationsMapExact.get(exactKey);
+                        
+                        // Debug для Los 67
+                        if (nameLower.includes('los 67')) {
+                            console.log(`Los 67 lookup: offerIncome=${offerIncome}, rounded=${roundedIncome}, exactKey=${exactKey}, found=${mutation || 'none'}`);
+                            console.log(`  Available exact keys for los 67:`, [...mutationsMapExact.keys()].filter(k => k.includes('los 67')));
+                        }
                     }
                     
                     // Fallback по имени если точный не найден
