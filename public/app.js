@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.19 - Consistent price card heights, always show median/next
+// FarmerPanel App v9.11.20 - Fast loading with timeouts, no more infinite hang
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -1654,6 +1654,18 @@ function updateLoadingText(text) {
     }
 }
 
+/**
+ * v9.11.20: Fetch с timeout чтобы не висеть вечно при MongoDB проблемах
+ */
+function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+    return Promise.race([
+        fetch(url, options),
+        new Promise((_, reject) => 
+            setTimeout(() => reject(new Error(`Request timeout after ${timeoutMs}ms`)), timeoutMs)
+        )
+    ]);
+}
+
 // Initialize - оптимизировано для быстрой загрузки
 document.addEventListener('DOMContentLoaded', async () => {
     // === ЭТАП 1: Синхронная загрузка из localStorage (мгновенная) ===
@@ -1680,11 +1692,31 @@ document.addEventListener('DOMContentLoaded', async () => {
             state.farmersData[state.currentKey].accounts && 
             state.farmersData[state.currentKey].accounts.length > 0;
         
+        // v9.11.20: Загружаем цены ДО farmer data (быстрее, не блокирует)
+        // Цены из prices-cache загружаются быстро (один batch запрос)
+        const hasCachedPrices = Object.keys(state.brainrotPrices).length > 0;
+        if (!hasCachedPrices) {
+            updateLoadingText('Loading prices...');
+            try {
+                await Promise.race([
+                    loadPricesFromServer(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Prices timeout')), 8000))
+                ]);
+                console.log('✅ Loaded prices from server');
+            } catch (e) {
+                console.warn('Failed to load prices (will retry in background):', e.message);
+            }
+        }
+        
         if (!hasCachedData) {
-            // Нет кэша - загружаем данные с сервера ДО показа UI
+            // v9.11.20: Timeout 8 секунд чтобы не висеть вечно
             updateLoadingText('Loading account data...');
             try {
-                const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`);
+                const response = await fetchWithTimeout(
+                    `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
+                    {},
+                    8000 // 8 секунд timeout
+                );
                 if (response.ok) {
                     const data = await response.json();
                     state.farmersData[state.currentKey] = data;
@@ -1692,7 +1724,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.log('✅ Loaded farmer data from server');
                 }
             } catch (e) {
-                console.warn('Failed to load farmer data:', e);
+                console.warn('Failed to load farmer data (timeout or error):', e.message);
                 // Показываем UI даже если загрузка не удалась
             }
         }
@@ -1722,57 +1754,59 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupOffersRefreshListener();
         
         // Последовательная загрузка фоновых данных с задержками
+        // v9.11.20: Добавлены таймауты для каждой операции
         (async function loadBackgroundData() {
             const delay = ms => new Promise(r => setTimeout(r, ms));
+            const withTimeout = (promise, ms) => Promise.race([
+                promise,
+                new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
+            ]);
             
             try {
-                // 1. Сначала цены (важно для UI)
-                await loadPricesFromServer().then(async loaded => {
-                    if (loaded) {
-                        console.log('✅ Loaded prices from server cache');
-                        if (offersState.offers.length > 0) {
-                            await updateOffersRecommendedPrices();
-                            filterAndRenderOffers();
+                // 1. Цены (если не загружены ранее)
+                if (Object.keys(state.brainrotPrices).length === 0) {
+                    await withTimeout(loadPricesFromServer(), 10000).then(async loaded => {
+                        if (loaded) {
+                            console.log('✅ Loaded prices from server cache');
+                            updateUI();
+                            renderFarmKeys();
+                            if (collectionState.allBrainrots.length > 0) {
+                                renderCollection();
+                            }
                         }
-                        updateUI();
-                        renderFarmKeys();
-                        // v9.11.14: Перерисовываем коллекцию с новыми ценами
-                        if (collectionState.allBrainrots.length > 0) {
-                            renderCollection();
-                        }
-                    }
-                }).catch(e => console.warn('Prices load failed:', e));
+                    }).catch(e => console.warn('Prices load failed:', e.message));
+                }
                 
-                await delay(300);
+                await delay(200);
                 
                 // 2. Офферы
-                await loadOffers(false, true).then(() => {
+                await withTimeout(loadOffers(false, true), 10000).then(() => {
                     if (collectionState.allBrainrots.length > 0) {
                         renderCollection();
                     }
-                }).catch(e => console.warn('Offers load failed:', e));
+                }).catch(e => console.warn('Offers load failed:', e.message));
                 
-                await delay(300);
+                await delay(200);
                 
                 // 3. История баланса
-                await loadBalanceHistory().catch(e => console.warn('Balance history load failed:', e));
+                await withTimeout(loadBalanceHistory(), 8000).catch(e => console.warn('Balance history:', e.message));
                 
-                await delay(300);
+                await delay(200);
                 
                 // 4. Топ данные
-                await preloadTopData().catch(e => console.warn('Top data preload failed:', e));
+                await withTimeout(preloadTopData(), 8000).catch(e => console.warn('Top data:', e.message));
                 
-                await delay(300);
+                await delay(200);
                 
-                // 5. Данные всех фермеров
-                await fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e));
+                // 5. Данные всех фермеров (не критично если не загрузится)
+                await withTimeout(fetchAllFarmersData(), 10000).catch(e => console.warn('Farmers data:', e.message));
                 
-                await delay(300);
+                await delay(200);
                 
                 // 6. Название магазина
-                await loadShopName().catch(e => console.warn('Shop name load failed:', e));
+                await withTimeout(loadShopName(), 5000).catch(e => console.warn('Shop name:', e.message));
                 
-                console.log('✅ All background data loaded');
+                console.log('✅ Background loading complete');
             } catch (e) {
                 console.warn('Background loading error:', e);
             }
