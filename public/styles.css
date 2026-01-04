@@ -1684,9 +1684,17 @@ body {
     border-radius: 12px;
     padding: 1rem;
     display: flex;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0.75rem;
     transition: all 0.2s;
     position: relative;
+}
+
+/* v9.11.2: Content wrapper for image + details row */
+.brainrot-card-content {
+    display: flex;
+    gap: 1rem;
+    flex: 1;
 }
 
 .brainrot-card:hover {
@@ -2035,20 +2043,22 @@ body {
 }
 
 /* v9.11.1: Unified price block for normal cards (no mutation) */
+/* v9.11.2: Full width at bottom of card */
 .brainrot-price-block {
-    margin-top: auto;
-    padding-top: 0.4rem;
     width: 100%;
+    display: flex;
+    justify-content: center;
 }
 
 .brainrot-price-single {
     display: flex;
     flex-direction: column;
-    padding: 0.35rem 0.5rem;
-    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(100, 116, 139, 0.3);
     text-align: center;
+    width: 100%;
 }
 
 .brainrot-price-single:hover {
@@ -2194,18 +2204,18 @@ body {
 }
 
 /* v9.11.0: Mutation price variants - two columns for Default and Mutation prices */
+/* v9.11.2: Full width at bottom of card */
 .brainrot-price-variants {
     display: flex;
-    gap: 0.4rem;
-    margin-top: auto;
-    padding-top: 0.4rem;
+    gap: 0.5rem;
     width: 100%;
+    justify-content: center;
 }
 
 .price-variant {
     flex: 1;
-    padding: 0.35rem 0.4rem;
-    border-radius: 6px;
+    padding: 0.4rem 0.5rem;
+    border-radius: 8px;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     transition: all 0.2s ease;

@@ -4297,6 +4297,7 @@ async function renderCollection() {
             ? `onclick="toggleBrainrotSelection(${index})"` 
             : '';
         
+        // v9.11.2: Restructured card layout - price block at bottom of full card width
         return `
         <div class="${cardClasses.join(' ')} ${group.mutation ? 'brainrot-mutated' : ''}" 
              data-brainrot-name="${group.name}" 
@@ -4314,29 +4315,31 @@ async function renderCollection() {
                 x${group.quantity}
             </div>
             ` : ''}
-            <div class="brainrot-image">
-                ${group.imageUrl 
-                    ? `<img src="${group.imageUrl}" alt="${group.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
-                    : '<i class="fas fa-brain"></i>'
-                }
-            </div>
-            <div class="brainrot-details">
-                <div class="brainrot-name" title="${group.name}">${group.name}</div>
-                ${group.mutation ? (() => {
-                    const mStyles = getMutationStyles(group.mutation);
-                    const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
-                    return `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(group.mutation)}</span></div>`;
-                })() : ''}
-                <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
-                ${priceHtml}
-                <div class="brainrot-account" title="${accountsList}">
-                    <i class="fas fa-user${group.quantity > 1 ? 's' : ''}"></i>
-                    ${group.quantity > 1 ? group.quantity + ' accounts' : group.items[0]?.accountName || 'Unknown'}
-                </div>
-            </div>
             <button class="brainrot-eldorado-link" onclick="event.stopPropagation(); openEldoradoLink('${group.name.replace(/'/g, "\\'")}', ${income})" title="View on Eldorado">
                 <i class="fas fa-external-link-alt"></i>
             </button>
+            <div class="brainrot-card-content">
+                <div class="brainrot-image">
+                    ${group.imageUrl 
+                        ? `<img src="${group.imageUrl}" alt="${group.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                        : '<i class="fas fa-brain"></i>'
+                    }
+                </div>
+                <div class="brainrot-details">
+                    <div class="brainrot-name" title="${group.name}">${group.name}</div>
+                    ${group.mutation ? (() => {
+                        const mStyles = getMutationStyles(group.mutation);
+                        const textShadow = mStyles.textShadow ? `text-shadow: ${mStyles.textShadow};` : '';
+                        return `<div class="brainrot-mutation-line"><span class="brainrot-mutation-badge-inline" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(group.mutation)}</span></div>`;
+                    })() : ''}
+                    <div class="brainrot-income">${group.incomeText || formatIncome(group.income)}</div>
+                    <div class="brainrot-account" title="${accountsList}">
+                        <i class="fas fa-user${group.quantity > 1 ? 's' : ''}"></i>
+                        ${group.quantity > 1 ? group.quantity + ' accounts' : group.items[0]?.accountName || 'Unknown'}
+                    </div>
+                </div>
+            </div>
+            ${priceHtml}
         </div>`;
     }).join('');
     
