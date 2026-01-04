@@ -1515,6 +1515,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
         const sourceBadges = renderSourceBadges(priceData);
         
         // Additional prices (median, next competitor)
+        // v9.11.7: Add opportunity class when nextCompetitor gap > 100%
         let additionalHtml = '';
         if (priceData.medianPrice || priceData.nextCompetitorPrice) {
             additionalHtml = '<div class="price-variant-additional">';
@@ -1522,7 +1523,9 @@ function renderPriceVariants(brainrotName, income, mutation) {
                 additionalHtml += `<span class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
             }
             if (priceData.nextCompetitorPrice) {
-                additionalHtml += `<span class="additional-price next-comp" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
+                const hasOpportunity = priceData.competitorPrice && 
+                    (priceData.nextCompetitorPrice / priceData.competitorPrice) > 2;
+                additionalHtml += `<span class="additional-price next-comp ${hasOpportunity ? 'opportunity' : ''}" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
             }
             additionalHtml += '</div>';
         }
@@ -6488,6 +6491,8 @@ async function updateOffersRecommendedPrices() {
             
             // Store default price data
             if (defaultPriceData && defaultPriceData.suggestedPrice && defaultPriceData.suggestedPrice > 0) {
+                // v9.11.7: Cache last known price for seamless updates
+                offer._lastDefaultPrice = getSelectedPrice(defaultPriceData);
                 offer.defaultSuggestedPrice = defaultPriceData.suggestedPrice;
                 offer.defaultRecommendedPrice = getSelectedPrice(defaultPriceData);
                 offer.defaultMedianPrice = defaultPriceData.medianPrice || null;
@@ -6498,6 +6503,8 @@ async function updateOffersRecommendedPrices() {
             
             // Store mutation price data
             if (hasMutation && mutationPriceData && mutationPriceData.suggestedPrice && mutationPriceData.suggestedPrice > 0) {
+                // v9.11.7: Cache last known price for seamless updates
+                offer._lastMutationPrice = getSelectedPrice(mutationPriceData);
                 offer.mutationSuggestedPrice = mutationPriceData.suggestedPrice;
                 offer.mutationRecommendedPrice = getSelectedPrice(mutationPriceData);
                 offer.mutationMedianPrice = mutationPriceData.medianPrice || null;
@@ -6815,34 +6822,55 @@ function renderOffers() {
                 </div>
                 ${cleanMutationText(offer.mutation) ? `
                 <div class="offer-price-variants">
-                    <div class="offer-price-variant default" data-price="${offer.defaultRecommendedPrice || 0}">
-                        <div class="offer-variant-header">
-                            <span class="offer-variant-label default">DEFAULT</span>
-                            ${offer.defaultNextRangeChecked 
-                                ? (offer.defaultSource === 'ai' 
-                                    ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
-                                    : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
-                                : (offer.defaultSource === 'ai' 
-                                    ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
-                                    : '')}
-                        </div>
-                        <div class="offer-variant-price ${offer.defaultRecommendedPrice > 0 ? '' : 'no-price'}">${offer.defaultRecommendedPrice > 0 ? '$' + offer.defaultRecommendedPrice.toFixed(2) : 'N/A'}</div>
-                        ${offer.defaultMedianPrice ? `<div class="offer-variant-extra"><i class="fas fa-chart-bar"></i>$${offer.defaultMedianPrice.toFixed(2)}</div>` : ''}
-                    </div>
-                    <div class="offer-price-variant mutated" data-price="${offer.mutationRecommendedPrice || 0}" style="--mutation-glow: ${getMutationStyles(offer.mutation).glowColor}40; --mutation-bg: ${getMutationStyles(offer.mutation).background};">
-                        <div class="offer-variant-header">
-                            <span class="offer-variant-label mutation" style="background: ${getMutationStyles(offer.mutation).background}; color: ${getMutationStyles(offer.mutation).textColor};">${cleanMutationText(offer.mutation)}</span>
-                            ${offer.mutationNextRangeChecked 
-                                ? (offer.mutationSource === 'ai' 
-                                    ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
-                                    : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
-                                : (offer.mutationSource === 'ai' 
-                                    ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
-                                    : '')}
-                        </div>
-                        <div class="offer-variant-price ${offer.mutationRecommendedPrice > 0 ? '' : 'no-price'}">${offer.mutationRecommendedPrice > 0 ? '$' + offer.mutationRecommendedPrice.toFixed(2) : 'N/A'}</div>
-                        ${offer.mutationMedianPrice ? `<div class="offer-variant-extra"><i class="fas fa-chart-bar"></i>$${offer.mutationMedianPrice.toFixed(2)}</div>` : ''}
-                    </div>
+                    ${(() => {
+                        // v9.11.7: Default variant with opportunity animation
+                        const defPrice = offer.defaultRecommendedPrice || offer._lastDefaultPrice || 0;
+                        const defHasOpportunity = offer.defaultNextCompetitorPrice && offer.defaultRecommendedPrice && 
+                            (offer.defaultNextCompetitorPrice / offer.defaultRecommendedPrice) > 2;
+                        return `
+                        <div class="offer-price-variant default" data-price="${defPrice}">
+                            <div class="offer-variant-header">
+                                <span class="offer-variant-label default">DEFAULT</span>
+                                ${offer.defaultNextRangeChecked 
+                                    ? (offer.defaultSource === 'ai' 
+                                        ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
+                                        : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                    : (offer.defaultSource === 'ai' 
+                                        ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
+                                        : '')}
+                            </div>
+                            <div class="offer-variant-price ${defPrice > 0 ? '' : 'no-price'}">${defPrice > 0 ? '$' + defPrice.toFixed(2) : 'N/A'}</div>
+                            <div class="offer-variant-extras">
+                                ${offer.defaultMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${offer.defaultMedianPrice.toFixed(2)}</span>` : ''}
+                                ${offer.defaultNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${defHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${offer.defaultNextCompetitorPrice.toFixed(2)}</span>` : ''}
+                            </div>
+                        </div>`;
+                    })()}
+                    ${(() => {
+                        // v9.11.7: Mutation variant with opportunity animation
+                        const mutPrice = offer.mutationRecommendedPrice || offer._lastMutationPrice || 0;
+                        const mutHasOpportunity = offer.mutationNextCompetitorPrice && offer.mutationRecommendedPrice && 
+                            (offer.mutationNextCompetitorPrice / offer.mutationRecommendedPrice) > 2;
+                        const mStyles = getMutationStyles(offer.mutation);
+                        return `
+                        <div class="offer-price-variant mutated" data-price="${mutPrice}" style="--mutation-glow: ${mStyles.glowColor}40; --mutation-bg: ${mStyles.background};">
+                            <div class="offer-variant-header">
+                                <span class="offer-variant-label mutation" style="background: ${mStyles.background}; color: ${mStyles.textColor};">${cleanMutationText(offer.mutation)}</span>
+                                ${offer.mutationNextRangeChecked 
+                                    ? (offer.mutationSource === 'ai' 
+                                        ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
+                                        : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                    : (offer.mutationSource === 'ai' 
+                                        ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
+                                        : '')}
+                            </div>
+                            <div class="offer-variant-price ${mutPrice > 0 ? '' : 'no-price'}">${mutPrice > 0 ? '$' + mutPrice.toFixed(2) : 'N/A'}</div>
+                            <div class="offer-variant-extras">
+                                ${offer.mutationMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${offer.mutationMedianPrice.toFixed(2)}</span>` : ''}
+                                ${offer.mutationNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${mutHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${offer.mutationNextCompetitorPrice.toFixed(2)}</span>` : ''}
+                            </div>
+                        </div>`;
+                    })()}
                 </div>
                 ` : `
                 <div class="offer-card-prices">
