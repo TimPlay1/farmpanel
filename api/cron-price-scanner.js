@@ -1,27 +1,31 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен
- * Version: 2.3.0 - AI DISABLED in cron to preserve quota
+ * Version: 2.7.0 - Cyclic scanning with cursor position
  * 
- * Запускается каждые 10 минут через Vercel Cron
+ * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
  * 
  * ⚠️ AI ОТКЛЮЧЁН! Cron использует только regex парсинг.
  * AI квота (15K tokens/min) зарезервирована для пользователей.
  * 
- * ЛОГИКА по схеме:
+ * ЛОГИКА:
  * 1. Собираем все уникальные брейнроты из БД (все farmKeys)
- * 2. Regex парсит сразу - сохраняем результат
- * 3. При изменении цены → добавляем в AI очередь (ОТКЛЮЧЕНО)
- * 4. AI обрабатывает очередь батчами (ОТКЛЮЧЕНО)
- * 5. Результаты сохраняются в глобальный кэш цен
+ * 2. Загружаем позицию курсора из MongoDB (откуда продолжить)
+ * 3. Сканируем следующие N брейнротов начиная с курсора
+ * 4. Сохраняем новую позицию курсора
+ * 5. При достижении конца - начинаем сначала (циклично)
  */
 
-const VERSION = '2.6.0';  // Cron every 1 minute
+const VERSION = '2.8.0';  // Priority scanning: new first, skip duplicates
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
 const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
+
+// Сканирование
+const SCAN_BATCH_SIZE = 100;         // Сколько брейнротов за один запуск cron
+const SCAN_DELAY_MS = 50;            // Задержка между запросами к Eldorado API
 
 // Rate limiting (не используется когда AI отключён)
 const MAX_REQUESTS_PER_MINUTE = 3;
@@ -163,6 +167,60 @@ function cleanMutation(mutation) {
 }
 
 /**
+ * v2.8.0: Получить состояние сканера из MongoDB
+ */
+async function getScanState(db) {
+    const collection = db.collection('scan_state');
+    const state = await collection.findOne({ _id: 'price_scanner' });
+    return {
+        cycleId: state?.cycleId || 0,
+        lastScanAt: state?.lastScanAt || null,
+        totalScanned: state?.totalScanned || 0
+    };
+}
+
+/**
+ * v2.8.0: Сохранить состояние сканера
+ */
+async function saveScanState(db, cycleId, scannedThisRun, isNewCycle) {
+    const collection = db.collection('scan_state');
+    
+    await collection.updateOne(
+        { _id: 'price_scanner' },
+        {
+            $set: {
+                cycleId: isNewCycle ? cycleId + 1 : cycleId,
+                lastScanAt: new Date()
+            },
+            $inc: {
+                totalScanned: scannedThisRun
+            }
+        },
+        { upsert: true }
+    );
+}
+
+/**
+ * v2.8.0: Получить все кэшированные цены для определения приоритетов
+ * Возвращает Map: cacheKey → { updatedAt, cycleId }
+ */
+async function getAllCachedPricesInfo(db) {
+    const collection = db.collection('price_cache');
+    const prices = await collection.find({}, { 
+        projection: { _id: 1, updatedAt: 1, cycleId: 1 } 
+    }).toArray();
+    
+    const map = new Map();
+    for (const p of prices) {
+        map.set(p._id, {
+            updatedAt: p.updatedAt,
+            cycleId: p.cycleId || 0
+        });
+    }
+    return map;
+}
+
+/**
  * Получает текущую цену из глобального кэша
  * v9.12.10: Поддержка мутаций
  */
@@ -180,9 +238,9 @@ async function getCachedPrice(db, name, income, mutation = null) {
 
 /**
  * Сохраняет цену в глобальный кэш
- * v9.12.10: Поддержка мутаций
+ * v2.8.0: Добавлен cycleId для отслеживания когда сканировали
  */
-async function savePriceToCache(db, name, income, priceData, mutation = null) {
+async function savePriceToCache(db, name, income, priceData, mutation = null, cycleId = 0) {
     let cacheKey = `${name.toLowerCase()}_${income}`;
     const cleanMut = cleanMutation(mutation);
     if (cleanMut) {
@@ -198,7 +256,8 @@ async function savePriceToCache(db, name, income, priceData, mutation = null) {
                 name,
                 income,
                 mutation: cleanMut || null,
-                updatedAt: new Date()
+                updatedAt: new Date(),
+                cycleId: cycleId  // v2.8.0: Track which cycle scanned this
             }
         },
         { upsert: true }
@@ -308,6 +367,12 @@ async function cleanupQueue(db) {
 
 /**
  * Главная функция сканирования
+ * v2.8.0: Приоритизация - новые брейнроты первые, дубликаты пропускаются
+ * 
+ * Приоритеты:
+ * 1. Новые (нет в кэше) - сканируем ПЕРВЫМИ
+ * 2. Не сканировались в текущем цикле - сканируем
+ * 3. Уже сканировались в этом цикле - ПРОПУСКАЕМ (берём из кэша)
  */
 async function runPriceScan() {
     console.log(`🚀 Starting centralized price scan v${VERSION}`);
@@ -324,41 +389,96 @@ async function runPriceScan() {
         return { success: true, scanned: 0 };
     }
     
-    // 2. Сканируем regex для каждого
+    // 2. Получаем состояние сканера и все кэшированные цены
+    const scanState = await getScanState(db);
+    const cachedPrices = await getAllCachedPricesInfo(db);
+    
+    console.log(`📊 State: cycle #${scanState.cycleId}, cached prices: ${cachedPrices.size}`);
+    
+    // 3. Генерируем ключи и классифицируем брейнроты по приоритету
+    const newBrainrots = [];      // Нет в кэше - высший приоритет
+    const staleBrainrots = [];    // Есть в кэше, но не в текущем цикле
+    const freshBrainrots = [];    // Уже сканировались в текущем цикле - пропускаем
+    
+    for (const b of brainrots) {
+        const cleanMut = cleanMutation(b.mutation);
+        let cacheKey = `${b.name.toLowerCase()}_${b.income}`;
+        if (cleanMut) cacheKey += `_${cleanMut}`;
+        
+        b._cacheKey = cacheKey; // Сохраняем для использования позже
+        
+        const cached = cachedPrices.get(cacheKey);
+        
+        if (!cached) {
+            // Новый - нет в кэше вообще
+            newBrainrots.push(b);
+        } else if (cached.cycleId < scanState.cycleId) {
+            // Есть в кэше, но сканировался в прошлом цикле
+            staleBrainrots.push(b);
+        } else {
+            // Уже сканировался в текущем цикле - пропускаем
+            freshBrainrots.push(b);
+        }
+    }
+    
+    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale, ${freshBrainrots.length} fresh (skipped)`);
+    
+    // 4. Формируем список для сканирования: сначала новые, потом устаревшие
+    const toScanAll = [...newBrainrots, ...staleBrainrots];
+    
+    // Ограничиваем batch
+    const toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
+    
+    // Проверяем завершился ли цикл (все отсканированы)
+    const isNewCycle = toScan.length === 0 || (newBrainrots.length === 0 && staleBrainrots.length === 0);
+    const currentCycleId = isNewCycle ? scanState.cycleId + 1 : scanState.cycleId;
+    
+    if (isNewCycle && brainrots.length > 0) {
+        console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId}`);
+        // При новом цикле - сканируем всех заново (они станут stale для нового cycleId)
+        // Берём первых N для нового цикла
+        toScan.length = 0;
+        toScan.push(...brainrots.slice(0, SCAN_BATCH_SIZE));
+    }
+    
+    console.log(`📋 Scanning ${toScan.length} brainrots (${newBrainrots.length} new priority)`);
+    
+    // 5. Сканируем
     let regexScanned = 0;
     let priceChanges = 0;
-    let aiQueued = 0;
-    
-    // Сортируем по популярности (count) - сначала самые популярные
-    brainrots.sort((a, b) => b.count - a.count);
-    
-    // Ограничиваем до 200 за один запуск (чтобы не превысить timeout)
-    const toScan = brainrots.slice(0, 200);
-    
-    console.log(`📋 Scanning ${toScan.length} brainrots (sorted by popularity)`);
+    let newPrices = 0;
+    let errors = 0;
+    let skipped = 0;
     
     for (const brainrot of toScan) {
         try {
-            // v9.12.10: Передаём мутацию в getCachedPrice
-            const cached = await getCachedPrice(db, brainrot.name, brainrot.income, brainrot.mutation);
-            const cachedPrice = cached?.suggestedPrice;
+            const cacheKey = brainrot._cacheKey;
             
-            // Получаем новую цену через regex (eldorado-price)
-            // ВАЖНО: передаём disableAI: true чтобы не тратить AI квоту в cron!
+            // Проверяем не сканировали ли уже в этом цикле (двойная проверка)
+            const cached = cachedPrices.get(cacheKey);
+            if (cached && cached.cycleId >= currentCycleId) {
+                skipped++;
+                continue;
+            }
+            
+            // Получаем новую цену через regex
             if (!eldoradoPrice) continue;
             
-            // v9.12.10: Передаём мутацию в calculateOptimalPrice
             const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrot.name, brainrot.income, { 
                 disableAI: true,
                 mutation: brainrot.mutation 
             });
             regexScanned++;
             
-            if (!regexResult || regexResult.error) continue;
+            if (!regexResult || regexResult.error) {
+                errors++;
+                continue;
+            }
             
             const newPrice = regexResult.suggestedPrice;
+            const oldPrice = cached?.suggestedPrice;
             
-            // v9.12.10: Передаём мутацию в savePriceToCache
+            // Сохраняем в кэш с текущим cycleId
             await savePriceToCache(db, brainrot.name, brainrot.income, {
                 suggestedPrice: newPrice,
                 source: regexResult.parsingSource || 'regex',
@@ -366,7 +486,6 @@ async function runPriceScan() {
                 competitorPrice: regexResult.competitorPrice,
                 competitorIncome: regexResult.competitorIncome,
                 targetMsRange: regexResult.targetMsRange,
-                // v9.10.16: Added median and nextCompetitor fields
                 medianPrice: regexResult.medianPrice,
                 medianData: regexResult.medianData,
                 nextCompetitorPrice: regexResult.nextCompetitorPrice,
@@ -375,139 +494,53 @@ async function runPriceScan() {
                 isInEldoradoList: regexResult.isInEldoradoList,
                 lowerPrice: regexResult.lowerPrice,
                 lowerIncome: regexResult.lowerIncome
-            }, brainrot.mutation);
+            }, brainrot.mutation, currentCycleId);
             
-            // Проверяем изменилась ли цена
-            if (cachedPrice !== null && cachedPrice !== newPrice) {
+            // Обновляем локальный кэш чтобы не сканировать повторно в этом запуске
+            cachedPrices.set(cacheKey, { cycleId: currentCycleId, updatedAt: new Date() });
+            
+            // Статистика
+            if (oldPrice === null || oldPrice === undefined) {
+                newPrices++;
+            } else if (oldPrice !== newPrice) {
                 priceChanges++;
-                console.log(`   💰 Price change: ${brainrot.name} @ ${brainrot.income}M/s: $${cachedPrice} → $${newPrice}`);
-                
-                // Добавляем в AI очередь для валидации
-                const queued = await addToAIQueue(db, brainrot, regexResult);
-                if (queued) {
-                    aiQueued++;
-                }
-            } else if (cachedPrice === null) {
-                // Новый брейнрот - тоже добавляем в AI очередь
-                const queued = await addToAIQueue(db, brainrot, regexResult);
-                if (queued) {
-                    aiQueued++;
-                }
+                console.log(`   💰 Price change: ${brainrot.name}${brainrot.mutation ? ' [' + brainrot.mutation + ']' : ''} @ ${brainrot.income}M/s: $${oldPrice} → $${newPrice}`);
             }
             
-            // Небольшая задержка чтобы не перегружать Eldorado API
-            await new Promise(r => setTimeout(r, 100));
+            // Задержка между запросами к Eldorado API
+            await new Promise(r => setTimeout(r, SCAN_DELAY_MS));
             
         } catch (e) {
+            errors++;
             console.warn(`Error scanning ${brainrot.name}:`, e.message);
         }
     }
     
-    // 3. AI очередь ОТКЛЮЧЕНА для cron - квота зарезервирована для пользователей
-    let aiProcessed = 0;
-    
-    if (CRON_USE_AI && aiScanner && process.env.GEMINI_API_KEY) {
-        // AI обработка отключена в cron для экономии квоты
-        const queueItems = await getAIQueueItems(db, 50);
-        
-        if (queueItems.length > 0) {
-            console.log(`🤖 Processing ${queueItems.length} items in AI queue...`);
-            
-            // Создаём батчи для AI
-            const batches = [];
-            let currentBatch = [];
-            
-            for (const item of queueItems) {
-                currentBatch.push(item);
-                if (currentBatch.length >= 10) {
-                    batches.push(currentBatch);
-                    currentBatch = [];
-                }
-            }
-            if (currentBatch.length > 0) {
-                batches.push(currentBatch);
-            }
-            
-            // Обрабатываем до 7 батчей (rate limit)
-            const batchesToProcess = batches.slice(0, MAX_BATCHES_PER_WAVE);
-            
-            for (const batch of batchesToProcess) {
-                try {
-                    // Получаем офферы для каждого элемента батча
-                    for (const item of batch) {
-                        try {
-                            // Получаем офферы с Eldorado
-                            const searchResult = await eldoradoPrice.searchBrainrotOffers(item.name, item.income);
-                            
-                            if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
-                                await updateQueueItemStatus(db, item._id, 'failed');
-                                continue;
-                            }
-                            
-                            // AI парсинг
-                            const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
-                            const aiResults = await aiScanner.hybridParse(searchResult.allPageOffers, eldoradoLists);
-                            
-                            // Находим лучшую цену из AI результатов
-                            const validOffers = aiResults.filter(r => r.income !== null && r.source === 'ai');
-                            
-                            if (validOffers.length > 0) {
-                                // Находим upper offer
-                                validOffers.sort((a, b) => a.price - b.price);
-                                const upperOffer = validOffers.find(o => o.income >= item.income);
-                                
-                                if (upperOffer) {
-                                    const aiPrice = Math.round((upperOffer.price - 0.5) * 100) / 100;
-                                    
-                                    // Сохраняем AI результат
-                                    await savePriceToCache(db, item.name, item.income, {
-                                        suggestedPrice: aiPrice,
-                                        source: 'ai',
-                                        priceSource: `AI: upper ${upperOffer.income}M/s @ $${upperOffer.price}`,
-                                        competitorPrice: upperOffer.price,
-                                        competitorIncome: upperOffer.income,
-                                        aiParsedCount: validOffers.length
-                                    });
-                                    
-                                    console.log(`   🤖 AI: ${item.name} @ ${item.income}M/s → $${aiPrice}`);
-                                }
-                            }
-                            
-                            await updateQueueItemStatus(db, item._id, 'completed', { processed: true });
-                            aiProcessed++;
-                            
-                        } catch (itemError) {
-                            console.warn(`AI error for ${item.name}:`, itemError.message);
-                            await updateQueueItemStatus(db, item._id, 'failed');
-                        }
-                    }
-                    
-                    // Пауза между батчами
-                    await new Promise(r => setTimeout(r, 1000));
-                    
-                } catch (batchError) {
-                    console.error('Batch error:', batchError.message);
-                }
-            }
-        }
-    } else {
-        // AI отключён в cron для экономии квоты Gemini
-        console.log('🔇 AI disabled in cron (CRON_USE_AI=false) - quota reserved for user requests');
-    }
-    
-    // 4. Очистка старых записей
-    await cleanupQueue(db);
+    // 6. Сохраняем состояние
+    await saveScanState(db, scanState.cycleId, regexScanned, isNewCycle);
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     
+    // Считаем прогресс цикла
+    const scannedInCycle = freshBrainrots.length + regexScanned;
+    const cycleProgress = Math.round(scannedInCycle / brainrots.length * 100);
+    
     const summary = {
         success: true,
+        version: VERSION,
         duration: `${duration}s`,
         totalBrainrots: brainrots.length,
         scanned: regexScanned,
+        newPrices,
         priceChanges,
-        aiQueued,
-        aiProcessed
+        skipped: skipped + freshBrainrots.length,
+        errors,
+        cycle: {
+            id: currentCycleId,
+            isNew: isNewCycle,
+            progress: `${cycleProgress}%`,
+            remaining: staleBrainrots.length - regexScanned
+        }
     };
     
     console.log(`✅ Price scan complete:`, summary);
@@ -578,4 +611,5 @@ module.exports = async (req, res) => {
 module.exports.runPriceScan = runPriceScan;
 module.exports.collectAllBrainrotsFromDB = collectAllBrainrotsFromDB;
 module.exports.getCachedPrice = getCachedPrice;
+module.exports.savePriceToCache = savePriceToCache;
 module.exports.savePriceToCache = savePriceToCache;
