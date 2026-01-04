@@ -929,14 +929,21 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     return true;
                 }
                 
+                // Получаем Eldorado имя из алиаса (если есть)
+                // Например: nameLower="chimnino" → eldoradoNameLower="chimino"
+                const eldoradoAlias = BRAINROT_NAME_ALIASES[nameLower];
+                const eldoradoNameLower = eldoradoAlias ? eldoradoAlias.toLowerCase() : nameLower;
+                
                 // Проверяем только брейнроты достаточной длины для надёжного матчинга
                 for (const otherBrainrot of dynamicBrainrotsCache) {
                     // Пропускаем слишком короткие названия (могут давать ложные срабатывания)
                     if (otherBrainrot.length < 5) continue;
                     
-                    // Пропускаем если это наш брейнрот или его часть
+                    // Пропускаем если это наш брейнрот или его часть (учитываем алиас)
                     if (nameLower === otherBrainrot) continue;
+                    if (eldoradoNameLower === otherBrainrot) continue; // Алиас совпадает с otherBrainrot
                     if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
+                    if (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower)) continue;
                     
                     // Специальная обработка для паттерна "Los XX"
                     // "Los 25" не должен конфликтовать с "Los 67", "Los Mobilis" и т.д.
