@@ -31,8 +31,27 @@ module.exports = async (req, res) => {
         const { keys, all, since } = req.query;
         
         // Получить все цены (для начальной загрузки)
+        // Используем проекцию для получения только нужных полей (быстрее)
         if (all === 'true') {
-            const prices = await collection.find({}).toArray();
+            const projection = {
+                _id: 1,
+                suggestedPrice: 1,
+                source: 1,
+                priceSource: 1,
+                competitorPrice: 1,
+                competitorIncome: 1,
+                targetMsRange: 1,
+                aiParsedCount: 1,
+                medianPrice: 1,
+                medianData: 1,
+                nextCompetitorPrice: 1,
+                nextCompetitorData: 1,
+                nextRangeChecked: 1,
+                isInEldoradoList: 1,
+                updatedAt: 1
+            };
+            
+            const prices = await collection.find({}, { projection }).toArray();
             
             // Преобразуем в объект для быстрого доступа
             const pricesMap = {};
@@ -56,6 +75,9 @@ module.exports = async (req, res) => {
                     updatedAt: p.updatedAt
                 };
             }
+            
+            // Кэшируем на 2 минуты (цены обновляются централизованно)
+            res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
             
             return res.status(200).json({
                 success: true,

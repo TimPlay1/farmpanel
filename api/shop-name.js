@@ -78,10 +78,16 @@ module.exports = async (req, res) => {
                 });
             }
             
-            const farmer = await farmersCollection.findOne({ farmKey });
+            // Используем проекцию для получения только shopName (быстрее)
+            const farmer = await farmersCollection.findOne(
+                { farmKey }, 
+                { projection: { shopName: 1, _id: 0 } }
+            );
             
             // Если farmer не найден - возвращаем пустой shopName (не ошибку)
             if (!farmer) {
+                // Кэшируем негативный результат на 1 минуту
+                res.setHeader('Cache-Control', 'public, max-age=60');
                 return res.status(200).json({ 
                     success: true,
                     shopName: null,
@@ -92,6 +98,9 @@ module.exports = async (req, res) => {
             
             const shopName = farmer.shopName || null;
             const parsed = shopName ? parseShopName(shopName) : null;
+            
+            // Кэшируем позитивный результат на 5 минут (shop name редко меняется)
+            res.setHeader('Cache-Control', 'public, max-age=300');
             
             return res.status(200).json({
                 success: true,

@@ -1259,6 +1259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadPriceCacheFromStorage(); // Кэш цен
     loadAvatarCache(); // Кэш аватаров
     loadOffersFromStorage(); // Кэш офферов
+    loadShopNameFromCache(); // Кэш названия магазина (мгновенно)
     setupEventListeners();
     
     // === ЭТАП 2: Показываем UI сразу с кэшированными данными ===
@@ -1304,7 +1305,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             preloadTopData().catch(e => console.warn('Top data preload failed:', e)),
             
             // Данные всех фермеров
-            fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e))
+            fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e)),
+            
+            // Название магазина (фоновое обновление из БД)
+            loadShopName().catch(e => console.warn('Shop name load failed:', e))
         ];
         
         // Запускаем polling сразу - данные будут обновляться
@@ -6822,9 +6826,26 @@ let shopNameState = {
     pendingCallback: null  // Callback after shop name is configured
 };
 
-// Load shop name from server
+// Load shop name from localStorage cache FIRST (instant), then update from server
+function loadShopNameFromCache() {
+    const cached = localStorage.getItem('glitched_shop_name');
+    if (cached && cached !== '👾Glitched Store👾' && cached.length > 3) {
+        shopNameState.fullName = cached;
+        shopNameState.isConfigured = true;
+        parseShopName(cached);
+        updateShopNameDisplay();
+        console.log('[ShopName] Loaded from localStorage (instant):', cached);
+        return true;
+    }
+    return false;
+}
+
+// Load shop name from server (background update)
 async function loadShopName() {
     if (!state.currentKey) return;
+    
+    // First try localStorage for instant display
+    const hadCached = loadShopNameFromCache();
     
     try {
         console.log('[ShopName] Loading from API for:', state.currentKey);
@@ -6833,15 +6854,15 @@ async function loadShopName() {
             const data = await response.json();
             console.log('[ShopName] API response:', data);
             if (data.success && data.shopName) {
-                shopNameState.fullName = data.shopName;
-                shopNameState.isConfigured = true;
-                // Parse components
-                parseShopName(data.shopName);
-                // Update display
-                updateShopNameDisplay();
-                // Save to localStorage for Tampermonkey
-                localStorage.setItem('glitched_shop_name', data.shopName);
-                console.log('[ShopName] Loaded and configured:', data.shopName);
+                // Only update if different from cached
+                if (data.shopName !== shopNameState.fullName) {
+                    shopNameState.fullName = data.shopName;
+                    shopNameState.isConfigured = true;
+                    parseShopName(data.shopName);
+                    updateShopNameDisplay();
+                    localStorage.setItem('glitched_shop_name', data.shopName);
+                    console.log('[ShopName] Updated from server:', data.shopName);
+                }
                 return true;
             } else {
                 console.log('[ShopName] No shop name in response');
@@ -6851,17 +6872,9 @@ async function loadShopName() {
         console.warn('Failed to load shop name:', e);
     }
     
-    // Check localStorage as fallback
-    if (!shopNameState.isConfigured) {
-        const cached = localStorage.getItem('glitched_shop_name');
-        if (cached && cached !== '👾Glitched Store👾') {
-            shopNameState.fullName = cached;
-            shopNameState.isConfigured = true;
-            parseShopName(cached);
-            updateShopNameDisplay();
-            console.log('[ShopName] Loaded from localStorage:', cached);
-            return true;
-        }
+    // If no server response but had cached - keep using cached
+    if (hadCached) {
+        return true;
     }
     
     updateShopNameDisplay();
