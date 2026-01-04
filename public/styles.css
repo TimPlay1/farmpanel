@@ -2212,6 +2212,18 @@ body {
     padding: 0.3rem 0;
 }
 
+/* v9.12.12: Compact pending placeholder - no spinner, just dash */
+.brainrot-price-single.price-pending,
+.price-variant.price-pending {
+    min-height: 2rem;
+}
+
+.price-pending-text {
+    font-size: 1rem;
+    opacity: 0.3;
+    font-weight: 500;
+}
+
 .brainrot-price-single .price-no-data {
     font-size: 0.7rem;
     opacity: 0.4;

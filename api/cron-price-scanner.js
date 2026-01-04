@@ -16,7 +16,7 @@
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
-const VERSION = '2.5.0';  // Mutation support in cron
+const VERSION = '2.6.0';  // Cron every 1 minute
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!

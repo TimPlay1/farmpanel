@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.11 - Faster price loading (batch=20, delay=30ms)
+// FarmerPanel App v9.12.12 - No Loading spinner, instant cached prices display
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2280,21 +2280,20 @@ function formatPrice(price) {
 /**
  * v9.11.1: Рендер единого блока цены для обычных карточек (без мутации)
  * Новый стиль, соответствующий карточкам с мутациями
+ * v9.12.12: НИКОГДА не показываем Loading если есть хоть какие-то данные в кэше
  * 
  * @param {object} priceData - данные цены из кэша
  * @param {string} cacheKey - ключ кэша для изменений цены
  * @returns {string} - HTML блока цены
  */
 function renderPriceBlock(priceData, cacheKey) {
-    // Loading state
+    // v9.12.12: Если нет данных - показываем компактный placeholder без спиннера
+    // Пользователь увидит цену как только она загрузится в фоне
     if (!priceData) {
         return `
             <div class="brainrot-price-block">
-                <div class="brainrot-price-single" data-price-loading="true">
-                    <div class="price-loading">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Loading...</span>
-                    </div>
+                <div class="brainrot-price-single price-pending" data-price-loading="true">
+                    <div class="price-pending-text">—</div>
                 </div>
             </div>`;
     }
@@ -2450,16 +2449,17 @@ function renderPriceVariants(brainrotName, income, mutation) {
     };
     
     // Рендер одного варианта цены
+    // v9.12.12: Компактный placeholder вместо Loading... спиннера
     const renderVariant = (priceData, type, label) => {
         if (!priceData) {
             return `
-                <div class="price-variant ${type}" data-price-loading="true">
+                <div class="price-variant ${type} price-pending" data-price-loading="true">
                     <div class="price-variant-header">
-                        <span class="price-variant-label ${type}">${label}</span>
+                        <span class="price-variant-label ${type === 'mutated' ? 'mutation' : type}" 
+                              ${type === 'mutated' ? `style="background: ${mStyles.background}; color: ${mStyles.textColor};"` : ''}>${label}</span>
                     </div>
-                    <div class="price-variant-loading">
-                        <i class="fas fa-spinner fa-spin"></i>
-                        <span>Loading...</span>
+                    <div class="price-variant-main">
+                        <span class="price-text price-pending-text">—</span>
                     </div>
                 </div>`;
         }
