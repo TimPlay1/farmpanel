@@ -57,14 +57,18 @@ let isProcessingQueue = false;
  * 2. Regex парсит сразу → показываем пользователю мгновенно
  * 3. AI вызывается сразу (не в очередь) если rate limit позволяет
  * 4. AI результат кэшируется в MongoDB
+ * 
+ * v9.11.3: Добавлена поддержка mutation для отдельного кэширования цен мутаций
  */
-async function getAIPrice(brainrotName, ourIncome) {
-    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
+async function getAIPrice(brainrotName, ourIncome, mutation = null) {
+    // v9.11.3: Ключ кэша включает мутацию
+    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}${mutationKey}`;
     
     // 1. Проверяем AI кэш в MongoDB - если есть свежий AI результат, возвращаем его
     const aiCached = await getAICache(cacheKey);
     if (aiCached) {
-        console.log(`🤖 AI cache HIT (MongoDB) for ${brainrotName}: $${aiCached.suggestedPrice}`);
+        console.log(`🤖 AI cache HIT (MongoDB) for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${aiCached.suggestedPrice}`);
         return {
             ...aiCached,
             source: 'ai',
@@ -73,27 +77,29 @@ async function getAIPrice(brainrotName, ourIncome) {
     }
     
     // 2. Нет AI кэша - получаем regex результат СРАЗУ
-    const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
+    // v9.11.3: Передаём мутацию в calculateOptimalPrice
+    const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome, { mutation });
     
     // 3. Пробуем вызвать AI сразу (если rate limit позволяет)
     // Это лучше чем очередь которая теряется в serverless
     try {
         const rateCheck = await checkGlobalRateLimit(1500);
         if (rateCheck.allowed && aiScanner) {
-            console.log(`🤖 Trying AI for ${brainrotName} (rate limit OK)...`);
+            console.log(`🤖 Trying AI for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''} (rate limit OK)...`);
             
             // Запускаем AI парсинг
-            const aiResult = await forceAIPrice(brainrotName, ourIncome);
+            // v9.11.3: Передаём мутацию
+            const aiResult = await forceAIPrice(brainrotName, ourIncome, mutation);
             
             if (aiResult && aiResult.source === 'ai' && aiResult.suggestedPrice !== null) {
-                console.log(`✅ AI success for ${brainrotName}: $${aiResult.suggestedPrice}`);
+                console.log(`✅ AI success for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${aiResult.suggestedPrice}`);
                 return aiResult;
             }
         } else {
-            console.log(`⏳ Rate limit, returning regex for ${brainrotName}`);
+            console.log(`⏳ Rate limit, returning regex for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}`);
         }
     } catch (e) {
-        console.warn(`AI failed for ${brainrotName}, using regex:`, e.message);
+        console.warn(`AI failed for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}, using regex:`, e.message);
     }
     
     // 4. Возвращаем regex результат
@@ -106,9 +112,12 @@ async function getAIPrice(brainrotName, ourIncome) {
 /**
  * Принудительный AI парсинг (для force mode)
  * v2.5.2: Кэш теперь в MongoDB
+ * v9.11.3: Добавлена поддержка mutation
  */
-async function forceAIPrice(brainrotName, ourIncome) {
-    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
+async function forceAIPrice(brainrotName, ourIncome, mutation = null) {
+    // v9.11.3: Ключ кэша включает мутацию
+    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}${mutationKey}`;
     
     // Проверяем MongoDB кэш
     const cached = await getAICache(cacheKey);
@@ -120,7 +129,7 @@ async function forceAIPrice(brainrotName, ourIncome) {
     // Это позволяет получить частичные AI результаты вместо полного отказа
     
     try {
-        console.log(`🤖 Force AI parsing for ${brainrotName} @ ${ourIncome}M/s...`);
+        console.log(`🤖 Force AI parsing for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''} @ ${ourIncome}M/s...`);
         
         // Проверяем что aiScanner загружен
         if (!aiScanner) {
@@ -129,10 +138,12 @@ async function forceAIPrice(brainrotName, ourIncome) {
         
         // v2.5.5: Сначала получаем ПОЛНЫЙ regex результат (включая nextCompetitor из следующих диапазонов)
         // Это нужно потому что searchBrainrotOffers не ищет в следующих диапазонах
-        const regexFullResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
+        // v9.11.3: Передаём мутацию
+        const regexFullResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome, { mutation });
         
         // Получаем офферы с Eldorado для AI парсинга
-        const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome);
+        // v9.11.3: Передаём мутацию для фильтрации
+        const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome, { mutation });
         
         if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
             throw new Error('No offers found on Eldorado');
@@ -287,6 +298,8 @@ async function forceAIPrice(brainrotName, ourIncome) {
             medianData,
             nextCompetitorPrice,
             nextCompetitorData,
+            // v9.11.3: Добавляем мутацию в результат
+            mutation: mutation || null,
             samples: aiResults.slice(0, 5).map(r => ({
                 income: r.income,
                 price: r.price,
@@ -298,18 +311,20 @@ async function forceAIPrice(brainrotName, ourIncome) {
         // Кэшируем AI результат в MongoDB
         await setAICache(cacheKey, result);
         
-        console.log(`✅ AI price for ${brainrotName}: $${suggestedPrice} (cached in MongoDB)`);
+        console.log(`✅ AI price for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${suggestedPrice} (cached in MongoDB)`);
         return result;
         
     } catch (e) {
-        console.error(`❌ AI parsing failed for ${brainrotName}:`, e.message);
+        console.error(`❌ AI parsing failed for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}:`, e.message);
         
         // Fallback на regex
-        const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
+        // v9.11.3: Передаём мутацию
+        const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome, { mutation });
         return {
             ...regexResult,
             source: 'regex',
-            aiError: e.message
+            aiError: e.message,
+            mutation: mutation || null
         };
     }
 }
@@ -463,9 +478,11 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
     
-    const { name, brainrot, income, force, stats: getStatsFlag, clear } = req.query;
+    const { name, brainrot, income, force, stats: getStatsFlag, clear, mutation } = req.query;
     const brainrotName = name || brainrot;
     const ourIncome = parseFloat(income) || 0;
+    // v9.11.3: Получаем мутацию из query params
+    const mutationParam = mutation && mutation !== 'None' && mutation !== 'Default' ? mutation : null;
     
     // Статистика
     if (getStatsFlag !== undefined) {
@@ -488,10 +505,17 @@ module.exports = async (req, res) => {
         
         if (force !== undefined) {
             // Принудительный AI парсинг
-            result = await forceAIPrice(brainrotName, ourIncome);
+            // v9.11.3: Передаём мутацию
+            result = await forceAIPrice(brainrotName, ourIncome, mutationParam);
         } else {
             // Обычный запрос - regex сразу, AI в фоне при изменениях
-            result = await getAIPrice(brainrotName, ourIncome);
+            // v9.11.3: Передаём мутацию
+            result = await getAIPrice(brainrotName, ourIncome, mutationParam);
+        }
+        
+        // v9.11.3: Добавляем мутацию в результат
+        if (mutationParam) {
+            result.mutation = mutationParam;
         }
         
         return res.status(200).json(result);
