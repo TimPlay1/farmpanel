@@ -2303,7 +2303,8 @@ body {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     transition: all 0.2s ease;
-    min-width: 0;
+    min-width: 80px;
+    max-width: 50%;
     text-align: center;
 }
 
@@ -2396,16 +2397,35 @@ body {
     font-size: 0.5rem;
     padding: 1px 3px;
     border-radius: 3px;
+    min-width: 32px;
 }
 
 .price-variant-additional .additional-price.median {
     background: rgba(59, 130, 246, 0.15);
     color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* v9.11.21: Empty state for missing data in variants */
+.price-variant-additional .additional-price.empty {
+    opacity: 0.4;
+    background: rgba(100, 116, 139, 0.1);
+    border: 1px solid rgba(100, 116, 139, 0.2);
+    color: #64748b;
 }
 
 .price-variant-additional .additional-price.next-comp {
-    background: rgba(251, 191, 36, 0.15);
-    color: #fbbf24;
+    background: rgba(74, 222, 128, 0.15);
+    color: #4ade80;
+    border: 1px solid rgba(74, 222, 128, 0.3);
+}
+
+/* v9.11.21: Opportunity style - yellow with animation (gap > 100%) */
+.price-variant-additional .additional-price.next-comp.opportunity {
+    background: rgba(251, 146, 60, 0.2);
+    border-color: rgba(251, 146, 60, 0.5);
+    color: #fb923c;
+    animation: pulse-opportunity 2s ease-in-out infinite;
 }
 
 .price-variant-loading {

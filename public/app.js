@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.20 - Fast loading with timeouts, no more infinite hang
+// FarmerPanel App v9.11.21 - Fix mutation card width and next-comp color (green default)
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
