@@ -7,13 +7,13 @@
  * 3. При изменении цены regex → добавляет в очередь AI валидации
  * 4. AI результат имеет приоритет над regex
  * 
- * v2.5.1: Исправлен двойной учёт токенов, rate limit теперь только в hybridParse
+ * v2.5.2: AI кэш теперь в MongoDB для работы между serverless инстансами
  * 
  * Эндпоинт: /api/ai-price?name=BrainrotName&income=100
  */
 
-// Импорты - checkGlobalRateLimit для processAIQueue, getAIUsageStats для статистики
-const { checkGlobalRateLimit, getAIUsageStats } = require('./_lib/db');
+// Импорты - AI кэш теперь в MongoDB
+const { checkGlobalRateLimit, getAIUsageStats, getAICache, setAICache } = require('./_lib/db');
 
 let aiScanner = null;
 let eldoradoPrice = null;
@@ -32,14 +32,16 @@ try {
     console.warn('⚠️ Eldorado Price not available:', e.message);
 }
 
-// Кэш AI результатов (brainrot_income -> {data, timestamp})
-const aiCache = new Map();
-const AI_CACHE_TTL = 10 * 60 * 1000; // 10 минут
+// УДАЛЁН in-memory кэш - теперь используем MongoDB через getAICache/setAICache
+// Это позволяет сохранять AI результаты между serverless инстансами
+const AI_CACHE_TTL = 10 * 60 * 1000; // 10 минут (для совместимости)
 
-// Кэш предыдущих regex цен для отслеживания изменений
+// Кэш предыдущих regex цен для отслеживания изменений (локальный OK - не критичен)
 const previousPrices = new Map();
 
 // Очередь брейнротов на AI валидацию
+// ВАЖНО: В serverless очередь не персистентна, но это OK - 
+// AI вызывается через force при необходимости
 const aiValidationQueue = [];
 let isProcessingQueue = false;
 
@@ -51,63 +53,67 @@ let isProcessingQueue = false;
  * Основной метод - получает цену
  * 
  * ЛОГИКА ПО СХЕМЕ:
- * 1. Проверяем AI кэш → если есть свежий AI результат, возвращаем его
+ * 1. Проверяем AI кэш (MongoDB) → если есть свежий AI результат, возвращаем его
  * 2. Regex парсит сразу → показываем пользователю мгновенно
- * 3. AI добавляется в очередь → парсит параллельно
- * 4. Когда AI готов → кэшируем, следующий запрос получит AI цену
+ * 3. AI вызывается сразу (не в очередь) если rate limit позволяет
+ * 4. AI результат кэшируется в MongoDB
  */
 async function getAIPrice(brainrotName, ourIncome) {
     const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
-    // 1. Проверяем AI кэш - если есть свежий AI результат, возвращаем его
-    const aiCached = aiCache.get(cacheKey);
-    if (aiCached && Date.now() - aiCached.timestamp < AI_CACHE_TTL) {
-        console.log(`🤖 AI cache HIT for ${brainrotName}: $${aiCached.data.suggestedPrice}`);
+    // 1. Проверяем AI кэш в MongoDB - если есть свежий AI результат, возвращаем его
+    const aiCached = await getAICache(cacheKey);
+    if (aiCached) {
+        console.log(`🤖 AI cache HIT (MongoDB) for ${brainrotName}: $${aiCached.suggestedPrice}`);
         return {
-            ...aiCached.data,
+            ...aiCached,
             source: 'ai',
-            fromCache: true,
-            cacheAge: Math.round((Date.now() - aiCached.timestamp) / 1000)
+            fromCache: true
         };
     }
     
     // 2. Нет AI кэша - получаем regex результат СРАЗУ
     const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
     
-    // 3. Сохраняем regex цену для сравнения
-    const prevPrice = previousPrices.get(cacheKey);
-    const currentPrice = regexResult.suggestedPrice;
-    if (currentPrice !== null) {
-        previousPrices.set(cacheKey, currentPrice);
+    // 3. Пробуем вызвать AI сразу (если rate limit позволяет)
+    // Это лучше чем очередь которая теряется в serverless
+    try {
+        const rateCheck = await checkGlobalRateLimit(1500);
+        if (rateCheck.allowed && aiScanner) {
+            console.log(`🤖 Trying AI for ${brainrotName} (rate limit OK)...`);
+            
+            // Запускаем AI парсинг
+            const aiResult = await forceAIPrice(brainrotName, ourIncome);
+            
+            if (aiResult && aiResult.source === 'ai' && aiResult.suggestedPrice !== null) {
+                console.log(`✅ AI success for ${brainrotName}: $${aiResult.suggestedPrice}`);
+                return aiResult;
+            }
+        } else {
+            console.log(`⏳ Rate limit, returning regex for ${brainrotName}`);
+        }
+    } catch (e) {
+        console.warn(`AI failed for ${brainrotName}, using regex:`, e.message);
     }
     
-    // 4. ВСЕГДА добавляем в очередь AI валидации (не только при изменении)
-    // Но только если нет в очереди уже
-    const alreadyQueued = aiValidationQueue.some(q => q.cacheKey === cacheKey);
-    if (!alreadyQueued && currentPrice !== null) {
-        queueForAIValidation(brainrotName, ourIncome, regexResult);
-    }
-    
-    // 5. Возвращаем regex результат сразу (AI обновит кэш позже)
+    // 4. Возвращаем regex результат
     return {
         ...regexResult,
-        source: 'regex',
-        aiQueued: !alreadyQueued,
-        queueLength: aiValidationQueue.length
+        source: 'regex'
     };
 }
 
 /**
  * Принудительный AI парсинг (для force mode)
- * v2.5.1: Rate limiting теперь полностью внутри hybridParse
+ * v2.5.2: Кэш теперь в MongoDB
  */
 async function forceAIPrice(brainrotName, ourIncome) {
     const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
     
-    // Проверяем кэш
-    const cached = aiCache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < AI_CACHE_TTL) {
-        return { ...cached.data, source: 'ai', fromCache: true };
+    // Проверяем MongoDB кэш
+    const cached = await getAICache(cacheKey);
+    if (cached) {
+        return { ...cached, source: 'ai', fromCache: true };
     }
     
     // Rate limit теперь проверяется внутри hybridParse для каждого батча
@@ -262,10 +268,10 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }))
         };
         
-        // Кэшируем AI результат
-        aiCache.set(cacheKey, { data: result, timestamp: Date.now() });
+        // Кэшируем AI результат в MongoDB
+        await setAICache(cacheKey, result);
         
-        console.log(`✅ AI price for ${brainrotName}: $${suggestedPrice}`);
+        console.log(`✅ AI price for ${brainrotName}: $${suggestedPrice} (cached in MongoDB)`);
         return result;
         
     } catch (e) {
@@ -380,11 +386,22 @@ async function getStats() {
     // Получаем глобальную статистику из MongoDB
     const globalStats = await getAIUsageStats();
     
+    // Получаем размер кэша из MongoDB (примерно)
+    let cacheSize = 0;
+    try {
+        const { connectToDatabase } = require('./_lib/db');
+        const { db } = await connectToDatabase();
+        cacheSize = await db.collection('ai_price_cache').countDocuments();
+    } catch (e) {
+        console.error('Error getting cache size:', e.message);
+    }
+    
     return {
-        cacheSize: aiCache.size,
+        cacheSize,  // Теперь из MongoDB
+        cacheType: 'mongodb',
         queueLength: aiValidationQueue.length,
         isProcessing: isProcessingQueue,
-        globalRateLimit: globalStats, // Глобальная статистика из MongoDB
+        globalRateLimit: globalStats,
         previousPricesTracked: previousPrices.size
     };
 }
@@ -392,10 +409,18 @@ async function getStats() {
 /**
  * Очищает кэши
  */
-function clearCache() {
-    aiCache.clear();
+async function clearCache() {
     previousPrices.clear();
-    console.log('🗑️ AI cache cleared');
+    
+    // Очищаем MongoDB кэш
+    try {
+        const { connectToDatabase } = require('./_lib/db');
+        const { db } = await connectToDatabase();
+        const result = await db.collection('ai_price_cache').deleteMany({});
+        console.log(`🗑️ AI cache cleared: ${result.deletedCount} entries from MongoDB`);
+    } catch (e) {
+        console.error('Error clearing cache:', e.message);
+    }
 }
 
 /**
@@ -423,7 +448,7 @@ module.exports = async (req, res) => {
     
     // Очистка кэша
     if (clear !== undefined) {
-        clearCache();
+        await clearCache();
         return res.status(200).json({ message: 'Cache cleared' });
     }
     

@@ -322,6 +322,85 @@ async function getAIUsageStats() {
     }
 }
 
+/**
+ * AI Price Cache в MongoDB
+ * Позволяет хранить AI результаты между serverless инстансами
+ */
+const AI_CACHE_TTL_MS = 10 * 60 * 1000; // 10 минут
+
+/**
+ * Получает AI результат из MongoDB кэша
+ * @param {string} cacheKey - ключ кэша (brainrot_income)
+ */
+async function getAICache(cacheKey) {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('ai_price_cache');
+        
+        const cached = await collection.findOne({ 
+            _id: cacheKey,
+            timestamp: { $gt: Date.now() - AI_CACHE_TTL_MS }
+        });
+        
+        return cached?.data || null;
+    } catch (e) {
+        console.error('Get AI cache error:', e.message);
+        return null;
+    }
+}
+
+/**
+ * Сохраняет AI результат в MongoDB кэш
+ * @param {string} cacheKey - ключ кэша
+ * @param {object} data - данные для сохранения
+ */
+async function setAICache(cacheKey, data) {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('ai_price_cache');
+        
+        await collection.updateOne(
+            { _id: cacheKey },
+            { 
+                $set: { 
+                    data, 
+                    timestamp: Date.now(),
+                    updatedAt: new Date()
+                }
+            },
+            { upsert: true }
+        );
+        
+        return true;
+    } catch (e) {
+        console.error('Set AI cache error:', e.message);
+        return false;
+    }
+}
+
+/**
+ * Очищает просроченные записи кэша (вызывать периодически)
+ */
+async function cleanupAICache() {
+    try {
+        const { db } = await connectToDatabase();
+        const collection = db.collection('ai_price_cache');
+        
+        const result = await collection.deleteMany({
+            timestamp: { $lt: Date.now() - AI_CACHE_TTL_MS * 2 }
+        });
+        
+        if (result.deletedCount > 0) {
+            console.log(`🗑️ Cleaned up ${result.deletedCount} expired AI cache entries`);
+        }
+        
+        return result.deletedCount;
+    } catch (e) {
+        console.error('Cleanup AI cache error:', e.message);
+        return 0;
+    }
+}
+
 module.exports = {
     connectToDatabase,
     generateAvatar,
@@ -332,5 +411,10 @@ module.exports = {
     checkGlobalRateLimit,
     recordAIUsage,
     getAIUsageStats,
-    GLOBAL_RATE_LIMIT
+    GLOBAL_RATE_LIMIT,
+    // AI Price Cache
+    getAICache,
+    setAICache,
+    cleanupAICache,
+    AI_CACHE_TTL_MS
 };
