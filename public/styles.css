@@ -6635,6 +6635,14 @@ body {
 
 .option-flag {
     font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.option-flag img {
+    border-radius: 2px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .option-label {
