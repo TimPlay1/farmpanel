@@ -1,9 +1,8 @@
-// FarmerPanel App v9.12.4 - Faster Loading with Stale Cache, Increased Timeouts
-// - Show cached data immediately (even if stale) while loading fresh data in background
-// - Increased sync timeout from 5s to 10-15s for slower connections
-// - Farmers cache TTL increased from 5min to 30min (with 24h stale display)
-// - Price cache TTL increased from 3min to 10min
-// - Background refresh of stale data without blocking UI
+// FarmerPanel App v9.12.5 - Fixed cache key mismatch issue
+// - Cache now stores data for ALL keys, not just current
+// - loadFarmersDataFromCache now checks if data exists for CURRENT key
+// - Increased sync timeout to 15s for initial load
+// - Better logging for cache debugging
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -2431,13 +2430,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Предзагружаем изображения ДО показа UI
         await preloadBrainrotImages();
         
-        // v9.12.4: Проверяем есть ли кэшированные данные (любые - свежие или устаревшие)
-        const hasCachedData = state.farmersData[state.currentKey] && 
-            state.farmersData[state.currentKey].accounts && 
-            state.farmersData[state.currentKey].accounts.length > 0;
+        // v9.12.5: Используем hasCurrentKeyData из результата загрузки кэша
+        const hasCachedData = cacheResult.hasCurrentKeyData;
         
-        // v9.12.4: Флаг нужно ли грузить свежие данные в фоне
-        const needsFreshData = !cacheResult.isFresh;
+        // v9.12.5: Нужно грузить свежие данные если кэш устаревший ИЛИ нет данных для текущего ключа
+        const needsFreshData = !cacheResult.isFresh || !cacheResult.hasCurrentKeyData;
         
         // v9.11.20: Загружаем цены ДО farmer data (быстрее, не блокирует)
         // Цены из prices-cache загружаются быстро (один batch запрос)
@@ -2455,20 +2452,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        // v9.12.4: Если есть кэш - показываем UI СРАЗУ, не ждём свежих данных
+        // v9.12.5: Если есть кэш для текущего ключа - показываем UI СРАЗУ
         if (hasCachedData) {
-            console.log('✅ Showing cached data immediately (fresh data will load in background)');
+            console.log('✅ Showing cached data immediately for', state.currentKey);
             showMainApp();
             hideLoadingScreen();
             updateUI();
         } else {
-            // Нет кэша - ждём загрузку с сервера но с увеличенным таймаутом
+            // Нет кэша для текущего ключа - ждём загрузку с сервера
             updateLoadingText('Loading account data...');
+            console.log('No cached data for', state.currentKey, '- loading from server...');
             try {
                 const response = await fetchWithTimeout(
                     `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
                     {},
-                    10000 // 10 секунд timeout (увеличено с 5)
+                    15000 // 15 секунд timeout (увеличено с 10)
                 );
                 if (response.ok) {
                     const data = await response.json();
@@ -2646,14 +2644,21 @@ const FARMERS_CACHE_STALE_EXPIRY = 24 * 60 * 60 * 1000; // 24 часа (уста
 
 function saveFarmersDataToCache() {
     try {
-        // Сохраняем только текущий ключ чтобы уменьшить размер
-        const currentKeyData = state.farmersData[state.currentKey];
-        if (!currentKeyData) return;
+        // v9.12.5: Сохраняем данные для ВСЕХ загруженных ключей (не только текущего)
+        // Это позволяет быстро переключаться между ключами
+        const dataToSave = {};
+        for (const [key, value] of Object.entries(state.farmersData)) {
+            if (value && value.accounts && value.accounts.length > 0) {
+                dataToSave[key] = value;
+            }
+        }
+        
+        if (Object.keys(dataToSave).length === 0) return;
         
         const cache = {
             timestamp: Date.now(),
             currentKey: state.currentKey,
-            data: { [state.currentKey]: currentKeyData }
+            data: dataToSave
         };
         localStorage.setItem(FARMERS_CACHE_KEY, JSON.stringify(cache));
     } catch (e) {
@@ -2677,22 +2682,40 @@ function loadFarmersDataFromCache() {
     try {
         const cached = localStorage.getItem(FARMERS_CACHE_KEY);
         if (cached) {
-            const { timestamp, data } = JSON.parse(cached);
+            const { timestamp, currentKey: cachedKey, data } = JSON.parse(cached);
             const age = Date.now() - timestamp;
             
             // Загружаем кэш даже если устаревший (до 24ч) - покажем что-то пока грузится свежее
             if (age < FARMERS_CACHE_STALE_EXPIRY && data) {
-                state.farmersData = data;
+                // v9.12.5: Мёржим данные из кэша в state, не перезаписывая
+                for (const [key, value] of Object.entries(data)) {
+                    if (value && value.accounts) {
+                        state.farmersData[key] = value;
+                    }
+                }
+                
                 const isFresh = age < FARMERS_CACHE_EXPIRY;
                 const isStale = !isFresh;
-                console.log(`Loaded farmers data from cache (${isFresh ? 'fresh' : 'stale, ' + Math.round(age/60000) + 'min old'})`);
-                return { loaded: true, isFresh, isStale };
+                
+                // v9.12.5: Проверяем есть ли данные для ТЕКУЩЕГО ключа
+                const hasCurrentKeyData = state.currentKey && 
+                    state.farmersData[state.currentKey] && 
+                    state.farmersData[state.currentKey].accounts &&
+                    state.farmersData[state.currentKey].accounts.length > 0;
+                
+                if (hasCurrentKeyData) {
+                    console.log(`Loaded farmers data from cache for ${state.currentKey} (${isFresh ? 'fresh' : 'stale, ' + Math.round(age/60000) + 'min old'})`);
+                    return { loaded: true, isFresh, isStale, hasCurrentKeyData: true };
+                } else {
+                    console.log(`Loaded farmers cache but no data for current key ${state.currentKey} (cached key: ${cachedKey})`);
+                    return { loaded: true, isFresh: false, isStale: true, hasCurrentKeyData: false };
+                }
             }
         }
     } catch (e) {
         console.error('Failed to load farmers cache:', e);
     }
-    return { loaded: false, isFresh: false, isStale: false };
+    return { loaded: false, isFresh: false, isStale: false, hasCurrentKeyData: false };
 }
 
 // Event Listeners
