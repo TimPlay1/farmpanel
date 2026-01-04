@@ -7343,17 +7343,44 @@ function openBulkPriceModal() {
     
     if (bulkOffersListEl) {
         bulkOffersListEl.innerHTML = selectedOffers.map(offer => {
-            const recPrice = offer.recommendedPrice || 0;
-            const medPrice = offer.medianPrice || 0;
-            const nextPrice = offer.nextCompetitorPrice || 0;
+            // v9.11.8: Support mutation variants in bulk modal
+            const hasMutation = cleanMutationText(offer.mutation);
+            const selectedVariant = 'default'; // Start with default variant
+            
+            // Get prices based on variant
+            const defRecPrice = offer.defaultRecommendedPrice || offer.recommendedPrice || 0;
+            const defMedPrice = offer.defaultMedianPrice || offer.medianPrice || 0;
+            const defNextPrice = offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0;
+            const mutRecPrice = offer.mutationRecommendedPrice || 0;
+            const mutMedPrice = offer.mutationMedianPrice || 0;
+            const mutNextPrice = offer.mutationNextCompetitorPrice || 0;
+            
+            // Use default prices initially
+            const recPrice = defRecPrice;
+            const medPrice = defMedPrice;
+            const nextPrice = defNextPrice;
+            
+            // Mutation styles
+            const mStyles = hasMutation ? getMutationStyles(offer.mutation) : null;
             
             return `
             <div class="bulk-offer-item" data-offer-id="${offer.offerId}" 
-                 data-rec-price="${recPrice}" data-med-price="${medPrice}" data-next-price="${nextPrice}">
+                 data-rec-price="${recPrice}" data-med-price="${medPrice}" data-next-price="${nextPrice}"
+                 data-def-rec="${defRecPrice}" data-def-med="${defMedPrice}" data-def-next="${defNextPrice}"
+                 data-mut-rec="${mutRecPrice}" data-mut-med="${mutMedPrice}" data-mut-next="${mutNextPrice}"
+                 data-has-mutation="${hasMutation ? '1' : '0'}" data-selected-variant="default">
                 ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div class="bulk-offer-placeholder"></div>'}
                 <div class="bulk-offer-info">
                     <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
                     <div class="bulk-offer-income">${offer.income || '0/s'}</div>
+                    ${hasMutation ? `
+                    <div class="bulk-offer-variant-toggle">
+                        <button class="bulk-variant-btn active" data-variant="default" title="Default variant prices">DEF</button>
+                        <button class="bulk-variant-btn mutation" data-variant="mutation" 
+                                style="background: ${mStyles.background}; color: ${mStyles.textColor};" 
+                                title="${cleanMutationText(offer.mutation)} variant prices">${cleanMutationText(offer.mutation).substring(0, 4)}</button>
+                    </div>
+                    ` : ''}
                 </div>
                 <div class="bulk-offer-prices">
                     <div class="bulk-price-cell current">
@@ -7398,6 +7425,80 @@ function openBulkPriceModal() {
                     // Update active state
                     e.target.closest('.price-quick-btns').querySelectorAll('.price-quick-btn').forEach(b => b.classList.remove('active'));
                     e.target.classList.add('active');
+                }
+            });
+        });
+        
+        // v9.11.8: Add click handlers for variant toggle buttons
+        bulkOffersListEl.querySelectorAll('.bulk-variant-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const variant = e.target.dataset.variant;
+                const item = e.target.closest('.bulk-offer-item');
+                if (!item) return;
+                
+                // Update active state
+                item.querySelectorAll('.bulk-variant-btn').forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                item.dataset.selectedVariant = variant;
+                
+                // Get prices for selected variant
+                const isMutation = variant === 'mutation';
+                const recPrice = isMutation ? parseFloat(item.dataset.mutRec) : parseFloat(item.dataset.defRec);
+                const medPrice = isMutation ? parseFloat(item.dataset.mutMed) : parseFloat(item.dataset.defMed);
+                const nextPrice = isMutation ? parseFloat(item.dataset.mutNext) : parseFloat(item.dataset.defNext);
+                
+                // Update data attributes
+                item.dataset.recPrice = recPrice;
+                item.dataset.medPrice = medPrice;
+                item.dataset.nextPrice = nextPrice;
+                
+                // Update displayed prices
+                const recCell = item.querySelector('.bulk-price-cell.recommended');
+                const medCell = item.querySelector('.bulk-price-cell.median');
+                const nextCell = item.querySelector('.bulk-price-cell.next-comp');
+                
+                if (recCell) {
+                    recCell.querySelector('.price-value').textContent = recPrice > 0 ? '$' + recPrice.toFixed(2) : 'N/A';
+                    recCell.classList.toggle('available', recPrice > 0);
+                    recCell.classList.toggle('na', recPrice <= 0);
+                }
+                if (medCell) {
+                    medCell.querySelector('.price-value').textContent = medPrice > 0 ? '$' + medPrice.toFixed(2) : 'N/A';
+                    medCell.classList.toggle('available', medPrice > 0);
+                    medCell.classList.toggle('na', medPrice <= 0);
+                }
+                if (nextCell) {
+                    nextCell.querySelector('.price-value').textContent = nextPrice > 0 ? '$' + nextPrice.toFixed(2) : 'N/A';
+                    nextCell.classList.toggle('available', nextPrice > 0);
+                    nextCell.classList.toggle('na', nextPrice <= 0);
+                }
+                
+                // Update quick price buttons
+                const quickBtns = item.querySelector('.price-quick-btns');
+                if (quickBtns) {
+                    quickBtns.innerHTML = `
+                        ${recPrice > 0 ? `<button class="price-quick-btn rec" data-price="${recPrice}" title="Recommended $${recPrice.toFixed(2)}">Rec</button>` : ''}
+                        ${medPrice > 0 ? `<button class="price-quick-btn med" data-price="${medPrice}" title="Median $${medPrice.toFixed(2)}">Med</button>` : ''}
+                        ${nextPrice > 0 ? `<button class="price-quick-btn next" data-price="${nextPrice}" title="Next Comp $${nextPrice.toFixed(2)}">Next</button>` : ''}
+                    `;
+                    // Re-bind quick price button events
+                    quickBtns.querySelectorAll('.price-quick-btn').forEach(qbtn => {
+                        qbtn.addEventListener('click', (e) => {
+                            const price = parseFloat(e.target.dataset.price);
+                            const input = e.target.closest('.bulk-offer-custom-input').querySelector('.offer-custom-price');
+                            if (input && price > 0) {
+                                input.value = price.toFixed(2);
+                                quickBtns.querySelectorAll('.price-quick-btn').forEach(b => b.classList.remove('active'));
+                                e.target.classList.add('active');
+                            }
+                        });
+                    });
+                }
+                
+                // Update custom input value if currently showing recommended
+                const input = item.querySelector('.offer-custom-price');
+                if (input && recPrice > 0) {
+                    input.value = recPrice.toFixed(2);
                 }
             });
         });
@@ -7521,24 +7622,33 @@ async function confirmBulkPriceAdjustment() {
     for (const offer of selectedOffers) {
         let newPrice;
         
+        // v9.11.8: Get selected variant from bulk offer item
+        const offerItem = document.querySelector(`.bulk-offer-item[data-offer-id="${offer.offerId}"]`);
+        const selectedVariant = offerItem?.dataset.selectedVariant || 'default';
+        const isMutation = selectedVariant === 'mutation';
+        
+        // Get prices based on selected variant
+        const recPrice = isMutation ? (offer.mutationRecommendedPrice || 0) : (offer.defaultRecommendedPrice || offer.recommendedPrice || 0);
+        const medPrice = isMutation ? (offer.mutationMedianPrice || 0) : (offer.defaultMedianPrice || offer.medianPrice || 0);
+        const nextPrice = isMutation ? (offer.mutationNextCompetitorPrice || 0) : (offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0);
+        
         switch (priceType) {
             case 'recommended':
-                newPrice = offer.recommendedPrice;
+                newPrice = recPrice;
                 break;
             case 'median':
-                newPrice = offer.medianPrice || offer.recommendedPrice;
+                newPrice = medPrice || recPrice;
                 break;
             case 'nextCompetitor':
-                newPrice = offer.nextCompetitorPrice || offer.recommendedPrice;
+                newPrice = nextPrice || recPrice;
                 break;
             case 'custom-single':
                 // Get individual price from each offer's input
-                const offerItem = document.querySelector(`.bulk-offer-item[data-offer-id="${offer.offerId}"]`);
                 const priceInput = offerItem?.querySelector('.offer-custom-price');
                 newPrice = parseFloat(priceInput?.value);
                 break;
             default:
-                newPrice = offer.recommendedPrice;
+                newPrice = recPrice;
         }
         
         if (newPrice && newPrice > 0) {
