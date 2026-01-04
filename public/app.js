@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.0 - Localization (EN/RU) + 4 Themes + Settings Modal
+// FarmerPanel App v9.12.2 - Complete Localization (EN/RU) - All UI Elements
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -156,6 +156,7 @@ const i18n = {
         
         // Mass select
         mass_select_title: 'Mass selection for generation',
+        exit_selection_mode: 'Exit selection mode',
         selected: 'Selected:',
         
         // Settings
@@ -192,12 +193,95 @@ const i18n = {
         recommended_old: 'Recommended (old)',
         ai_validated: 'AI validated price from next M/s range',
         price_next_range: 'Price from next M/s range',
+        ai_tooltip: 'AI',
+        ai_determined: 'Price determined by AI',
+        ai_next_range_tooltip: 'AI + Next Range',
+        next_range_tooltip: 'Next Range',
+        hybrid_tooltip: 'AI + Regex hybrid',
+        median_not_available: 'Median not available',
+        has_brainrots_in_collection: 'in collection',
+        no_brainrots_in_collection: 'No brainrots in collection',
+        will_be_deleted_soon: 'Will be deleted soon',
+        add_offer_id_hint: 'Add #{id} to your Eldorado offer title',
         
         // Stats labels
         total_offers: 'total',
         paused_offers: 'paused',
         need_update: 'need update',
-        selected_offers: 'selected'
+        selected_offers: 'selected',
+        
+        // Time ago
+        just_now: 'Just now',
+        minutes_ago: 'm ago',
+        hours_ago: 'h ago',
+        days_ago: 'd ago',
+        
+        // Account cards
+        brainrots: 'Brainrots',
+        value: 'Value',
+        income_label: 'INCOME',
+        brainrots_label: 'BRAINROTS',
+        value_label: 'VALUE',
+        no_accounts: 'No accounts',
+        online_status: 'Online',
+        offline_status: 'Offline',
+        
+        // Farm keys
+        accounts_label: 'accounts',
+        value_lower: 'value',
+        active_status: 'Active',
+        select_btn: 'Select',
+        
+        // Notifications
+        key_copied: 'Key copied to clipboard!',
+        key_copy_failed: 'Failed to copy key',
+        language_changed_en: 'Language changed to English',
+        language_changed_ru: 'Язык изменён на русский',
+        switched_to_account: 'Switched to',
+        farmer_deleted: 'Farmer deleted successfully',
+        farmer_delete_failed: 'Failed to delete farmer',
+        max_selection: 'Maximum brainrots for mass generation:',
+        generated_success: 'Generated',
+        click_post_eldorado: 'Click "Post to Eldorado" to create offers',
+        no_images_download: 'No images to download',
+        downloaded_images: 'Downloaded images',
+        download_error: 'Download error',
+        configure_shop_first: 'Please configure your shop name first',
+        queue_empty: 'Queue is empty',
+        queue_empty_generate: 'Queue is empty. Generate first with "Create queue for Eldorado" enabled',
+        queue_started: 'Eldorado queue started',
+        offers_updated: 'Offers updated',
+        no_farm_key: 'No farm key selected',
+        done: 'Done',
+        errors_during_generation: 'errors during generation',
+        download_error_msg: 'Download error',
+        loading_error: 'Loading Error',
+        failed_to_load_top: 'Failed to load top data',
+        retry: 'Retry',
+        no_data_yet: 'No data yet',
+        top_description: 'Top is formed from all panel users data',
+        
+        // Supa Generator
+        supa_generator: 'Supa Generator',
+        preview: 'Preview',
+        account_label: 'Account',
+        name_label: 'Name',
+        income_form: 'Income',
+        image_url: 'Image URL',
+        price_variant: 'Price variant',
+        price_for_eldorado: 'Price for Eldorado',
+        supa_recommended: 'Recommended',
+        supa_median: 'Median',
+        supa_next_competitor: 'Next Competitor',
+        supa_custom: 'Custom price',
+        supa_generate: 'Generate',
+        supa_download: 'Download (800x800)',
+        supa_post_eldorado: 'Post to Eldorado',
+        supa_processing: 'Processing...',
+        
+        // Mass select
+        items: 'items',
+        generate_n: 'Generate'
     },
     ru: {
         // Navigation
@@ -343,6 +427,7 @@ const i18n = {
         
         // Mass select
         mass_select_title: 'Массовый выбор для генерации',
+        exit_selection_mode: 'Выйти из режима выбора',
         selected: 'Выбрано:',
         
         // Settings
@@ -379,12 +464,95 @@ const i18n = {
         recommended_old: 'Рекоменд. (старая)',
         ai_validated: 'AI цена из следующего диапазона M/s',
         price_next_range: 'Цена из следующего диапазона M/s',
+        ai_tooltip: 'AI',
+        ai_determined: 'Цена определена с помощью AI',
+        ai_next_range_tooltip: 'AI + След. диапазон',
+        next_range_tooltip: 'След. диапазон',
+        hybrid_tooltip: 'AI + Regex гибрид',
+        median_not_available: 'Медиана недоступна',
+        has_brainrots_in_collection: 'в коллекции',
+        no_brainrots_in_collection: 'Нет брейнротов в коллекции',
+        will_be_deleted_soon: 'Будет удалён скоро',
+        add_offer_id_hint: 'Добавьте #{id} в название оффера на Eldorado',
         
         // Stats labels
         total_offers: 'всего',
         paused_offers: 'приостановлено',
         need_update: 'нужно обновить',
-        selected_offers: 'выбрано'
+        selected_offers: 'выбрано',
+        
+        // Time ago
+        just_now: 'Только что',
+        minutes_ago: 'мин. назад',
+        hours_ago: 'ч. назад',
+        days_ago: 'д. назад',
+        
+        // Account cards
+        brainrots: 'Брейнроты',
+        value: 'Стоимость',
+        income_label: 'ДОХОД',
+        brainrots_label: 'БРЕЙНРОТЫ',
+        value_label: 'СТОИМОСТЬ',
+        no_accounts: 'Нет аккаунтов',
+        online_status: 'Онлайн',
+        offline_status: 'Оффлайн',
+        
+        // Farm keys
+        accounts_label: 'аккаунтов',
+        value_lower: 'стоимость',
+        active_status: 'Активен',
+        select_btn: 'Выбрать',
+        
+        // Notifications
+        key_copied: 'Ключ скопирован!',
+        key_copy_failed: 'Не удалось скопировать ключ',
+        language_changed_en: 'Language changed to English',
+        language_changed_ru: 'Язык изменён на русский',
+        switched_to_account: 'Переключено на',
+        farmer_deleted: 'Фермер успешно удалён',
+        farmer_delete_failed: 'Не удалось удалить фермера',
+        max_selection: 'Максимум брейнротов для массовой генерации:',
+        generated_success: 'Сгенерировано',
+        click_post_eldorado: 'Нажмите "Выложить на Eldorado" для создания офферов',
+        no_images_download: 'Нет изображений для скачивания',
+        downloaded_images: 'Скачано изображений',
+        download_error: 'Ошибка при скачивании',
+        configure_shop_first: 'Сначала настройте название магазина',
+        queue_empty: 'Очередь пуста',
+        queue_empty_generate: 'Очередь пуста. Сначала выполните генерацию с включённой опцией "Создать очередь для Eldorado"',
+        queue_started: 'Запущена очередь Eldorado',
+        offers_updated: 'Офферы обновлены',
+        no_farm_key: 'Не выбран ключ фермы',
+        done: 'Готово',
+        errors_during_generation: 'ошибок при генерации',
+        download_error_msg: 'Ошибка скачивания',
+        loading_error: 'Ошибка загрузки',
+        failed_to_load_top: 'Не удалось загрузить данные топа',
+        retry: 'Повторить',
+        no_data_yet: 'Пока нет данных',
+        top_description: 'Топ формируется из данных всех пользователей панели',
+        
+        // Supa Generator
+        supa_generator: 'Supa Генератор',
+        preview: 'Предпросмотр',
+        account_label: 'Аккаунт',
+        name_label: 'Название',
+        income_form: 'Доходность',
+        image_url: 'URL изображения',
+        price_variant: 'Вариант цены',
+        price_for_eldorado: 'Цена для Eldorado',
+        supa_recommended: 'Рекомендованная',
+        supa_median: 'Медианная',
+        supa_next_competitor: 'След. компетитор',
+        supa_custom: 'Своя цена',
+        supa_generate: 'Генерировать',
+        supa_download: 'Скачать (800x800)',
+        supa_post_eldorado: 'Post to Eldorado',
+        supa_processing: 'Обработка...',
+        
+        // Mass select
+        items: 'шт',
+        generate_n: 'Генерировать'
     }
 };
 
@@ -1937,18 +2105,18 @@ function renderPriceBlock(priceData, cacheKey) {
     let sourceBadge = '';
     
     if (source === 'ai' && priceData.nextRangeChecked) {
-        sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+        sourceBadge = `<span class="parsing-source-badge ai-next-range" title="${t('ai_next_range_tooltip')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
     } else if (source === 'ai') {
-        sourceBadge = `<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>`;
+        sourceBadge = `<span class="parsing-source-badge ai" title="${t('ai_determined')}"><i class="fas fa-brain"></i></span>`;
     } else if (source === 'hybrid') {
-        sourceBadge = `<span class="parsing-source-badge hybrid" title="Hybrid"><i class="fas fa-brain"></i></span>`;
+        sourceBadge = `<span class="parsing-source-badge hybrid" title="${t('hybrid_tooltip')}"><i class="fas fa-brain"></i></span>`;
     } else {
         sourceBadge = `<span class="parsing-source-badge regex" title="Regex"><i class="fas fa-robot"></i></span>`;
     }
     
     // Next range badge (only for regex when nextRangeChecked)
     const nextRangeBadge = (priceData.nextRangeChecked && source !== 'ai')
-        ? `<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>` 
+        ? `<span class="next-range-badge" title="${t('next_range_tooltip')}"><i class="fas fa-level-up-alt"></i></span>` 
         : '';
     
     // Price type badge
@@ -2037,18 +2205,18 @@ function renderPriceVariants(brainrotName, income, mutation) {
         
         // AI + nextRangeChecked = brain + yellow arrow
         if (source === 'ai' && priceData.nextRangeChecked) {
-            badges += `<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+            badges += `<span class="parsing-source-badge ai-next-range" title="${t('ai_next_range_tooltip')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
         } else if (source === 'ai') {
-            badges += `<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>`;
+            badges += `<span class="parsing-source-badge ai" title="${t('ai_determined')}"><i class="fas fa-brain"></i></span>`;
         } else if (source === 'hybrid') {
-            badges += `<span class="parsing-source-badge hybrid" title="Hybrid"><i class="fas fa-brain"></i></span>`;
+            badges += `<span class="parsing-source-badge hybrid" title="${t('hybrid_tooltip')}"><i class="fas fa-brain"></i></span>`;
         } else {
             badges += `<span class="parsing-source-badge regex" title="Regex"><i class="fas fa-robot"></i></span>`;
         }
         
         // Next range badge (only for regex)
         if (priceData.nextRangeChecked && source !== 'ai') {
-            badges += `<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>`;
+            badges += `<span class="next-range-badge" title="${t('next_range_tooltip')}"><i class="fas fa-level-up-alt"></i></span>`;
         }
         
         badges += '</span>';
@@ -3272,11 +3440,11 @@ function formatTimeAgo(lastUpdate) {
         const now = Date.now();
         const diffSeconds = Math.floor((now - lastUpdateTime) / 1000);
         
-        if (diffSeconds < 0) return 'Just now'; // Future time = just now
-        if (diffSeconds < 60) return 'Just now';
-        if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + 'm ago';
-        if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + 'h ago';
-        return Math.floor(diffSeconds / 86400) + 'd ago';
+        if (diffSeconds < 0) return t('just_now'); // Future time = just now
+        if (diffSeconds < 60) return t('just_now');
+        if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + (currentLanguage === 'ru' ? ' мин. назад' : 'm ago');
+        if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + (currentLanguage === 'ru' ? ' ч. назад' : 'h ago');
+        return Math.floor(diffSeconds / 86400) + (currentLanguage === 'ru' ? ' д. назад' : 'd ago');
     } catch (e) {
         return lastUpdate;
     }
@@ -3402,7 +3570,7 @@ function updateAccountCard(cardEl, account) {
             newBrainrots.innerHTML = `
                 <div class="brainrots-title">
                     <i class="fas fa-brain"></i>
-                    Top Brainrots
+                    ${t('brainrots')}
                 </div>
                 <div class="brainrots-scroll">
                     ${brainrotsHtml}
@@ -3653,7 +3821,7 @@ window.quickSwitchAccount = function(farmKey) {
     
     selectFarmKey(farmKey);
     toggleAccountDropdown(false);
-    showNotification(`Switched to ${state.savedKeys.find(k => k.farmKey === farmKey)?.username || 'account'}`, 'success');
+    showNotification(`${t('switched_to_account')} ${state.savedKeys.find(k => k.farmKey === farmKey)?.username || 'account'}`, 'success');
 };
 
 // Toggle account dropdown
@@ -3680,8 +3848,8 @@ async function renderAccountsGrid(accounts) {
         accountsGridEl.innerHTML = `
             <div class="empty-state" style="grid-column: 1/-1">
                 <i class="fas fa-users-slash"></i>
-                <h3>No accounts found</h3>
-                <p>Start the farm script to see your accounts here.</p>
+                <h3>${t('no_accounts')}</h3>
+                <p>${currentLanguage === 'ru' ? 'Запустите скрипт фермы, чтобы увидеть аккаунты.' : 'Start the farm script to see your accounts here.'}</p>
             </div>
         `;
         return;
@@ -3780,7 +3948,7 @@ async function renderAccountsGrid(accounts) {
         
         const isOnline = account._isOnline;
         const statusClass = isOnline ? 'online' : 'offline';
-        const statusText = isOnline ? 'Online' : 'Offline';
+        const statusText = isOnline ? t('online_status') : t('offline_status');
         const actionText = isOnline ? (account.action || account.status || '') : '';
         
         const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
@@ -3809,24 +3977,24 @@ async function renderAccountsGrid(accounts) {
                 <div class="account-stats">
                     <div class="account-stat">
                         <div class="account-stat-value">${account.totalIncomeFormatted || formatIncome(account.totalIncome || 0)}</div>
-                        <div class="account-stat-label">Income</div>
+                        <div class="account-stat-label">${t('income_label')}</div>
                     </div>
                     <div class="account-stat">
                         <div class="account-stat-value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
-                        <div class="account-stat-label">Brainrots</div>
+                        <div class="account-stat-label">${t('brainrots_label')}</div>
                     </div>
                     <div class="account-stat account-value">
                         <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
-                        <div class="account-stat-label">Value</div>
+                        <div class="account-stat-label">${t('value_label')}</div>
                     </div>
                 </div>
                 <div class="account-brainrots">
                     <div class="brainrots-title">
                         <i class="fas fa-brain"></i>
-                        Top Brainrots
+                        ${t('brainrots')}
                     </div>
                     <div class="brainrots-scroll">
-                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">No brainrots yet</span>'}
+                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">' + (currentLanguage === 'ru' ? 'Пока нет брейнротов' : 'No brainrots yet') + '</span>'}
                     </div>
                 </div>
                 <div class="account-footer">
@@ -3843,8 +4011,8 @@ function renderAccountsList(accounts) {
         accountsListEl.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-list"></i>
-                <h3>No accounts</h3>
-                <p>Accounts will appear here when the farm script is running.</p>
+                <h3>${t('no_accounts')}</h3>
+                <p>${currentLanguage === 'ru' ? 'Аккаунты появятся здесь после запуска скрипта фермы.' : 'Accounts will appear here when the farm script is running.'}</p>
             </div>
         `;
         return;
@@ -3896,20 +4064,20 @@ function renderAccountsList(accounts) {
                 </div>
                 <span class="status-badge ${statusClass}">
                     <i class="fas fa-circle"></i>
-                    ${isOnline ? 'Online' : 'Offline'}
+                    ${isOnline ? t('online_status') : t('offline_status')}
                 </span>
                 <div class="account-list-income">
                     <div class="value">${account.totalIncomeFormatted || formatIncome(account.totalIncome || 0)}</div>
-                    <div class="label">INCOME</div>
+                    <div class="label">${t('income_label')}</div>
                 </div>
                 <div class="account-list-brainrots">
                     <div class="value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
-                    <div class="label">BRAINROTS</div>
+                    <div class="label">${t('brainrots_label')}</div>
                 </div>
                 ${accountValue > 0 ? `
                 <div class="account-list-value">
                     <div class="value">$${accountValue.toFixed(2)}</div>
-                    <div class="label">VALUE</div>
+                    <div class="label">${t('value_label')}</div>
                 </div>
                 ` : ''}
             </div>
@@ -3982,16 +4150,16 @@ function renderFarmKeys() {
                 <div class="farm-key-right">
                     <div class="farm-key-stats">
                         <div class="farm-key-accounts">${accountCount}</div>
-                        <div class="farm-key-label">accounts</div>
+                        <div class="farm-key-label">${t('accounts_label').toLowerCase()}</div>
                     </div>
                     ${farmerValue > 0 ? `
                     <div class="farm-key-stats farm-key-value">
                         <div class="farm-key-accounts">$${farmerValue.toFixed(2)} ${changeHtml}</div>
-                        <div class="farm-key-label">value</div>
+                        <div class="farm-key-label">${t('value_lower')}</div>
                     </div>
                     ` : ''}
                     <button class="select-key-btn" onclick="selectFarmKey('${key.farmKey}')">
-                        ${isActive ? 'Active' : 'Select'}
+                        ${isActive ? t('active_status') : t('select_btn')}
                     </button>
                     <button class="delete-key-btn" onclick="deleteFarmKey('${key.farmKey}')" title="Remove key">
                         <i class="fas fa-trash"></i>
@@ -4072,7 +4240,7 @@ window.toggleAndCopyKey = function(element, farmKey) {
     if (wasBlurred) {
         // Was blurred, now revealed - copy to clipboard
         navigator.clipboard.writeText(farmKey).then(() => {
-            showNotification('Key copied to clipboard!', 'success');
+            showNotification(t('key_copied'), 'success');
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
             
@@ -4083,7 +4251,7 @@ window.toggleAndCopyKey = function(element, farmKey) {
                 icon.classList.add('fa-eye-slash');
             }, 3000);
         }).catch(() => {
-            showNotification('Failed to copy key', 'error');
+            showNotification(t('key_copy_failed'), 'error');
         });
     } else {
         // Was revealed, now blurred
@@ -5360,18 +5528,18 @@ function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
         
         // v9.10.5: При AI + nextRangeChecked показываем brain + желтую стрелку вместе
         if (source === 'ai' && priceData.nextRangeChecked) {
-            sourceBadge = `<span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
+            sourceBadge = `<span class="parsing-source-badge ai-next-range" title="${t('ai_validated')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`;
         } else if (source === 'ai') {
-            sourceBadge = `<span class="parsing-source-badge ai" title="Price determined by AI"><i class="fas fa-brain"></i></span>`;
+            sourceBadge = `<span class="parsing-source-badge ai" title="${t('ai_determined')}"><i class="fas fa-brain"></i></span>`;
         } else if (source === 'hybrid') {
-            sourceBadge = `<span class="parsing-source-badge hybrid" title="AI + Regex hybrid"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
+            sourceBadge = `<span class="parsing-source-badge hybrid" title="${t('hybrid_tooltip')}"><i class="fas fa-brain"></i><i class="fas fa-robot"></i></span>`;
         } else {
             sourceBadge = `<span class="parsing-source-badge regex" title="Price by Bot (Regex)"><i class="fas fa-robot"></i></span>`;
         }
         
         // v9.9.5: Иконка для цены из следующего диапазона (только для regex, AI уже включает стрелку)
         const nextRangeBadge = (priceData.nextRangeChecked && source !== 'ai')
-            ? `<span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>` 
+            ? `<span class="next-range-badge" title="${t('price_next_range')}"><i class="fas fa-level-up-alt"></i></span>` 
             : '';
         
         if (isSpikePrice) {
@@ -5414,15 +5582,15 @@ async function deleteFarmer(playerName) {
         const result = await response.json();
         
         if (response.ok && result.success) {
-            showNotification(`Farmer "${playerName}" deleted successfully`, 'success');
+            showNotification(`${t('farmer_deleted')}: "${playerName}"`, 'success');
             // Force refresh data
             await fetchFarmerData();
         } else {
-            showNotification(result.error || 'Failed to delete farmer', 'error');
+            showNotification(result.error || t('farmer_delete_failed'), 'error');
         }
     } catch (err) {
         console.error('Error deleting farmer:', err);
-        showNotification('Failed to delete farmer: ' + err.message, 'error');
+        showNotification(`${t('farmer_delete_failed')}: ${err.message}`, 'error');
     }
 }
 
@@ -5779,7 +5947,7 @@ function createSupaGeneratorModal() {
         <div class="modal-overlay" onclick="closeSupaModal()"></div>
         <div class="modal-content supa-modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-wand-magic-sparkles"></i> Supa Generator</h3>
+                <h3><i class="fas fa-wand-magic-sparkles"></i> ${t('supa_generator')}</h3>
                 <button class="modal-close" onclick="closeSupaModal()">
                     <i class="fas fa-times"></i>
                 </button>
@@ -5789,7 +5957,7 @@ function createSupaGeneratorModal() {
                     <div class="supa-preview-frame">
                         <div class="supa-preview-placeholder" id="supaPreviewPlaceholder">
                             <i class="fas fa-image"></i>
-                            <p>Предпросмотр</p>
+                            <p>${t('preview')}</p>
                         </div>
                         <img id="supaPreviewImage" class="supa-preview-image hidden" src="" alt="Preview">
                         <img id="supaResultImage" class="supa-result-image hidden" src="" alt="Result">
@@ -5797,38 +5965,38 @@ function createSupaGeneratorModal() {
                     <div id="supaDownloadSection" class="supa-download-section hidden">
                         <button id="supaDownloadBtn" class="supa-download-btn" onclick="downloadSupaImage()">
                             <i class="fas fa-download"></i>
-                            Скачать (800x800)
+                            ${t('supa_download')}
                         </button>
                         <button id="supaPostEldoradoBtn" class="supa-eldorado-btn" onclick="postToEldorado()">
                             <i class="fas fa-store"></i>
-                            Post to Eldorado
+                            ${t('supa_post_eldorado')}
                         </button>
                     </div>
                 </div>
                 <div class="supa-form-section">
                     <div class="supa-form-group supa-account-group">
-                        <label><i class="fas fa-user"></i> Аккаунт</label>
+                        <label><i class="fas fa-user"></i> ${t('account_label')}</label>
                         <div id="supaAccountInfo" class="supa-account-info">-</div>
                     </div>
                     <div class="supa-form-group">
-                        <label><i class="fas fa-tag"></i> Название</label>
-                        <input type="text" id="supaName" placeholder="Название брейнрота">
+                        <label><i class="fas fa-tag"></i> ${t('name_label')}</label>
+                        <input type="text" id="supaName" placeholder="${t('name_label')}">
                     </div>
                     <div class="supa-form-group">
-                        <label><i class="fas fa-coins"></i> Доходность</label>
+                        <label><i class="fas fa-coins"></i> ${t('income_form')}</label>
                         <input type="text" id="supaIncome" placeholder="338M/s">
                     </div>
                     <div class="supa-form-group">
-                        <label><i class="fas fa-image"></i> URL изображения</label>
+                        <label><i class="fas fa-image"></i> ${t('image_url')}</label>
                         <input type="url" id="supaImageUrl" placeholder="https://..." onchange="updateSupaImagePreview(this.value)">
                     </div>
                     <!-- v9.11.1: Mutation price selector (hidden if no mutation) -->
                     <div class="supa-form-group supa-mutation-selector hidden" id="supaMutationSelector">
-                        <label><i class="fas fa-dna"></i> Вариант цены</label>
+                        <label><i class="fas fa-dna"></i> ${t('price_variant')}</label>
                         <div class="supa-variant-options">
                             <label class="supa-variant-option">
                                 <input type="radio" name="supaPriceVariant" value="default" checked>
-                                <span class="supa-variant-label default">DEFAULT</span>
+                                <span class="supa-variant-label default">${t('default')}</span>
                             </label>
                             <label class="supa-variant-option" id="supaMutationOption">
                                 <input type="radio" name="supaPriceVariant" value="mutation">
@@ -5837,13 +6005,13 @@ function createSupaGeneratorModal() {
                         </div>
                     </div>
                     <div class="supa-form-group supa-price-selector">
-                        <label><i class="fas fa-dollar-sign"></i> Цена для Eldorado</label>
+                        <label><i class="fas fa-dollar-sign"></i> ${t('price_for_eldorado')}</label>
                         <div class="supa-price-options" id="supaPriceOptions">
                             <label class="supa-price-option">
                                 <input type="radio" name="supaPriceType" value="suggested" checked>
                                 <span class="supa-price-label">
                                     <i class="fas fa-tag"></i>
-                                    <span>Рекомендованная</span>
+                                    <span>${t('supa_recommended')}</span>
                                     <strong id="supaPriceSuggested">$0.00</strong>
                                 </span>
                             </label>
@@ -5851,7 +6019,7 @@ function createSupaGeneratorModal() {
                                 <input type="radio" name="supaPriceType" value="median">
                                 <span class="supa-price-label">
                                     <i class="fas fa-chart-bar"></i>
-                                    <span>Медианная</span>
+                                    <span>${t('supa_median')}</span>
                                     <strong id="supaPriceMedian">$0.00</strong>
                                 </span>
                             </label>
@@ -5859,7 +6027,7 @@ function createSupaGeneratorModal() {
                                 <input type="radio" name="supaPriceType" value="nextCompetitor">
                                 <span class="supa-price-label">
                                     <i class="fas fa-arrow-up"></i>
-                                    <span>След. компетитор</span>
+                                    <span>${t('supa_next_competitor')}</span>
                                     <strong id="supaPriceNext">$0.00</strong>
                                 </span>
                             </label>
@@ -5867,7 +6035,7 @@ function createSupaGeneratorModal() {
                                 <input type="radio" name="supaPriceType" value="custom">
                                 <span class="supa-price-label">
                                     <i class="fas fa-edit"></i>
-                                    <span>Своя цена</span>
+                                    <span>${t('supa_custom')}</span>
                                     <input type="number" step="0.01" min="0" id="supaCustomPrice" class="supa-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=supaPriceType][value=custom]').checked = true;">
                                 </span>
                             </label>
@@ -5875,11 +6043,11 @@ function createSupaGeneratorModal() {
                     </div>
                     <button id="supaGenerateBtn" class="supa-generate-btn" onclick="generateSupaImage()">
                         <i class="fas fa-wand-magic-sparkles"></i>
-                        Генерировать
+                        ${t('supa_generate')}
                     </button>
                     <div id="supaStatus" class="supa-status hidden">
                         <div class="supa-spinner"></div>
-                        <span id="supaStatusText">Обработка...</span>
+                        <span id="supaStatusText">${t('supa_processing')}</span>
                     </div>
                     <div id="supaError" class="supa-error hidden">
                         <i class="fas fa-exclamation-triangle"></i>
@@ -6068,7 +6236,7 @@ async function downloadSupaImage() {
     
     try {
         downloadBtn.disabled = true;
-        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Скачивание...';
+        downloadBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('supa_processing')}`;
         
         const filename = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
         
@@ -6086,10 +6254,10 @@ async function downloadSupaImage() {
         
     } catch (error) {
         console.error('Download error:', error);
-        showSupaError('Ошибка скачивания: ' + error.message);
+        showSupaError(`${t('download_error_msg')}: ${error.message}`);
     } finally {
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать (800x800)';
+        downloadBtn.innerHTML = `<i class="fas fa-download"></i> ${t('supa_download')}`;
     }
 }
 
@@ -6270,14 +6438,14 @@ function toggleMassSelectionMode() {
     if (massSelectionState.isActive) {
         fab.classList.add('active');
         fab.innerHTML = '<i class="fas fa-times"></i>';
-        fab.title = 'Выйти из режима выбора';
+        fab.title = t('exit_selection_mode');
         indicator.classList.add('visible');
         massSelectionState.selectedItems = new Set();
         updateMassSelectionUI();
     } else {
         fab.classList.remove('active');
         fab.innerHTML = '<i class="fas fa-layer-group"></i>';
-        fab.title = 'Массовый выбор для генерации';
+        fab.title = t('mass_select_title');
         indicator.classList.remove('visible');
         massSelectionState.selectedItems = new Set();
     }
@@ -6300,7 +6468,7 @@ function toggleBrainrotSelection(index) {
     } else {
         // Check limit before adding
         if (massSelectionState.selectedItems.size >= MASS_SELECTION_MAX) {
-            showNotification(`Максимум ${MASS_SELECTION_MAX} брейнротов для массовой генерации`, 'warning');
+            showNotification(`${t('max_selection')} ${MASS_SELECTION_MAX}`, 'warning');
             return;
         }
         massSelectionState.selectedItems.add(key);
@@ -6812,10 +6980,10 @@ async function doStartMassGeneration() {
     
     // Show results
     const successCount = results.filter(r => r.success).length;
-    startBtn.innerHTML = `<i class="fas fa-check"></i> Готово ${successCount}/${total}`;
+    startBtn.innerHTML = `<i class="fas fa-check"></i> ${t('done')} ${successCount}/${total}`;
     
     if (errors > 0) {
-        errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errors} ошибок при генерации`;
+        errorEl.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${errors} ${t('errors_during_generation')}`;
         errorEl.classList.remove('hidden');
     }
     
@@ -6832,9 +7000,9 @@ async function doStartMassGeneration() {
     
     // Show notification
     if (eldoradoQueue.length > 0) {
-        showNotification(`✅ Сгенерировано ${successCount}/${total}. Нажмите "Выложить на Eldorado" для создания офферов.`, 'success');
+        showNotification(`✅ ${t('generated_success')} ${successCount}/${total}. ${t('click_post_eldorado')}`, 'success');
     } else {
-        showNotification(`✅ Сгенерировано ${successCount} из ${total}`, successCount === total ? 'success' : 'info');
+        showNotification(`✅ ${t('generated_success')} ${successCount}/${total}`, successCount === total ? 'success' : 'info');
     }
 }
 
@@ -6844,7 +7012,7 @@ async function downloadAllMassGenImages() {
     const successResults = results.filter(r => r.success && r.resultUrl);
     
     if (successResults.length === 0) {
-        showNotification('Нет изображений для скачивания', 'error');
+        showNotification(t('no_images_download'), 'error');
         return;
     }
     
@@ -6873,13 +7041,13 @@ async function downloadAllMassGenImages() {
             }
         }
         
-        showNotification(`✅ Скачано ${successResults.length} изображений`, 'success');
+        showNotification(`✅ ${t('downloaded_images')}: ${successResults.length}`, 'success');
     } catch (error) {
         console.error('Download error:', error);
-        showNotification('Ошибка при скачивании: ' + error.message, 'error');
+        showNotification(`${t('download_error')}: ${error.message}`, 'error');
     } finally {
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать все';
+        downloadBtn.innerHTML = `<i class="fas fa-download"></i> ${t('download_all')}`;
     }
 }
 
@@ -6888,20 +7056,20 @@ async function startMassEldoradoQueue() {
     // v9.9.3: Проверяем и загружаем имя магазина если нужно
     const hasShopName = await ensureShopNameLoaded();
     if (!hasShopName) {
-        showNotification('Please configure your shop name first', 'error');
+        showNotification(t('configure_shop_first'), 'error');
         openShopNameModal(() => startMassEldoradoQueue());
         return;
     }
     
     const queue = localStorage.getItem('eldoradoQueue');
     if (!queue) {
-        showNotification('Очередь пуста. Сначала выполните генерацию с включённой опцией "Создать очередь для Eldorado"', 'error');
+        showNotification(t('queue_empty_generate'), 'error');
         return;
     }
     
     const queueData = JSON.parse(queue);
     if (queueData.length === 0) {
-        showNotification('Очередь пуста', 'error');
+        showNotification(t('queue_empty'), 'error');
         return;
     }
     
@@ -6946,7 +7114,7 @@ async function startMassEldoradoQueue() {
     // Open in new tab
     window.open(url, '_blank');
     
-    showNotification(`🚀 Запущена очередь Eldorado: ${queueData.length} офферов`, 'success');
+    showNotification(`🚀 ${t('queue_started')}: ${queueData.length} ${t('offers')}`, 'success');
     
     // Close modal and exit selection mode
     closeMassGenerationModal();
@@ -7197,7 +7365,7 @@ function setupOffersRefreshListener() {
             setTimeout(() => {
                 loadOffers(true, false).then(() => {
                     console.log('Offers refreshed after signal');
-                    showNotification('✅ Офферы обновлены', 'success');
+                    showNotification(`✅ ${t('offers_updated')}`, 'success');
                 });
             }, 2000); // Wait 2 seconds for Eldorado to process the offer
         }
@@ -7512,9 +7680,9 @@ function renderOffers() {
         if (isPaused || isPending) {
             const brainrotsCount = countBrainrotsWithSameNameAndIncome(offer.brainrotName, offer.income, offer.incomeRaw, offer.mutation);
             if (brainrotsCount > 0) {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="You have ${brainrotsCount} '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
+                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="${brainrotsCount} '${offer.brainrotName}' ${t('has_brainrots_in_collection')}"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
             } else {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="No '${offer.brainrotName}' in collection"><i class="fas fa-brain"></i> 0</span>`;
+                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="${t('no_brainrots_in_collection')}: '${offer.brainrotName}'"><i class="fas fa-brain"></i> 0</span>`;
             }
         }
         
@@ -7542,10 +7710,10 @@ function renderOffers() {
                 }
                 pausedInfo = `<div class="offer-paused-info">${t('auto_delete_in')} ${timeText}</div>`;
             } else {
-                pausedInfo = `<div class="offer-paused-info urgent">${currentLanguage === 'ru' ? 'Будет удалён скоро' : 'Will be deleted soon'}</div>`;
+                pausedInfo = `<div class="offer-paused-info urgent">${t('will_be_deleted_soon')}</div>`;
             }
         } else if (isPending) {
-            pausedInfo = `<div class="offer-paused-info pending-info">${currentLanguage === 'ru' ? `Добавьте #${offer.offerId} в название оффера на Eldorado` : `Add #${offer.offerId} to your Eldorado offer title`}</div>`;
+            pausedInfo = `<div class="offer-paused-info pending-info">${t('add_offer_id_hint').replace('{id}', offer.offerId)}</div>`;
         }
         
         return `
@@ -7624,10 +7792,10 @@ function renderOffers() {
                                 <span class="offer-variant-label mutation" style="background: ${mStyles.background}; color: ${mStyles.textColor};">${cleanMutationText(offer.mutation)}</span>
                                 ${offer.mutationNextRangeChecked 
                                     ? (offer.mutationSource === 'ai' 
-                                        ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
-                                        : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                        ? `<span class="parsing-source-badge ai-next-range" title="${t('ai_next_range_tooltip')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`
+                                        : `<span class="next-range-badge" title="${t('next_range_tooltip')}"><i class="fas fa-level-up-alt"></i></span>`)
                                     : (offer.mutationSource === 'ai' 
-                                        ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
+                                        ? `<span class="parsing-source-badge ai" title="${t('ai_tooltip')}"><i class="fas fa-brain"></i></span>` 
                                         : '')}
                             </div>
                             <div class="offer-variant-price ${mutPrice > 0 ? '' : 'no-price'}">${mutPrice > 0 ? '$' + mutPrice.toFixed(2) : 'N/A'}</div>
@@ -7711,7 +7879,7 @@ async function deleteOffer(offerId, brainrotName) {
     try {
         const currentFarmKey = state.currentKey;
         if (!currentFarmKey) {
-            showNotification('❌ No farm key selected', 'error');
+            showNotification(`❌ ${t('no_farm_key')}`, 'error');
             return;
         }
         
@@ -7786,7 +7954,7 @@ async function bulkDeleteOffers() {
     
     const currentFarmKey = state.currentKey;
     if (!currentFarmKey) {
-        showNotification('❌ No farm key selected', 'error');
+        showNotification(`❌ ${t('no_farm_key')}`, 'error');
         return;
     }
     
@@ -8620,7 +8788,7 @@ function updateShopNameDisplay() {
             valueEl.textContent = shopNameState.fullName;
             valueEl.classList.remove('not-configured');
         } else {
-            valueEl.textContent = 'Not configured';
+            valueEl.textContent = t('not_configured');
             valueEl.classList.add('not-configured');
         }
     }
@@ -9562,10 +9730,10 @@ async function loadAndRenderTop() {
             container.innerHTML = `
                 <div class="top-empty">
                     <i class="fas fa-exclamation-triangle"></i>
-                    <h3>Ошибка загрузки</h3>
-                    <p>Не удалось загрузить данные топа</p>
+                    <h3>${t('loading_error')}</h3>
+                    <p>${t('failed_to_load_top')}</p>
                     <button onclick="loadAndRenderTop()" class="retry-btn">
-                        <i class="fas fa-redo"></i> Повторить
+                        <i class="fas fa-redo"></i> ${t('retry')}
                     </button>
                 </div>
             `;
@@ -9581,8 +9749,8 @@ function renderTopData(data, type) {
         container.innerHTML = `
             <div class="top-empty">
                 <i class="fas fa-trophy"></i>
-                <h3>Пока нет данных</h3>
-                <p>Топ формируется из данных всех пользователей панели</p>
+                <h3>${t('no_data_yet')}</h3>
+                <p>${t('top_description')}</p>
             </div>
         `;
         return;
