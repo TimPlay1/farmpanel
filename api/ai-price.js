@@ -82,8 +82,18 @@ async function getAIPrice(brainrotName, ourIncome, mutation = null) {
     
     // 3. Пробуем вызвать AI сразу (если rate limit позволяет)
     // Это лучше чем очередь которая теряется в serverless
+    // v9.11.5: Добавлена логика ожидания вместо пропуска AI
     try {
-        const rateCheck = await checkGlobalRateLimit(1500);
+        let rateCheck = await checkGlobalRateLimit(1500);
+        
+        // v9.11.5: Если rate limit достигнут, но ждать нужно <= 8 сек - подождём
+        if (!rateCheck.allowed && rateCheck.waitMs && rateCheck.waitMs <= 8000) {
+            const waitSec = Math.round(rateCheck.waitMs / 1000);
+            console.log(`⏳ Rate limit reached, waiting ${waitSec}s for reset...`);
+            await new Promise(r => setTimeout(r, rateCheck.waitMs + 500));
+            rateCheck = await checkGlobalRateLimit(1500);
+        }
+        
         if (rateCheck.allowed && aiScanner) {
             console.log(`🤖 Trying AI for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''} (rate limit OK)...`);
             
@@ -96,7 +106,8 @@ async function getAIPrice(brainrotName, ourIncome, mutation = null) {
                 return aiResult;
             }
         } else {
-            console.log(`⏳ Rate limit, returning regex for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}`);
+            const waitSec = rateCheck.waitMs ? Math.round(rateCheck.waitMs / 1000) : '?';
+            console.log(`⏳ Rate limit (wait ${waitSec}s too long), returning regex for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}`);
         }
     } catch (e) {
         console.warn(`AI failed for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}, using regex:`, e.message);

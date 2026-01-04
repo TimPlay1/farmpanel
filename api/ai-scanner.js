@@ -902,20 +902,35 @@ async function hybridParse(offers, eldoradoLists, expectedBrainrot = null) {
     const aiResultsMap = new Map();
     
     // v2.5.0: Последовательная обработка батчей с глобальным rate limiter
+    // v9.11.5: Добавлена логика ожидания вместо пропуска AI
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         const batch = batches[batchIndex];
         const estimatedTokens = batch.estimatedTokens || (BASE_PROMPT_TOKENS + batch.offers.length * TOKENS_PER_OFFER);
         
         // Проверяем глобальный rate limit перед каждым батчем
-        const rateCheck = await checkGlobalRateLimit(estimatedTokens);
+        let rateCheck = await checkGlobalRateLimit(estimatedTokens);
         
         if (!rateCheck.allowed) {
-            console.log(`   ⏳ Global rate limit (${rateCheck.reason}): ${rateCheck.currentTokens}/${rateCheck.limit} tokens, waiting ${Math.round(rateCheck.waitMs/1000)}s...`);
+            const waitSec = Math.round(rateCheck.waitMs/1000);
+            console.log(`   ⏳ Global rate limit (${rateCheck.reason}): ${rateCheck.currentTokens}/${rateCheck.limit} tokens, waiting ${waitSec}s...`);
             
-            // Если лимит превышен - возвращаем regex результаты без AI
-            // НЕ ждём - пользователь получит regex сразу, AI обновит позже через cron/queue
-            console.log(`   ⚠️ Skipping AI for this request, returning regex results`);
-            break;
+            // v9.11.5: Если ожидание меньше 8 секунд - подождём и попробуем снова
+            if (rateCheck.waitMs <= 8000) {
+                console.log(`   ⏳ Waiting ${waitSec}s for rate limit to reset...`);
+                await new Promise(r => setTimeout(r, rateCheck.waitMs + 500));
+                
+                // Проверяем ещё раз после ожидания
+                rateCheck = await checkGlobalRateLimit(estimatedTokens);
+                if (!rateCheck.allowed) {
+                    console.log(`   ⚠️ Still rate limited after wait, skipping AI`);
+                    break;
+                }
+                console.log(`   ✅ Rate limit cleared, proceeding with AI`);
+            } else {
+                // Если ждать нужно больше 8 секунд - пропускаем AI
+                console.log(`   ⚠️ Wait too long (${waitSec}s), skipping AI for this request`);
+                break;
+            }
         }
         
         try {
