@@ -127,7 +127,11 @@ async function forceAIPrice(brainrotName, ourIncome) {
             throw new Error('AI Scanner module not loaded');
         }
         
-        // Получаем офферы с Eldorado
+        // v2.5.5: Сначала получаем ПОЛНЫЙ regex результат (включая nextCompetitor из следующих диапазонов)
+        // Это нужно потому что searchBrainrotOffers не ищет в следующих диапазонах
+        const regexFullResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
+        
+        // Получаем офферы с Eldorado для AI парсинга
         const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome);
         
         if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
@@ -251,29 +255,18 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }
         }
         
-        // v2.5.4: Если AI не нашёл nextCompetitor, используем данные из searchResult (regex)
-        // Это важно потому что regex уже находит nextCompetitor из следующего диапазона
-        if (!nextCompetitorPrice && searchResult.nextCompetitor) {
-            const nc = searchResult.nextCompetitor;
-            // Вычисляем nextCompetitorPrice так же как в eldorado-price.js
-            const ncDiff = nc.price - (searchResult.upperOffer?.price || nc.price);
-            const ncReduction = Math.min(1.0, Math.max(0.1, ncDiff * 0.15));
-            nextCompetitorPrice = Math.round((nc.price - ncReduction) * 100) / 100;
-            nextCompetitorData = {
-                income: nc.income,
-                price: nc.price,
-                lowerPrice: searchResult.upperOffer?.price,
-                lowerIncome: searchResult.upperOffer?.income,
-                priceDiff: ncDiff,
-                source: 'regex'
-            };
-            console.log(`   📈 Using regex nextCompetitor: ${nc.income}M/s @ $${nc.price} → $${nextCompetitorPrice}`);
+        // v2.5.5: Если AI не нашёл nextCompetitor, используем данные из regexFullResult
+        // Это важно потому что regex ищет nextCompetitor в следующих диапазонах
+        if (!nextCompetitorPrice && regexFullResult.nextCompetitorPrice) {
+            nextCompetitorPrice = regexFullResult.nextCompetitorPrice;
+            nextCompetitorData = regexFullResult.nextCompetitorData;
+            console.log(`   📈 Using regex nextCompetitor: $${nextCompetitorPrice}`);
         }
         
-        // То же для median - если AI не вычислил, берём из searchResult
-        if (!medianPrice && searchResult.medianPrice) {
-            medianPrice = searchResult.medianPrice;
-            medianData = searchResult.medianData;
+        // То же для median
+        if (!medianPrice && regexFullResult.medianPrice) {
+            medianPrice = regexFullResult.medianPrice;
+            medianData = regexFullResult.medianData;
         }
         
         const result = {
@@ -285,10 +278,10 @@ async function forceAIPrice(brainrotName, ourIncome) {
             offersFound: aiResults.length,
             aiParsedCount: aiParsed.length,
             regexParsedCount: regexParsed.length,
-            competitorPrice: upperOffer?.price || searchResult.competitorPrice || null,
-            competitorIncome: upperOffer?.income || searchResult.competitorIncome || null,
-            lowerPrice: lowerOffer?.price || searchResult.lowerPrice || null,
-            lowerIncome: lowerOffer?.income || searchResult.lowerIncome || null,
+            competitorPrice: upperOffer?.price || regexFullResult.competitorPrice || null,
+            competitorIncome: upperOffer?.income || regexFullResult.competitorIncome || null,
+            lowerPrice: lowerOffer?.price || regexFullResult.lowerPrice || null,
+            lowerIncome: lowerOffer?.income || regexFullResult.lowerIncome || null,
             // v9.10.10: Добавляем median и nextCompetitor
             medianPrice,
             medianData,
