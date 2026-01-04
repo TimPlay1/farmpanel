@@ -1653,6 +1653,38 @@ body {
     color: white;
 }
 
+/* v9.11.11: Mutation filter dropdown items */
+.dropdown-item.mutation-gold { color: #ffd700; }
+.dropdown-item.mutation-diamond { color: #00d4ff; }
+.dropdown-item.mutation-radioactive { color: #00ff00; }
+.dropdown-item.mutation-rainbow { 
+    background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+.dropdown-item.mutation-galaxy { color: #9966ff; }
+.dropdown-item.mutation-bloodrot { color: #ff3333; }
+.dropdown-item.mutation-candy { color: #ff69b4; }
+.dropdown-item.mutation-lava { color: #ff4500; }
+.dropdown-item.mutation-yinyang { color: #ffffff; }
+
+.dropdown-item.mutation-gold:hover,
+.dropdown-item.mutation-diamond:hover,
+.dropdown-item.mutation-radioactive:hover,
+.dropdown-item.mutation-galaxy:hover,
+.dropdown-item.mutation-bloodrot:hover,
+.dropdown-item.mutation-candy:hover,
+.dropdown-item.mutation-lava:hover,
+.dropdown-item.mutation-yinyang:hover {
+    background: var(--bg-hover);
+}
+
+.dropdown-item.mutation-rainbow:hover {
+    background: var(--bg-hover);
+    -webkit-text-fill-color: transparent;
+}
+
 .collection-stats {
     display: flex;
     align-items: center;

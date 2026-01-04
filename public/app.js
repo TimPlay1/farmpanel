@@ -3545,6 +3545,8 @@ let collectionState = {
     sortBy: 'income-desc',
     accountFilter: 'all',
     priceFilter: 'all',
+    mutationFilter: 'all',  // v9.11.11: Filter by mutation type
+    listedFilter: 'all',    // v9.11.11: Filter by listed/not listed status
     priceType: 'suggested', // v9.9.7: 'suggested', 'median', or 'nextCompetitor'
     pricesLoading: false,
     pricesLoaded: new Set(), // Кэш загруженных цен по имени
@@ -3823,6 +3825,20 @@ function setupCollectionListeners() {
 
     initDropdown(priceFilterDropdown, function(value) {
         collectionState.priceFilter = value;
+        filterAndRenderCollection();
+    });
+    
+    // v9.11.11: Mutation filter dropdown
+    const mutationFilterDropdown = document.getElementById('mutationFilterDropdown');
+    initDropdown(mutationFilterDropdown, function(value) {
+        collectionState.mutationFilter = value;
+        filterAndRenderCollection();
+    });
+    
+    // v9.11.11: Listed/Not Listed filter dropdown
+    const listedFilterDropdown = document.getElementById('listedFilterDropdown');
+    initDropdown(listedFilterDropdown, function(value) {
+        collectionState.listedFilter = value;
         filterAndRenderCollection();
     });
     
@@ -4191,6 +4207,30 @@ function filterAndRenderCollection() {
                 case 'over-25': return price !== null && price >= 25;
                 default: return true;
             }
+        });
+    }
+    
+    // v9.11.11: Filter by mutation
+    if (collectionState.mutationFilter !== 'all') {
+        filtered = filtered.filter(b => {
+            const hasMutation = b.mutation && cleanMutationText(b.mutation);
+            const mutationType = hasMutation ? cleanMutationText(b.mutation) : null;
+            
+            switch (collectionState.mutationFilter) {
+                case 'none': return !hasMutation;
+                case 'any': return hasMutation;
+                default: 
+                    // Specific mutation type (Gold, Diamond, etc.)
+                    return mutationType && mutationType.toLowerCase() === collectionState.mutationFilter.toLowerCase();
+            }
+        });
+    }
+    
+    // v9.11.11: Filter by listed/not listed status
+    if (collectionState.listedFilter !== 'all') {
+        filtered = filtered.filter(b => {
+            const isListed = hasActiveOffer(b.name, b.income);
+            return collectionState.listedFilter === 'listed' ? isListed : !isListed;
         });
     }
 
@@ -6266,6 +6306,7 @@ const offersState = {
     searchQuery: '',
     sortBy: 'newest',
     statusFilter: 'all',
+    mutationFilter: 'all',  // v9.11.11: Filter by mutation type
     currentOffer: null,
     lastLoadedKey: null,  // Track which key offers were loaded for
     lastLoadTime: 0       // Track when offers were loaded
@@ -6596,6 +6637,22 @@ function filterAndRenderOffers() {
         filtered = filtered.filter(o => {
             const count = countBrainrotsWithSameNameAndIncome(o.brainrotName, o.income, o.incomeRaw, o.mutation);
             return count === 0;
+        });
+    }
+    
+    // v9.11.11: Mutation filter
+    if (offersState.mutationFilter !== 'all') {
+        filtered = filtered.filter(o => {
+            const hasMutation = o.mutation && cleanMutationText(o.mutation);
+            const mutationType = hasMutation ? cleanMutationText(o.mutation) : null;
+            
+            switch (offersState.mutationFilter) {
+                case 'none': return !hasMutation;
+                case 'any': return hasMutation;
+                default: 
+                    // Specific mutation type (Gold, Diamond, etc.)
+                    return mutationType && mutationType.toLowerCase() === offersState.mutationFilter.toLowerCase();
+            }
         });
     }
     
@@ -8311,6 +8368,13 @@ function setupOffersListeners() {
     // Status dropdown
     initDropdown(offerStatusDropdown, (value) => {
         offersState.statusFilter = value;
+        filterAndRenderOffers();
+    });
+    
+    // v9.11.11: Mutation dropdown for offers
+    const offerMutationDropdown = document.getElementById('offerMutationDropdown');
+    initDropdown(offerMutationDropdown, (value) => {
+        offersState.mutationFilter = value;
         filterAndRenderOffers();
     });
     
