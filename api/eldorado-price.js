@@ -750,9 +750,12 @@ function generateSearchVariants(name) {
  * @param {string} brainrotName - имя брейнрота
  * @param {number} targetIncome - целевой income
  * @param {number} maxPages - максимум страниц для поиска
+ * @param {Object} options - опции (disableAI: boolean)
  * @returns {Object} - upper оффер, lower оффер, все офферы страницы
  */
-async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50) {
+async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50, options = {}) {
+    const { disableAI = false } = options;
+    
     const eldoradoInfo = findEldoradoBrainrot(brainrotName);
     // Используем точное имя из mapping или оригинальное имя
     const eldoradoName = eldoradoInfo?.name || brainrotName;
@@ -1100,10 +1103,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     console.log('Search complete. Upper:', upperOffer ? `${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}` : 'none', '| Lower:', lowerOffer ? `${lowerOffer.income}M/s @ $${lowerOffer.price.toFixed(2)}` : 'none', '| NextCompetitor:', nextCompetitor ? `${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}` : 'none', '| Filter mode:', filterMode, '| Reliable:', searchWasReliable, '| Panel offers skipped:', panelOffersSkipped.count);
     
     // AI RE-PARSING: для офферов где regex не справился - пробуем AI
+    // НО! Если disableAI=true (вызов из cron) - пропускаем AI чтобы не тратить квоту
     const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
     let aiParsedCount = 0;
     
-    if (unparsedOffers.length > 0 && aiScanner && process.env.GEMINI_API_KEY) {
+    if (!disableAI && unparsedOffers.length > 0 && aiScanner && process.env.GEMINI_API_KEY) {
         console.log(`🤖 AI re-parsing ${unparsedOffers.length} unparsed offers for "${brainrotName}"...`);
         try {
             const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
@@ -1165,8 +1169,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
  * 3. Если diff (upper - lower) >= $1 → рекомендуем upper - $1
  * 4. Если diff < $1 или нет lower → рекомендуем upper - $0.50
  * 5. Если upper не найден (мы выше рынка) → используем max price среди max income - $0.50
+ * @param {Object} options - опции (disableAI: boolean)
  */
-async function calculateOptimalPrice(brainrotName, ourIncome) {
+async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
+    const { disableAI = false } = options;
     // Парсим income если передан как строка ("80M/s" -> 80)
     let numericIncome = ourIncome;
     if (typeof ourIncome === 'string') {
@@ -1193,7 +1199,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome) {
 
     try {
         // Ищем офферы брейнрота в нужном M/s диапазоне
-        const searchResult = await searchBrainrotOffers(brainrotName, numericIncome);
+        // Передаём disableAI чтобы cron не использовал AI и не тратил квоту
+        const searchResult = await searchBrainrotOffers(brainrotName, numericIncome, 50, { disableAI });
         const { 
             upperOffer, lowerOffer, nextCompetitor, upperPage, offersByPage,
             allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount 

@@ -16,7 +16,7 @@
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
-const VERSION = '2.3.0';  // AI DISABLED
+const VERSION = '2.4.0';  // AI DISABLED via disableAI option
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
@@ -283,9 +283,10 @@ async function runPriceScan() {
             const cachedPrice = cached?.suggestedPrice;
             
             // Получаем новую цену через regex (eldorado-price)
+            // ВАЖНО: передаём disableAI: true чтобы не тратить AI квоту в cron!
             if (!eldoradoPrice) continue;
             
-            const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrot.name, brainrot.income);
+            const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrot.name, brainrot.income, { disableAI: true });
             regexScanned++;
             
             if (!regexResult || regexResult.error) continue;
