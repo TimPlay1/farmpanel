@@ -447,23 +447,32 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
     
-    // Проверяем авторизацию
-    // Vercel Cron использует User-Agent: vercel-cron/1.0
-    const userAgent = req.headers['user-agent'] || '';
-    const isCronRequest = userAgent.includes('vercel-cron');
-    const authHeader = req.headers.authorization;
+    // Debug: логируем все заголовки для диагностики
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
     
-    // Разрешаем cron запросы (по User-Agent) или авторизованные запросы
-    if (!isCronRequest) {
-        // Для ручного вызова требуем secret
-        const expectedSecret = process.env.CRON_SECRET || 'price-scanner-secret';
-        if (authHeader !== `Bearer ${expectedSecret}`) {
-            console.log('Unauthorized request - not cron, no valid auth');
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
+    // Проверяем авторизацию для Vercel Cron
+    // Vercel Cron отправляет заголовок Authorization: Bearer <CRON_SECRET>
+    // если CRON_SECRET настроен в Environment Variables
+    const authHeader = req.headers.authorization;
+    const userAgent = req.headers['user-agent'] || '';
+    const isCronByUserAgent = userAgent.includes('vercel-cron');
+    
+    // Vercel Cron с настроенным CRON_SECRET
+    const cronSecret = process.env.CRON_SECRET;
+    const isCronByAuth = cronSecret && authHeader === `Bearer ${cronSecret}`;
+    
+    // Разрешаем если:
+    // 1. Это Vercel Cron по User-Agent (без CRON_SECRET)
+    // 2. Это Vercel Cron с правильным CRON_SECRET
+    // 3. Ручной вызов с правильным секретом
+    const isAuthorized = isCronByUserAgent || isCronByAuth;
+    
+    if (!isAuthorized) {
+        console.log(`Unauthorized: UA=${userAgent}, Auth=${authHeader ? 'present' : 'none'}, CRON_SECRET=${cronSecret ? 'set' : 'not set'}`);
+        return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    console.log(`📅 Cron price scanner triggered (isCron: ${isCronRequest})`);
+    console.log(`📅 Cron price scanner triggered (byUA: ${isCronByUserAgent}, byAuth: ${isCronByAuth})`);
     
     try {
         const result = await runPriceScan();
