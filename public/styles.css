@@ -1656,10 +1656,71 @@ body {
 /* v9.11.11: Mutation badge in dropdown - use existing mutation-badge styles */
 .dropdown-item .mutation-badge {
     display: inline-block;
-    padding: 0.2rem 0.5rem;
+    padding: 2px 6px;
     border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    box-shadow: 0 0 8px var(--glow-color, #888), 0 2px 6px rgba(0,0,0,0.4);
+    animation: badge-glow-var 2s ease-in-out infinite;
+}
+
+/* Mutation badge colors for dropdown */
+.dropdown-item .mutation-badge.gold {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #4a3500;
+    --glow-color: #FFD700;
+}
+
+.dropdown-item .mutation-badge.diamond {
+    background: linear-gradient(135deg, #00BFFF, #87CEEB);
+    color: #003366;
+    --glow-color: #00BFFF;
+}
+
+.dropdown-item .mutation-badge.bloodrot {
+    background: linear-gradient(135deg, #8B0000, #DC143C);
+    color: #ffcccc;
+    --glow-color: #DC143C;
+}
+
+.dropdown-item .mutation-badge.rainbow {
+    background: linear-gradient(90deg, #ff0000, #ff8800, #ffff00, #00ff00, #0088ff, #8800ff);
+    color: #ffffff;
+    text-shadow: 0 0 3px #000, 0 0 5px #000;
+    --glow-color: #ff00ff;
+}
+
+.dropdown-item .mutation-badge.candy {
+    background: linear-gradient(135deg, #FF69B4, #FF1493);
+    color: #4a0020;
+    --glow-color: #FF69B4;
+}
+
+.dropdown-item .mutation-badge.lava {
+    background: linear-gradient(135deg, #FF4500, #FF6347);
+    color: #3d0000;
+    --glow-color: #FF4500;
+}
+
+.dropdown-item .mutation-badge.galaxy {
+    background: linear-gradient(135deg, #9400D3, #4B0082);
+    color: #e0c0ff;
+    --glow-color: #9400D3;
+}
+
+.dropdown-item .mutation-badge.yin-yang {
+    background: linear-gradient(135deg, #333, #fff, #333);
+    color: #000000;
+    text-shadow: 0 0 2px #fff;
+    --glow-color: #888888;
+}
+
+.dropdown-item .mutation-badge.radioactive {
+    background: linear-gradient(135deg, #32CD32, #00FF00);
+    color: #003300;
+    --glow-color: #32CD32;
 }
 
 .dropdown-item i {
