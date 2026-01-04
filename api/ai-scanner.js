@@ -175,7 +175,7 @@ async function updateEldoradoLists() {
         
         console.log(`📋 Found: ${brainrotsList.length} brainrots, ${raritiesList.length} rarities, ${mutations.length} mutations, ${msRanges.length} M/s ranges`);
         
-        // Сохраняем eldorado-dropdown-lists.json
+        // Создаем объект данных (только in-memory, НЕ записываем файлы на Vercel - read-only FS)
         const dropdownData = {
             lastUpdated: new Date().toISOString(),
             source: 'eldorado.gg Library API',
@@ -185,15 +185,13 @@ async function updateEldoradoLists() {
             brainrots: brainrotsList
         };
         
-        const dropdownPath = path.join(DATA_DIR, 'eldorado-dropdown-lists.json');
-        fs.writeFileSync(dropdownPath, JSON.stringify(dropdownData, null, 2));
-        console.log(`✅ Saved to eldorado-dropdown-lists.json`);
+        // НЕ записываем в файлы - Vercel serverless имеет read-only файловую систему
+        // Используем только in-memory кэш
+        console.log(`✅ Loaded ${brainrotsList.length} brainrots into memory cache`);
         
-        // Сохраняем eldorado-brainrot-ids.json
+        // Подготавливаем IDs данные (только для in-memory)
         const idsData = Array.from(brainrotsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-        const idsPath = path.join(DATA_DIR, 'eldorado-brainrot-ids.json');
-        fs.writeFileSync(idsPath, JSON.stringify(idsData, null, 2));
-        console.log(`✅ Saved ${idsData.length} brainrot IDs to eldorado-brainrot-ids.json`);
+        console.log(`✅ Loaded ${idsData.length} brainrot IDs into memory cache`);
         
         // Обновляем локальный кэш
         eldoradoDropdownLists = dropdownData;
@@ -328,14 +326,10 @@ function fetchBrainrotsFromOffers(pagesToScan = 50) {
                     brainrots: brainrotsList
                 };
                 
-                // Сохраняем dropdown lists
-                const dropdownPath = path.join(__dirname, '../data/eldorado-dropdown-lists.json');
-                fs.writeFileSync(dropdownPath, JSON.stringify(dropdownData, null, 2));
+                // НЕ записываем в файлы - Vercel serverless имеет read-only файловую систему
+                // Только обновляем in-memory кэш
                 
-                // Сохраняем IDs
                 const idsArray = Array.from(brainrotsIdMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-                const idsPath = path.join(__dirname, '../data/eldorado-brainrot-ids.json');
-                fs.writeFileSync(idsPath, JSON.stringify(idsArray, null, 2));
                 
                 // Обновляем in-memory кэш
                 eldoradoDropdownLists.brainrots = brainrotsList;
@@ -349,10 +343,9 @@ function fetchBrainrotsFromOffers(pagesToScan = 50) {
                     brainrotIdMap.set(item.name.toLowerCase(), item);
                 }
                 
-                console.log(`✅ Saved ${brainrotsList.length} brainrots to eldorado-dropdown-lists.json`);
-                console.log(`✅ Saved ${idsArray.length} brainrot IDs to eldorado-brainrot-ids.json`);
+                console.log(`✅ Updated memory cache: ${brainrotsList.length} brainrots, ${idsArray.length} IDs`);
             } catch (saveErr) {
-                console.warn('Could not save updated lists:', saveErr.message);
+                console.warn('Could not update memory cache:', saveErr.message);
             }
         }
         
