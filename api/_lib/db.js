@@ -3,41 +3,82 @@ const { MongoClient } = require('mongodb');
 let cachedClient = null;
 let cachedDb = null;
 
+// Retry helper with exponential backoff
+async function withRetry(fn, maxRetries = 3, baseDelayMs = 1000) {
+    let lastError;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error;
+            // Retry on network/SSL errors
+            const isRetryable = error.name === 'MongoNetworkError' || 
+                               error.code === 'ECONNRESET' ||
+                               error.message?.includes('SSL') ||
+                               error.message?.includes('ETIMEDOUT');
+            
+            if (!isRetryable || attempt === maxRetries) {
+                throw error;
+            }
+            
+            const delayMs = baseDelayMs * Math.pow(2, attempt - 1);
+            console.log(`MongoDB connection attempt ${attempt} failed, retrying in ${delayMs}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+            
+            // Clear cached connection on retry
+            cachedClient = null;
+            cachedDb = null;
+        }
+    }
+    throw lastError;
+}
+
 async function connectToDatabase() {
     if (cachedDb) {
-        return { client: cachedClient, db: cachedDb };
+        // Verify connection is still alive
+        try {
+            await cachedClient.db('admin').command({ ping: 1 });
+            return { client: cachedClient, db: cachedDb };
+        } catch (e) {
+            console.log('Cached connection stale, reconnecting...');
+            cachedClient = null;
+            cachedDb = null;
+        }
     }
 
-    let uri = process.env.MONGODB_URI;
-    if (!uri) {
-        throw new Error('MONGODB_URI environment variable is not set');
-    }
+    return withRetry(async () => {
+        let uri = process.env.MONGODB_URI;
+        if (!uri) {
+            throw new Error('MONGODB_URI environment variable is not set');
+        }
 
-    // Ensure proper connection string parameters
-    if (!uri.includes('retryWrites')) {
-        uri += (uri.includes('?') ? '&' : '?') + 'retryWrites=true&w=majority';
-    }
+        // Ensure proper connection string parameters
+        if (!uri.includes('retryWrites')) {
+            uri += (uri.includes('?') ? '&' : '?') + 'retryWrites=true&w=majority';
+        }
 
-    const client = new MongoClient(uri, {
-        maxPoolSize: 10,
-        minPoolSize: 1,
-        serverSelectionTimeoutMS: 15000,
-        socketTimeoutMS: 60000,
-        connectTimeoutMS: 30000,
-        tls: true,
-        tlsAllowInvalidCertificates: false,
-        retryReads: true,
-        retryWrites: true,
-    });
-    
-    await client.connect();
-    
-    const db = client.db('farmerpanel');
-    
-    cachedClient = client;
-    cachedDb = db;
-    
-    return { client, db };
+        const client = new MongoClient(uri, {
+            maxPoolSize: 10,
+            minPoolSize: 1,
+            serverSelectionTimeoutMS: 15000,
+            socketTimeoutMS: 60000,
+            connectTimeoutMS: 30000,
+            tls: true,
+            tlsAllowInvalidCertificates: false,
+            retryReads: true,
+            retryWrites: true,
+        });
+        
+        await client.connect();
+        
+        const db = client.db('farmerpanel');
+        
+        cachedClient = client;
+        cachedDb = db;
+        
+        console.log('MongoDB connected successfully');
+        return { client, db };
+    }, 3, 1000);
 }
 
 // Avatar icons - unique geometric patterns
