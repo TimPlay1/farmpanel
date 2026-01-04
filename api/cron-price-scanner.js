@@ -1,5 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен
+ * Version: 2.1.0 - auth fix with case-insensitive UA check
  * 
  * Запускается каждые 10 минут через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -12,6 +13,7 @@
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
+const VERSION = '2.1.0';
 const { connectToDatabase } = require('./_lib/db');
 
 // Rate limiting для Gemini
@@ -478,7 +480,7 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    console.log(`📅 Cron price scanner triggered (byUA: ${isCronByUserAgent}, byHeader: ${isCronByHeader}, byAuth: ${isCronByAuth})`);
+    console.log(`📅 Cron price scanner v${VERSION} triggered (byUA: ${isCronByUserAgent}, byHeader: ${isCronByHeader}, byAuth: ${isCronByAuth})`);
     
     try {
         const result = await runPriceScan();
