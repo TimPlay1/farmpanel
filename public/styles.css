@@ -2239,6 +2239,14 @@ body {
     border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
+/* v9.11.19: Empty state for missing prices */
+.additional-price.empty {
+    opacity: 0.4;
+    background: rgba(100, 116, 139, 0.1);
+    border-color: rgba(100, 116, 139, 0.2);
+    color: #64748b;
+}
+
 .additional-price.median i {
     font-size: 0.55rem;
 }

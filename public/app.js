@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.18 - Fix empty Collection on first load
+// FarmerPanel App v9.11.19 - Consistent price card heights, always show median/next
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -1399,28 +1399,32 @@ function renderPriceBlock(priceData, cacheKey) {
     const priceTypeLabel = collectionState.priceType !== 'suggested' ? getSelectedPriceLabel() : '';
     const priceTypeBadge = priceTypeLabel ? `<span class="price-type-badge">${priceTypeLabel}</span>` : '';
     
-    // Additional prices
-    let additionalHtml = '';
+    // Additional prices - v9.11.19: Always show row for consistent height
     const hasNextOpportunity = priceData.nextCompetitorPrice && priceData.competitorPrice && 
         !priceData.nextRangeChecked &&
         ((priceData.nextCompetitorPrice / priceData.competitorPrice) > 2);
     
-    if (priceData.medianPrice || priceData.nextCompetitorPrice) {
-        additionalHtml = '<div class="price-additional">';
-        if (priceData.medianPrice) {
-            const medianTooltip = priceData.medianData 
-                ? `Median of ${priceData.medianData.offersUsed} offers` 
-                : 'Median price';
-            additionalHtml += `<span class="additional-price median" title="${medianTooltip}"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
-        }
-        if (priceData.nextCompetitorPrice) {
-            const nextTooltip = priceData.nextCompetitorData 
-                ? `Next: ${priceData.nextCompetitorData.income}M/s @ $${priceData.nextCompetitorData.price?.toFixed(2)}` 
-                : 'Next competitor';
-            additionalHtml += `<span class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
-        }
-        additionalHtml += '</div>';
+    // Always show additional row for consistent card height
+    let additionalHtml = '<div class="price-additional">';
+    // Median price (always show, even as --)
+    const medianTooltip = priceData.medianData 
+        ? `Median of ${priceData.medianData.offersUsed} offers` 
+        : 'Median price';
+    if (priceData.medianPrice) {
+        additionalHtml += `<span class="additional-price median" title="${medianTooltip}"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
+    } else {
+        additionalHtml += `<span class="additional-price median empty" title="Median not available"><i class="fas fa-chart-bar"></i>--</span>`;
     }
+    // Next competitor price (always show, even as --)
+    if (priceData.nextCompetitorPrice) {
+        const nextTooltip = priceData.nextCompetitorData 
+            ? `Next: ${priceData.nextCompetitorData.income}M/s @ $${priceData.nextCompetitorData.price?.toFixed(2)}` 
+            : 'Next competitor';
+        additionalHtml += `<span class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
+    } else {
+        additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
+    }
+    additionalHtml += '</div>';
     
     return `
         <div class="brainrot-price-block">
@@ -1531,19 +1535,23 @@ function renderPriceVariants(brainrotName, income, mutation) {
         
         // Additional prices (median, next competitor)
         // v9.11.7: Add opportunity class when nextCompetitor gap > 100%
-        let additionalHtml = '';
-        if (priceData.medianPrice || priceData.nextCompetitorPrice) {
-            additionalHtml = '<div class="price-variant-additional">';
-            if (priceData.medianPrice) {
-                additionalHtml += `<span class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
-            }
-            if (priceData.nextCompetitorPrice) {
-                const hasOpportunity = priceData.competitorPrice && 
-                    (priceData.nextCompetitorPrice / priceData.competitorPrice) > 2;
-                additionalHtml += `<span class="additional-price next-comp ${hasOpportunity ? 'opportunity' : ''}" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
-            }
-            additionalHtml += '</div>';
+        // v9.11.19: Always show row for consistent height
+        let additionalHtml = '<div class="price-variant-additional">';
+        // Median - always show
+        if (priceData.medianPrice) {
+            additionalHtml += `<span class="additional-price median" title="Median"><i class="fas fa-chart-bar"></i>${formatPrice(priceData.medianPrice)}</span>`;
+        } else {
+            additionalHtml += `<span class="additional-price median empty" title="No median"><i class="fas fa-chart-bar"></i>--</span>`;
         }
+        // Next competitor - always show
+        if (priceData.nextCompetitorPrice) {
+            const hasOpportunity = priceData.competitorPrice && 
+                (priceData.nextCompetitorPrice / priceData.competitorPrice) > 2;
+            additionalHtml += `<span class="additional-price next-comp ${hasOpportunity ? 'opportunity' : ''}" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
+        } else {
+            additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
+        }
+        additionalHtml += '</div>';
         
         return `
             <div class="price-variant ${type}" 
