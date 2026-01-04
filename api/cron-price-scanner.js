@@ -40,7 +40,7 @@ try {
  * Собирает все уникальные брейнроты со всех панелей из БД
  */
 async function collectAllBrainrotsFromDB() {
-    const db = await connectToDatabase();
+    const { db } = await connectToDatabase();
     const collection = db.collection('farmers');
     
     // Получаем все записи фермеров
@@ -241,7 +241,7 @@ async function runPriceScan() {
     console.log('🚀 Starting centralized price scan...');
     const startTime = Date.now();
     
-    const db = await connectToDatabase();
+    const { db } = await connectToDatabase();
     
     // 1. Собираем все брейнроты
     const brainrots = await collectAllBrainrotsFromDB();
