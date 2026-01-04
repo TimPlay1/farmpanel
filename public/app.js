@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.21 - Fix mutation card width and next-comp color (green default)
+// FarmerPanel App v9.11.22 - Chart fixes: always show points, faster loading, better period switching
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -9193,18 +9193,14 @@ function updateBalanceChart(period = currentChartPeriod) {
         clearTimeout(chartUpdateTimer);
     }
     
-    // Skip if already updating
-    if (isChartUpdating) {
-        return;
-    }
-    
+    // v9.11.22: Don't skip if updating - queue instead
     // Debounce chart updates to prevent flickering
     chartUpdateTimer = setTimeout(() => {
         // Use requestAnimationFrame for non-blocking UI
         requestAnimationFrame(() => {
             _doUpdateBalanceChart(period);
         });
-    }, 100); // Reduced debounce for faster response
+    }, 50); // v9.11.22: Faster debounce (50ms instead of 100ms)
 }
 
 // Simple hash for chart data to detect changes
@@ -9218,10 +9214,15 @@ function getChartDataHash(chartData) {
 
 // Track chart retry count to avoid infinite loops
 let chartRetryCount = 0;
-const MAX_CHART_RETRIES = 10;
+const MAX_CHART_RETRIES = 5; // v9.11.22: Reduced from 10
 
 // Actual chart update implementation
 function _doUpdateBalanceChart(period) {
+    // v9.11.22: Skip if already updating (moved here for better control)
+    if (isChartUpdating) {
+        return;
+    }
+    
     // Mark as updating to prevent concurrent calls
     isChartUpdating = true;
     
@@ -9239,11 +9240,11 @@ function _doUpdateBalanceChart(period) {
         if (chartRetryCount < MAX_CHART_RETRIES) {
             chartRetryCount++;
             isChartUpdating = false;
-            setTimeout(() => _doUpdateBalanceChart(period), 200);
+            setTimeout(() => _doUpdateBalanceChart(period), 100); // v9.11.22: Faster retry
         } else {
+            console.warn('Chart container not ready after', MAX_CHART_RETRIES, 'retries');
             isChartUpdating = false;
         }
-        // Don't spam console - only log occasionally
         return;
     }
     
@@ -9263,6 +9264,8 @@ function _doUpdateBalanceChart(period) {
         period = currentChartPeriod;
     }
     
+    // v9.11.22: Track if period changed (force redraw)
+    const periodChanged = currentChartPeriod !== period;
     currentChartPeriod = period;
     saveChartPeriod(period);
     
@@ -9273,15 +9276,15 @@ function _doUpdateBalanceChart(period) {
     
     const chartData = getChartData(state.currentKey, period);
     
-    // Check if data actually changed - skip update if same
-    const newHash = getChartDataHash(chartData);
-    if (newHash === lastChartDataHash && balanceChart) {
+    // v9.11.22: Check if data actually changed - skip update if same AND period didn't change
+    const newHash = `${period}_${getChartDataHash(chartData)}`; // Include period in hash
+    if (newHash === lastChartDataHash && balanceChart && !periodChanged) {
         isChartUpdating = false;
         return; // Data hasn't changed, skip redraw
     }
     lastChartDataHash = newHash;
     
-    console.log(`Chart data for period ${period}:`, chartData.labels.length, 'points, history:', state.balanceHistory[state.currentKey]?.length || 0);
+    console.log(`Chart update: period=${period}, points=${chartData.labels.length}, history=${state.balanceHistory[state.currentKey]?.length || 0}`);
     
     if (chartData.labels.length < 2) {
         // Not enough data
@@ -9344,18 +9347,21 @@ function _doUpdateBalanceChart(period) {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                pointRadius: chartData.values.length > 20 ? 0 : 3,
-                pointHoverRadius: 5,
+                // v9.11.22: Always show points, smaller when many values
+                pointRadius: chartData.values.length > 50 ? 2 : chartData.values.length > 20 ? 3 : 4,
+                pointHoverRadius: 6,
                 pointBackgroundColor: chartColor,
-                pointBorderColor: '#fff',
-                pointBorderWidth: 1
+                pointBorderColor: '#1a1a2e',
+                pointBorderWidth: 1.5
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: false, // Disable animation to prevent jumping
-            resizeDelay: 100, // Delay resize recalculation
+            animation: {
+                duration: 300 // Quick animation instead of none
+            },
+            resizeDelay: 50,
             plugins: {
                 legend: {
                     display: false
