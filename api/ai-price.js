@@ -254,13 +254,20 @@ async function forceAIPrice(brainrotName, ourIncome) {
         // v2.5.4: Если AI не нашёл nextCompetitor, используем данные из searchResult (regex)
         // Это важно потому что regex уже находит nextCompetitor из следующего диапазона
         if (!nextCompetitorPrice && searchResult.nextCompetitor) {
-            nextCompetitorPrice = searchResult.nextCompetitorPrice;
-            nextCompetitorData = searchResult.nextCompetitorData || {
-                income: searchResult.nextCompetitor.income,
-                price: searchResult.nextCompetitor.price,
+            const nc = searchResult.nextCompetitor;
+            // Вычисляем nextCompetitorPrice так же как в eldorado-price.js
+            const ncDiff = nc.price - (searchResult.upperOffer?.price || nc.price);
+            const ncReduction = Math.min(1.0, Math.max(0.1, ncDiff * 0.15));
+            nextCompetitorPrice = Math.round((nc.price - ncReduction) * 100) / 100;
+            nextCompetitorData = {
+                income: nc.income,
+                price: nc.price,
+                lowerPrice: searchResult.upperOffer?.price,
+                lowerIncome: searchResult.upperOffer?.income,
+                priceDiff: ncDiff,
                 source: 'regex'
             };
-            console.log(`   📈 Using regex nextCompetitor: ${searchResult.nextCompetitor.income}M/s @ $${searchResult.nextCompetitor.price}`);
+            console.log(`   📈 Using regex nextCompetitor: ${nc.income}M/s @ $${nc.price} → $${nextCompetitorPrice}`);
         }
         
         // То же для median - если AI не вычислил, берём из searchResult
