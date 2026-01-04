@@ -620,14 +620,26 @@ function formatBalanceChange(changePercent, compact = false) {
  * Fallback на старый prices API
  */
 async function loadPricesFromServer() {
+    // Проверяем когда последний раз загружали с сервера
+    const lastServerLoad = parseInt(localStorage.getItem('lastPricesServerLoad') || '0', 10);
+    const now = Date.now();
+    const timeSinceLastLoad = now - lastServerLoad;
+    
+    // Если загружали меньше 30 секунд назад - не перезаписываем previousPrices
+    // (пользователь просто обновил страницу)
+    const isQuickReload = timeSinceLastLoad < 30000;
+    
     // Пробуем новый централизованный кэш
     try {
         const response = await fetch(`${API_BASE}/prices-cache?all=true`);
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.prices && Object.keys(data.prices).length > 0) {
-                // Сохраняем текущие цены как предыдущие перед загрузкой новых
-                savePreviousPrices();
+                // Сохраняем текущие цены как предыдущие ТОЛЬКО если это не быстрая перезагрузка
+                // и если цены реально изменились (не просто перезагрузка)
+                if (!isQuickReload) {
+                    savePreviousPrices();
+                }
                 
                 // Загружаем цены в state
                 for (const [key, priceData] of Object.entries(data.prices)) {
@@ -636,6 +648,10 @@ async function loadPricesFromServer() {
                         timestamp: new Date(priceData.updatedAt).getTime()
                     };
                 }
+                
+                // Запоминаем время загрузки
+                localStorage.setItem('lastPricesServerLoad', now.toString());
+                
                 console.log(`Loaded ${Object.keys(data.prices).length} prices from centralized server cache`);
                 return true;
             }
@@ -650,13 +666,19 @@ async function loadPricesFromServer() {
         if (response.ok) {
             const data = await response.json();
             if (data.prices && Object.keys(data.prices).length > 0) {
-                // Сохраняем текущие цены как предыдущие перед загрузкой новых
-                savePreviousPrices();
+                // Сохраняем текущие цены как предыдущие только если не быстрая перезагрузка
+                if (!isQuickReload) {
+                    savePreviousPrices();
+                }
                 
                 // Загружаем цены в state
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = priceData;
                 }
+                
+                // Запоминаем время загрузки
+                localStorage.setItem('lastPricesServerLoad', now.toString());
+                
                 console.log(`Loaded ${Object.keys(data.prices).length} prices from global server cache (fallback)`);
                 return true;
             }
