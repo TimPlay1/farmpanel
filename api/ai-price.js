@@ -251,6 +251,24 @@ async function forceAIPrice(brainrotName, ourIncome) {
             }
         }
         
+        // v2.5.4: Если AI не нашёл nextCompetitor, используем данные из searchResult (regex)
+        // Это важно потому что regex уже находит nextCompetitor из следующего диапазона
+        if (!nextCompetitorPrice && searchResult.nextCompetitor) {
+            nextCompetitorPrice = searchResult.nextCompetitorPrice;
+            nextCompetitorData = searchResult.nextCompetitorData || {
+                income: searchResult.nextCompetitor.income,
+                price: searchResult.nextCompetitor.price,
+                source: 'regex'
+            };
+            console.log(`   📈 Using regex nextCompetitor: ${searchResult.nextCompetitor.income}M/s @ $${searchResult.nextCompetitor.price}`);
+        }
+        
+        // То же для median - если AI не вычислил, берём из searchResult
+        if (!medianPrice && searchResult.medianPrice) {
+            medianPrice = searchResult.medianPrice;
+            medianData = searchResult.medianData;
+        }
+        
         const result = {
             suggestedPrice,
             priceSource,
@@ -260,10 +278,10 @@ async function forceAIPrice(brainrotName, ourIncome) {
             offersFound: aiResults.length,
             aiParsedCount: aiParsed.length,
             regexParsedCount: regexParsed.length,
-            competitorPrice: upperOffer?.price || null,
-            competitorIncome: upperOffer?.income || null,
-            lowerPrice: lowerOffer?.price || null,
-            lowerIncome: lowerOffer?.income || null,
+            competitorPrice: upperOffer?.price || searchResult.competitorPrice || null,
+            competitorIncome: upperOffer?.income || searchResult.competitorIncome || null,
+            lowerPrice: lowerOffer?.price || searchResult.lowerPrice || null,
+            lowerIncome: lowerOffer?.income || searchResult.lowerIncome || null,
             // v9.10.10: Добавляем median и nextCompetitor
             medianPrice,
             medianData,
