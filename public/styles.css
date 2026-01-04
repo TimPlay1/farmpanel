@@ -6539,17 +6539,17 @@ body {
 
 /* ============ SETTINGS BUTTON ============ */
 .settings-btn {
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: var(--bg-tertiary);
+    background: transparent;
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.2s ease;
+    transition: all 0.2s;
     margin-right: 0.5rem;
 }
 
@@ -6560,7 +6560,7 @@ body {
 }
 
 .settings-btn i {
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: transform 0.3s ease;
 }
 

@@ -36,10 +36,31 @@ const i18n = {
         balance_history: 'Balance History',
         collecting_data: 'Collecting data...',
         
-        // Collection
+        // Collection filters
         all_brainrots: 'All Brainrots',
         search_placeholder: 'Search by name or income (e.g. 100, >50, <200)...',
+        refresh_prices: 'Refresh Prices',
         refresh_prices_title: 'Refresh prices from Eldorado',
+        suggested: 'Suggested',
+        suggested_default: 'Suggested (Default)',
+        income_high_low: 'Income: High to Low',
+        income_low_high: 'Income: Low to High',
+        price_high_low: 'Price: High to Low',
+        price_low_high: 'Price: Low to High',
+        name_az: 'Name: A-Z',
+        name_za: 'Name: Z-A',
+        by_account: 'By Account',
+        all_prices: 'All Prices',
+        has_price: 'Has Price',
+        no_price: 'No Price',
+        under_1: 'Under $1',
+        over_25: 'Over $25',
+        all_mutations: 'All Mutations',
+        no_mutation: 'No Mutation',
+        any_mutation: 'Any Mutation',
+        all_status: 'All Status',
+        listed: 'Listed',
+        not_listed: 'Not Listed',
         
         // Leaderboards
         leaderboards: 'Leaderboards',
@@ -51,9 +72,91 @@ const i18n = {
         // Farm Keys
         saved_farm_keys: 'Saved Farm Keys',
         add_key: 'Add Key',
+        add_farm_key: 'Add Farm Key',
+        cancel: 'Cancel',
         
-        // Offers
+        // Offers page
         eldorado_offers: 'Eldorado Offers',
+        your_shop: 'Your Shop:',
+        not_configured: 'Not configured',
+        edit_shop_name: 'Edit shop name',
+        generator_settings: 'Generator settings',
+        configure_shop_hint: 'Configure your shop name to create offers',
+        universal_tracking: 'Universal Tracking System:',
+        universal_tracking_desc: 'Codes are auto-generated when you create offers through the panel. The scanner automatically detects and tracks your offers on Eldorado.',
+        select_all: 'Select All',
+        adjust_selected: 'Adjust Selected',
+        delete_selected: 'Delete Selected',
+        search_offers_placeholder: 'Search offers by name or code...',
+        newest_first: 'Newest First',
+        oldest_first: 'Oldest First',
+        diff_high_low: 'Diff %: High to Low',
+        diff_low_high: 'Diff %: Low to High',
+        all_offers: 'All Offers',
+        active_on_eldorado: 'Active (on Eldorado)',
+        pending_not_found: 'Pending (not found yet)',
+        paused: 'Paused',
+        needs_price_update: 'Needs Price Update',
+        in_stock: 'In Stock (have in collection)',
+        out_of_stock: 'Out of Stock (0 in collection)',
+        scan_all: 'Scan All',
+        scan_all_title: 'Scan all Eldorado offers and match codes',
+        
+        // Offer card buttons
+        adjust_price: 'Adjust Price',
+        delete: 'Delete',
+        auto_delete_in: 'Auto-delete in',
+        
+        // Bulk Price Adjustment Modal
+        bulk_price_adjustment: 'Bulk Price Adjustment',
+        recommended: 'Recommended',
+        market_based_price: 'Market-based optimal price',
+        median_from_competitor: 'Median from competitor page',
+        next_competitor_price: 'Price of next competitor',
+        custom: 'Custom',
+        individual_prices: 'Individual prices',
+        apply_changes: 'Apply Changes',
+        offers: 'offers',
+        
+        // Single Offer Price Modal
+        adjust_offer_price: 'Adjust Offer Price',
+        custom_price: 'Custom Price:',
+        current: 'current',
+        update_on_eldorado: 'Update on Eldorado',
+        
+        // Mass Generation Modal
+        mass_generation: 'Mass Generation',
+        price_type_for_all: 'Price type for all:',
+        individual: 'Individual',
+        download_all: 'Download All',
+        post_to_eldorado: 'Post to Eldorado',
+        mass_gen_footer: 'After generation click "Post to Eldorado" to create offers',
+        generate: 'Generate',
+        
+        // Shop Name Modal
+        configure_shop_name: 'Configure Shop Name',
+        shop_name_desc: 'Your shop name appears in offer titles and descriptions on Eldorado. Format: Emoji + Name + Emoji',
+        left_emoji: 'Left Emoji',
+        shop_name: 'Shop Name',
+        right_emoji: 'Right Emoji',
+        use_same_emoji: 'Use same emoji on both sides',
+        preview: 'Preview:',
+        save_shop_name: 'Save Shop Name',
+        
+        // Generator Settings Modal
+        generator_settings_title: 'Generator Settings',
+        generator_settings_desc: 'Configure your image generator template. Leave empty to use the default template.',
+        supa_template_id: 'Supa Template ID',
+        template_hint: 'Enter your custom Supa.ru template ID or leave empty for default',
+        save_settings: 'Save Settings',
+        
+        // Emoji Picker
+        select_emoji: 'Select Emoji',
+        search_emoji: 'Search emoji...',
+        
+        // Mass select
+        mass_select_title: 'Mass selection for generation',
+        selected: 'Selected:',
         
         // Settings
         settings_title: 'Settings',
@@ -73,10 +176,28 @@ const i18n = {
         // Loading
         loading_data: 'Loading your farm data...',
         
-        // Misc
+        // Misc & Tooltips
         median: 'Median',
-        next_competitor: 'Next',
-        default: 'DEFAULT'
+        next_competitor: 'Next Competitor',
+        default: 'DEFAULT',
+        save: 'Save',
+        close: 'Close',
+        edit_username: 'Edit Username',
+        enter_new_username: 'Enter new username',
+        username_hint: '3-20 characters, letters, numbers and underscore only',
+        
+        // Price labels
+        current_price: 'Current Price',
+        recommended_price: 'Recommended',
+        recommended_old: 'Recommended (old)',
+        ai_validated: 'AI validated price from next M/s range',
+        price_next_range: 'Price from next M/s range',
+        
+        // Stats labels
+        total_offers: 'total',
+        paused_offers: 'paused',
+        need_update: 'need update',
+        selected_offers: 'selected'
     },
     ru: {
         // Navigation
@@ -102,10 +223,31 @@ const i18n = {
         balance_history: 'История баланса',
         collecting_data: 'Сбор данных...',
         
-        // Collection
+        // Collection filters
         all_brainrots: 'Все брейнроты',
         search_placeholder: 'Поиск по имени или доходу (100, >50, <200)...',
+        refresh_prices: 'Обновить цены',
         refresh_prices_title: 'Обновить цены с Eldorado',
+        suggested: 'Рекоменд.',
+        suggested_default: 'Рекомендуемая (По умолч.)',
+        income_high_low: 'Доход: По убыванию',
+        income_low_high: 'Доход: По возрастанию',
+        price_high_low: 'Цена: По убыванию',
+        price_low_high: 'Цена: По возрастанию',
+        name_az: 'Имя: А-Я',
+        name_za: 'Имя: Я-А',
+        by_account: 'По аккаунту',
+        all_prices: 'Все цены',
+        has_price: 'Есть цена',
+        no_price: 'Нет цены',
+        under_1: 'До $1',
+        over_25: 'Свыше $25',
+        all_mutations: 'Все мутации',
+        no_mutation: 'Без мутации',
+        any_mutation: 'Любая мутация',
+        all_status: 'Все статусы',
+        listed: 'Выставлены',
+        not_listed: 'Не выставлены',
         
         // Leaderboards
         leaderboards: 'Рейтинги',
@@ -117,9 +259,91 @@ const i18n = {
         // Farm Keys
         saved_farm_keys: 'Сохранённые ключи',
         add_key: 'Добавить ключ',
+        add_farm_key: 'Добавить ключ фермы',
+        cancel: 'Отмена',
         
-        // Offers
+        // Offers page
         eldorado_offers: 'Офферы Eldorado',
+        your_shop: 'Ваш магазин:',
+        not_configured: 'Не настроен',
+        edit_shop_name: 'Изменить название',
+        generator_settings: 'Настройки генератора',
+        configure_shop_hint: 'Настройте название магазина для создания офферов',
+        universal_tracking: 'Универсальная система отслеживания:',
+        universal_tracking_desc: 'Коды генерируются автоматически при создании офферов через панель. Сканер автоматически находит и отслеживает ваши офферы на Eldorado.',
+        select_all: 'Выбрать все',
+        adjust_selected: 'Изменить выбранные',
+        delete_selected: 'Удалить выбранные',
+        search_offers_placeholder: 'Поиск офферов по имени или коду...',
+        newest_first: 'Сначала новые',
+        oldest_first: 'Сначала старые',
+        diff_high_low: 'Разница %: По убыв.',
+        diff_low_high: 'Разница %: По возр.',
+        all_offers: 'Все офферы',
+        active_on_eldorado: 'Активные (на Eldorado)',
+        pending_not_found: 'Ожидающие (не найдены)',
+        paused: 'Приостановлены',
+        needs_price_update: 'Требует обновления цены',
+        in_stock: 'В наличии (есть в коллекции)',
+        out_of_stock: 'Нет в наличии (0 в коллекции)',
+        scan_all: 'Сканировать',
+        scan_all_title: 'Сканировать все офферы на Eldorado',
+        
+        // Offer card buttons
+        adjust_price: 'Изменить цену',
+        delete: 'Удалить',
+        auto_delete_in: 'Авто-удаление через',
+        
+        // Bulk Price Adjustment Modal
+        bulk_price_adjustment: 'Массовое изменение цен',
+        recommended: 'Рекомендуемая',
+        market_based_price: 'Оптимальная рыночная цена',
+        median_from_competitor: 'Медиана со страницы конкурентов',
+        next_competitor_price: 'Цена следующего конкурента',
+        custom: 'Своя цена',
+        individual_prices: 'Индивидуальные цены',
+        apply_changes: 'Применить изменения',
+        offers: 'офферов',
+        
+        // Single Offer Price Modal
+        adjust_offer_price: 'Изменение цены оффера',
+        custom_price: 'Своя цена:',
+        current: 'текущая',
+        update_on_eldorado: 'Обновить на Eldorado',
+        
+        // Mass Generation Modal
+        mass_generation: 'Массовая генерация',
+        price_type_for_all: 'Тип цены для всех:',
+        individual: 'Индивидуально',
+        download_all: 'Скачать все',
+        post_to_eldorado: 'Выложить на Eldorado',
+        mass_gen_footer: 'После генерации нажмите "Выложить на Eldorado" для создания офферов',
+        generate: 'Генерировать',
+        
+        // Shop Name Modal
+        configure_shop_name: 'Настройка названия магазина',
+        shop_name_desc: 'Название магазина отображается в заголовках и описаниях офферов на Eldorado. Формат: Эмодзи + Название + Эмодзи',
+        left_emoji: 'Левый эмодзи',
+        shop_name: 'Название магазина',
+        right_emoji: 'Правый эмодзи',
+        use_same_emoji: 'Использовать одинаковый эмодзи с обеих сторон',
+        preview: 'Предпросмотр:',
+        save_shop_name: 'Сохранить название',
+        
+        // Generator Settings Modal
+        generator_settings_title: 'Настройки генератора',
+        generator_settings_desc: 'Настройте шаблон генератора изображений. Оставьте пустым для использования шаблона по умолчанию.',
+        supa_template_id: 'ID шаблона Supa',
+        template_hint: 'Введите свой ID шаблона Supa.ru или оставьте пустым',
+        save_settings: 'Сохранить настройки',
+        
+        // Emoji Picker
+        select_emoji: 'Выберите эмодзи',
+        search_emoji: 'Поиск эмодзи...',
+        
+        // Mass select
+        mass_select_title: 'Массовый выбор для генерации',
+        selected: 'Выбрано:',
         
         // Settings
         settings_title: 'Настройки',
@@ -139,10 +363,28 @@ const i18n = {
         // Loading
         loading_data: 'Загрузка данных фермы...',
         
-        // Misc
+        // Misc & Tooltips
         median: 'Медиана',
-        next_competitor: 'След.',
-        default: 'ОБЫЧНЫЙ'
+        next_competitor: 'След. конкурент',
+        default: 'ОБЫЧНЫЙ',
+        save: 'Сохранить',
+        close: 'Закрыть',
+        edit_username: 'Изменить имя',
+        enter_new_username: 'Введите новое имя',
+        username_hint: '3-20 символов, буквы, цифры и подчёркивание',
+        
+        // Price labels
+        current_price: 'Текущая цена',
+        recommended_price: 'Рекоменд.',
+        recommended_old: 'Рекоменд. (старая)',
+        ai_validated: 'AI цена из следующего диапазона M/s',
+        price_next_range: 'Цена из следующего диапазона M/s',
+        
+        // Stats labels
+        total_offers: 'всего',
+        paused_offers: 'приостановлено',
+        need_update: 'нужно обновить',
+        selected_offers: 'выбрано'
     }
 };
 
@@ -191,6 +433,18 @@ function applyLocalization() {
             el.title = t(key);
         }
     });
+    
+    // Update Mass Generation global price select
+    const massGenSelect = document.getElementById('massGenGlobalPriceType');
+    if (massGenSelect) {
+        const options = massGenSelect.querySelectorAll('option');
+        if (options.length >= 4) {
+            options[0].textContent = t('individual');
+            options[1].textContent = '💰 ' + t('recommended');
+            options[2].textContent = '📊 ' + t('median');
+            options[3].textContent = '⬆️ ' + t('next_competitor');
+        }
+    }
 }
 
 // ============ THEME SYSTEM ============
@@ -7286,12 +7540,12 @@ function renderOffers() {
                     const minsLeft = Math.floor(msLeft / (60 * 1000));
                     timeText = `${minsLeft}m`;
                 }
-                pausedInfo = `<div class="offer-paused-info">Auto-delete in ${timeText}</div>`;
+                pausedInfo = `<div class="offer-paused-info">${t('auto_delete_in')} ${timeText}</div>`;
             } else {
-                pausedInfo = `<div class="offer-paused-info urgent">Will be deleted soon</div>`;
+                pausedInfo = `<div class="offer-paused-info urgent">${currentLanguage === 'ru' ? 'Будет удалён скоро' : 'Will be deleted soon'}</div>`;
             }
         } else if (isPending) {
-            pausedInfo = `<div class="offer-paused-info pending-info">Add #${offer.offerId} to your Eldorado offer title</div>`;
+            pausedInfo = `<div class="offer-paused-info pending-info">${currentLanguage === 'ru' ? `Добавьте #${offer.offerId} в название оффера на Eldorado` : `Add #${offer.offerId} to your Eldorado offer title`}</div>`;
         }
         
         return `
@@ -7328,7 +7582,7 @@ function renderOffers() {
             </div>
             <div class="offer-card-bottom">
                 <div class="offer-current-price-row">
-                    <div class="offer-price-label">Current Price</div>
+                    <div class="offer-price-label">${t('current_price')}</div>
                     <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
                     <div class="offer-diff-badge ${diffClass}">${diffText}</div>
                 </div>
@@ -7342,11 +7596,11 @@ function renderOffers() {
                         return `
                         <div class="offer-price-variant default" data-price="${defPrice}">
                             <div class="offer-variant-header">
-                                <span class="offer-variant-label default">DEFAULT</span>
+                                <span class="offer-variant-label default">${t('default')}</span>
                                 ${offer.defaultNextRangeChecked 
                                     ? (offer.defaultSource === 'ai' 
-                                        ? '<span class="parsing-source-badge ai-next-range" title="AI + Next Range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>'
-                                        : '<span class="next-range-badge" title="Next Range"><i class="fas fa-level-up-alt"></i></span>')
+                                        ? `<span class="parsing-source-badge ai-next-range" title="${t('ai_validated')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>`
+                                        : `<span class="next-range-badge" title="${t('price_next_range')}"><i class="fas fa-level-up-alt"></i></span>`)
                                     : (offer.defaultSource === 'ai' 
                                         ? '<span class="parsing-source-badge ai" title="AI"><i class="fas fa-brain"></i></span>' 
                                         : '')}
@@ -7387,17 +7641,17 @@ function renderOffers() {
                 ` : `
                 <div class="offer-card-prices">
                     <div class="offer-price-item">
-                        <div class="offer-price-label">${isSpike ? 'Recommended (old)' : 'Recommended'}${offer.nextRangeChecked 
+                        <div class="offer-price-label">${isSpike ? t('recommended_old') : t('recommended_price')}${offer.nextRangeChecked 
                             ? (offer.source === 'ai' 
-                                ? ' <span class="parsing-source-badge ai-next-range" title="AI validated price from next M/s range"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>' 
-                                : ' <span class="next-range-badge" title="Price from next M/s range"><i class="fas fa-level-up-alt"></i></span>') 
+                                ? ` <span class="parsing-source-badge ai-next-range" title="${t('ai_validated')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>` 
+                                : ` <span class="next-range-badge" title="${t('price_next_range')}"><i class="fas fa-level-up-alt"></i></span>`) 
                             : ''}</div>
                         <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
                     </div>
                     ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
                     <div class="offer-additional-prices-inline">
-                        ${offer.medianPrice ? `<span class="offer-alt-inline median" title="Median"><i class="fas fa-chart-bar"></i>$${offer.medianPrice.toFixed(2)}</span>` : ''}
-                        ${offer.nextCompetitorPrice ? `<span class="offer-alt-inline next" title="Next Competitor"><i class="fas fa-arrow-up"></i>$${offer.nextCompetitorPrice.toFixed(2)}</span>` : ''}
+                        ${offer.medianPrice ? `<span class="offer-alt-inline median" title="${t('median')}"><i class="fas fa-chart-bar"></i>$${offer.medianPrice.toFixed(2)}</span>` : ''}
+                        ${offer.nextCompetitorPrice ? `<span class="offer-alt-inline next" title="${t('next_competitor')}"><i class="fas fa-arrow-up"></i>$${offer.nextCompetitorPrice.toFixed(2)}</span>` : ''}
                     </div>
                     ` : ''}
                 </div>
@@ -7405,12 +7659,12 @@ function renderOffers() {
                 <div class="offer-card-actions">
                     <button class="btn btn-sm btn-adjust" onclick="openOfferPriceModal('${offer.offerId}')">
                         <i class="fas fa-edit"></i>
-                        Adjust Price
+                        ${t('adjust_price')}
                     </button>
                     ${isPaused || isUnverified ? `
                     <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
                         <i class="fas fa-trash"></i>
-                        Delete
+                        ${t('delete')}
                     </button>
                     ${isPaused ? pausedInfo : ''}
                     ` : ''}
@@ -7434,10 +7688,10 @@ function updateOffersStats() {
     }).length;
     
     offersStatsEl.innerHTML = `
-        <span><i class="fas fa-store"></i> ${total} total</span>
-        ${pausedCount > 0 ? `<span style="color: #9ca3af;"><i class="fas fa-pause-circle"></i> ${pausedCount} paused</span>` : ''}
-        ${needsUpdate > 0 ? `<span style="color: #fbbf24;"><i class="fas fa-exclamation-triangle"></i> ${needsUpdate} need update</span>` : ''}
-        ${offersState.selectedOffers.size > 0 ? `<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> ${offersState.selectedOffers.size} selected</span>` : ''}
+        <span><i class="fas fa-store"></i> ${total} ${t('total_offers')}</span>
+        ${pausedCount > 0 ? `<span style="color: #9ca3af;"><i class="fas fa-pause-circle"></i> ${pausedCount} ${t('paused_offers')}</span>` : ''}
+        ${needsUpdate > 0 ? `<span style="color: #fbbf24;"><i class="fas fa-exclamation-triangle"></i> ${needsUpdate} ${t('need_update')}</span>` : ''}
+        ${offersState.selectedOffers.size > 0 ? `<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> ${offersState.selectedOffers.size} ${t('selected_offers')}</span>` : ''}
     `;
 }
 
