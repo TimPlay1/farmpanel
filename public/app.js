@@ -3957,7 +3957,35 @@ function updateAccountDropdown(accounts) {
  * 0-0 = Any, 0-1 = 0-24, 0-2 = 25-49, 0-3 = 50-99, 0-4 = 100-249, 
  * 0-5 = 250-499, 0-6 = 500-749, 0-7 = 750-999, 0-8 = 1+ B/s
  */
-function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true) {
+/**
+ * v9.11.4: Mapping мутаций на attr_id для Eldorado URL
+ */
+const MUTATION_ATTR_IDS = {
+    'None': '1-0',
+    'Gold': '1-1',
+    'Diamond': '1-2',
+    'Bloodrot': '1-3',
+    'Candy': '1-4',
+    'Lava': '1-5',
+    'Galaxy': '1-6',
+    'Yin-Yang': '1-7',
+    'YinYang': '1-7',
+    'Radioactive': '1-8',
+    'Rainbow': '1-9'
+};
+
+/**
+ * v9.11.4: Возвращает attr_id для мутации
+ */
+function getMutationAttrId(mutation) {
+    if (!mutation || mutation === 'None' || mutation === 'Default' || mutation === '') {
+        return null;
+    }
+    const cleanMut = cleanMutationText(mutation);
+    return MUTATION_ATTR_IDS[cleanMut] || null;
+}
+
+function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true, mutation = null) {
     const incomeValue = typeof income === 'string' ? parseFloat(income) : income;
     
     // Определяем attr_ids на основе income
@@ -3970,6 +3998,12 @@ function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true) {
     else if (incomeValue >= 50) attrIds = '0-3';   // 50-99 M/s
     else if (incomeValue >= 25) attrIds = '0-2';   // 25-49 M/s
     else if (incomeValue > 0) attrIds = '0-1';     // 0-24 M/s
+    
+    // v9.11.4: Добавляем mutation attr_id если есть мутация
+    const mutationAttrId = getMutationAttrId(mutation);
+    if (mutationAttrId) {
+        attrIds = `${attrIds},${mutationAttrId}`;
+    }
     
     const encodedName = encodeURIComponent(brainrotName);
     
@@ -4016,15 +4050,16 @@ function getSelectedPriceLabel() {
 
 /**
  * Открыть ссылку Eldorado для брейнрота
+ * v9.11.4: Добавлена поддержка mutation для фильтрации
  */
-function openEldoradoLink(brainrotName, income) {
+function openEldoradoLink(brainrotName, income, mutation = null) {
     // v9.9.6: Проверяем isInEldoradoList из кэша цен
     const normalizedIncome = normalizeIncomeForApi(income);
-    const cacheKey = getPriceCacheKey(brainrotName, normalizedIncome);
+    const cacheKey = getPriceCacheKey(brainrotName, normalizedIncome, mutation);
     const priceData = state.brainrotPrices[cacheKey];
     const isInEldoradoList = priceData ? priceData.isInEldoradoList !== false : true;
     
-    const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList);
+    const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);
     window.open(link, '_blank');
 }
 
@@ -4323,7 +4358,7 @@ async function renderCollection() {
                 x${group.quantity}
             </div>
             ` : ''}
-            <button class="brainrot-eldorado-link" onclick="event.stopPropagation(); openEldoradoLink('${group.name.replace(/'/g, "\\'")}', ${income})" title="View on Eldorado">
+            <button class="brainrot-eldorado-link" onclick="event.stopPropagation(); openEldoradoLink('${group.name.replace(/'/g, "\\'")}', ${income}, ${group.mutation ? `'${cleanMutationText(group.mutation)}'` : 'null'})" title="View on Eldorado">
                 <i class="fas fa-external-link-alt"></i>
             </button>
             <div class="brainrot-card-content">
