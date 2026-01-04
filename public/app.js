@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.6 - Server-side optimization for faster sync
+// FarmerPanel App v9.12.7 - Localization fixes for all hardcoded strings
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -226,6 +226,7 @@ const i18n = {
         brainrots_label: 'BRAINROTS',
         value_label: 'VALUE',
         no_accounts: 'No accounts',
+        no_brainrots_yet: 'No brainrots yet',
         online_status: 'Online',
         offline_status: 'Offline',
         
@@ -284,7 +285,46 @@ const i18n = {
         
         // Mass select
         items: 'items',
-        generate_n: 'Generate'
+        generate_n: 'Generate',
+        selection_mode: 'Selection mode',
+        groups: 'groups',
+        
+        // Collection empty states
+        no_brainrots_found: 'No brainrots found',
+        no_matches: 'No matches',
+        brainrots_will_appear: 'Brainrots will appear here when accounts have them.',
+        try_adjusting_filters: 'Try adjusting your search or filters.',
+        shown: 'shown',
+        start_farm_hint: 'Start the farm script to see your accounts here.',
+        
+        // Farm Keys empty state
+        no_saved_farm_keys: 'No saved farm keys',
+        add_keys_hint: 'Add farm keys to monitor multiple farmers.',
+        
+        // Offers empty states
+        no_offers_yet: 'No offers yet',
+        offers_will_appear: 'Offers created via Eldorado will appear here',
+        
+        // Offer card statuses
+        pending_status: 'Pending',
+        active_status_offer: 'Active',
+        unverified_status: 'Unverified',
+        needs_update_status: 'Needs Update',
+        
+        // Scanning progress
+        scanning: 'Scanning...',
+        starting: 'Starting...',
+        scanning_eldorado: 'Scanning Eldorado...',
+        processing_results: 'Processing results...',
+        loading_offers: 'Loading offers...',
+        no_farm_key_selected: 'No farm key selected',
+        no_registered_codes: 'No registered codes found. Scanned {count} offers.',
+        
+        // Top list
+        waiting_for_player: 'Waiting for player...',
+        
+        // Accounts empty state
+        accounts_will_appear: 'Accounts will appear here when the farm script is running.'
     },
     ru: {
         // Navigation
@@ -497,6 +537,7 @@ const i18n = {
         brainrots_label: 'БРЕЙНРОТЫ',
         value_label: 'СТОИМОСТЬ',
         no_accounts: 'Нет аккаунтов',
+        no_brainrots_yet: 'Пока нет брейнротов',
         online_status: 'Онлайн',
         offline_status: 'Оффлайн',
         
@@ -555,7 +596,46 @@ const i18n = {
         
         // Mass select
         items: 'шт',
-        generate_n: 'Генерировать'
+        generate_n: 'Генерировать',
+        selection_mode: 'Режим выбора',
+        groups: 'групп',
+        
+        // Collection empty states
+        no_brainrots_found: 'Брейнроты не найдены',
+        no_matches: 'Нет совпадений',
+        brainrots_will_appear: 'Брейнроты появятся здесь, когда они есть на аккаунтах.',
+        try_adjusting_filters: 'Попробуйте изменить поиск или фильтры.',
+        shown: 'показано',
+        
+        // Farm Keys empty state
+        no_saved_farm_keys: 'Нет сохранённых ключей',
+        add_keys_hint: 'Добавьте ключи фермы для мониторинга нескольких фермеров.',
+        
+        // Offers empty states
+        no_offers_yet: 'Офферов пока нет',
+        offers_will_appear: 'Офферы созданные через Eldorado появятся здесь',
+        
+        // Offer card statuses
+        pending_status: 'Ожидание',
+        active_status_offer: 'Активен',
+        unverified_status: 'Не проверен',
+        needs_update_status: 'Нужно обновить',
+        
+        // Scanning progress
+        scanning: 'Сканирование...',
+        starting: 'Начинаем...',
+        scanning_eldorado: 'Сканируем Eldorado...',
+        processing_results: 'Обрабатываем результаты...',
+        loading_offers: 'Загружаем офферы...',
+        no_farm_key_selected: 'Ключ фермы не выбран',
+        no_registered_codes: 'Зарегистрированные коды не найдены. Просканировано {count} офферов.',
+        
+        // Top list
+        waiting_for_player: 'Ожидание игрока...',
+        
+        // Accounts empty state
+        accounts_will_appear: 'Аккаунты появятся здесь после запуска скрипта фермы.',
+        start_farm_hint: 'Запустите скрипт фермы, чтобы увидеть аккаунты.'
     }
 };
 
@@ -3537,9 +3617,9 @@ function formatTimeAgo(lastUpdate) {
         
         if (diffSeconds < 0) return t('just_now'); // Future time = just now
         if (diffSeconds < 60) return t('just_now');
-        if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + (currentLanguage === 'ru' ? ' мин. назад' : 'm ago');
-        if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + (currentLanguage === 'ru' ? ' ч. назад' : 'h ago');
-        return Math.floor(diffSeconds / 86400) + (currentLanguage === 'ru' ? ' д. назад' : 'd ago');
+        if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + ' ' + t('minutes_ago');
+        if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + ' ' + t('hours_ago');
+        return Math.floor(diffSeconds / 86400) + ' ' + t('days_ago');
     } catch (e) {
         return lastUpdate;
     }
@@ -3944,7 +4024,7 @@ async function renderAccountsGrid(accounts) {
             <div class="empty-state" style="grid-column: 1/-1">
                 <i class="fas fa-users-slash"></i>
                 <h3>${t('no_accounts')}</h3>
-                <p>${currentLanguage === 'ru' ? 'Запустите скрипт фермы, чтобы увидеть аккаунты.' : 'Start the farm script to see your accounts here.'}</p>
+                <p>${t('start_farm_hint')}</p>
             </div>
         `;
         return;
@@ -4089,7 +4169,7 @@ async function renderAccountsGrid(accounts) {
                         ${t('brainrots')}
                     </div>
                     <div class="brainrots-scroll">
-                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">' + (currentLanguage === 'ru' ? 'Пока нет брейнротов' : 'No brainrots yet') + '</span>'}
+                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">' + t('no_brainrots_yet') + '</span>'}
                     </div>
                 </div>
                 <div class="account-footer">
@@ -4107,7 +4187,7 @@ function renderAccountsList(accounts) {
             <div class="empty-state">
                 <i class="fas fa-list"></i>
                 <h3>${t('no_accounts')}</h3>
-                <p>${currentLanguage === 'ru' ? 'Аккаунты появятся здесь после запуска скрипта фермы.' : 'Accounts will appear here when the farm script is running.'}</p>
+                <p>${t('accounts_will_appear')}</p>
             </div>
         `;
         return;
@@ -4185,8 +4265,8 @@ function renderFarmKeys() {
         farmKeysListEl.innerHTML = `
             <div class="empty-state">
                 <i class="fas fa-key"></i>
-                <h3>No saved farm keys</h3>
-                <p>Add farm keys to monitor multiple farmers.</p>
+                <h3>${t('no_saved_farm_keys')}</h3>
+                <p>${t('add_keys_hint')}</p>
             </div>
         `;
         return;
@@ -5390,10 +5470,10 @@ async function renderCollection() {
             statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + changeHtml + '</span>';
         }
         if (collectionState.searchQuery || collectionState.accountFilter !== 'all' || collectionState.priceFilter !== 'all') {
-            statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' shown</span>';
+            statsHtml += '<span><i class="fas fa-filter"></i> ' + brainrots.length + ' ' + t('shown') + '</span>';
         }
         if (isSelectionMode) {
-            statsHtml += '<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> Режим выбора</span>';
+            statsHtml += '<span style="color: var(--accent-primary);"><i class="fas fa-check-square"></i> ' + t('selection_mode') + '</span>';
         }
         collectionStatsEl.innerHTML = statsHtml;
     }
@@ -5402,10 +5482,10 @@ async function renderCollection() {
         brainrotsGridEl.innerHTML = `
             <div class="empty-state" style="grid-column: 1/-1">
                 <i class="fas fa-search"></i>
-                <h3>${collectionState.allBrainrots.length === 0 ? 'No brainrots found' : 'No matches'}</h3>
+                <h3>${collectionState.allBrainrots.length === 0 ? t('no_brainrots_found') : t('no_matches')}</h3>
                 <p>${collectionState.allBrainrots.length === 0 
-                    ? 'Brainrots will appear here when accounts have them.' 
-                    : 'Try adjusting your search or filters.'}</p>
+                    ? t('brainrots_will_appear') 
+                    : t('try_adjusting_filters')}</p>
             </div>
         `;
         return;
@@ -6129,7 +6209,7 @@ function openSupaGenerator(brainrotData) {
         // Показываем информацию о количестве если > 1
         const quantity = brainrotData.quantity || 1;
         const accountsInfo = quantity > 1 
-            ? `${quantity} шт (${brainrotData.groupItems?.map(i => i.accountName).join(', ')})`
+            ? `${quantity} ${t('items')} (${brainrotData.groupItems?.map(i => i.accountName).join(', ')})`
             : brainrotData.accountName;
         
         accountInfoEl.innerHTML = `
@@ -6718,14 +6798,14 @@ function updateMassSelectionUI() {
     // Show: selected groups count (and total brainrots if different)
     if (countEl) {
         if (totalQuantity > selectedCount) {
-            countEl.textContent = `${selectedCount} групп (${totalQuantity} шт)`;
+            countEl.textContent = `${selectedCount} ${t('groups')} (${totalQuantity} ${t('items')})`;
         } else {
-            countEl.textContent = `${selectedCount} шт`;
+            countEl.textContent = `${selectedCount} ${t('items')}`;
         }
     }
     if (btnEl) {
         btnEl.disabled = selectedCount === 0;
-        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> Генерировать ${selectedCount} шт`;
+        btnEl.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> ${t('generate_n')} ${selectedCount} ${t('items')}`;
     }
 }
 
@@ -6779,9 +6859,9 @@ function openMassGenerationModal() {
     // Update button text
     const btnText = document.getElementById('massGenBtnText');
     if (btnText) {
-        btnText.textContent = `Генерировать ${selectedGroups.length} шт`;
+        btnText.textContent = `${t('generate_n')} ${selectedGroups.length} ${t('items')}`;
     }
-    startBtn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> <span id="massGenBtnText">Генерировать ${selectedGroups.length} шт</span>`;
+    startBtn.innerHTML = `<i class="fas fa-wand-magic-sparkles"></i> <span id="massGenBtnText">${t('generate_n')} ${selectedGroups.length} ${t('items')}</span>`;
     
     // Render list of selected items with price type selector
     list.innerHTML = selectedGroups.map((group, i) => {
@@ -6845,7 +6925,7 @@ function openMassGenerationModal() {
                 <div class="mass-gen-item-status pending" data-status-index="${i}">
                     <i class="fas fa-clock"></i>
                 </div>
-                <button class="mass-gen-item-remove" onclick="removeMassGenItem(${i})" title="Удалить">
+                <button class="mass-gen-item-remove" onclick="removeMassGenItem(${i})" title="${t('delete')}">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
@@ -7853,10 +7933,10 @@ function renderOffers() {
         offersGridEl.innerHTML = `
             <div class="offers-empty">
                 <i class="fas fa-store"></i>
-                <h3>${offersState.offers.length === 0 ? 'No offers yet' : 'No matches'}</h3>
+                <h3>${offersState.offers.length === 0 ? t('no_offers_yet') : t('no_matches')}</h3>
                 <p>${offersState.offers.length === 0 
-                    ? 'Offers created via Eldorado will appear here' 
-                    : 'Try adjusting your search or filters'}</p>
+                    ? t('offers_will_appear') 
+                    : t('try_adjusting_filters')}</p>
             </div>
         `;
         return;
@@ -7885,10 +7965,10 @@ function renderOffers() {
         
         let statusBadgeClass = isPending ? 'pending' : (isPaused ? 'paused' : (isUnverified ? 'unverified' : (needsUpdate ? 'needs-update' : 'active')));
         // v9.7: Better status icons using FontAwesome
-        let statusBadgeText = isPending ? '<i class="fas fa-clock"></i> Pending' :
-                              (isPaused ? '<i class="fas fa-pause-circle"></i> Paused' : 
-                              (isUnverified ? '<i class="fas fa-question-circle"></i> Unverified' :
-                              (needsUpdate ? 'Needs Update' : 'Active')));
+        let statusBadgeText = isPending ? '<i class="fas fa-clock"></i> ' + t('pending_status') :
+                              (isPaused ? '<i class="fas fa-pause-circle"></i> ' + t('paused') : 
+                              (isUnverified ? '<i class="fas fa-question-circle"></i> ' + t('unverified_status') :
+                              (needsUpdate ? t('needs_update_status') : t('active_status_offer'))));
         
         // v9.8.24: Count brainrots in collection with same name AND income for paused offers
         let brainrotsCountBadge = '';
@@ -9644,19 +9724,19 @@ async function scanEldoradoOffers() {
     if (!scanBtn) return;
     
     if (!state.currentKey) {
-        showNotification('❌ Ключ фермы не выбран', 'error');
+        showNotification('❌ ' + t('no_farm_key_selected'), 'error');
         return;
     }
     
     const originalContent = scanBtn.innerHTML;
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Scanning...';
+    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('scanning');
     
     // Show progress bar
     if (progressEl) {
         progressEl.classList.remove('hidden');
         if (progressFill) progressFill.style.width = '0%';
-        if (progressText) progressText.textContent = 'Starting...';
+        if (progressText) progressText.textContent = t('starting');
     }
     
     const updateProgress = (percent, text) => {
@@ -9665,24 +9745,24 @@ async function scanEldoradoOffers() {
     };
     
     try {
-        updateProgress(10, 'Scanning Eldorado...');
+        updateProgress(10, t('scanning_eldorado'));
         
         // Call universal scanner
         const scanResponse = await fetch(`${API_BASE}/universal-scan?farmKey=${encodeURIComponent(state.currentKey)}&force=1`);
         const scanResult = await scanResponse.json();
         
-        updateProgress(60, 'Processing results...');
+        updateProgress(60, t('processing_results'));
         
         if (scanResult.success) {
             console.log(`Universal scan: ${scanResult.totalScanned} scanned, ${scanResult.matched} matched`);
         }
         
-        updateProgress(80, 'Loading offers...');
+        updateProgress(80, t('loading_offers'));
         
         // Reload offers from server
         await loadOffers(true);
         
-        updateProgress(100, 'Done!');
+        updateProgress(100, t('done'));
         
         const activeCount = offersState.offers.filter(o => o.status === 'active').length;
         const pendingCount = offersState.offers.filter(o => o.status === 'pending').length;
@@ -9694,7 +9774,7 @@ async function scanEldoradoOffers() {
         let type = 'success';
         
         if (total === 0) {
-            message = `ℹ️ No registered codes found. Scanned ${scanResult.totalScanned || 0} offers.`;
+            message = `ℹ️ ${t('no_registered_codes').replace('{count}', scanResult.totalScanned || 0)}`;
             type = 'info';
         } else {
             const parts = [];
@@ -10040,7 +10120,7 @@ function renderTopData(data, type) {
                     </div>
                     <div class="top-list-info">
                         <div class="top-list-name placeholder-text">???</div>
-                        <div class="top-list-brainrot">Waiting for player...</div>
+                        <div class="top-list-brainrot">${t('waiting_for_player')}</div>
                     </div>
                     <div class="top-list-stats">
                         <div class="top-list-value placeholder-text">---</div>
