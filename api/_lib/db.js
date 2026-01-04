@@ -20,10 +20,14 @@ async function connectToDatabase() {
 
     const client = new MongoClient(uri, {
         maxPoolSize: 10,
-        serverSelectionTimeoutMS: 10000,
-        socketTimeoutMS: 45000,
+        minPoolSize: 1,
+        serverSelectionTimeoutMS: 15000,
+        socketTimeoutMS: 60000,
+        connectTimeoutMS: 30000,
         tls: true,
         tlsAllowInvalidCertificates: false,
+        retryReads: true,
+        retryWrites: true,
     });
     
     await client.connect();
