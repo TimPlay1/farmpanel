@@ -219,14 +219,22 @@ async function forceAIPrice(brainrotName, ourIncome) {
             };
         }
         
-        // NextCompetitor: следующий конкурент после upper
+        // NextCompetitor: следующий конкурент после upper (с большей ценой)
         if (upperOffer && validOffers.length > 1) {
-            // Ищем следующий оффер с тем же или большим income но более высокой ценой
-            const nextComp = validOffers.find(o => 
-                o.income >= upperOffer.income && 
-                o.price > upperOffer.price &&
-                o !== upperOffer
-            );
+            // Офферы отсортированы по цене от меньшей к большей
+            // Ищем первый оффер ПОСЛЕ upperOffer с тем же или большим income
+            const upperIndex = validOffers.indexOf(upperOffer);
+            let nextComp = null;
+            
+            // Ищем среди офферов с большей ценой (после upperOffer в отсортированном массиве)
+            for (let i = upperIndex + 1; i < validOffers.length; i++) {
+                const o = validOffers[i];
+                if (o.income >= upperOffer.income && o.price > upperOffer.price) {
+                    nextComp = o;
+                    break;
+                }
+            }
+            
             if (nextComp) {
                 const ncDiff = nextComp.price - upperOffer.price;
                 const ncReduction = Math.min(1.0, Math.max(0.1, ncDiff * 0.15));
@@ -239,6 +247,7 @@ async function forceAIPrice(brainrotName, ourIncome) {
                     priceDiff: ncDiff,
                     source: 'ai'
                 };
+                console.log(`   📈 NextCompetitor: ${nextComp.income}M/s @ $${nextComp.price} → $${nextCompetitorPrice}`);
             }
         }
         

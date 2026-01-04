@@ -697,12 +697,62 @@ async function parseIncomeAI(offers, eldoradoLists, expectedBrainrot = null) {
                     
                     const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text || '';
                     
-                    // Парсим JSON из ответа
-                    const jsonMatch = text.match(/\{[\s\S]*\}/);
-                    if (jsonMatch) {
-                        const result = JSON.parse(jsonMatch[0]);
-                        resolve(result.results || []);
+                    // v2.5.3: Более robust парсинг JSON из ответа AI
+                    // Gemini иногда добавляет текст до/после JSON
+                    let jsonResult = null;
+                    
+                    // Метод 1: Ищем JSON объект с "results"
+                    const resultsMatch = text.match(/\{\s*"results"\s*:\s*\[[\s\S]*?\]\s*\}/);
+                    if (resultsMatch) {
+                        try {
+                            jsonResult = JSON.parse(resultsMatch[0]);
+                        } catch (e) {
+                            console.log('Method 1 parse failed:', e.message);
+                        }
+                    }
+                    
+                    // Метод 2: Ищем JSON между ```json и ```
+                    if (!jsonResult) {
+                        const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+                        if (codeBlockMatch) {
+                            try {
+                                jsonResult = JSON.parse(codeBlockMatch[1].trim());
+                            } catch (e) {
+                                console.log('Method 2 parse failed:', e.message);
+                            }
+                        }
+                    }
+                    
+                    // Метод 3: Пробуем найти первый { и последний соответствующий }
+                    if (!jsonResult) {
+                        const firstBrace = text.indexOf('{');
+                        if (firstBrace !== -1) {
+                            let depth = 0;
+                            let lastBrace = -1;
+                            for (let i = firstBrace; i < text.length; i++) {
+                                if (text[i] === '{') depth++;
+                                else if (text[i] === '}') {
+                                    depth--;
+                                    if (depth === 0) {
+                                        lastBrace = i;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (lastBrace !== -1) {
+                                try {
+                                    jsonResult = JSON.parse(text.substring(firstBrace, lastBrace + 1));
+                                } catch (e) {
+                                    console.log('Method 3 parse failed:', e.message);
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (jsonResult && jsonResult.results) {
+                        resolve(jsonResult.results);
                     } else {
+                        console.log('AI returned no valid JSON results, raw text length:', text.length);
                         resolve([]);
                     }
                 } catch (e) {
