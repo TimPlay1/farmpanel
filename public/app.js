@@ -38,6 +38,12 @@ const i18n = {
         // Balance Chart
         balance_history: 'Balance History',
         collecting_data: 'Collecting data...',
+        change_for: 'Change for',
+        period_5min: '5 minutes',
+        period_hour: 'hour',
+        period_day: 'day',
+        period_week: 'week',
+        period_month: 'month',
         
         // Collection filters
         all_brainrots: 'All Brainrots',
@@ -351,6 +357,12 @@ const i18n = {
         // Balance Chart
         balance_history: 'История баланса',
         collecting_data: 'Сбор данных...',
+        change_for: 'Изменение за',
+        period_5min: '5 минут',
+        period_hour: 'час',
+        period_day: 'день',
+        period_week: 'неделю',
+        period_month: 'месяц',
         
         // Collection filters
         all_brainrots: 'Все брейнроты',
@@ -10460,13 +10472,13 @@ function _doUpdateBalanceChart(period) {
     
     // Update chart stats
     if (chartStats) {
-        const periodName = period === PERIODS.realtime ? '5 минут' :
-                          period === PERIODS.hour ? 'час' : 
-                          period === PERIODS.day ? 'день' : 
-                          period === PERIODS.week ? 'неделю' : 'месяц';
+        const periodName = period === PERIODS.realtime ? t('period_5min') :
+                          period === PERIODS.hour ? t('period_hour') : 
+                          period === PERIODS.day ? t('period_day') : 
+                          period === PERIODS.week ? t('period_week') : t('period_month');
         chartStats.innerHTML = `
             <div class="chart-stat">
-                <span class="chart-stat-label">Изменение за ${periodName}:</span>
+                <span class="chart-stat-label">${t('change_for')} ${periodName}:</span>
                 <span class="chart-stat-value ${isPositive ? 'change-positive' : 'change-negative'}">
                     ${isPositive ? '+' : ''}$${Math.abs(change).toFixed(2)} (${isPositive ? '+' : ''}${changePercent}%)
                 </span>
