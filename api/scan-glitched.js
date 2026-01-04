@@ -94,16 +94,18 @@ function parseIncomeFromTitle(title) {
 }
 
 /**
- * Быстрое сканирование офферов - универсальный подход v9.9.4
+ * Быстрое сканирование офферов - универсальный подход v10.4.0
  * 1. Собирает все коды офферов из БД
- * 2. Ищет каждый код на Eldorado напрямую по #CODE
- * 3. Обновляет статусы в БД
+ * 2. Ищет каждый код на Eldorado напрямую по #CODE (ПАРАЛЛЕЛЬНО!)
+ * 3. Обновляем статусы в БД
+ * 
+ * v10.4.0: Параллельные запросы для ускорения (batch по 5)
  */
 async function scanGlitchedStore(db) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    console.log('🔍 Universal offer scanner v9.9.4 starting...');
+    console.log('🔍 Universal offer scanner v10.4.0 starting (parallel mode)...');
     
     // Получаем все офферы из БД с кодами
     const dbOffers = await offersCollection.find({ 
@@ -129,95 +131,103 @@ async function scanGlitchedStore(db) {
     let foundOnEldorado = 0;
     let skippedDueToError = 0;
     
-    // Обрабатываем каждый оффер - ищем по коду на Eldorado
-    for (const dbOffer of dbOffers) {
-        const code = dbOffer.offerId?.replace(/^#/, '').toUpperCase();
-        if (!code || code.length < 6) continue;
+    // v10.4.0: Обрабатываем офферы параллельно batch'ами по 5
+    const BATCH_SIZE = 5;
+    const batches = [];
+    for (let i = 0; i < dbOffers.length; i += BATCH_SIZE) {
+        batches.push(dbOffers.slice(i, i + BATCH_SIZE));
+    }
+    
+    console.log(`📦 Processing ${batches.length} batches of ${BATCH_SIZE} offers each`);
+    
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
         
-        // Небольшая задержка между запросами к API
-        await new Promise(r => setTimeout(r, 250));
-        
-        // Ищем на Eldorado по коду
-        const result = await findOfferByCode(code);
-        
-        // v10.3.0: Улучшенная обработка результатов
-        if (result.found) {
-            foundOnEldorado++;
+        // Запускаем поиск для всех офферов в batch параллельно
+        const searchPromises = batch.map(async (dbOffer) => {
+            const code = dbOffer.offerId?.replace(/^#/, '').toUpperCase();
+            if (!code || code.length < 6) return { dbOffer, result: null };
             
-            // Найден на Eldorado - обновляем данные
-            await offersCollection.updateOne(
-                { _id: dbOffer._id },
-                {
-                    $set: {
-                        status: 'active',
-                        currentPrice: result.price,
-                        income: result.income || dbOffer.income,
-                        imageUrl: result.imageUrl || dbOffer.imageUrl,
-                        eldoradoOfferId: result.eldoradoId,
-                        lastScannedAt: now,
-                        updatedAt: now,
-                        notFoundCount: 0 // Сбрасываем счётчик
-                    }
-                }
-            );
-            updated++;
-            if (dbOffer.status !== 'active') {
-                markedActive++;
-                console.log(`  ✅ Activated: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
-            }
-        } else if (result.error) {
-            // Ошибка API (timeout, rate limit) - НЕ помечаем как paused
-            skippedDueToError++;
-            console.log(`  ⚠️ Skipped due to error: ${dbOffer.offerId} (${result.error})`);
-            // Обновляем только lastScannedAt
-            await offersCollection.updateOne(
-                { _id: dbOffer._id },
-                {
-                    $set: {
-                        lastScannedAt: now
-                    }
-                }
-            );
-        } else if (result.notFound) {
-            // Точно не найден - используем счётчик notFoundCount
-            // Помечаем как paused только после 3 неудачных сканов подряд
-            const notFoundCount = (dbOffer.notFoundCount || 0) + 1;
+            const result = await findOfferByCode(code);
+            return { dbOffer, result };
+        });
+        
+        // Ждём все результаты batch'а
+        const batchResults = await Promise.all(searchPromises);
+        
+        // Обрабатываем результаты и обновляем БД
+        for (const { dbOffer, result } of batchResults) {
+            if (!result) continue;
             
-            if (notFoundCount >= 3) {
-                // 3+ раза не найден - помечаем как paused
-                if (dbOffer.status === 'active') {
-                    await offersCollection.updateOne(
-                        { _id: dbOffer._id },
-                        {
-                            $set: {
-                                status: 'paused',
-                                pausedAt: now,
-                                lastScannedAt: now,
-                                updatedAt: now,
-                                notFoundCount: notFoundCount
-                            }
-                        }
-                    );
-                    markedPaused++;
-                    console.log(`  ⏸️ Marked paused (not found ${notFoundCount}x): ${dbOffer.offerId} (${dbOffer.brainrotName})`);
-                }
-            } else {
-                // Меньше 3 раз - просто увеличиваем счётчик, статус не меняем
+            if (result.found) {
+                foundOnEldorado++;
+                
+                // Найден на Eldorado - обновляем данные
                 await offersCollection.updateOne(
                     { _id: dbOffer._id },
                     {
                         $set: {
+                            status: 'active',
+                            currentPrice: result.price,
+                            income: result.income || dbOffer.income,
+                            imageUrl: result.imageUrl || dbOffer.imageUrl,
+                            eldoradoOfferId: result.eldoradoId,
                             lastScannedAt: now,
-                            notFoundCount: notFoundCount
+                            updatedAt: now,
+                            notFoundCount: 0 // Сбрасываем счётчик
                         }
                     }
                 );
-                console.log(`  ⚠️ Not found (${notFoundCount}/3): ${dbOffer.offerId} (${dbOffer.brainrotName})`);
+                updated++;
+                if (dbOffer.status !== 'active') {
+                    markedActive++;
+                    console.log(`  ✅ Activated: ${dbOffer.offerId} (${dbOffer.brainrotName})`);
+                }
+            } else if (result.error) {
+                // Ошибка API (timeout, rate limit) - НЕ помечаем как paused
+                skippedDueToError++;
+                // Обновляем только lastScannedAt
+                await offersCollection.updateOne(
+                    { _id: dbOffer._id },
+                    { $set: { lastScannedAt: now } }
+                );
+            } else if (result.notFound) {
+                // Точно не найден - используем счётчик notFoundCount
+                const notFoundCount = (dbOffer.notFoundCount || 0) + 1;
+                
+                if (notFoundCount >= 3) {
+                    if (dbOffer.status === 'active') {
+                        await offersCollection.updateOne(
+                            { _id: dbOffer._id },
+                            {
+                                $set: {
+                                    status: 'paused',
+                                    pausedAt: now,
+                                    lastScannedAt: now,
+                                    updatedAt: now,
+                                    notFoundCount: notFoundCount
+                                }
+                            }
+                        );
+                        markedPaused++;
+                        console.log(`  ⏸️ Marked paused (not found ${notFoundCount}x): ${dbOffer.offerId}`);
+                    }
+                } else {
+                    await offersCollection.updateOne(
+                        { _id: dbOffer._id },
+                        { $set: { lastScannedAt: now, notFoundCount: notFoundCount } }
+                    );
+                }
             }
+        }
+        
+        // Небольшая задержка между batch'ами (не между каждым оффером!)
+        if (batchIndex < batches.length - 1) {
+            await new Promise(r => setTimeout(r, 100));
         }
     }
     
-    console.log(`✅ Scan complete: ${foundOnEldorado} found, ${updated} updated, ${markedActive} activated, ${markedPaused} paused, ${skippedDueToError} skipped (errors)`);
+    console.log(`✅ Scan complete: ${foundOnEldorado} found, ${updated} updated, ${markedActive} activated, ${markedPaused} paused, ${skippedDueToError} skipped`);
     
     return {
         eldoradoCount: foundOnEldorado,

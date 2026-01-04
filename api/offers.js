@@ -111,15 +111,19 @@ module.exports = async (req, res) => {
             const farmersCollection = db.collection('farmers');
             const farmer = await farmersCollection.findOne({ farmKey });
             
-            // Создаём map имя->мутация для быстрого поиска
+            // Создаём map (name+income)->mutation для точного поиска
+            // ВАЖНО: использовать ключ name+income, т.к. один brainrot (Los 67) 
+            // может иметь РАЗНЫЕ мутации при разных income
             const mutationsMap = new Map();
             if (farmer && farmer.accounts) {
                 for (const account of farmer.accounts) {
                     if (account.brainrots) {
                         for (const b of account.brainrots) {
-                            if (b.mutation && b.name) {
-                                // Сохраняем мутацию по имени (приоритет более новым)
-                                mutationsMap.set(b.name.toLowerCase(), b.mutation);
+                            if (b.mutation && b.name && b.income !== undefined) {
+                                // Ключ: name_roundedIncome (аналогично price cache key)
+                                const roundedIncome = Math.floor((b.income || 0) / 10) * 10;
+                                const mutationKey = `${b.name.toLowerCase()}_${roundedIncome}`;
+                                mutationsMap.set(mutationKey, b.mutation);
                             }
                         }
                     }
@@ -157,9 +161,11 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // Добавляем мутацию из данных фермера
-                if (!offer.mutation && offer.brainrotName) {
-                    const mutation = mutationsMap.get(offer.brainrotName.toLowerCase());
+                // Добавляем мутацию из данных фермера по name+income
+                if (!offer.mutation && offer.brainrotName && offer.income !== undefined) {
+                    const roundedIncome = Math.floor((offer.income || 0) / 10) * 10;
+                    const mutationKey = `${offer.brainrotName.toLowerCase()}_${roundedIncome}`;
+                    const mutation = mutationsMap.get(mutationKey);
                     if (mutation) {
                         offer.mutation = mutation;
                     }
