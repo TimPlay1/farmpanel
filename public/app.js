@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.8 - Fix localization not to overwrite shop name, instant re-render on language change
+// FarmerPanel App v9.12.9 - Instant chart display from localStorage cache
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1063,6 +1063,7 @@ const PRICE_CACHE_VERSION = 5; // v9.11.10: Increment to invalidate cache - fix 
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
+const BALANCE_HISTORY_CACHE_TTL = 5 * 60 * 1000; // 5 минут кэш для истории баланса
 const CHART_PERIOD_KEY = 'chartPeriodCache';
 
 // Периоды для графика
@@ -1221,7 +1222,55 @@ async function getAccountAvatar(userId, serverAvatars) {
 // ============ Balance History Functions ============
 
 /**
+ * Загрузить историю баланса из localStorage кэша
+ */
+function loadBalanceHistoryFromCache() {
+    if (!state.currentKey) return false;
+    
+    try {
+        const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
+        if (stored) {
+            const cache = JSON.parse(stored);
+            if (cache[state.currentKey] && cache[state.currentKey].history) {
+                const cacheData = cache[state.currentKey];
+                state.balanceHistory[state.currentKey] = cacheData.history;
+                console.log(`📊 Loaded ${cacheData.history.length} chart points from cache`);
+                return true;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load balance history cache:', e);
+    }
+    return false;
+}
+
+/**
+ * Сохранить историю баланса в localStorage кэш
+ */
+function saveBalanceHistoryToCache() {
+    if (!state.currentKey || !state.balanceHistory[state.currentKey]) return;
+    
+    try {
+        let cache = {};
+        const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
+        if (stored) {
+            cache = JSON.parse(stored);
+        }
+        
+        cache[state.currentKey] = {
+            history: state.balanceHistory[state.currentKey],
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(cache));
+    } catch (e) {
+        console.warn('Failed to save balance history cache:', e);
+    }
+}
+
+/**
  * Загрузить историю баланса из сервера (MongoDB)
+ * v9.12.9: Сначала показываем кэшированные данные, затем обновляем в фоне
  */
 async function loadBalanceHistory() {
     if (!state.currentKey) {
@@ -1231,8 +1280,15 @@ async function loadBalanceHistory() {
     
     console.log('loadBalanceHistory: loading for', state.currentKey);
     
+    // v9.12.9: Сначала загружаем из кэша и сразу показываем график
+    const hasCachedData = loadBalanceHistoryFromCache();
+    if (hasCachedData) {
+        // Показываем график с кэшированными данными немедленно
+        updateBalanceChart();
+    }
+    
+    // Затем загружаем свежие данные с сервера в фоне
     try {
-        // Загружаем только из сервера (localStorage отключен для экономии места)
         const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
         console.log('loadBalanceHistory: fetching from', url);
         
@@ -1246,7 +1302,11 @@ async function loadBalanceHistory() {
             if (data.history && data.history.length > 0) {
                 state.balanceHistory[state.currentKey] = data.history;
                 console.log(`✅ Loaded ${data.history.length} balance history records from server`);
-                // v9.11.26: Обновляем график сразу после загрузки данных
+                
+                // Сохраняем в кэш для быстрого показа при следующей загрузке
+                saveBalanceHistoryToCache();
+                
+                // Обновляем график свежими данными
                 updateBalanceChart();
                 return;
             } else {
@@ -1259,7 +1319,7 @@ async function loadBalanceHistory() {
         console.warn('Failed to load balance history from server:', e);
     }
     
-    // Инициализируем пустой массив если сервер недоступен
+    // Инициализируем пустой массив если сервер недоступен и кэша нет
     if (!state.balanceHistory[state.currentKey]) {
         state.balanceHistory[state.currentKey] = [];
     }
@@ -1357,8 +1417,8 @@ function recordBalanceHistory(farmKey, value) {
         state.balanceHistory[farmKey] = history.slice(-1000);
     }
     
-    // Сохраняем в localStorage как backup
-    saveBalanceHistory();
+    // v9.12.9: Сохраняем в localStorage кэш для быстрого показа графика
+    saveBalanceHistoryToCache();
 }
 
 /**
