@@ -421,91 +421,24 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Farm key required' });
             }
 
+            const startTime = Date.now();
             const farmer = await farmersCollection.findOne({ farmKey: key });
+            console.log(`[Sync GET] findOne farmer: ${Date.now() - startTime}ms`);
             
             if (!farmer) {
                 return res.status(404).json({ error: 'Farm key not found' });
             }
 
-            // Собираем аватары из farmer.accountAvatars и из отдельной коллекции accountAvatars
-            const avatarsCollection = db.collection('accountAvatars');
+            // v9.12.5: ОПТИМИЗАЦИЯ - минимизируем запросы к БД
+            // Используем аватары из farmer.accountAvatars напрямую, БЕЗ дополнительных запросов
             let accountAvatars = farmer.accountAvatars || {};
-            
-            // Создаём маппинг playerName -> userId из существующих данных аккаунтов
             let playerUserIdMap = farmer.playerUserIdMap || {};
             
-            // Также строим маппинг из коллекции аватаров (там хранится playerName)
-            const allAvatars = await avatarsCollection.find({}).toArray();
-            for (const avatar of allAvatars) {
-                if (avatar.playerName && avatar.userId) {
-                    playerUserIdMap[avatar.playerName] = String(avatar.userId);
-                }
-            }
+            // v9.12.5: НЕ загружаем ВСЕ аватары из коллекции - это очень медленно
+            // Аватары уже должны быть в farmer.accountAvatars после sync от скрипта
             
-            // Для каждого аккаунта проверяем есть ли аватар в отдельной коллекции
-            const accounts = farmer.accounts || [];
-            for (const account of accounts) {
-                // Обновляем маппинг для аккаунтов с userId
-                if (account.userId && account.playerName) {
-                    playerUserIdMap[account.playerName] = String(account.userId);
-                }
-                
-                // Если у аккаунта нет userId и нет в маппинге - пробуем получить из Roblox API
-                if (!account.userId && account.playerName && !playerUserIdMap[account.playerName]) {
-                    const fetchedUserId = await fetchUserIdByUsername(account.playerName);
-                    if (fetchedUserId) {
-                        playerUserIdMap[account.playerName] = fetchedUserId;
-                        // Также обновляем коллекцию аватаров для будущих запросов
-                        await avatarsCollection.updateOne(
-                            { userId: fetchedUserId },
-                            { $set: { playerName: account.playerName } },
-                            { upsert: false } // Только обновляем существующие записи
-                        );
-                    }
-                }
-                
-                // Далее работаем только с аккаунтами у которых есть userId
-                const userId = account.userId || playerUserIdMap[account.playerName];
-                if (!userId) continue;
-                const key = String(userId);
-                
-                // Если нет аватара или нет base64 - проверяем отдельную коллекцию
-                if (!accountAvatars[key] || !accountAvatars[key].base64) {
-                    const stored = await avatarsCollection.findOne({ userId: key });
-                    if (stored && stored.base64) {
-                        accountAvatars[key] = {
-                            url: stored.base64,
-                            base64: stored.base64,
-                            timestamp: stored.fetchedAt
-                        };
-                    } else {
-                        // Аватар не найден в базе - загружаем с Roblox
-                        console.log(`Avatar missing for userId ${key}, fetching from Roblox...`);
-                        const base64Avatar = await fetchRobloxAvatarBase64(userId);
-                        if (base64Avatar) {
-                            accountAvatars[key] = {
-                                url: base64Avatar,
-                                base64: base64Avatar,
-                                timestamp: Date.now()
-                            };
-                            // Сохраняем в коллекцию для будущих запросов
-                            await avatarsCollection.updateOne(
-                                { userId: key },
-                                { 
-                                    $set: { 
-                                        userId: key,
-                                        base64: base64Avatar,
-                                        fetchedAt: Date.now(),
-                                        updatedAt: new Date(),
-                                        playerName: account.playerName
-                                    } 
-                                },
-                                { upsert: true }
-                            );
-                        }
-                    }
-                }
-            }
+            // v9.12.5: НЕ делаем запросы к Roblox API при GET - это тормозит
+            // Аватары загружаются только при POST sync от скрипта фермы
 
             // Recalculate isOnline based on lastUpdate for each account
             // Account is online if lastUpdate is within last 3 minutes
@@ -529,14 +462,16 @@ module.exports = async (req, res) => {
                 };
             });
 
+            console.log(`[Sync GET] Total time: ${Date.now() - startTime}ms, accounts: ${accountsWithFreshStatus.length}`);
+
             return res.status(200).json({
                 success: true,
                 farmKey: farmer.farmKey,
                 username: farmer.username,
                 avatar: farmer.avatar,
                 accounts: accountsWithFreshStatus,
-                accountAvatars: accountAvatars, // Возвращаем аватары из обоих источников
-                playerUserIdMap: playerUserIdMap, // Маппинг playerName -> userId (обновлённый)
+                accountAvatars: accountAvatars, // Возвращаем аватары из farmer напрямую
+                playerUserIdMap: playerUserIdMap, // Маппинг playerName -> userId
                 lastUpdate: farmer.lastUpdate,
                 totalValue: farmer.totalValue || 0,
                 valueUpdatedAt: farmer.valueUpdatedAt || null

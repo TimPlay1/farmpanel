@@ -1,8 +1,7 @@
-// FarmerPanel App v9.12.5 - Fixed cache key mismatch issue
-// - Cache now stores data for ALL keys, not just current
-// - loadFarmersDataFromCache now checks if data exists for CURRENT key
-// - Increased sync timeout to 15s for initial load
-// - Better logging for cache debugging
+// FarmerPanel App v9.12.6 - Server-side optimization for faster sync
+// - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
+// - Removed Roblox API calls from GET request (only done on POST sync from script)
+// - GET sync now does single DB query instead of N+1 queries
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
