@@ -22,11 +22,12 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 // Eldorado Configuration
 const ELDORADO_GAME_ID = '259';
 
-// Rate Limits
-const MAX_TOKENS_PER_MINUTE = 14000;
-const MAX_REQUESTS_PER_MINUTE = 7;
-const BASE_PROMPT_TOKENS = 1500;
-const TOKENS_PER_OFFER = 25;
+// Rate Limits (gemma-3-27b free tier: 15K tokens/min, 30 req/min, 14.4K req/day)
+// Используем консервативные значения чтобы оставить запас для других пользователей
+const MAX_TOKENS_PER_MINUTE = 10000;  // Реально 15K, но оставляем запас
+const MAX_REQUESTS_PER_MINUTE = 5;     // Реально 30, но оставляем запас для пользователей
+const BASE_PROMPT_TOKENS = 1200;       // Сокращённый промпт
+const TOKENS_PER_OFFER = 20;           // ~20 токенов на оффер
 
 // Загружаем актуальные списки из файла eldorado-dropdown-lists.json
 let eldoradoDropdownLists = {

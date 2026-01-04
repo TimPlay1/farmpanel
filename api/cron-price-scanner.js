@@ -13,14 +13,17 @@
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
-const VERSION = '2.1.0';
+const VERSION = '2.2.0';
 const { connectToDatabase } = require('./_lib/db');
 
-// Rate limiting для Gemini
-const MAX_REQUESTS_PER_MINUTE = 7;
-const MAX_TOKENS_PER_MINUTE = 14000;
-const TOKENS_PER_BATCH = 2500;
-const MAX_BATCHES_PER_WAVE = 7; // До 7 батчей параллельно
+// Rate limiting для Gemini (gemma-3-27b free tier: 15K tokens/min, 30 req/min)
+// ВАЖНО: Cron использует только REGEX чтобы не тратить AI квоту пользователей!
+// AI квота зарезервирована для интерактивных запросов пользователей
+const MAX_REQUESTS_PER_MINUTE = 3;   // Минимум для cron
+const MAX_TOKENS_PER_MINUTE = 5000;  // Минимум для cron
+const TOKENS_PER_BATCH = 1500;
+const MAX_BATCHES_PER_WAVE = 2;      // Максимум 2 батча для cron
+const CRON_USE_AI = false;           // ОТКЛЮЧАЕМ AI в cron - только regex!
 
 // Загружаем модули
 let aiScanner = null;
@@ -327,10 +330,11 @@ async function runPriceScan() {
         }
     }
     
-    // 3. Обрабатываем AI очередь (если есть время и API key)
+    // 3. AI очередь ОТКЛЮЧЕНА для cron - квота зарезервирована для пользователей
     let aiProcessed = 0;
     
-    if (aiScanner && process.env.GEMINI_API_KEY) {
+    if (CRON_USE_AI && aiScanner && process.env.GEMINI_API_KEY) {
+        // AI обработка отключена в cron для экономии квоты
         const queueItems = await getAIQueueItems(db, 50);
         
         if (queueItems.length > 0) {
@@ -413,6 +417,9 @@ async function runPriceScan() {
                 }
             }
         }
+    } else {
+        // AI отключён в cron для экономии квоты Gemini
+        console.log('🔇 AI disabled in cron (CRON_USE_AI=false) - quota reserved for user requests');
     }
     
     // 4. Очистка старых записей
