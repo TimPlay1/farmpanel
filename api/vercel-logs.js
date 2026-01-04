@@ -22,6 +22,35 @@ const VERCEL_SIGNATURE_SECRET = process.env.VERCEL_LOG_DRAIN_SECRET || 'cKVDJsQv
 // Максимальное количество логов для хранения
 const MAX_LOGS = 10000;
 const MAX_AGE_HOURS = 48; // Хранить логи 48 часов
+const MAX_RETRIES = 3; // Максимальное количество повторов при ошибке
+
+/**
+ * Retry wrapper для MongoDB операций с exponential backoff
+ */
+async function withRetry(operation, maxRetries = MAX_RETRIES) {
+    let lastError;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+            const isRetryable = error.errorLabelSet?.has('PoolRequstedRetry') || 
+                               error.message?.includes('SSL') ||
+                               error.message?.includes('pool') ||
+                               error.message?.includes('connection');
+            
+            if (!isRetryable || attempt === maxRetries) {
+                throw error;
+            }
+            
+            // Exponential backoff: 100ms, 200ms, 400ms...
+            const delay = Math.min(100 * Math.pow(2, attempt - 1), 2000);
+            console.log(`[Vercel Logs] Retry attempt ${attempt}/${maxRetries} after ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+    throw lastError;
+}
 
 /**
  * Верифицирует подпись от Vercel
@@ -104,22 +133,26 @@ module.exports = async (req, res) => {
             if (status) query.statusCode = parseInt(status);
             if (httpMethod) query.method = httpMethod.toUpperCase();
             
-            const logs = await logsCollection
-                .find(query)
-                .sort({ timestamp: -1 })
-                .limit(Math.min(parseInt(limit), 1000))
-                .toArray();
+            const logs = await withRetry(async () => {
+                return logsCollection
+                    .find(query)
+                    .sort({ timestamp: -1 })
+                    .limit(Math.min(parseInt(limit), 1000))
+                    .toArray();
+            });
             
             // Статистика
-            const stats = await logsCollection.aggregate([
-                { $match: query },
-                {
-                    $group: {
-                        _id: '$level',
-                        count: { $sum: 1 }
+            const stats = await withRetry(async () => {
+                return logsCollection.aggregate([
+                    { $match: query },
+                    {
+                        $group: {
+                            _id: '$level',
+                            count: { $sum: 1 }
+                        }
                     }
-                }
-            ]).toArray();
+                ]).toArray();
+            });
             
             const levelCounts = {};
             stats.forEach(s => levelCounts[s._id] = s.count);
@@ -195,21 +228,27 @@ module.exports = async (req, res) => {
             }
             
             if (docsToInsert.length > 0) {
-                await logsCollection.insertMany(docsToInsert, { ordered: false });
+                await withRetry(async () => {
+                    return logsCollection.insertMany(docsToInsert, { ordered: false });
+                });
                 
-                // Ограничиваем количество логов
-                const totalCount = await logsCollection.countDocuments();
-                if (totalCount > MAX_LOGS) {
-                    const deleteCount = totalCount - MAX_LOGS;
-                    const oldestLogs = await logsCollection
-                        .find({})
-                        .sort({ timestamp: 1 })
-                        .limit(deleteCount)
-                        .project({ _id: 1 })
-                        .toArray();
-                    
-                    const idsToDelete = oldestLogs.map(l => l._id);
-                    await logsCollection.deleteMany({ _id: { $in: idsToDelete } });
+                // Ограничиваем количество логов (не критично если упадёт)
+                try {
+                    const totalCount = await logsCollection.countDocuments();
+                    if (totalCount > MAX_LOGS) {
+                        const deleteCount = totalCount - MAX_LOGS;
+                        const oldestLogs = await logsCollection
+                            .find({})
+                            .sort({ timestamp: 1 })
+                            .limit(deleteCount)
+                            .project({ _id: 1 })
+                            .toArray();
+                        
+                        const idsToDelete = oldestLogs.map(l => l._id);
+                        await logsCollection.deleteMany({ _id: { $in: idsToDelete } });
+                    }
+                } catch (cleanupErr) {
+                    console.warn('[Vercel Logs] Cleanup failed (non-critical):', cleanupErr.message);
                 }
             }
             
@@ -239,7 +278,9 @@ module.exports = async (req, res) => {
                 }
             }
             
-            const result = await logsCollection.deleteMany(query);
+            const result = await withRetry(async () => {
+                return logsCollection.deleteMany(query);
+            });
             
             return res.json({
                 success: true,
