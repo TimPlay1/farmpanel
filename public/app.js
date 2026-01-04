@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.7 - Localization fixes for all hardcoded strings
+// FarmerPanel App v9.12.8 - Fix localization not to overwrite shop name, instant re-render on language change
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -64,6 +64,8 @@ const i18n = {
         all_status: 'All Status',
         listed: 'Listed',
         not_listed: 'Not Listed',
+        total: 'total',
+        unique: 'unique',
         
         // Leaderboards
         leaderboards: 'Leaderboards',
@@ -375,6 +377,8 @@ const i18n = {
         all_status: 'Все статусы',
         listed: 'Выставлены',
         not_listed: 'Не выставлены',
+        total: 'всего',
+        unique: 'уникальных',
         
         // Leaderboards
         leaderboards: 'Рейтинги',
@@ -669,6 +673,10 @@ function applyLocalization() {
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (key) {
+            // Skip shop name if it has a saved value (not_configured is the default key)
+            if (el.id === 'shopNameValue' && key === 'not_configured' && shopNameState.isConfigured) {
+                return; // Don't overwrite saved shop name
+            }
             el.textContent = t(key);
         }
     });
@@ -695,6 +703,40 @@ function applyLocalization() {
             options[2].textContent = '📊 ' + t('median');
             options[3].textContent = '⬆️ ' + t('next_competitor');
         }
+    }
+}
+
+// Re-render all dynamic elements on language change (without reloading data)
+function rerenderDynamicElements() {
+    // Re-render collection (has dynamic stats with total/unique)
+    if (typeof renderCollection === 'function' && collectionState?.filteredBrainrots) {
+        renderCollection();
+    }
+    
+    // Re-render offers (has dynamic labels)
+    if (typeof filterAndRenderOffers === 'function' && offersState?.offers) {
+        filterAndRenderOffers();
+    }
+    
+    // Re-render farm keys (has dynamic labels)
+    if (typeof renderFarmKeys === 'function') {
+        renderFarmKeys();
+    }
+    
+    // Re-render accounts if on accounts tab
+    if (typeof renderAccountsGrid === 'function' && state?.farmersData?.[state.currentKey]?.accounts) {
+        renderAccountsGrid(state.farmersData[state.currentKey].accounts);
+        renderAccountsList(state.farmersData[state.currentKey].accounts);
+    }
+    
+    // Update shop name display (to restore custom name if any)
+    if (typeof updateShopNameDisplay === 'function') {
+        updateShopNameDisplay();
+    }
+    
+    // Update mass selection UI if active
+    if (massSelectionState?.isActive && typeof updateMassSelectionUI === 'function') {
+        updateMassSelectionUI();
     }
 }
 
@@ -2913,6 +2955,8 @@ function setupSettingsListeners() {
                 const lang = btn.dataset.lang;
                 saveLanguage(lang);
                 applyLocalization();
+                // Re-render dynamic elements with new translations (without reloading data)
+                rerenderDynamicElements();
                 updateSettingsUI();
                 showNotification(lang === 'en' ? 'Language changed to English' : 'Язык изменён на русский', 'success');
             });
@@ -5464,8 +5508,8 @@ async function renderCollection() {
             changeHtml = ' ' + formatBalanceChange(state.currentBalanceChange.changePercent, true);
         }
         
-        let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' total</span>';
-        statsHtml += '<span><i class="fas fa-fingerprint"></i> ' + uniqueNames.size + ' unique</span>';
+        let statsHtml = '<span><i class="fas fa-layer-group"></i> ' + collectionState.allBrainrots.length + ' ' + t('total') + '</span>';
+        statsHtml += '<span><i class="fas fa-fingerprint"></i> ' + uniqueNames.size + ' ' + t('unique') + '</span>';
         if (totalValue > 0) {
             statsHtml += '<span class="total-value"><i class="fas fa-dollar-sign"></i> ' + totalValue.toFixed(2) + changeHtml + '</span>';
         }
