@@ -1,38 +1,44 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен
- * Version: 2.1.0 - auth fix with case-insensitive UA check
+ * Version: 2.3.0 - AI DISABLED in cron to preserve quota
  * 
  * Запускается каждые 10 минут через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
  * 
+ * ⚠️ AI ОТКЛЮЧЁН! Cron использует только regex парсинг.
+ * AI квота (15K tokens/min) зарезервирована для пользователей.
+ * 
  * ЛОГИКА по схеме:
  * 1. Собираем все уникальные брейнроты из БД (все farmKeys)
  * 2. Regex парсит сразу - сохраняем результат
- * 3. При изменении цены → добавляем в AI очередь
- * 4. AI обрабатывает очередь батчами (7 req/min)
+ * 3. При изменении цены → добавляем в AI очередь (ОТКЛЮЧЕНО)
+ * 4. AI обрабатывает очередь батчами (ОТКЛЮЧЕНО)
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
-const VERSION = '2.2.0';
+const VERSION = '2.3.0';  // AI DISABLED
 const { connectToDatabase } = require('./_lib/db');
 
-// Rate limiting для Gemini (gemma-3-27b free tier: 15K tokens/min, 30 req/min)
-// ВАЖНО: Cron использует только REGEX чтобы не тратить AI квоту пользователей!
-// AI квота зарезервирована для интерактивных запросов пользователей
-const MAX_REQUESTS_PER_MINUTE = 3;   // Минимум для cron
-const MAX_TOKENS_PER_MINUTE = 5000;  // Минимум для cron
-const TOKENS_PER_BATCH = 1500;
-const MAX_BATCHES_PER_WAVE = 2;      // Максимум 2 батча для cron
-const CRON_USE_AI = false;           // ОТКЛЮЧАЕМ AI в cron - только regex!
+// ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
+// Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
+const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
 
-// Загружаем модули
+// Rate limiting (не используется когда AI отключён)
+const MAX_REQUESTS_PER_MINUTE = 3;
+const MAX_TOKENS_PER_MINUTE = 5000;
+const TOKENS_PER_BATCH = 1500;
+const MAX_BATCHES_PER_WAVE = 2;
+
+// НЕ загружаем AI модуль когда CRON_USE_AI = false
 let aiScanner = null;
 let eldoradoPrice = null;
 
-try {
-    aiScanner = require('./ai-scanner.js');
-} catch (e) {
-    console.warn('AI Scanner not available:', e.message);
+if (CRON_USE_AI) {
+    try {
+        aiScanner = require('./ai-scanner.js');
+    } catch (e) {
+        console.warn('AI Scanner not available:', e.message);
+    }
 }
 
 try {
@@ -243,7 +249,8 @@ async function cleanupQueue(db) {
  * Главная функция сканирования
  */
 async function runPriceScan() {
-    console.log('🚀 Starting centralized price scan...');
+    console.log(`🚀 Starting centralized price scan v${VERSION}`);
+    console.log(`⚠️ AI DISABLED: CRON_USE_AI=${CRON_USE_AI} - using regex only`);
     const startTime = Date.now();
     
     const { db } = await connectToDatabase();
