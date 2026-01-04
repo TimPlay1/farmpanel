@@ -908,6 +908,66 @@ async function loadBrainrotMapping() {
     }
 }
 
+/**
+ * Предзагрузить изображения брейнротов для мгновенного отображения
+ * Загружает только изображения для текущих брейнротов пользователя
+ */
+async function preloadBrainrotImages() {
+    const data = state.farmersData[state.currentKey];
+    if (!data || !data.accounts) return;
+    
+    // Собираем уникальные имена брейнротов
+    const brainrotNames = new Set();
+    data.accounts.forEach(account => {
+        if (account.brainrots) {
+            account.brainrots.forEach(b => {
+                if (b.name) brainrotNames.add(b.name.toLowerCase().trim());
+            });
+        }
+    });
+    
+    if (brainrotNames.size === 0) return;
+    
+    console.log(`🖼️ Preloading ${brainrotNames.size} brainrot images...`);
+    
+    // Создаём promise для каждого изображения
+    const imagePromises = [];
+    const maxPreload = 50; // Ограничиваем до 50 изображений
+    let count = 0;
+    
+    for (const name of brainrotNames) {
+        if (count >= maxPreload) break;
+        
+        const imageUrl = getBrainrotImageUrl(name);
+        if (imageUrl) {
+            const promise = new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => resolve(true);
+                img.onerror = () => resolve(false);
+                img.src = imageUrl;
+                // Timeout на случай зависания
+                setTimeout(() => resolve(false), 5000);
+            });
+            imagePromises.push(promise);
+            count++;
+        }
+    }
+    
+    // Ждём загрузки всех изображений (с таймаутом 8 секунд общим)
+    const timeoutPromise = new Promise(resolve => setTimeout(() => resolve('timeout'), 8000));
+    const result = await Promise.race([
+        Promise.all(imagePromises),
+        timeoutPromise
+    ]);
+    
+    if (result === 'timeout') {
+        console.log('⏱️ Image preload timeout, continuing...');
+    } else {
+        const loaded = result.filter(r => r === true).length;
+        console.log(`✅ Preloaded ${loaded}/${imagePromises.length} images`);
+    }
+}
+
 // Get brainrot image URL
 function getBrainrotImageUrl(name) {
     if (!name) return null;
@@ -1251,6 +1311,14 @@ function hideLoadingScreen() {
     }
 }
 
+// Update loading screen text
+function updateLoadingText(text) {
+    const loadingSubtitle = loadingScreen?.querySelector('.loading-subtitle');
+    if (loadingSubtitle) {
+        loadingSubtitle.textContent = text;
+    }
+}
+
 // Initialize - оптимизировано для быстрой загрузки
 document.addEventListener('DOMContentLoaded', async () => {
     // === ЭТАП 1: Синхронная загрузка из localStorage (мгновенная) ===
@@ -1262,8 +1330,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadShopNameFromCache(); // Кэш названия магазина (мгновенно)
     setupEventListeners();
     
-    // === ЭТАП 2: Показываем UI сразу с кэшированными данными ===
+    // === ЭТАП 2: Загружаем критические ресурсы перед показом UI ===
     if (state.currentKey && state.savedKeys.length > 0) {
+        updateLoadingText('Loading brainrot images...');
+        
+        // Загружаем маппинг брейнротов (нужен для изображений)
+        await loadBrainrotMapping();
+        
+        // Предзагружаем изображения ДО показа UI
+        await preloadBrainrotImages();
+        
+        // Теперь показываем UI с уже загруженными изображениями
         showMainApp();
         hideLoadingScreen();
         
@@ -1272,12 +1349,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateUI();
         }
         
-        // === ЭТАП 3: Параллельная фоновая загрузка всех данных ===
+        // === ЭТАП 3: Параллельная фоновая загрузка остальных данных ===
         // Запускаем ВСЕ fetch-запросы одновременно (не ждём друг друга)
+        // ВАЖНО: loadBrainrotMapping уже вызван выше (для preload изображений)
         const backgroundLoads = [
-            // Маппинг брейнротов (для изображений)
-            loadBrainrotMapping().catch(e => console.warn('Brainrot mapping load failed:', e)),
-            
             // История баланса (для графиков)
             loadBalanceHistory().catch(e => console.warn('Balance history load failed:', e)),
             
