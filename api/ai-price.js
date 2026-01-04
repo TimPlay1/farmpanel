@@ -153,8 +153,8 @@ async function forceAIPrice(brainrotName, ourIncome, mutation = null) {
         const regexFullResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome, { mutation });
         
         // Получаем офферы с Eldorado для AI парсинга
-        // v9.11.3: Передаём мутацию для фильтрации
-        const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome, { mutation });
+        // v9.11.6: ИСПРАВЛЕНО - передаём mutation в options (4-й параметр), а не maxPages (3-й)
+        const searchResult = await eldoradoPrice.searchBrainrotOffers(brainrotName, ourIncome, 50, { mutation });
         
         if (!searchResult.allPageOffers || searchResult.allPageOffers.length === 0) {
             throw new Error('No offers found on Eldorado');
