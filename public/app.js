@@ -1251,57 +1251,78 @@ function hideLoadingScreen() {
     }
 }
 
-// Initialize
+// Initialize - оптимизировано для быстрой загрузки
 document.addEventListener('DOMContentLoaded', async () => {
-    await loadBrainrotMapping();
+    // === ЭТАП 1: Синхронная загрузка из localStorage (мгновенная) ===
     loadState();
-    loadFarmersDataFromCache(); // Загружаем кэш данных фермеров для мгновенного отображения
-    loadPriceCacheFromStorage(); // Загружаем кэш цен из localStorage
-    loadAvatarCache(); // Загружаем кэш аватаров
-    loadOffersFromStorage(); // Загружаем кэш офферов из localStorage (для подсветки)
-    await loadBalanceHistory(); // Загружаем историю баланса (await!)
+    loadFarmersDataFromCache(); // Кэш данных фермеров
+    loadPriceCacheFromStorage(); // Кэш цен
+    loadAvatarCache(); // Кэш аватаров
+    loadOffersFromStorage(); // Кэш офферов
     setupEventListeners();
     
+    // === ЭТАП 2: Показываем UI сразу с кэшированными данными ===
     if (state.currentKey && state.savedKeys.length > 0) {
         showMainApp();
-        hideLoadingScreen(); // Скрываем loading screen после показа приложения
-        // Сразу показываем данные из кэша
+        hideLoadingScreen();
+        
+        // Показываем кэшированные данные мгновенно
         if (state.farmersData[state.currentKey]) {
             updateUI();
         }
-        // Пробуем загрузить цены с сервера для быстрого отображения
-        loadPricesFromServer().then(async loaded => {
-            if (loaded) {
-                console.log('Loaded prices from server cache');
-                // v9.8.10: Also update offers prices
-                if (offersState.offers.length > 0) {
-                    await updateOffersRecommendedPrices();
-                    filterAndRenderOffers();
+        
+        // === ЭТАП 3: Параллельная фоновая загрузка всех данных ===
+        // Запускаем ВСЕ fetch-запросы одновременно (не ждём друг друга)
+        const backgroundLoads = [
+            // Маппинг брейнротов (для изображений)
+            loadBrainrotMapping().catch(e => console.warn('Brainrot mapping load failed:', e)),
+            
+            // История баланса (для графиков)
+            loadBalanceHistory().catch(e => console.warn('Balance history load failed:', e)),
+            
+            // Цены с сервера (для расчётов стоимости)
+            loadPricesFromServer().then(async loaded => {
+                if (loaded) {
+                    console.log('✅ Loaded prices from server cache');
+                    if (offersState.offers.length > 0) {
+                        await updateOffersRecommendedPrices();
+                        filterAndRenderOffers();
+                    }
+                    updateUI();
+                    renderFarmKeys();
                 }
-                updateUI();
-                renderFarmKeys();
-            }
-        });
-        // Загружаем офферы в фоне (для подсветки в коллекции)
-        loadOffers(false, true).then(() => {
-            // После загрузки офферов перерисовываем коллекцию если она открыта
-            if (collectionState.allBrainrots.length > 0) {
-                renderCollection();
-            }
-        });
-        // Предзагружаем данные топа в фоне
-        preloadTopData();
-        // Запускаем polling сразу - данные будут обновляться в фоне
+            }).catch(e => console.warn('Prices load failed:', e)),
+            
+            // Офферы (для подсветки в коллекции)
+            loadOffers(false, true).then(() => {
+                if (collectionState.allBrainrots.length > 0) {
+                    renderCollection();
+                }
+            }).catch(e => console.warn('Offers load failed:', e)),
+            
+            // Топ данные (для вкладки топа)
+            preloadTopData().catch(e => console.warn('Top data preload failed:', e)),
+            
+            // Данные всех фермеров
+            fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e))
+        ];
+        
+        // Запускаем polling сразу - данные будут обновляться
         startPolling();
-        // Загружаем данные всех фермеров в фоне (не блокируя UI)
-        fetchAllFarmersData();
         
         // Автообновление цен каждые 10 минут
         startAutoPriceRefresh();
         
         // Слушаем события обновления офферов от Tampermonkey скрипта
         setupOffersRefreshListener();
+        
+        // Ждём завершения всех фоновых загрузок (не блокируя UI)
+        Promise.all(backgroundLoads).then(() => {
+            console.log('✅ All background data loaded');
+        });
     } else {
+        // Если нет ключа - показываем логин, но всё равно грузим маппинг
+        loadBrainrotMapping();
         showLoginScreen();
     }
 });
@@ -2221,7 +2242,7 @@ function updateAccountCard(cardEl, account) {
                     ${mutationBadge}
                     <div class="brainrot-mini-img">
                         ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                            ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
                             : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
                         }
                     </div>
@@ -2608,7 +2629,7 @@ async function renderAccountsGrid(accounts) {
                 <div class="brainrot-mini" title="${b.name}\n${b.incomeText || ''}">
                     <div class="brainrot-mini-img">
                         ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${b.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                            ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
                             : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
                         }
                     </div>
@@ -3960,7 +3981,7 @@ async function renderCollection() {
             ` : ''}
             <div class="brainrot-image">
                 ${group.imageUrl 
-                    ? `<img src="${group.imageUrl}" alt="${group.name}" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                    ? `<img src="${group.imageUrl}" alt="${group.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
                     : '<i class="fas fa-brain"></i>'
                 }
             </div>
@@ -7677,13 +7698,14 @@ let topState = {
     loading: false
 };
 
-// Preload top data in background (silent, no UI updates)
+// Preload top data in background (silent, no UI updates) - OPTIMIZED: parallel requests
 async function preloadTopData() {
     const types = ['income', 'value', 'total'];
     
-    for (const type of types) {
+    // Запускаем все запросы параллельно вместо последовательно
+    const promises = types.map(async (type) => {
         // Skip if already cached
-        if (topState.cache[type]) continue;
+        if (topState.cache[type]) return;
         
         try {
             const response = await fetch(`${API_BASE}/top?type=${type}`);
@@ -7696,8 +7718,10 @@ async function preloadTopData() {
         } catch (error) {
             // Silent fail - will load on demand
         }
-    }
-    console.log('Preloaded top data');
+    });
+    
+    await Promise.all(promises);
+    console.log('✅ Preloaded top data (parallel)');
 }
 
 function initTopView() {
