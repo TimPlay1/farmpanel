@@ -455,7 +455,13 @@ module.exports = async (req, res) => {
     // если CRON_SECRET настроен в Environment Variables
     const authHeader = req.headers.authorization;
     const userAgent = req.headers['user-agent'] || '';
-    const isCronByUserAgent = userAgent.includes('vercel-cron');
+    
+    // Проверяем User-Agent (case-insensitive)
+    const isCronByUserAgent = userAgent.toLowerCase().includes('vercel-cron');
+    
+    // Также проверяем x-vercel-cron заголовок (альтернативный способ определения)
+    const vercelCronHeader = req.headers['x-vercel-cron'];
+    const isCronByHeader = vercelCronHeader === '1' || vercelCronHeader === 'true';
     
     // Vercel Cron с настроенным CRON_SECRET
     const cronSecret = process.env.CRON_SECRET;
@@ -463,16 +469,16 @@ module.exports = async (req, res) => {
     
     // Разрешаем если:
     // 1. Это Vercel Cron по User-Agent (без CRON_SECRET)
-    // 2. Это Vercel Cron с правильным CRON_SECRET
-    // 3. Ручной вызов с правильным секретом
-    const isAuthorized = isCronByUserAgent || isCronByAuth;
+    // 2. Это Vercel Cron по x-vercel-cron заголовку
+    // 3. Это Vercel Cron с правильным CRON_SECRET
+    const isAuthorized = isCronByUserAgent || isCronByHeader || isCronByAuth;
     
     if (!isAuthorized) {
-        console.log(`Unauthorized: UA=${userAgent}, Auth=${authHeader ? 'present' : 'none'}, CRON_SECRET=${cronSecret ? 'set' : 'not set'}`);
+        console.log(`Unauthorized: UA="${userAgent}", x-vercel-cron=${vercelCronHeader || 'none'}, Auth=${authHeader ? 'present' : 'none'}, CRON_SECRET=${cronSecret ? 'set' : 'not set'}`);
         return res.status(401).json({ error: 'Unauthorized' });
     }
     
-    console.log(`📅 Cron price scanner triggered (byUA: ${isCronByUserAgent}, byAuth: ${isCronByAuth})`);
+    console.log(`📅 Cron price scanner triggered (byUA: ${isCronByUserAgent}, byHeader: ${isCronByHeader}, byAuth: ${isCronByAuth})`);
     
     try {
         const result = await runPriceScan();
