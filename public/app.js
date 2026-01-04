@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.22 - Chart fixes: always show points, faster loading, better period switching
+// FarmerPanel App v9.11.23 - Chart: points visible only on hover
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -9347,12 +9347,15 @@ function _doUpdateBalanceChart(period) {
                 borderWidth: 2,
                 fill: true,
                 tension: 0.4,
-                // v9.11.22: Always show points, smaller when many values
-                pointRadius: chartData.values.length > 50 ? 2 : chartData.values.length > 20 ? 3 : 4,
+                // v9.11.23: Points hidden by default, visible on hover
+                pointRadius: 0,
                 pointHoverRadius: 6,
                 pointBackgroundColor: chartColor,
                 pointBorderColor: '#1a1a2e',
-                pointBorderWidth: 1.5
+                pointBorderWidth: 2,
+                pointHoverBackgroundColor: chartColor,
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
