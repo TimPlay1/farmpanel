@@ -641,13 +641,16 @@ async function loadPricesFromServer() {
                     savePreviousPrices();
                 }
                 
-                // Загружаем цены в state
+                // Загружаем цены в state (включая medianPrice, nextCompetitorPrice и др.)
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     state.brainrotPrices[key] = {
                         ...priceData,
-                        timestamp: new Date(priceData.updatedAt).getTime()
+                        _timestamp: priceData.updatedAt ? new Date(priceData.updatedAt).getTime() : Date.now()
                     };
                 }
+                
+                // ВАЖНО: Сохраняем в localStorage для мгновенной загрузки при следующем визите
+                savePriceCacheToStorage();
                 
                 // Запоминаем время загрузки
                 localStorage.setItem('lastPricesServerLoad', now.toString());
@@ -671,10 +674,16 @@ async function loadPricesFromServer() {
                     savePreviousPrices();
                 }
                 
-                // Загружаем цены в state
+                // Загружаем цены в state (добавляем _timestamp для кэширования)
                 for (const [key, priceData] of Object.entries(data.prices)) {
-                    state.brainrotPrices[key] = priceData;
+                    state.brainrotPrices[key] = {
+                        ...priceData,
+                        _timestamp: priceData._timestamp || Date.now()
+                    };
                 }
+                
+                // ВАЖНО: Сохраняем в localStorage для мгновенной загрузки при следующем визите
+                savePriceCacheToStorage();
                 
                 // Запоминаем время загрузки
                 localStorage.setItem('lastPricesServerLoad', now.toString());
