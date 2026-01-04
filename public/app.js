@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.10 - Optimized price loading (10x faster batch, cron scans mutations)
+// FarmerPanel App v9.12.11 - Faster price loading (batch=20, delay=30ms)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -5800,11 +5800,11 @@ async function loadBrainrotPrices(brainrots) {
     console.log(`[Prices] Loading ${toLoad.length} prices: ${defaultCount} default, ${mutationCount} mutation`);
     collectionState.pricesLoading = true;
     
-    // v9.12.10: Оптимизация - увеличен batch size и уменьшена задержка
-    // 327 цен / 10 = 33 batch'а × 50ms = 1.65 сек задержек (было 16 сек)
-    const BATCH_SIZE = 10;
-    const BATCH_DELAY = 50; // ms между batch'ами (было 150)
-    const SAVE_INTERVAL = 20; // сохраняем в localStorage каждые N загрузок
+    // v9.12.11: Оптимизация - batch size 20, delay 30ms
+    // 406 цен / 20 = 21 batch × 30ms = 0.63 сек задержек
+    const BATCH_SIZE = 20;
+    const BATCH_DELAY = 30; // ms между batch'ами
+    const SAVE_INTERVAL = 40; // сохраняем в localStorage каждые N загрузок
     
     try {
         let loadedCount = 0;
