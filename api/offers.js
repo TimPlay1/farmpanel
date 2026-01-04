@@ -111,19 +111,27 @@ module.exports = async (req, res) => {
             const farmersCollection = db.collection('farmers');
             const farmer = await farmersCollection.findOne({ farmKey });
             
-            // Создаём map (name+income)->mutation для точного поиска
-            // ВАЖНО: использовать ключ name+income, т.к. один brainrot (Los 67) 
-            // может иметь РАЗНЫЕ мутации при разных income
-            const mutationsMap = new Map();
+            // Создаём ДВЕ map для поиска мутаций:
+            // 1. (name+income) -> mutation (точный match)
+            // 2. name -> mutation (fallback если точный не найден)
+            // ВАЖНО: один brainrot (Los 67) может иметь РАЗНЫЕ мутации при разных income
+            const mutationsMapExact = new Map();  // name_income -> mutation
+            const mutationsMapFallback = new Map(); // name -> mutation (последняя найденная)
             if (farmer && farmer.accounts) {
                 for (const account of farmer.accounts) {
                     if (account.brainrots) {
                         for (const b of account.brainrots) {
-                            if (b.mutation && b.name && b.income !== undefined) {
-                                // Ключ: name_roundedIncome (аналогично price cache key)
-                                const roundedIncome = Math.floor((b.income || 0) / 10) * 10;
-                                const mutationKey = `${b.name.toLowerCase()}_${roundedIncome}`;
-                                mutationsMap.set(mutationKey, b.mutation);
+                            if (b.mutation && b.name) {
+                                const nameLower = b.name.toLowerCase();
+                                // Fallback - просто по имени (перезапишется если много)
+                                mutationsMapFallback.set(nameLower, b.mutation);
+                                
+                                // Точный ключ с income (если есть)
+                                if (b.income !== undefined && b.income !== null) {
+                                    const roundedIncome = Math.floor((b.income || 0) / 10) * 10;
+                                    const exactKey = `${nameLower}_${roundedIncome}`;
+                                    mutationsMapExact.set(exactKey, b.mutation);
+                                }
                             }
                         }
                     }
@@ -161,11 +169,25 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // Добавляем мутацию из данных фермера по name+income
-                if (!offer.mutation && offer.brainrotName && offer.income !== undefined) {
-                    const roundedIncome = Math.floor((offer.income || 0) / 10) * 10;
-                    const mutationKey = `${offer.brainrotName.toLowerCase()}_${roundedIncome}`;
-                    const mutation = mutationsMap.get(mutationKey);
+                // Добавляем мутацию из данных фермера
+                // 1. Сначала пробуем точный match по name+income
+                // 2. Если не найден - fallback по имени
+                if (!offer.mutation && offer.brainrotName) {
+                    const nameLower = offer.brainrotName.toLowerCase();
+                    let mutation = null;
+                    
+                    // Точный поиск по name+income
+                    if (offer.income !== undefined && offer.income !== null) {
+                        const roundedIncome = Math.floor((offer.income || 0) / 10) * 10;
+                        const exactKey = `${nameLower}_${roundedIncome}`;
+                        mutation = mutationsMapExact.get(exactKey);
+                    }
+                    
+                    // Fallback по имени если точный не найден
+                    if (!mutation) {
+                        mutation = mutationsMapFallback.get(nameLower);
+                    }
+                    
                     if (mutation) {
                         offer.mutation = mutation;
                     }

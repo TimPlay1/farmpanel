@@ -171,7 +171,8 @@ function extractBrainrotName(title, attributes) {
 }
 
 /**
- * Сканирует все офферы и находит коды
+ * Сканирует все офферы и находит коды v10.4.0
+ * ОПТИМИЗАЦИЯ: Параллельное сканирование страниц batch'ами
  */
 async function scanAllOffers(db, options = {}) {
     const {
@@ -185,7 +186,7 @@ async function scanAllOffers(db, options = {}) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    console.log(`🔍 Starting universal offer scan...`);
+    console.log(`🔍 Starting universal offer scan v10.4.0 (parallel)...`);
     
     // Получаем все зарегистрированные коды из БД
     const registeredCodes = await codesCollection.find({}).toArray();
@@ -200,208 +201,70 @@ async function scanAllOffers(db, options = {}) {
     const matchedOffers = [];    // Офферы с зарегистрированными кодами
     const scannedCodes = new Set(); // Все найденные коды
     
-    let page = 1;
     let totalScanned = 0;
     
-    while (page <= maxPages) {
-        const response = await fetchEldoradoOffers(page, pageSize, searchQuery);
-        
-        if (response.error) {
-            console.error(`❌ Error on page ${page}:`, response.error);
-            break;
-        }
-        
-        if (!response.results || response.results.length === 0) {
-            console.log(`📄 Page ${page}: no more results`);
-            break;
-        }
-        
-        for (const item of response.results) {
-            const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            const description = offer.offerDescription || '';
-            
-            // Извлекаем коды из title и description
-            const titleCodes = extractAllCodes(title);
-            const descCodes = extractAllCodes(description);
-            const allCodes = [...new Set([...titleCodes, ...descCodes])];
-            
-            if (allCodes.length === 0) continue;
-            
-            // Получаем данные оффера
-            const price = offer.pricePerUnitInUSD?.amount || 0;
-            const income = parseIncomeFromTitle(title);
-            const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
-            const imageUrl = buildImageUrl(imageName);
-            const brainrotName = extractBrainrotName(title, offer.offerAttributeIdValues);
-            const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
-            
-            const offerData = {
-                eldoradoOfferId: offer.id,
-                title: title,
-                brainrotName: brainrotName,
-                income: income,
-                incomeRange: msAttr?.value || null,
-                currentPrice: price,
-                imageUrl: imageUrl,
-                sellerName: item.user?.username || offer.seller?.nickname || null,
-                sellerId: item.user?.id || offer.seller?.id || null,
-                codes: allCodes,
-                foundAt: now
-            };
-            
-            foundOffers.push(offerData);
-            
-            // Проверяем каждый код на принадлежность
-            for (const code of allCodes) {
-                scannedCodes.add(code);
-                
-                const owner = codeToOwner.get(code);
-                if (owner) {
-                    matchedOffers.push({
-                        ...offerData,
-                        matchedCode: code,
-                        farmKey: owner.farmKey,
-                        registeredBrainrotName: owner.brainrotName
-                    });
-                }
-            }
-        }
-        
-        totalScanned += response.results.length;
-        console.log(`📄 Page ${page}: ${response.results.length} offers, ${foundOffers.length} with codes, ${matchedOffers.length} matched`);
-        
-        if (response.results.length < pageSize) break;
-        page++;
-        
-        // Задержка между страницами
-        await new Promise(r => setTimeout(r, 150));
+    // v10.4.0: Сначала получаем первую страницу чтобы узнать общее количество
+    const firstPage = await fetchEldoradoOffers(1, pageSize, searchQuery);
+    if (firstPage.error || !firstPage.results?.length) {
+        console.log('❌ Failed to fetch first page or no results');
+        return {
+            totalScanned: 0,
+            withCodes: 0,
+            uniqueCodes: 0,
+            matched: 0,
+            matchedOffers: [],
+            foundCodes: [],
+            timestamp: now.toISOString()
+        };
     }
     
-    console.log(`\n📊 Scan complete:`);
-    console.log(`   Total scanned: ${totalScanned} offers`);
-    console.log(`   With codes: ${foundOffers.length} offers`);
-    console.log(`   Unique codes found: ${scannedCodes.size}`);
-    console.log(`   Matched to users: ${matchedOffers.length}`);
+    // Обрабатываем первую страницу
+    processPageResults(firstPage.results, foundOffers, matchedOffers, scannedCodes, codeToOwner, now);
+    totalScanned += firstPage.results.length;
+    
+    const totalCount = firstPage.totalCount || 0;
+    const totalPages = Math.min(Math.ceil(totalCount / pageSize), maxPages);
+    console.log(`📊 Total offers: ${totalCount}, pages to scan: ${totalPages}`);
+    
+    // v10.4.0: Параллельное сканирование остальных страниц (batch по 5)
+    const BATCH_SIZE = 5;
+    for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, totalPages);
+        const pagePromises = [];
+        
+        for (let page = batchStart; page <= batchEnd; page++) {
+            pagePromises.push(fetchEldoradoOffers(page, pageSize, searchQuery));
+        }
+        
+        // Ждём все страницы в batch
+        const batchResults = await Promise.all(pagePromises);
+        
+        let shouldStop = false;
+        for (const response of batchResults) {
+            if (response.error) {
+                console.error(`❌ Error in batch:`, response.error);
+                continue;
+            }
+            if (!response.results?.length) {
+                shouldStop = true;
+                continue;
+            }
+            
+            processPageResults(response.results, foundOffers, matchedOffers, scannedCodes, codeToOwner, now);
+            totalScanned += response.results.length;
+        }
+        
+        if (shouldStop) break;
+        
+        // Небольшая задержка между batch'ами
+        await new Promise(r => setTimeout(r, 50));
+    }
+    
+    console.log(`📊 Scan complete: ${totalScanned} scanned, ${foundOffers.length} with codes, ${matchedOffers.length} matched`);
     
     // Обновляем БД если нужно
     if (updateDatabase && matchedOffers.length > 0) {
-        console.log(`\n💾 Updating database...`);
-        
-        let updated = 0;
-        let created = 0;
-        
-        // Группируем по farmKey для batch обновления
-        const byFarmKey = new Map();
-        for (const offer of matchedOffers) {
-            if (!byFarmKey.has(offer.farmKey)) {
-                byFarmKey.set(offer.farmKey, []);
-            }
-            byFarmKey.get(offer.farmKey).push(offer);
-        }
-        
-        for (const [farmKey, offers] of byFarmKey) {
-            for (const offer of offers) {
-                // Обновляем offer_codes
-                await codesCollection.updateOne(
-                    { code: offer.matchedCode },
-                    {
-                        $set: {
-                            status: 'active',
-                            eldoradoOfferId: offer.eldoradoOfferId,
-                            currentPrice: offer.currentPrice,
-                            imageUrl: offer.imageUrl || null,
-                            brainrotName: offer.brainrotName || offer.registeredBrainrotName,
-                            income: offer.income,
-                            lastSeenAt: now,
-                            updatedAt: now
-                        }
-                    }
-                );
-                
-                // Создаём/обновляем запись в offers коллекции
-                const existingOffer = await offersCollection.findOne({
-                    farmKey: farmKey,
-                    offerId: offer.matchedCode
-                });
-                
-                if (existingOffer) {
-                    await offersCollection.updateOne(
-                        { _id: existingOffer._id },
-                        {
-                            $set: {
-                                status: 'active',
-                                eldoradoOfferId: offer.eldoradoOfferId,
-                                currentPrice: offer.currentPrice,
-                                brainrotName: offer.brainrotName || existingOffer.brainrotName,
-                                income: offer.income || existingOffer.income,
-                                imageUrl: offer.imageUrl || existingOffer.imageUrl,
-                                eldoradoTitle: offer.title,
-                                sellerName: offer.sellerName,
-                                sellerId: offer.sellerId,
-                                lastScannedAt: now,
-                                updatedAt: now
-                            }
-                        }
-                    );
-                    updated++;
-                } else {
-                    await offersCollection.insertOne({
-                        farmKey: farmKey,
-                        offerId: offer.matchedCode,
-                        brainrotName: offer.brainrotName || offer.registeredBrainrotName,
-                        income: offer.income,
-                        currentPrice: offer.currentPrice,
-                        imageUrl: offer.imageUrl,
-                        eldoradoOfferId: offer.eldoradoOfferId,
-                        eldoradoTitle: offer.title,
-                        sellerName: offer.sellerName,
-                        sellerId: offer.sellerId,
-                        status: 'active',
-                        lastScannedAt: now,
-                        createdAt: now,
-                        updatedAt: now
-                    });
-                    created++;
-                }
-            }
-        }
-        
-        // Помечаем не найденные коды как paused
-        const foundCodeSet = new Set(matchedOffers.map(o => o.matchedCode));
-        const activeCodesInDb = await codesCollection.find({ 
-            status: 'active',
-            code: { $nin: Array.from(foundCodeSet) }
-        }).toArray();
-        
-        let paused = 0;
-        for (const codeDoc of activeCodesInDb) {
-            await codesCollection.updateOne(
-                { code: codeDoc.code },
-                {
-                    $set: {
-                        status: 'paused',
-                        pausedAt: now,
-                        updatedAt: now
-                    }
-                }
-            );
-            
-            // Также обновляем в offers
-            await offersCollection.updateMany(
-                { offerId: codeDoc.code, status: 'active' },
-                {
-                    $set: {
-                        status: 'paused',
-                        pausedAt: now,
-                        updatedAt: now
-                    }
-                }
-            );
-            paused++;
-        }
-        
-        console.log(`   Updated: ${updated}, Created: ${created}, Paused: ${paused}`);
+        await updateDatabaseWithMatches(matchedOffers, codesCollection, offersCollection, now);
     }
     
     return {
@@ -413,6 +276,172 @@ async function scanAllOffers(db, options = {}) {
         foundCodes: Array.from(scannedCodes),
         timestamp: now.toISOString()
     };
+}
+
+/**
+ * Обрабатывает результаты одной страницы
+ */
+function processPageResults(results, foundOffers, matchedOffers, scannedCodes, codeToOwner, now) {
+    for (const item of results) {
+        const offer = item.offer || item;
+        const title = offer.offerTitle || '';
+        const description = offer.offerDescription || '';
+        
+        // Извлекаем коды из title и description
+        const titleCodes = extractAllCodes(title);
+        const descCodes = extractAllCodes(description);
+        const allCodes = [...new Set([...titleCodes, ...descCodes])];
+        
+        if (allCodes.length === 0) continue;
+        
+        // Получаем данные оффера
+        const price = offer.pricePerUnitInUSD?.amount || 0;
+        const income = parseIncomeFromTitle(title);
+        const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+        const imageUrl = buildImageUrl(imageName);
+        const brainrotName = extractBrainrotName(title, offer.offerAttributeIdValues);
+        const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
+        
+        const offerData = {
+            eldoradoOfferId: offer.id,
+            title: title,
+            brainrotName: brainrotName,
+            income: income,
+            incomeRange: msAttr?.value || null,
+            currentPrice: price,
+            imageUrl: imageUrl,
+            sellerName: item.user?.username || offer.seller?.nickname || null,
+            sellerId: item.user?.id || offer.seller?.id || null,
+            codes: allCodes,
+            foundAt: now
+        };
+        
+        foundOffers.push(offerData);
+        
+        // Проверяем каждый код на принадлежность
+        for (const code of allCodes) {
+            scannedCodes.add(code);
+            
+            const owner = codeToOwner.get(code);
+            if (owner) {
+                matchedOffers.push({
+                    ...offerData,
+                    matchedCode: code,
+                    farmKey: owner.farmKey,
+                    registeredBrainrotName: owner.brainrotName
+                });
+            }
+        }
+    }
+}
+
+/**
+ * Обновляет БД с найденными совпадениями
+ */
+async function updateDatabaseWithMatches(matchedOffers, codesCollection, offersCollection, now) {
+    console.log(`💾 Updating database with ${matchedOffers.length} matches...`);
+    
+    let updated = 0;
+    let created = 0;
+    let paused = 0;
+    
+    // Группируем по farmKey для batch обновления
+    const byFarmKey = new Map();
+    for (const offer of matchedOffers) {
+        if (!byFarmKey.has(offer.farmKey)) {
+            byFarmKey.set(offer.farmKey, []);
+        }
+        byFarmKey.get(offer.farmKey).push(offer);
+    }
+    
+    for (const [farmKey, offers] of byFarmKey) {
+        for (const offer of offers) {
+            // Обновляем offer_codes
+            await codesCollection.updateOne(
+                { code: offer.matchedCode },
+                {
+                    $set: {
+                        status: 'active',
+                        eldoradoOfferId: offer.eldoradoOfferId,
+                        currentPrice: offer.currentPrice,
+                        imageUrl: offer.imageUrl || null,
+                        brainrotName: offer.brainrotName || offer.registeredBrainrotName,
+                        income: offer.income,
+                        lastSeenAt: now,
+                        updatedAt: now
+                    }
+                }
+            );
+            
+            // Создаём/обновляем запись в offers коллекции
+            const existingOffer = await offersCollection.findOne({
+                farmKey: farmKey,
+                offerId: offer.matchedCode
+            });
+            
+            if (existingOffer) {
+                await offersCollection.updateOne(
+                    { _id: existingOffer._id },
+                    {
+                        $set: {
+                            status: 'active',
+                            eldoradoOfferId: offer.eldoradoOfferId,
+                            currentPrice: offer.currentPrice,
+                            brainrotName: offer.brainrotName || existingOffer.brainrotName,
+                            income: offer.income || existingOffer.income,
+                            imageUrl: offer.imageUrl || existingOffer.imageUrl,
+                            eldoradoTitle: offer.title,
+                            sellerName: offer.sellerName,
+                            sellerId: offer.sellerId,
+                            lastScannedAt: now,
+                            updatedAt: now
+                        }
+                    }
+                );
+                updated++;
+            } else {
+                await offersCollection.insertOne({
+                    farmKey: farmKey,
+                    offerId: offer.matchedCode,
+                    brainrotName: offer.brainrotName || offer.registeredBrainrotName,
+                    income: offer.income,
+                    currentPrice: offer.currentPrice,
+                    imageUrl: offer.imageUrl,
+                    eldoradoOfferId: offer.eldoradoOfferId,
+                    eldoradoTitle: offer.title,
+                    sellerName: offer.sellerName,
+                    sellerId: offer.sellerId,
+                    status: 'active',
+                    lastScannedAt: now,
+                    createdAt: now,
+                    updatedAt: now
+                });
+                created++;
+            }
+        }
+    }
+    
+    // Помечаем не найденные коды как paused
+    const foundCodeSet = new Set(matchedOffers.map(o => o.matchedCode));
+    const activeCodesInDb = await codesCollection.find({ 
+        status: 'active',
+        code: { $nin: Array.from(foundCodeSet) }
+    }).toArray();
+    
+    for (const codeDoc of activeCodesInDb) {
+        await codesCollection.updateOne(
+            { code: codeDoc.code },
+            { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+        );
+        
+        await offersCollection.updateMany(
+            { offerId: codeDoc.code, status: 'active' },
+            { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+        );
+        paused++;
+    }
+    
+    console.log(`   Updated: ${updated}, Created: ${created}, Paused: ${paused}`);
 }
 
 // Кэш последнего сканирования
