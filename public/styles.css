@@ -4063,7 +4063,7 @@ body {
     color: var(--text-secondary);
 }
 
-/* Emoji Picker Popup */
+/* Emoji Picker Popup - v9.11.15: Fixed layout */
 .emoji-picker-popup {
     position: fixed;
     z-index: 100001;
@@ -4071,8 +4071,8 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 12px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    width: 320px;
-    max-height: 400px;
+    width: 360px;
+    max-height: 450px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -4090,6 +4090,7 @@ body {
     border-bottom: 1px solid var(--border-color);
     font-weight: 600;
     color: var(--text-primary);
+    flex-shrink: 0;
 }
 
 .emoji-picker-close {
@@ -4109,6 +4110,7 @@ body {
 .emoji-picker-search {
     padding: 0.75rem;
     border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
 }
 
 .emoji-picker-search input {
@@ -4119,6 +4121,7 @@ body {
     border-radius: 6px;
     color: var(--text-primary);
     font-size: 0.875rem;
+    box-sizing: border-box;
 }
 
 .emoji-picker-search input:focus {
@@ -4128,11 +4131,13 @@ body {
 
 .emoji-picker-grid {
     display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 4px;
-    padding: 0.75rem;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 2px;
+    padding: 0.5rem;
     overflow-y: auto;
-    max-height: 280px;
+    overflow-x: hidden;
+    flex: 1;
+    min-height: 0;
 }
 
 .emoji-picker-grid::-webkit-scrollbar {
@@ -4149,22 +4154,24 @@ body {
 }
 
 .emoji-picker-item {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.25rem;
+    font-size: 1.2rem;
     background: transparent;
     border: none;
     border-radius: 6px;
     cursor: pointer;
     transition: all 0.15s;
+    padding: 0;
+    margin: 0;
 }
 
 .emoji-picker-item:hover {
     background: var(--bg-hover);
-    transform: scale(1.2);
+    transform: scale(1.15);
 }
 
 /* Register Code Section - kept for backwards compatibility but not used */
