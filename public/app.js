@@ -1,4 +1,4 @@
-// FarmerPanel App v9.11.4 - Mutation Price Variants in Offers
+// FarmerPanel App v9.11.18 - Fix empty Collection on first load
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -1666,6 +1666,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         // Предзагружаем изображения ДО показа UI
         await preloadBrainrotImages();
+        
+        // v9.11.18: Проверяем есть ли кэшированные данные
+        const hasCachedData = state.farmersData[state.currentKey] && 
+            state.farmersData[state.currentKey].accounts && 
+            state.farmersData[state.currentKey].accounts.length > 0;
+        
+        if (!hasCachedData) {
+            // Нет кэша - загружаем данные с сервера ДО показа UI
+            updateLoadingText('Loading account data...');
+            try {
+                const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    state.farmersData[state.currentKey] = data;
+                    saveFarmersDataToCache();
+                    console.log('✅ Loaded farmer data from server');
+                }
+            } catch (e) {
+                console.warn('Failed to load farmer data:', e);
+                // Показываем UI даже если загрузка не удалась
+            }
+        }
         
         // Теперь показываем UI с уже загруженными изображениями
         showMainApp();
