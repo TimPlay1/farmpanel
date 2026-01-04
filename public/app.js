@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.2 - Complete Localization (EN/RU) - All UI Elements
+// FarmerPanel App v9.12.3 - Optimized Data Loading on Key Switch
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -2438,13 +2438,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         
         if (!hasCachedData) {
-            // v9.11.20: Timeout 8 секунд чтобы не висеть вечно
+            // v9.12.3: Сокращён таймаут с 8 до 5 секунд для быстрого показа UI
             updateLoadingText('Loading account data...');
             try {
                 const response = await fetchWithTimeout(
                     `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
                     {},
-                    8000 // 8 секунд timeout
+                    5000 // 5 секунд timeout (было 8)
                 );
                 if (response.ok) {
                     const data = await response.json();
@@ -2482,8 +2482,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Слушаем события обновления офферов от Tampermonkey скрипта
         setupOffersRefreshListener();
         
+        // v9.12.3: Сохраняем начальный ключ для проверки при фоновой загрузке
+        const initialKey = state.currentKey;
+        
         // Последовательная загрузка фоновых данных с задержками
         // v9.11.20: Добавлены таймауты для каждой операции
+        // v9.12.3: Добавлена проверка смены ключа
         (async function loadBackgroundData() {
             const delay = ms => new Promise(r => setTimeout(r, ms));
             const withTimeout = (promise, ms) => Promise.race([
@@ -2491,11 +2495,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                 new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), ms))
             ]);
             
+            // v9.12.3: Проверка что ключ не изменился
+            const keyChanged = () => state.currentKey !== initialKey;
+            
             try {
                 // 1. Цены (если не загружены ранее)
                 if (Object.keys(state.brainrotPrices).length === 0) {
                     await withTimeout(loadPricesFromServer(), 10000).then(async loaded => {
-                        if (loaded) {
+                        if (loaded && !keyChanged()) {
                             console.log('✅ Loaded prices from server cache');
                             updateUI();
                             renderFarmKeys();
@@ -2506,42 +2513,49 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }).catch(e => console.warn('Prices load failed:', e.message));
                 }
                 
+                if (keyChanged()) return; // v9.12.3: Прерываем если ключ изменился
                 await delay(200);
                 
                 // 2. Офферы
                 await withTimeout(loadOffers(false, true), 10000).then(() => {
-                    if (collectionState.allBrainrots.length > 0) {
+                    if (!keyChanged() && collectionState.allBrainrots.length > 0) {
                         renderCollection();
                     }
                 }).catch(e => console.warn('Offers load failed:', e.message));
                 
+                if (keyChanged()) return;
                 await delay(200);
                 
                 // 3. История баланса - v9.11.26: увеличен timeout, updateChart внутри loadBalanceHistory
                 await withTimeout(loadBalanceHistory(), 15000).catch(e => {
                     console.warn('Balance history:', e.message);
                     // v9.11.26: Пробуем обновить график даже при timeout (данные могли загрузиться)
-                    if (state.balanceHistory[state.currentKey]?.length > 1) {
+                    if (!keyChanged() && state.balanceHistory[state.currentKey]?.length > 1) {
                         updateBalanceChart();
                     }
                 });
                 
+                if (keyChanged()) return;
                 await delay(200);
                 
                 // 4. Топ данные
                 await withTimeout(preloadTopData(), 8000).catch(e => console.warn('Top data:', e.message));
                 
+                if (keyChanged()) return;
                 await delay(200);
                 
                 // 5. Данные всех фермеров (не критично если не загрузится)
                 await withTimeout(fetchAllFarmersData(), 10000).catch(e => console.warn('Farmers data:', e.message));
                 
+                if (keyChanged()) return;
                 await delay(200);
                 
                 // 6. Название магазина
                 await withTimeout(loadShopName(), 5000).catch(e => console.warn('Shop name:', e.message));
                 
-                console.log('✅ Background loading complete');
+                if (!keyChanged()) {
+                    console.log('✅ Background loading complete');
+                }
             } catch (e) {
                 console.warn('Background loading error:', e);
             }
@@ -3165,7 +3179,7 @@ async function fetchFarmerData() {
     
     // Don't start new sync if one is already in progress
     if (syncInProgress) {
-        console.log('[Sync] Skipping - previous sync still in progress');
+        // v9.12.3: Не логируем каждый skip - слишком много спама
         return;
     }
     
@@ -3182,6 +3196,11 @@ async function fetchFarmerData() {
         }
         currentFetchController = new AbortController();
         
+        // v9.12.3: Добавляем timeout через AbortController
+        const timeoutId = setTimeout(() => {
+            currentFetchController.abort();
+        }, 6000); // 6 секунд таймаут (было бесконечно)
+        
         // Add cache-busting timestamp to prevent browser caching
         const cacheBuster = Date.now();
         const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}&_=${cacheBuster}`, {
@@ -3193,6 +3212,7 @@ async function fetchFarmerData() {
             }
         });
         
+        clearTimeout(timeoutId);
         const networkTime = performance.now() - fetchStart;
         
         // Проверяем что ключ не изменился пока ждали ответ
@@ -4323,31 +4343,130 @@ async function handleEditUsername() {
     }
 }
 
-window.selectFarmKey = function(farmKey) {
+window.selectFarmKey = async function(farmKey) {
     // Если уже выбран этот ключ - ничего не делаем
     if (state.currentKey === farmKey) {
         return;
     }
     
-    // Останавливаем текущий polling и отменяем запросы
+    // Останавливаем текущий polling и отменяем ВСЕ запросы
     stopPolling();
     abortCurrentFetch();
+    abortStatusFetch(); // v9.12.3: Также отменяем status запросы
     
+    // v9.12.3: Сбрасываем счётчики ошибок при смене ключа
+    syncErrorCount = 0;
+    statusErrorCount = 0;
+    syncInProgress = false;
+    
+    const previousKey = state.currentKey;
     state.currentKey = farmKey;
     saveState();
     
     // Сразу показываем данные из кэша если есть
     const cachedData = state.farmersData[farmKey];
-    if (cachedData) {
+    if (cachedData && cachedData.accounts && cachedData.accounts.length > 0) {
         console.log('Using cached data for', farmKey);
         updateUI();
+        renderFarmKeys();
+        // v9.12.3: Быстрый запуск polling с задержкой (данные уже показаны)
+        setTimeout(() => startPolling(), 500);
+    } else {
+        // v9.12.3: Нет кэша - показываем лоадер и загружаем данные напрямую
+        console.log('No cache for', farmKey, '- loading fresh data...');
+        renderFarmKeys();
+        
+        // Показываем индикатор загрузки в UI
+        showQuickLoadingIndicator();
+        
+        try {
+            // v9.12.3: Быстрая загрузка данных с коротким таймаутом
+            const response = await fetchWithTimeout(
+                `${API_BASE}/sync?key=${encodeURIComponent(farmKey)}&_=${Date.now()}`,
+                { cache: 'no-store' },
+                5000 // 5 секунд таймаут (было 8)
+            );
+            
+            if (response.ok) {
+                const data = await response.json();
+                state.farmersData[farmKey] = data;
+                saveFarmersDataToCache();
+                console.log('✅ Loaded data for new key:', farmKey);
+                updateUI();
+            } else {
+                console.warn('Failed to load data for key:', farmKey, response.status);
+            }
+        } catch (e) {
+            console.warn('Error loading data for new key:', e.message);
+        } finally {
+            hideQuickLoadingIndicator();
+        }
+        
+        // Запускаем polling после загрузки
+        startPolling();
     }
     
-    renderFarmKeys();
-    
-    // Перезапускаем polling для нового пользователя
-    startPolling();
+    // v9.12.3: Параллельная загрузка дополнительных данных для нового ключа
+    loadKeySpecificData(farmKey);
 };
+
+// v9.12.3: Загрузка данных специфичных для ключа (история баланса, офферы)
+async function loadKeySpecificData(farmKey) {
+    // Проверяем что ключ не изменился
+    if (state.currentKey !== farmKey) return;
+    
+    const delay = ms => new Promise(r => setTimeout(r, ms));
+    
+    try {
+        // 1. Загружаем историю баланса
+        await delay(300);
+        if (state.currentKey === farmKey) {
+            loadBalanceHistory().catch(e => console.warn('Balance history:', e.message));
+        }
+        
+        // 2. Загружаем офферы
+        await delay(300);
+        if (state.currentKey === farmKey) {
+            loadOffers(false, true).catch(e => console.warn('Offers:', e.message));
+        }
+        
+        // 3. Загружаем название магазина
+        await delay(200);
+        if (state.currentKey === farmKey) {
+            loadShopName().catch(e => console.warn('Shop name:', e.message));
+        }
+    } catch (e) {
+        console.warn('Error loading key-specific data:', e);
+    }
+}
+
+// v9.12.3: Быстрый индикатор загрузки (не полноэкранный)
+function showQuickLoadingIndicator() {
+    // Добавляем класс loading к dashboard
+    const dashboard = document.querySelector('.dashboard-page');
+    if (dashboard) {
+        dashboard.classList.add('loading-data');
+    }
+    // Показываем текст в header stats
+    if (statsEls.totalAccounts) {
+        statsEls.totalAccounts.textContent = '...';
+    }
+}
+
+function hideQuickLoadingIndicator() {
+    const dashboard = document.querySelector('.dashboard-page');
+    if (dashboard) {
+        dashboard.classList.remove('loading-data');
+    }
+}
+
+// v9.12.3: Отмена status запросов
+function abortStatusFetch() {
+    if (statusController) {
+        statusController.abort();
+        statusController = null;
+    }
+}
 
 window.deleteFarmKey = function(farmKey) {
     if (state.savedKeys.length === 1) {
