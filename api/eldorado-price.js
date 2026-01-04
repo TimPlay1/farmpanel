@@ -24,6 +24,10 @@ try {
 const priceCache = new Map();
 const CACHE_TTL = 2 * 60 * 1000; // 2 минуты - чтобы не долбить Eldorado API
 
+// v9.11.4: Кэш для searchBrainrotOffers (краткосрочный - 30 сек)
+const searchCache = new Map();
+const SEARCH_CACHE_TTL = 30 * 1000; // 30 секунд - предотвращает повторные запросы при AI re-parsing
+
 // v10.3.0: Кэш пользователей панели (shopNames и offer codes)
 let panelUsersCache = {
     shopNames: new Set(),      // Все shopName пользователей панели (lowercase)
@@ -791,10 +795,21 @@ function generateSearchVariants(name) {
 async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 50, options = {}) {
     const { disableAI = false, mutation = null } = options;
     
+    // v9.11.4: Ключ кэша для searchBrainrotOffers
+    const targetMsRange = getMsRange(targetIncome);
+    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    const searchCacheKey = `${brainrotName.toLowerCase()}_${targetMsRange}_${Math.round(targetIncome / 5) * 5}${mutationKey}`;
+    
+    // Проверяем краткосрочный кэш (30 сек) - предотвращает повторные запросы
+    const cachedSearch = searchCache.get(searchCacheKey);
+    if (cachedSearch && Date.now() - cachedSearch.timestamp < SEARCH_CACHE_TTL) {
+        console.log('🗄️ Using cached search result for', brainrotName, '(age:', Math.round((Date.now() - cachedSearch.timestamp) / 1000) + 's)');
+        return cachedSearch.data;
+    }
+    
     const eldoradoInfo = findEldoradoBrainrot(brainrotName);
     // Используем точное имя из mapping или оригинальное имя
     const eldoradoName = eldoradoInfo?.name || brainrotName;
-    const targetMsRange = getMsRange(targetIncome);
     const msRangeAttrId = getMsRangeAttrId(targetMsRange);
     
     // v9.11.0: Получаем ID атрибута мутации для фильтрации
@@ -1184,7 +1199,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         }
     }
     
-    return {
+    // v9.11.4: Сохраняем результат в краткосрочный кэш
+    const result = {
         upperOffer,
         lowerOffer,
         nextCompetitor,      // v9.9.0: Следующий компетитор после upper
@@ -1198,6 +1214,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         aiParsedCount,
         mutation             // v9.11.0: Мутация для которой искали (или null для Default)
     };
+    
+    searchCache.set(searchCacheKey, { data: result, timestamp: Date.now() });
+    
+    return result;
 }
 
 /**
