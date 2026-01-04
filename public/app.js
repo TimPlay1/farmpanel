@@ -3450,13 +3450,15 @@ function collectAllBrainrots() {
     updateAccountDropdown(accounts);
 }
 
-// Группировка одинаковых брейнротов по имени и доходу
+// Группировка одинаковых брейнротов по имени, доходу И мутации
+// Разные мутации НЕ стакаются - каждая мутация отдельная карточка
 function groupBrainrots(brainrots) {
     const groups = new Map();
     
     for (const b of brainrots) {
         const income = normalizeIncomeForApi(b.income, b.incomeText);
-        const groupKey = getGroupKey(b.name, income);
+        // Теперь ключ включает мутацию - разные мутации = разные группы
+        const groupKey = getGroupKey(b.name, income, b.mutation);
         
         if (!groups.has(groupKey)) {
             groups.set(groupKey, {
@@ -3464,7 +3466,7 @@ function groupBrainrots(brainrots) {
                 income: income, // Use normalized income, not raw
                 incomeText: b.incomeText,
                 imageUrl: b.imageUrl,
-                mutation: b.mutation || null,
+                mutation: b.mutation || null, // Мутация фиксируется при создании группы
                 items: [],
                 quantity: 0
             });
@@ -3479,10 +3481,7 @@ function groupBrainrots(brainrots) {
         });
         group.quantity++;
         
-        // Если у группы ещё нет мутации, но у этого brainrot есть - добавляем
-        if (!group.mutation && b.mutation) {
-            group.mutation = b.mutation;
-        }
+        // НЕ перезаписываем мутацию группы - она уже установлена правильно при создании
     }
     
     return Array.from(groups.values());
@@ -3929,9 +3928,6 @@ async function renderCollection() {
         
         const accountsList = group.items.map(i => i.accountName).join(', ');
         
-        // Получаем общее количество генераций для этого оффера (суммируем count всех генераций)
-        const totalGenerationCount = getGroupTotalGenerationCount(group.name, income);
-        
         // Build class list for selection mode
         const cardClasses = ['brainrot-card'];
         if (allGenerated) cardClasses.push('brainrot-generated');
@@ -3954,8 +3950,8 @@ async function renderCollection() {
              data-quantity="${group.quantity}"
              ${clickHandler}>
             ${hasOffer ? `<div class="brainrot-offer-badge" title="На продаже"><i class="fas fa-shopping-cart"></i></div>` : ''}
-            <div class="brainrot-generate-btn ${totalGenerationCount > 0 ? 'has-generations' : ''}" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}${totalGenerationCount > 0 ? '\nСгенерировано: ' + totalGenerationCount + ' раз' : ''}">
-                ${totalGenerationCount > 0 ? `<span class="generation-count">${totalGenerationCount}</span>` : `<i class="fas fa-plus"></i>`}
+            <div class="brainrot-generate-btn" onclick="event.stopPropagation(); handleGroupGenerateClick(${index})" title="Генерировать изображение${group.quantity > 1 ? ' (x' + group.quantity + ')' : ''}">
+                <i class="fas fa-plus"></i>
             </div>
             ${group.quantity > 1 ? `
             <div class="brainrot-quantity-badge" data-tooltip="Фермеры:\n${accountsDetails}">
@@ -4915,31 +4911,36 @@ async function postToEldorado() {
 // ==========================================
 
 /**
- * Get unique key for a brainrot group (name + income)
+ * Get unique key for a brainrot group (name + income + mutation)
  * Used for stable selection across search/filter operations
- * Can be called as getGroupKey(group) or getGroupKey(name, income)
+ * Can be called as getGroupKey(group) or getGroupKey(name, income, mutation)
  * Note: income is NOT rounded - each unique income value creates a separate group
+ * Note: mutation is included - different mutations = different groups
  */
-function getGroupKey(nameOrGroup, incomeArg) {
-    let name, income;
+function getGroupKey(nameOrGroup, incomeArg, mutationArg) {
+    let name, income, mutation;
     
-    // Support both signatures: getGroupKey(group) and getGroupKey(name, income)
+    // Support both signatures: getGroupKey(group) and getGroupKey(name, income, mutation)
     if (typeof nameOrGroup === 'object' && nameOrGroup !== null) {
         // Called with group object
         if (!nameOrGroup.name) return '';
         name = nameOrGroup.name;
         income = normalizeIncomeForApi(nameOrGroup.income, nameOrGroup.incomeText);
+        mutation = nameOrGroup.mutation || null;
     } else {
-        // Called with name and income
+        // Called with name, income, and optionally mutation
         if (!nameOrGroup) return '';
         name = nameOrGroup;
         income = incomeArg || 0;
+        mutation = mutationArg || null;
     }
     
     // Use exact income (with dots replaced by underscores) - NO rounding!
     // Each unique income value should be a separate group
+    // Mutation is part of the key - different mutations = different groups
     const incomeStr = String(income).replace(/\./g, '_');
-    return `${name.toLowerCase()}_${incomeStr}`;
+    const mutationStr = mutation ? `_${cleanMutationText(mutation).toLowerCase()}` : '';
+    return `${name.toLowerCase()}_${incomeStr}${mutationStr}`;
 }
 
 /**

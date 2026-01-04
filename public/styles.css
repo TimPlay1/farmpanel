@@ -1690,8 +1690,14 @@ body {
 }
 
 .brainrot-card:hover {
-    border-color: var(--accent-primary);
+    /* border-color removed - only has-offer cards have border highlight */
     transform: translateY(-2px);
+}
+
+/* Only has-offer cards get border highlight on hover */
+.brainrot-card.has-offer:hover {
+    border-color: #60a5fa;
+    box-shadow: 0 0 0 1px #60a5fa, 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 /* Generate Button - Top Left Corner */
@@ -2266,22 +2272,25 @@ body {
     top: 100%;
     right: 0;
     margin-top: 6px;
-    padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.95);
+    padding: 10px 14px;
+    background: rgba(0, 0, 0, 0.98);
     color: #fff;
-    font-size: 0.7rem;
+    font-size: 0.72rem;
     font-weight: 400;
     border-radius: 8px;
     white-space: pre-line;
-    min-width: 150px;
-    max-width: 250px;
+    min-width: 160px;
+    width: max-content;
+    max-width: 280px;
     opacity: 0;
     visibility: hidden;
     transition: all 0.2s ease;
     z-index: 100;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
     pointer-events: none;
-    line-height: 1.4;
+    line-height: 1.5;
+    text-align: left;
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .brainrot-quantity-badge:hover::after {
@@ -2304,13 +2313,13 @@ body {
     font-size: 0.55rem;
 }
 
-/* Generated card styling */
+/* Generated card styling - border removed, only button shows status */
 .brainrot-card.brainrot-generated {
-    border-color: rgba(74, 222, 128, 0.3);
+    /* border-color removed - no special border for generated cards */
 }
 
 .brainrot-card.brainrot-generated:hover {
-    border-color: rgba(74, 222, 128, 0.5);
+    /* border-color removed */
 }
 
 /* has-offer takes priority over brainrot-generated */
@@ -2324,13 +2333,13 @@ body {
     box-shadow: 0 0 0 1px #60a5fa, 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
-/* Partially generated card styling */
+/* Partially generated card styling - border removed */
 .brainrot-card.brainrot-partial {
-    border-color: rgba(245, 158, 11, 0.3);
+    /* border-color removed - no special border */
 }
 
 .brainrot-card.brainrot-partial:hover {
-    border-color: rgba(245, 158, 11, 0.5);
+    /* border-color removed */
 }
 
 /* Generate button changes for generated cards */
