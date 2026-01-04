@@ -1386,45 +1386,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             updateUI();
         }
         
-        // === ЭТАП 3: Параллельная фоновая загрузка остальных данных ===
-        // Запускаем ВСЕ fetch-запросы одновременно (не ждём друг друга)
+        // === ЭТАП 3: Последовательная фоновая загрузка (снижает нагрузку на MongoDB) ===
+        // Загружаем данные с небольшими задержками чтобы избежать перегрузки
         // ВАЖНО: loadBrainrotMapping уже вызван выше (для preload изображений)
-        const backgroundLoads = [
-            // История баланса (для графиков)
-            loadBalanceHistory().catch(e => console.warn('Balance history load failed:', e)),
-            
-            // Цены с сервера (для расчётов стоимости)
-            loadPricesFromServer().then(async loaded => {
-                if (loaded) {
-                    console.log('✅ Loaded prices from server cache');
-                    if (offersState.offers.length > 0) {
-                        await updateOffersRecommendedPrices();
-                        filterAndRenderOffers();
-                    }
-                    updateUI();
-                    renderFarmKeys();
-                }
-            }).catch(e => console.warn('Prices load failed:', e)),
-            
-            // Офферы (для подсветки в коллекции)
-            loadOffers(false, true).then(() => {
-                if (collectionState.allBrainrots.length > 0) {
-                    renderCollection();
-                }
-            }).catch(e => console.warn('Offers load failed:', e)),
-            
-            // Топ данные (для вкладки топа)
-            preloadTopData().catch(e => console.warn('Top data preload failed:', e)),
-            
-            // Данные всех фермеров
-            fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e)),
-            
-            // Название магазина (фоновое обновление из БД)
-            loadShopName().catch(e => console.warn('Shop name load failed:', e))
-        ];
         
-        // Запускаем polling сразу - данные будут обновляться
-        startPolling();
+        // Запускаем polling с задержкой (даём время на первые загрузки)
+        setTimeout(() => {
+            startPolling();
+        }, 2000);
         
         // Автообновление цен каждые 10 минут
         startAutoPriceRefresh();
@@ -1432,17 +1401,64 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Слушаем события обновления офферов от Tampermonkey скрипта
         setupOffersRefreshListener();
         
-        // Ждём завершения всех фоновых загрузок (не блокируя UI)
-        Promise.all(backgroundLoads).then(() => {
-            console.log('✅ All background data loaded');
-        });
+        // Последовательная загрузка фоновых данных с задержками
+        (async function loadBackgroundData() {
+            const delay = ms => new Promise(r => setTimeout(r, ms));
+            
+            try {
+                // 1. Сначала цены (важно для UI)
+                await loadPricesFromServer().then(async loaded => {
+                    if (loaded) {
+                        console.log('✅ Loaded prices from server cache');
+                        if (offersState.offers.length > 0) {
+                            await updateOffersRecommendedPrices();
+                            filterAndRenderOffers();
+                        }
+                        updateUI();
+                        renderFarmKeys();
+                    }
+                }).catch(e => console.warn('Prices load failed:', e));
+                
+                await delay(300);
+                
+                // 2. Офферы
+                await loadOffers(false, true).then(() => {
+                    if (collectionState.allBrainrots.length > 0) {
+                        renderCollection();
+                    }
+                }).catch(e => console.warn('Offers load failed:', e));
+                
+                await delay(300);
+                
+                // 3. История баланса
+                await loadBalanceHistory().catch(e => console.warn('Balance history load failed:', e));
+                
+                await delay(300);
+                
+                // 4. Топ данные
+                await preloadTopData().catch(e => console.warn('Top data preload failed:', e));
+                
+                await delay(300);
+                
+                // 5. Данные всех фермеров
+                await fetchAllFarmersData().catch(e => console.warn('Farmers data load failed:', e));
+                
+                await delay(300);
+                
+                // 6. Название магазина
+                await loadShopName().catch(e => console.warn('Shop name load failed:', e));
+                
+                console.log('✅ All background data loaded');
+            } catch (e) {
+                console.warn('Background loading error:', e);
+            }
+        })();
     } else {
         // Если нет ключа - показываем логин, но всё равно грузим маппинг
         loadBrainrotMapping();
         showLoginScreen();
     }
 });
-
 // State Management
 function loadState() {
     try {
@@ -1823,10 +1839,10 @@ let fetchRequestId = 0; // ID запроса для проверки актуа�
 
 function startPolling() {
     fetchFarmerData();
-    // Full data every 5 seconds (includes brainrots array for dashboard cards)
-    pollingInterval = setInterval(fetchFarmerData, 5000);
-    // Fast status updates every 3 seconds (lightweight - only status/action/counts)
-    statusPollingInterval = setInterval(fetchStatusOnly, 3000);
+    // Full data every 10 seconds (reduced from 5s to lower MongoDB load)
+    pollingInterval = setInterval(fetchFarmerData, 10000);
+    // Fast status updates every 6 seconds (reduced from 3s)
+    statusPollingInterval = setInterval(fetchStatusOnly, 6000);
 }
 
 function stopPolling() {
@@ -1843,9 +1859,17 @@ function stopPolling() {
 // Fast status-only fetch (lightweight endpoint)
 let statusController = null;
 let lastStatusRequestId = 0;
+let statusErrorCount = 0; // Track consecutive errors
+const MAX_STATUS_ERRORS = 3; // Skip polling after this many errors
 
 async function fetchStatusOnly() {
     if (!state.currentKey) return;
+    
+    // Skip if too many consecutive errors (backoff)
+    if (statusErrorCount >= MAX_STATUS_ERRORS) {
+        statusErrorCount--; // Slowly decrease to allow retry
+        return;
+    }
     
     const thisStatusId = ++lastStatusRequestId;
     
@@ -1861,7 +1885,12 @@ async function fetchStatusOnly() {
             signal: statusController.signal
         });
         
-        if (!response.ok) return;
+        if (!response.ok) {
+            statusErrorCount++;
+            return;
+        }
+        
+        statusErrorCount = 0; // Reset on success
         
         // Check if this is still the latest request
         if (thisStatusId !== lastStatusRequestId) {
@@ -1970,9 +1999,17 @@ function abortCurrentFetch() {
 // Track if sync is in progress to prevent overlapping requests
 let syncInProgress = false;
 let lastSyncRequestId = 0;
+let syncErrorCount = 0; // Track consecutive sync errors
+const MAX_SYNC_ERRORS = 3; // Skip polling after this many errors
 
 async function fetchFarmerData() {
     if (!state.currentKey) return;
+    
+    // Skip if too many consecutive errors (backoff)
+    if (syncErrorCount >= MAX_SYNC_ERRORS) {
+        syncErrorCount--; // Slowly decrease to allow retry
+        return;
+    }
     
     // Don't start new sync if one is already in progress
     if (syncInProgress) {
@@ -2013,9 +2050,11 @@ async function fetchFarmerData() {
         
         if (!response.ok) {
             console.error('Failed to fetch farmer data, status:', response.status);
+            syncErrorCount++;
             return;
         }
         
+        syncErrorCount = 0; // Reset on success
         const data = await response.json();
         
         // Ещё раз проверяем что ключ не изменился

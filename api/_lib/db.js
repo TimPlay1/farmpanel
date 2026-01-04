@@ -2,6 +2,9 @@ const { MongoClient } = require('mongodb');
 
 let cachedClient = null;
 let cachedDb = null;
+let connectionPromise = null; // Prevent multiple simultaneous connection attempts
+let lastPingTime = 0;
+const PING_INTERVAL = 30000; // Ping only every 30 seconds
 
 // Retry helper with exponential backoff
 async function withRetry(fn, maxRetries = 3, baseDelayMs = 1000) {
@@ -28,25 +31,40 @@ async function withRetry(fn, maxRetries = 3, baseDelayMs = 1000) {
             // Clear cached connection on retry
             cachedClient = null;
             cachedDb = null;
+            connectionPromise = null;
         }
     }
     throw lastError;
 }
 
 async function connectToDatabase() {
-    if (cachedDb) {
-        // Verify connection is still alive
+    // Return cached connection if available
+    if (cachedDb && cachedClient) {
+        // Only ping periodically to verify connection (not every request)
+        const now = Date.now();
+        if (now - lastPingTime < PING_INTERVAL) {
+            return { client: cachedClient, db: cachedDb };
+        }
+        
+        // Periodic health check
         try {
             await cachedClient.db('admin').command({ ping: 1 });
+            lastPingTime = now;
             return { client: cachedClient, db: cachedDb };
         } catch (e) {
             console.log('Cached connection stale, reconnecting...');
             cachedClient = null;
             cachedDb = null;
+            connectionPromise = null;
         }
     }
 
-    return withRetry(async () => {
+    // Prevent multiple simultaneous connection attempts
+    if (connectionPromise) {
+        return connectionPromise;
+    }
+
+    connectionPromise = withRetry(async () => {
         let uri = process.env.MONGODB_URI;
         if (!uri) {
             throw new Error('MONGODB_URI environment variable is not set');
@@ -58,15 +76,16 @@ async function connectToDatabase() {
         }
 
         const client = new MongoClient(uri, {
-            maxPoolSize: 10,
+            maxPoolSize: 5,        // Reduced from 10
             minPoolSize: 1,
-            serverSelectionTimeoutMS: 15000,
-            socketTimeoutMS: 60000,
-            connectTimeoutMS: 30000,
+            serverSelectionTimeoutMS: 10000,  // Reduced from 15000
+            socketTimeoutMS: 45000,           // Reduced from 60000
+            connectTimeoutMS: 20000,          // Reduced from 30000
             tls: true,
             tlsAllowInvalidCertificates: false,
             retryReads: true,
             retryWrites: true,
+            maxIdleTimeMS: 30000,  // Close idle connections after 30s
         });
         
         await client.connect();
@@ -75,9 +94,19 @@ async function connectToDatabase() {
         
         cachedClient = client;
         cachedDb = db;
+        lastPingTime = Date.now();
         
         console.log('MongoDB connected successfully');
         return { client, db };
+    }, 3, 1000);
+    
+    try {
+        const result = await connectionPromise;
+        return result;
+    } finally {
+        connectionPromise = null;
+    }
+}
     }, 3, 1000);
 }
 
