@@ -1116,7 +1116,14 @@ function getPriceCacheKey(name, income, mutation = null) {
     // Округляем income до 10 для группировки близких значений
     const roundedIncome = Math.floor(income / 10) * 10;
     // v9.11.0: Добавляем мутацию в ключ для отдельного кэширования цен мутаций
-    const mutationKey = mutation && mutation !== 'None' && mutation !== 'Default' ? `_${mutation}` : '';
+    // v9.11.3: Нормализуем мутацию - очищаем и приводим к единому формату
+    let mutationKey = '';
+    if (mutation && mutation !== 'None' && mutation !== 'Default') {
+        const cleanMut = cleanMutationText(mutation);
+        if (cleanMut) {
+            mutationKey = `_${cleanMut}`;
+        }
+    }
     return `${name.toLowerCase()}_${roundedIncome}${mutationKey}`;
 }
 
