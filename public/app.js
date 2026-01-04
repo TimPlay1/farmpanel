@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.9 - Instant chart display from localStorage cache
+// FarmerPanel App v9.12.10 - Optimized price loading (10x faster batch, cron scans mutations)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1271,6 +1271,7 @@ function saveBalanceHistoryToCache() {
 /**
  * Загрузить историю баланса из сервера (MongoDB)
  * v9.12.9: Сначала показываем кэшированные данные, затем обновляем в фоне
+ * v9.12.10: Только показываем график из кэша если есть >= 2 точек
  */
 async function loadBalanceHistory() {
     if (!state.currentKey) {
@@ -1280,11 +1281,18 @@ async function loadBalanceHistory() {
     
     console.log('loadBalanceHistory: loading for', state.currentKey);
     
-    // v9.12.9: Сначала загружаем из кэша и сразу показываем график
+    // v9.12.9: Сначала загружаем из кэша
     const hasCachedData = loadBalanceHistoryFromCache();
+    
+    // v9.12.10: Показываем график только если есть >= 2 точек данных
     if (hasCachedData) {
-        // Показываем график с кэшированными данными немедленно
-        updateBalanceChart();
+        const cachedHistory = state.balanceHistory[state.currentKey];
+        if (cachedHistory && cachedHistory.length >= 2) {
+            console.log('📊 Cache has enough data, updating chart immediately');
+            updateBalanceChart();
+        } else {
+            console.log(`📊 Cache has only ${cachedHistory?.length || 0} points, need >= 2 to show chart`);
+        }
     }
     
     // Затем загружаем свежие данные с сервера в фоне
@@ -1292,7 +1300,13 @@ async function loadBalanceHistory() {
         const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
         console.log('loadBalanceHistory: fetching from', url);
         
-        const response = await fetch(url);
+        // v9.12.10: Добавляем таймаут 15 секунд для сервера
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 15000);
+        
+        const response = await fetch(url, { signal: controller.signal });
+        clearTimeout(timeout);
+        
         console.log('loadBalanceHistory: response status', response.status);
         
         if (response.ok) {
@@ -1316,7 +1330,11 @@ async function loadBalanceHistory() {
             console.warn('loadBalanceHistory: server returned', response.status);
         }
     } catch (e) {
-        console.warn('Failed to load balance history from server:', e);
+        if (e.name === 'AbortError') {
+            console.warn('loadBalanceHistory: request timed out (15s)');
+        } else {
+            console.warn('Failed to load balance history from server:', e);
+        }
     }
     
     // Инициализируем пустой массив если сервер недоступен и кэша нет
@@ -2064,11 +2082,12 @@ function getPriceCacheKey(name, income, mutation = null) {
     const roundedIncome = Math.floor(income / 10) * 10;
     // v9.11.0: Добавляем мутацию в ключ для отдельного кэширования цен мутаций
     // v9.11.3: Нормализуем мутацию - очищаем и приводим к единому формату
+    // v9.12.10: Приводим мутацию к lowercase для совместимости с серверным кэшем
     let mutationKey = '';
     if (mutation && mutation !== 'None' && mutation !== 'Default') {
         const cleanMut = cleanMutationText(mutation);
         if (cleanMut) {
-            mutationKey = `_${cleanMut}`;
+            mutationKey = `_${cleanMut.toLowerCase()}`;
         }
     }
     return `${name.toLowerCase()}_${roundedIncome}${mutationKey}`;
@@ -5781,10 +5800,11 @@ async function loadBrainrotPrices(brainrots) {
     console.log(`[Prices] Loading ${toLoad.length} prices: ${defaultCount} default, ${mutationCount} mutation`);
     collectionState.pricesLoading = true;
     
-    // Оптимизация: загружаем параллельно по 3 запроса с задержкой 150ms между batch'ами
-    const BATCH_SIZE = 3;
-    const BATCH_DELAY = 150; // ms между batch'ами
-    const SAVE_INTERVAL = 5; // сохраняем в localStorage каждые N загрузок
+    // v9.12.10: Оптимизация - увеличен batch size и уменьшена задержка
+    // 327 цен / 10 = 33 batch'а × 50ms = 1.65 сек задержек (было 16 сек)
+    const BATCH_SIZE = 10;
+    const BATCH_DELAY = 50; // ms между batch'ами (было 150)
+    const SAVE_INTERVAL = 20; // сохраняем в localStorage каждые N загрузок
     
     try {
         let loadedCount = 0;

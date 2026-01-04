@@ -16,7 +16,7 @@
  * 5. Результаты сохраняются в глобальный кэш цен
  */
 
-const VERSION = '2.4.0';  // AI DISABLED via disableAI option
+const VERSION = '2.5.0';  // Mutation support in cron
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
@@ -49,6 +49,7 @@ try {
 
 /**
  * Собирает все уникальные брейнроты со всех панелей из БД
+ * v9.12.10: Теперь также собирает мутации как отдельные записи
  */
 async function collectAllBrainrotsFromDB() {
     const { db } = await connectToDatabase();
@@ -60,6 +61,7 @@ async function collectAllBrainrotsFromDB() {
     const uniqueBrainrots = new Map();
     let totalAccounts = 0;
     let totalBrainrots = 0;
+    let totalMutations = 0;
     
     for (const farmer of farmers) {
         if (!farmer.accounts) continue;
@@ -72,24 +74,54 @@ async function collectAllBrainrotsFromDB() {
                 totalBrainrots++;
                 const name = b.name;
                 const income = normalizeIncome(b.income, b.incomeText);
-                const key = `${name.toLowerCase()}_${income}`;
                 
-                if (!uniqueBrainrots.has(key)) {
-                    uniqueBrainrots.set(key, {
+                // 1. Default price (всегда)
+                const defaultKey = `${name.toLowerCase()}_${income}`;
+                if (!uniqueBrainrots.has(defaultKey)) {
+                    uniqueBrainrots.set(defaultKey, {
                         name,
                         income,
+                        mutation: null,
                         count: 1
                     });
                 } else {
-                    uniqueBrainrots.get(key).count++;
+                    uniqueBrainrots.get(defaultKey).count++;
+                }
+                
+                // 2. Mutation price (если есть мутация)
+                // v9.12.10: Используем cleanMutation для нормализации
+                const cleanMut = cleanMutationForKey(b.mutation);
+                if (cleanMut) {
+                    totalMutations++;
+                    const mutationKey = `${name.toLowerCase()}_${income}_${cleanMut}`;
+                    if (!uniqueBrainrots.has(mutationKey)) {
+                        uniqueBrainrots.set(mutationKey, {
+                            name,
+                            income,
+                            mutation: b.mutation, // Сохраняем оригинал для передачи в API
+                            count: 1
+                        });
+                    } else {
+                        uniqueBrainrots.get(mutationKey).count++;
+                    }
                 }
             }
         }
     }
     
-    console.log(`📊 Collected from DB: ${farmers.length} farmers, ${totalAccounts} accounts, ${totalBrainrots} brainrots, ${uniqueBrainrots.size} unique`);
+    console.log(`📊 Collected from DB: ${farmers.length} farmers, ${totalAccounts} accounts, ${totalBrainrots} brainrots (${totalMutations} mutations), ${uniqueBrainrots.size} unique`);
     
     return Array.from(uniqueBrainrots.values());
+}
+
+// Вспомогательная функция для ключа (cleanMutation определена ниже)
+function cleanMutationForKey(mutation) {
+    if (!mutation || mutation === 'None' || mutation === 'Default') return null;
+    let clean = mutation.replace(/<[^>]+>/g, '').trim();
+    if (clean.toLowerCase().includes('yin') && clean.toLowerCase().includes('yang')) {
+        return 'yinyang';
+    }
+    return clean.toLowerCase() || null;
 }
 
 /**
@@ -119,10 +151,27 @@ function normalizeIncome(income, incomeText) {
 }
 
 /**
- * Получает текущую цену из глобального кэша
+ * v9.12.10: Очищает текст мутации (аналог cleanMutationText на клиенте)
  */
-async function getCachedPrice(db, name, income) {
-    const cacheKey = `${name.toLowerCase()}_${income}`;
+function cleanMutation(mutation) {
+    if (!mutation) return null;
+    let clean = mutation.replace(/<[^>]+>/g, '').trim();
+    if (clean.toLowerCase().includes('yin') && clean.toLowerCase().includes('yang')) {
+        return 'yinyang';
+    }
+    return clean.toLowerCase() || null;
+}
+
+/**
+ * Получает текущую цену из глобального кэша
+ * v9.12.10: Поддержка мутаций
+ */
+async function getCachedPrice(db, name, income, mutation = null) {
+    let cacheKey = `${name.toLowerCase()}_${income}`;
+    const cleanMut = cleanMutation(mutation);
+    if (cleanMut) {
+        cacheKey += `_${cleanMut}`;
+    }
     const collection = db.collection('price_cache');
     
     const cached = await collection.findOne({ _id: cacheKey });
@@ -131,9 +180,14 @@ async function getCachedPrice(db, name, income) {
 
 /**
  * Сохраняет цену в глобальный кэш
+ * v9.12.10: Поддержка мутаций
  */
-async function savePriceToCache(db, name, income, priceData) {
-    const cacheKey = `${name.toLowerCase()}_${income}`;
+async function savePriceToCache(db, name, income, priceData, mutation = null) {
+    let cacheKey = `${name.toLowerCase()}_${income}`;
+    const cleanMut = cleanMutation(mutation);
+    if (cleanMut) {
+        cacheKey += `_${cleanMut}`;
+    }
     const collection = db.collection('price_cache');
     
     await collection.updateOne(
@@ -143,6 +197,7 @@ async function savePriceToCache(db, name, income, priceData) {
                 ...priceData,
                 name,
                 income,
+                mutation: cleanMut || null,
                 updatedAt: new Date()
             }
         },
@@ -152,10 +207,15 @@ async function savePriceToCache(db, name, income, priceData) {
 
 /**
  * Добавляет в AI очередь
+ * v9.12.10: Поддержка мутаций
  */
 async function addToAIQueue(db, brainrot, regexResult) {
     const collection = db.collection('ai_queue');
-    const cacheKey = `${brainrot.name.toLowerCase()}_${brainrot.income}`;
+    let cacheKey = `${brainrot.name.toLowerCase()}_${brainrot.income}`;
+    const cleanMut = cleanMutation(brainrot.mutation);
+    if (cleanMut) {
+        cacheKey += `_${cleanMut}`;
+    }
     
     // Проверяем нет ли уже в очереди
     const existing = await collection.findOne({ _id: cacheKey });
@@ -169,6 +229,7 @@ async function addToAIQueue(db, brainrot, regexResult) {
             $set: {
                 name: brainrot.name,
                 income: brainrot.income,
+                mutation: brainrot.mutation || null,
                 regexPrice: regexResult?.suggestedPrice,
                 addedAt: new Date(),
                 status: 'pending',
@@ -278,22 +339,26 @@ async function runPriceScan() {
     
     for (const brainrot of toScan) {
         try {
-            // Получаем текущую кэшированную цену
-            const cached = await getCachedPrice(db, brainrot.name, brainrot.income);
+            // v9.12.10: Передаём мутацию в getCachedPrice
+            const cached = await getCachedPrice(db, brainrot.name, brainrot.income, brainrot.mutation);
             const cachedPrice = cached?.suggestedPrice;
             
             // Получаем новую цену через regex (eldorado-price)
             // ВАЖНО: передаём disableAI: true чтобы не тратить AI квоту в cron!
             if (!eldoradoPrice) continue;
             
-            const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrot.name, brainrot.income, { disableAI: true });
+            // v9.12.10: Передаём мутацию в calculateOptimalPrice
+            const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrot.name, brainrot.income, { 
+                disableAI: true,
+                mutation: brainrot.mutation 
+            });
             regexScanned++;
             
             if (!regexResult || regexResult.error) continue;
             
             const newPrice = regexResult.suggestedPrice;
             
-            // Сохраняем regex результат
+            // v9.12.10: Передаём мутацию в savePriceToCache
             await savePriceToCache(db, brainrot.name, brainrot.income, {
                 suggestedPrice: newPrice,
                 source: regexResult.parsingSource || 'regex',
@@ -310,7 +375,7 @@ async function runPriceScan() {
                 isInEldoradoList: regexResult.isInEldoradoList,
                 lowerPrice: regexResult.lowerPrice,
                 lowerIncome: regexResult.lowerIncome
-            });
+            }, brainrot.mutation);
             
             // Проверяем изменилась ли цена
             if (cachedPrice !== null && cachedPrice !== newPrice) {
