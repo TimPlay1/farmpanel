@@ -1,4 +1,9 @@
-// FarmerPanel App v9.12.3 - Optimized Data Loading on Key Switch
+// FarmerPanel App v9.12.4 - Faster Loading with Stale Cache, Increased Timeouts
+// - Show cached data immediately (even if stale) while loading fresh data in background
+// - Increased sync timeout from 5s to 10-15s for slower connections
+// - Farmers cache TTL increased from 5min to 30min (with 24h stale display)
+// - Price cache TTL increased from 3min to 10min
+// - Background refresh of stale data without blocking UI
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -918,9 +923,9 @@ let state = {
     lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
-// Кэш цен Eldorado (время жизни 3 минуты)
-const PRICE_CACHE_TTL = 3 * 60 * 1000;
-const PRICE_AUTO_REFRESH_INTERVAL = 3 * 60 * 1000; // Автообновление каждые 3 минуты
+// Кэш цен Eldorado (время жизни 10 минут для свежих, но показываем устаревшие сразу)
+const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут вместо 3
+const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PRICE_CACHE_VERSION = 5; // v9.11.10: Increment to invalidate cache - fix mutation prices in next range check
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
@@ -1575,14 +1580,24 @@ function savePriceCacheToStorage() {
 }
 
 /**
- * Проверить нужно ли обновить цену (старше 3 минут)
+ * Проверить нужно ли обновить цену (старше 10 минут)
  * v9.11.14: Также проверяем флаг _stale для устаревших записей
+ * v9.12.4: Возвращает true только для реальной необходимости обновления
+ *          Устаревшие цены всё равно показываются - это только для фоновой загрузки
  */
 function isPriceStale(priceData) {
     if (!priceData || !priceData._timestamp) return true;
-    // Если помечено как устаревшее - нужно обновить
+    // Если помечено как устаревшее - нужно обновить в фоне
     if (priceData._stale) return true;
     return Date.now() - priceData._timestamp > PRICE_CACHE_TTL;
+}
+
+/**
+ * v9.12.4: Проверить есть ли цена для отображения (даже устаревшая)
+ * Используется при рендере - показываем любую цену из кэша
+ */
+function hasPriceData(priceData) {
+    return priceData && (priceData.suggestedPrice || priceData.medianPrice || priceData.nextCompetitorPrice);
 }
 
 /**
@@ -2399,7 +2414,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // === ЭТАП 1: Синхронная загрузка из localStorage (мгновенная) ===
     loadState();
-    loadFarmersDataFromCache(); // Кэш данных фермеров
+    const cacheResult = loadFarmersDataFromCache(); // Кэш данных фермеров (теперь возвращает объект)
     loadPriceCacheFromStorage(); // Кэш цен
     loadAvatarCache(); // Кэш аватаров
     loadOffersFromStorage(); // Кэш офферов
@@ -2416,10 +2431,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Предзагружаем изображения ДО показа UI
         await preloadBrainrotImages();
         
-        // v9.11.18: Проверяем есть ли кэшированные данные
+        // v9.12.4: Проверяем есть ли кэшированные данные (любые - свежие или устаревшие)
         const hasCachedData = state.farmersData[state.currentKey] && 
             state.farmersData[state.currentKey].accounts && 
             state.farmersData[state.currentKey].accounts.length > 0;
+        
+        // v9.12.4: Флаг нужно ли грузить свежие данные в фоне
+        const needsFreshData = !cacheResult.isFresh;
         
         // v9.11.20: Загружаем цены ДО farmer data (быстрее, не блокирует)
         // Цены из prices-cache загружаются быстро (один batch запрос)
@@ -2437,14 +2455,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         }
         
-        if (!hasCachedData) {
-            // v9.12.3: Сокращён таймаут с 8 до 5 секунд для быстрого показа UI
+        // v9.12.4: Если есть кэш - показываем UI СРАЗУ, не ждём свежих данных
+        if (hasCachedData) {
+            console.log('✅ Showing cached data immediately (fresh data will load in background)');
+            showMainApp();
+            hideLoadingScreen();
+            updateUI();
+        } else {
+            // Нет кэша - ждём загрузку с сервера но с увеличенным таймаутом
             updateLoadingText('Loading account data...');
             try {
                 const response = await fetchWithTimeout(
                     `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
                     {},
-                    5000 // 5 секунд timeout (было 8)
+                    10000 // 10 секунд timeout (увеличено с 5)
                 );
                 if (response.ok) {
                     const data = await response.json();
@@ -2456,15 +2480,15 @@ document.addEventListener('DOMContentLoaded', async () => {
                 console.warn('Failed to load farmer data (timeout or error):', e.message);
                 // Показываем UI даже если загрузка не удалась
             }
-        }
-        
-        // Теперь показываем UI с уже загруженными изображениями
-        showMainApp();
-        hideLoadingScreen();
-        
-        // Показываем кэшированные данные мгновенно
-        if (state.farmersData[state.currentKey]) {
-            updateUI();
+            
+            // Теперь показываем UI
+            showMainApp();
+            hideLoadingScreen();
+            
+            // Показываем данные если есть
+            if (state.farmersData[state.currentKey]) {
+                updateUI();
+            }
         }
         
         // === ЭТАП 3: Последовательная фоновая загрузка (снижает нагрузку на MongoDB) ===
@@ -2488,6 +2512,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Последовательная загрузка фоновых данных с задержками
         // v9.11.20: Добавлены таймауты для каждой операции
         // v9.12.3: Добавлена проверка смены ключа
+        // v9.12.4: Добавлена загрузка свежих данных если кэш устаревший
         (async function loadBackgroundData() {
             const delay = ms => new Promise(r => setTimeout(r, ms));
             const withTimeout = (promise, ms) => Promise.race([
@@ -2499,6 +2524,29 @@ document.addEventListener('DOMContentLoaded', async () => {
             const keyChanged = () => state.currentKey !== initialKey;
             
             try {
+                // v9.12.4: Если кэш был устаревший - загружаем свежие данные в фоне
+                if (needsFreshData) {
+                    console.log('🔄 Loading fresh data in background (cache was stale)...');
+                    await delay(100);
+                    try {
+                        const response = await withTimeout(
+                            fetch(`${API_BASE}/sync?key=${encodeURIComponent(initialKey)}&_=${Date.now()}`, { cache: 'no-store' }),
+                            15000 // 15 секунд timeout для фоновой загрузки
+                        );
+                        if (response.ok && !keyChanged()) {
+                            const data = await response.json();
+                            state.farmersData[initialKey] = data;
+                            saveFarmersDataToCache();
+                            console.log('✅ Loaded fresh farmer data in background');
+                            updateUI(); // Обновляем UI свежими данными
+                        }
+                    } catch (e) {
+                        console.warn('Background data refresh failed:', e.message);
+                    }
+                }
+                
+                if (keyChanged()) return;
+                
                 // 1. Цены (если не загружены ранее)
                 if (Object.keys(state.brainrotPrices).length === 0) {
                     await withTimeout(loadPricesFromServer(), 10000).then(async loaded => {
@@ -2593,7 +2641,8 @@ function saveState() {
 
 // Кэширование данных фермеров в localStorage
 const FARMERS_CACHE_KEY = 'farmerPanelFarmersCache';
-const FARMERS_CACHE_EXPIRY = 5 * 60 * 1000; // 5 минут
+const FARMERS_CACHE_EXPIRY = 30 * 60 * 1000; // 30 минут (свежий кэш)
+const FARMERS_CACHE_STALE_EXPIRY = 24 * 60 * 60 * 1000; // 24 часа (устаревший но всё ещё показываем)
 
 function saveFarmersDataToCache() {
     try {
@@ -2629,17 +2678,21 @@ function loadFarmersDataFromCache() {
         const cached = localStorage.getItem(FARMERS_CACHE_KEY);
         if (cached) {
             const { timestamp, data } = JSON.parse(cached);
-            // Проверяем что кэш не устарел
-            if (Date.now() - timestamp < FARMERS_CACHE_EXPIRY && data) {
+            const age = Date.now() - timestamp;
+            
+            // Загружаем кэш даже если устаревший (до 24ч) - покажем что-то пока грузится свежее
+            if (age < FARMERS_CACHE_STALE_EXPIRY && data) {
                 state.farmersData = data;
-                console.log('Loaded farmers data from cache');
-                return true;
+                const isFresh = age < FARMERS_CACHE_EXPIRY;
+                const isStale = !isFresh;
+                console.log(`Loaded farmers data from cache (${isFresh ? 'fresh' : 'stale, ' + Math.round(age/60000) + 'min old'})`);
+                return { loaded: true, isFresh, isStale };
             }
         }
     } catch (e) {
         console.error('Failed to load farmers cache:', e);
     }
-    return false;
+    return { loaded: false, isFresh: false, isStale: false };
 }
 
 // Event Listeners
@@ -4363,16 +4416,37 @@ window.selectFarmKey = async function(farmKey) {
     state.currentKey = farmKey;
     saveState();
     
-    // Сразу показываем данные из кэша если есть
+    // v9.12.4: Проверяем есть ли кэш для этого ключа (в localStorage или уже загруженный)
     const cachedData = state.farmersData[farmKey];
-    if (cachedData && cachedData.accounts && cachedData.accounts.length > 0) {
-        console.log('Using cached data for', farmKey);
+    const hasCachedData = cachedData && cachedData.accounts && cachedData.accounts.length > 0;
+    
+    // v9.12.4: Если есть кэш - показываем сразу и грузим свежее в фоне
+    if (hasCachedData) {
+        console.log('✅ Using cached data for', farmKey, '(will refresh in background)');
         updateUI();
         renderFarmKeys();
-        // v9.12.3: Быстрый запуск polling с задержкой (данные уже показаны)
-        setTimeout(() => startPolling(), 500);
+        
+        // Запускаем polling сразу - он загрузит свежие данные
+        setTimeout(() => startPolling(), 300);
+        
+        // v9.12.4: Также грузим свежие данные в фоне явно
+        setTimeout(async () => {
+            if (state.currentKey !== farmKey) return;
+            try {
+                const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(farmKey)}&_=${Date.now()}`, { cache: 'no-store' });
+                if (response.ok && state.currentKey === farmKey) {
+                    const freshData = await response.json();
+                    state.farmersData[farmKey] = freshData;
+                    saveFarmersDataToCache();
+                    console.log('✅ Refreshed data in background for:', farmKey);
+                    updateUI();
+                }
+            } catch (e) {
+                console.warn('Background refresh failed:', e.message);
+            }
+        }, 500);
     } else {
-        // v9.12.3: Нет кэша - показываем лоадер и загружаем данные напрямую
+        // v9.12.4: Нет кэша - показываем лоадер и загружаем с увеличенным таймаутом
         console.log('No cache for', farmKey, '- loading fresh data...');
         renderFarmKeys();
         
@@ -4380,11 +4454,11 @@ window.selectFarmKey = async function(farmKey) {
         showQuickLoadingIndicator();
         
         try {
-            // v9.12.3: Быстрая загрузка данных с коротким таймаутом
+            // v9.12.4: Увеличенный таймаут с 5 до 12 секунд
             const response = await fetchWithTimeout(
                 `${API_BASE}/sync?key=${encodeURIComponent(farmKey)}&_=${Date.now()}`,
                 { cache: 'no-store' },
-                5000 // 5 секунд таймаут (было 8)
+                12000 // 12 секунд таймаут (было 5)
             );
             
             if (response.ok) {
