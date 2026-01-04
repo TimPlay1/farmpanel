@@ -1438,7 +1438,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
             const nextRange = getNextMsRange(msRange);
             
             if (nextRange) {
-                console.log(`🔍 ${brainrotName} @ ${numericIncome}M/s: near upper bound of ${msRange}, checking ${nextRange}...`);
+                console.log(`🔍 ${brainrotName} @ ${numericIncome}M/s: near upper bound of ${msRange}, checking ${nextRange}...` + (mutation ? ` (mutation: ${mutation})` : ''));
                 
                 try {
                     // Ищем офферы в следующем диапазоне
@@ -1446,7 +1446,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                     // Ищем с income чуть выше границы (начало следующего диапазона)
                     const searchIncomeForNextRange = nextRangeLowerBound + 5; // например 105 для диапазона 100-249
                     
-                    const nextRangeResult = await searchBrainrotOffers(brainrotName, searchIncomeForNextRange);
+                    // v9.11.9: Передаём mutation при проверке следующего диапазона!
+                    const nextRangeResult = await searchBrainrotOffers(brainrotName, searchIncomeForNextRange, 50, { disableAI, mutation });
                     
                     if (nextRangeResult.allPageOffers && nextRangeResult.allPageOffers.length > 0) {
                         // v9.10.5: Ищем ЛЮБОЙ оффер в следующем диапазоне с ценой ниже текущего конкурента
