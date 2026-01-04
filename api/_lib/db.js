@@ -162,13 +162,13 @@ function generateUsername() {
  * - 15,000 tokens/min
  * - 30 requests/min
  * 
- * Используем консервативные значения:
- * - 12,000 tokens/min (80%)
- * - 25 requests/min (83%)
+ * v2.5.1: Увеличены лимиты после исправления двойного учёта:
+ * - 14,000 tokens/min (93%) - безопасный запас
+ * - 28 requests/min (93%)
  */
 const GLOBAL_RATE_LIMIT = {
-    MAX_TOKENS_PER_MINUTE: 12000,
-    MAX_REQUESTS_PER_MINUTE: 25,
+    MAX_TOKENS_PER_MINUTE: 14000,
+    MAX_REQUESTS_PER_MINUTE: 28,
     WINDOW_MS: 60000  // 1 минута
 };
 

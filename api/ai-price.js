@@ -7,13 +7,13 @@
  * 3. При изменении цены regex → добавляет в очередь AI валидации
  * 4. AI результат имеет приоритет над regex
  * 
- * v2.5.0: Глобальный rate limiter через MongoDB
+ * v2.5.1: Исправлен двойной учёт токенов, rate limit теперь только в hybridParse
  * 
  * Эндпоинт: /api/ai-price?name=BrainrotName&income=100
  */
 
-// Импорты
-const { checkGlobalRateLimit, recordAIUsage, getAIUsageStats } = require('./_lib/db');
+// Импорты - checkGlobalRateLimit для processAIQueue, getAIUsageStats для статистики
+const { checkGlobalRateLimit, getAIUsageStats } = require('./_lib/db');
 
 let aiScanner = null;
 let eldoradoPrice = null;
@@ -99,6 +99,7 @@ async function getAIPrice(brainrotName, ourIncome) {
 
 /**
  * Принудительный AI парсинг (для force mode)
+ * v2.5.1: Rate limiting теперь полностью внутри hybridParse
  */
 async function forceAIPrice(brainrotName, ourIncome) {
     const cacheKey = `${brainrotName.toLowerCase()}_${Math.round(ourIncome)}`;
@@ -109,25 +110,8 @@ async function forceAIPrice(brainrotName, ourIncome) {
         return { ...cached.data, source: 'ai', fromCache: true };
     }
     
-    // Проверяем ГЛОБАЛЬНЫЙ rate limit (MongoDB)
-    const estimatedTokens = 1500; // ~1500 токенов на запрос
-    const rateCheck = await checkGlobalRateLimit(estimatedTokens);
-    
-    if (!rateCheck.allowed) {
-        console.log(`⏳ Global rate limit hit (${rateCheck.currentTokens} tokens, ${rateCheck.currentRequests} reqs), using regex`);
-        // Возвращаем regex как fallback
-        const regexResult = await eldoradoPrice.calculateOptimalPrice(brainrotName, ourIncome);
-        return {
-            ...regexResult,
-            source: 'regex',
-            aiError: 'Global rate limit exceeded',
-            waitTime: Math.round((rateCheck.waitMs || 30000) / 1000),
-            globalRateLimit: {
-                tokens: rateCheck.currentTokens,
-                requests: rateCheck.currentRequests
-            }
-        };
-    }
+    // Rate limit теперь проверяется внутри hybridParse для каждого батча
+    // Это позволяет получить частичные AI результаты вместо полного отказа
     
     try {
         console.log(`🤖 Force AI parsing for ${brainrotName} @ ${ourIncome}M/s...`);
@@ -144,8 +128,8 @@ async function forceAIPrice(brainrotName, ourIncome) {
             throw new Error('No offers found on Eldorado');
         }
         
-        // Записываем использование AI ПЕРЕД вызовом (чтобы другие инстансы видели)
-        await recordAIUsage(estimatedTokens, 'forceAIPrice');
+        // НЕ записываем usage здесь - hybridParse сам записывает для каждого батча
+        // Это предотвращает двойной учёт токенов
         
         // AI парсинг через hybridParse
         const eldoradoLists = await aiScanner.fetchEldoradoDynamicLists();
