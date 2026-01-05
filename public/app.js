@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.20 - Disable scan-glitched (cron handles it now)
+// FarmerPanel App v9.12.21 - Add cron refresh timer in Offers header
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -88,6 +88,8 @@ const i18n = {
         
         // Offers page
         eldorado_offers: 'Eldorado Offers',
+        refresh: 'Refresh',
+        cron_timer_tooltip: 'Time until next automatic update of prices and your offers',
         your_shop: 'Your Shop:',
         not_configured: 'Not configured',
         edit_shop_name: 'Edit shop name',
@@ -407,6 +409,8 @@ const i18n = {
         
         // Offers page
         eldorado_offers: 'Офферы Eldorado',
+        refresh: 'Обновление',
+        cron_timer_tooltip: 'Время до автообновления цен и ваших офферов',
         your_shop: 'Ваш магазин:',
         not_configured: 'Не настроен',
         edit_shop_name: 'Изменить название',
@@ -10042,9 +10046,80 @@ function stopOffersAutoRefresh() {
     }
 }
 
+// ==================== CRON REFRESH TIMER ====================
+let cronTimerInterval = null;
+
+/**
+ * Инициализирует таймер обратного отсчёта до следующего cron сканирования
+ * Cron запускается каждую минуту в :00 секунд
+ */
+function initCronTimer() {
+    const timerEl = document.getElementById('cronTimer');
+    const valueEl = document.getElementById('cronTimerValue');
+    
+    if (!timerEl || !valueEl) return;
+    
+    // Установить tooltip
+    timerEl.title = t('cron_timer_tooltip');
+    
+    // Обновить сразу
+    updateCronTimer();
+    
+    // Обновлять каждую секунду
+    if (cronTimerInterval) clearInterval(cronTimerInterval);
+    cronTimerInterval = setInterval(updateCronTimer, 1000);
+}
+
+/**
+ * Обновляет отображение таймера
+ */
+function updateCronTimer() {
+    const timerEl = document.getElementById('cronTimer');
+    const valueEl = document.getElementById('cronTimerValue');
+    
+    if (!timerEl || !valueEl) return;
+    
+    // Сколько секунд осталось до следующей минуты
+    const now = new Date();
+    const secondsRemaining = 60 - now.getSeconds();
+    
+    // Форматируем как M:SS
+    const minutes = Math.floor(secondsRemaining / 60);
+    const seconds = secondsRemaining % 60;
+    valueEl.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Меняем класс в зависимости от времени
+    timerEl.classList.remove('soon', 'imminent', 'refreshing');
+    
+    if (secondsRemaining <= 5) {
+        timerEl.classList.add('imminent');
+    } else if (secondsRemaining <= 15) {
+        timerEl.classList.add('soon');
+    }
+    
+    // Анимация при обновлении (первые 3 секунды после :00)
+    if (secondsRemaining >= 57) {
+        timerEl.classList.add('refreshing');
+    }
+}
+
+/**
+ * Останавливает таймер
+ */
+function stopCronTimer() {
+    if (cronTimerInterval) {
+        clearInterval(cronTimerInterval);
+        cronTimerInterval = null;
+    }
+}
+// ==================== END CRON TIMER ====================
+
 // Initialize offers when view is shown
 function initOffersView() {
     console.log('📋 Offers view opened');
+    
+    // Запускаем cron таймер
+    initCronTimer();
     
     // Load shop name for display
     loadShopName();

@@ -4416,6 +4416,70 @@ body {
     gap: 0.3rem;
 }
 
+/* Cron Refresh Timer */
+.cron-timer {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.8rem;
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15), rgba(76, 175, 80, 0.05));
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: help;
+    transition: all 0.2s ease;
+    margin-left: auto;
+    margin-right: 1rem;
+}
+
+.cron-timer:hover {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.25), rgba(76, 175, 80, 0.1));
+    border-color: rgba(76, 175, 80, 0.5);
+    transform: scale(1.02);
+}
+
+.cron-timer i {
+    color: #4caf50;
+    font-size: 0.75rem;
+    animation: none;
+}
+
+.cron-timer.refreshing i {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.cron-timer-label {
+    color: var(--text-muted);
+}
+
+.cron-timer-value {
+    font-weight: 600;
+    color: #4caf50;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    min-width: 2.5em;
+    text-align: center;
+}
+
+.cron-timer.soon .cron-timer-value {
+    color: #ff9800;
+}
+
+.cron-timer.imminent .cron-timer-value {
+    color: #f44336;
+    animation: pulse 0.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
 /* Offers Scan Progress Bar */
 .offers-scan-progress {
     display: flex;
