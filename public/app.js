@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.15 - Fix Cursed mutation style (dark red demonic)
+// FarmerPanel App v9.12.17 - Instant UI display (no blocking on data load)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2654,20 +2654,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         // v9.12.5: Нужно грузить свежие данные если кэш устаревший ИЛИ нет данных для текущего ключа
         const needsFreshData = !cacheResult.isFresh || !cacheResult.hasCurrentKeyData;
         
-        // v9.11.20: Загружаем цены ДО farmer data (быстрее, не блокирует)
-        // Цены из prices-cache загружаются быстро (один batch запрос)
+        // v9.12.17: Цены грузим в фоне, НЕ блокируем показ UI
+        // Цены из localStorage уже загружены (loadPriceCacheFromStorage выше)
         const hasCachedPrices = Object.keys(state.brainrotPrices).length > 0;
         if (!hasCachedPrices) {
-            updateLoadingText('Loading prices...');
-            try {
-                await Promise.race([
-                    loadPricesFromServer(),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Prices timeout')), 8000))
-                ]);
-                console.log('✅ Loaded prices from server');
-            } catch (e) {
-                console.warn('Failed to load prices (will retry in background):', e.message);
-            }
+            // Грузим цены в фоне (не await!)
+            loadPricesFromServer().then(() => {
+                console.log('✅ Loaded prices from server (background)');
+                // Обновляем UI когда цены загрузятся
+                if (collectionState.allBrainrots.length > 0) {
+                    renderCollection();
+                }
+            }).catch(e => console.warn('Failed to load prices:', e.message));
         }
         
         // v9.12.5: Если есть кэш для текущего ключа - показываем UI СРАЗУ
@@ -2677,34 +2675,48 @@ document.addEventListener('DOMContentLoaded', async () => {
             hideLoadingScreen();
             updateUI();
         } else {
-            // Нет кэша для текущего ключа - ждём загрузку с сервера
-            updateLoadingText('Loading account data...');
-            console.log('No cached data for', state.currentKey, '- loading from server...');
-            try {
-                const response = await fetchWithTimeout(
-                    `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
-                    {},
-                    15000 // 15 секунд timeout (увеличено с 10)
-                );
+            // v9.12.17: Показываем UI СРАЗУ, даже без кэша
+            // Данные загрузятся в фоне и UI обновится автоматически
+            console.log('No cached data for', state.currentKey, '- showing UI, loading in background...');
+            showMainApp();
+            hideLoadingScreen();
+            
+            // Показываем индикатор загрузки в grid
+            const grid = document.getElementById('brainrotsGrid');
+            if (grid) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: #a0a0b0;">
+                        <i class="fas fa-spinner fa-spin" style="font-size: 2rem; margin-bottom: 1rem; display: block; color: #6366f1;"></i>
+                        <div>Loading collection data...</div>
+                    </div>
+                `;
+            }
+            
+            // Загружаем данные в фоне (не блокируем)
+            fetchWithTimeout(
+                `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
+                {},
+                15000
+            ).then(async response => {
                 if (response.ok) {
                     const data = await response.json();
                     state.farmersData[state.currentKey] = data;
                     saveFarmersDataToCache();
-                    console.log('✅ Loaded farmer data from server');
+                    console.log('✅ Loaded farmer data from server (background)');
+                    updateUI(); // Обновляем UI с новыми данными
                 }
-            } catch (e) {
-                console.warn('Failed to load farmer data (timeout or error):', e.message);
-                // Показываем UI даже если загрузка не удалась
-            }
-            
-            // Теперь показываем UI
-            showMainApp();
-            hideLoadingScreen();
-            
-            // Показываем данные если есть
-            if (state.farmersData[state.currentKey]) {
-                updateUI();
-            }
+            }).catch(e => {
+                console.warn('Failed to load farmer data:', e.message);
+                // Показываем сообщение об ошибке в grid
+                if (grid) {
+                    grid.innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: #a0a0b0;">
+                            <i class="fas fa-exclamation-triangle" style="font-size: 2rem; margin-bottom: 1rem; display: block; color: #f59e0b;"></i>
+                            <div>Failed to load data. Waiting for sync from farm script...</div>
+                        </div>
+                    `;
+                }
+            });
         }
         
         // === ЭТАП 3: Последовательная фоновая загрузка (снижает нагрузку на MongoDB) ===
