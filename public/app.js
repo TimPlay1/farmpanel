@@ -10683,10 +10683,14 @@ function _doUpdateBalanceChart(period) {
             const retryDelay = isVisible ? 100 : 300;
             setTimeout(() => _doUpdateBalanceChart(period), retryDelay);
         } else {
-            // v9.11.26: Force render anyway - Chart.js can handle it
-            console.warn('Chart container size issue, forcing render. rect:', rect.width, 'x', rect.height);
+            // v9.12.26: Reduce spam - only log once per cycle
+            if (chartRetryCount === MAX_CHART_RETRIES) {
+                console.warn('Chart container not visible, will retry when tab is active');
+            }
             chartRetryCount = 0;
-            // Don't return - try to render anyway
+            isChartUpdating = false;
+            // Don't render - container not visible
+            return;
         }
         // Only return if we're still retrying
         if (chartRetryCount > 0) {
