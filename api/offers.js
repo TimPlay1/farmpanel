@@ -107,70 +107,9 @@ module.exports = async (req, res) => {
             // Получить все офферы
             const offers = await offersCollection.find({ farmKey }).sort({ createdAt: -1 }).toArray();
             
-            // Получаем данные фермера для обогащения мутациями
-            const farmersCollection = db.collection('farmers');
-            const farmer = await farmersCollection.findOne({ farmKey });
-            
-            // Создаём ДВЕ map для поиска мутаций:
-            // 1. (name+income) -> mutation (точный match)
-            // 2. name -> mutation (fallback если точный не найден)
-            // ВАЖНО: один brainrot (Los 67) может иметь РАЗНЫЕ мутации при разных income
-            const mutationsMapExact = new Map();  // name_income -> mutation
-            const mutationsMapFallback = new Map(); // name -> mutation (последняя найденная)
-            
-            // Для точного match нужно конвертировать income в M/s и округлять
-            // В farmers income хранится как полное число (1012500000 = 1.0B/s = 1012.5M/s)
-            // В offers income хранится как M/s (236.2 = $236.2M/s)
-            const parseIncomeToMs = (income, incomeText) => {
-                // Если есть числовой income - это может быть полное число или M/s
-                if (typeof income === 'number' && income > 0) {
-                    // Если income > 10000, это полное число - конвертируем в M/s
-                    if (income > 10000) {
-                        return income / 1000000; // Конвертируем в M/s
-                    }
-                    // Иначе уже в M/s
-                    return income;
-                }
-                if (typeof income === 'string') {
-                    const parsed = parseFloat(income);
-                    if (!isNaN(parsed) && parsed > 0) {
-                        if (parsed > 10000) return parsed / 1000000;
-                        return parsed;
-                    }
-                }
-                // Парсим из incomeText (формат "$247.5M/s" или "$1.0B/s")
-                if (incomeText) {
-                    const bMatch = incomeText.match(/\$?(\d+\.?\d*)\s*B/i);
-                    if (bMatch) return parseFloat(bMatch[1]) * 1000; // B -> M
-                    const mMatch = incomeText.match(/\$?(\d+\.?\d*)\s*M/i);
-                    if (mMatch) return parseFloat(mMatch[1]);
-                }
-                return null;
-            };
-            
-            if (farmer && farmer.accounts) {
-                for (const account of farmer.accounts) {
-                    if (account.brainrots) {
-                        for (const b of account.brainrots) {
-                            if (b.mutation && b.name) {
-                                const nameLower = b.name.toLowerCase();
-                                // Fallback - просто по имени (перезапишется если много)
-                                mutationsMapFallback.set(nameLower, b.mutation);
-                                
-                                // Точный ключ с income (конвертируем в M/s)
-                                const incomeMs = parseIncomeToMs(b.income, b.incomeText);
-                                if (incomeMs !== null) {
-                                    const roundedIncome = Math.floor(incomeMs / 10) * 10;
-                                    const exactKey = `${nameLower}_${roundedIncome}`;
-                                    mutationsMapExact.set(exactKey, b.mutation);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            console.log(`Mutation maps: exact=${mutationsMapExact.size}, fallback=${mutationsMapFallback.size}`);
+            // v3.0.2: Мутация берётся ТОЛЬКО из БД (от cron сканера)
+            // Fallback по farmer data отключён - он неправильно присваивал мутации
+            // Если в оффере mutation = null, значит оффер без мутации
             
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
@@ -191,7 +130,9 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // Добавляем recommendedPrice и mutation к каждому офферу
+            // Добавляем recommendedPrice к каждому офферу
+            // v3.0.2: Мутация теперь ТОЛЬКО из БД (cron сканер)
+            // Fallback по данным фермера ОТКЛЮЧЁН - он давал неправильные мутации
             for (const offer of offers) {
                 const key = getPriceCacheKey(offer.brainrotName, offer.income);
                 const priceData = key ? pricesMap.get(key) : null;
@@ -203,38 +144,9 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // v10.5.0: НЕ перезаписываем мутацию если она уже есть в оффере из БД!
-                // Мутация из universal-scan (из Eldorado API) - приоритетная и корректная.
-                // Fallback на данные фермера ТОЛЬКО если mutation в оффере null/undefined.
-                if (!offer.mutation && offer.brainrotName) {
-                    const nameLower = offer.brainrotName.toLowerCase();
-                    let mutation = null;
-                    
-                    // Точный поиск по name+income - конвертируем income в M/s
-                    const offerIncomeMs = parseIncomeToMs(offer.income, offer.incomeRaw);
-                    if (offerIncomeMs !== null) {
-                        const roundedIncome = Math.floor(offerIncomeMs / 10) * 10;
-                        const exactKey = `${nameLower}_${roundedIncome}`;
-                        mutation = mutationsMapExact.get(exactKey);
-                        
-                        // Debug для Los 67
-                        if (nameLower.includes('los 67')) {
-                            console.log(`Los 67 lookup: offerIncome=${offerIncomeMs}Ms, rounded=${roundedIncome}, exactKey=${exactKey}, found=${mutation || 'none'}`);
-                            console.log(`  Available exact keys for los 67:`, [...mutationsMapExact.keys()].filter(k => k.includes('los 67')));
-                        }
-                    }
-                    
-                    // Fallback по имени если точный не найден
-                    if (!mutation) {
-                        mutation = mutationsMapFallback.get(nameLower);
-                    }
-                    
-                    // v10.5.0: Добавляем флаг что мутация из fallback (может быть неточная)
-                    if (mutation) {
-                        offer.mutation = mutation;
-                        offer.mutationSource = 'farmer_fallback';
-                    }
-                }
+                // v3.0.2: Мутация берётся ТОЛЬКО из БД (от cron сканера)
+                // Fallback отключён - он неправильно присваивал мутации
+                // Если mutation = null, значит оффер без мутации
             }
             
             return res.json({ 

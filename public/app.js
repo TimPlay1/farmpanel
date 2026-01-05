@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.22 - Move cron timer to main header (next to nav-tabs)
+// FarmerPanel App v9.12.23 - Fix mutation bug: remove fallback logic in offers.js
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries

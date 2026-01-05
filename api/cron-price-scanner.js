@@ -537,6 +537,12 @@ async function scanOffers(db) {
                 const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
                 const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
                 
+                // v3.0.2: Debug логирование для отладки мутаций
+                if (title.toLowerCase().includes('money money')) {
+                    console.log(`🔍 DEBUG ${code}: title="${title.substring(0, 50)}...", mutation=${mutation || 'null'}`);
+                    console.log(`   attributes:`, JSON.stringify(offer.offerAttributeIdValues?.slice(0, 5) || []));
+                }
+                
                 // Парсим income из title
                 const incomeMatch = title.match(/(\d+(?:\.\d+)?)\s*([MB])\/s/i);
                 let income = null;
