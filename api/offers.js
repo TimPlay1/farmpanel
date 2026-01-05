@@ -149,6 +149,13 @@ module.exports = async (req, res) => {
                 }
             }
             
+            // v3.0.5: Debug - показываем мутации для La Secret Combinasion
+            for (const [key, mut] of mutationsMap.entries()) {
+                if (key.includes('secret')) {
+                    console.log(`📋 MutationsMap: "${key}" → ${mut || 'null'}`);
+                }
+            }
+            
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
             for (const offer of offers) {
@@ -170,9 +177,15 @@ module.exports = async (req, res) => {
             
             // Добавляем recommendedPrice и мутацию к каждому офферу
             // v3.0.3: Мутация берётся из collection фермера по (name + income)
+            // v3.0.5: Debug logging для диагностики
             for (const offer of offers) {
                 const key = getPriceCacheKey(offer.brainrotName, offer.income);
                 const priceData = key ? pricesMap.get(key) : null;
+                
+                // Debug: логируем для offers с B/s income
+                if (offer.income > 500) {
+                    console.log(`🔍 Offer "${offer.brainrotName}" income=${offer.income} → key="${key}", mutationsMap.has=${mutationsMap.has(key)}, mutation=${mutationsMap.get(key) || 'NOT_FOUND'}`);
+                }
                 
                 if (priceData && priceData.suggestedPrice) {
                     offer.recommendedPrice = priceData.suggestedPrice;

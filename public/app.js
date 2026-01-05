@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.25 - Fix income conversion for B/s offers, improve incremental sync logging
+// FarmerPanel App v9.12.26 - Fix incremental price sync (set lastPricesLoadTime in all paths)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1651,6 +1651,9 @@ async function loadPricesFromServer() {
                 // Запоминаем время загрузки
                 localStorage.setItem('lastPricesServerLoad', now.toString());
                 
+                // v9.12.26: Обновляем время для инкрементальных обновлений
+                lastPricesLoadTime = loadTime;
+                
                 console.log(`Loaded ${Object.keys(data.prices).length} prices from global server cache (fallback)`);
                 return true;
             }
@@ -1814,6 +1817,11 @@ function loadPriceCacheFromStorage() {
             }
             
             console.log(`Loaded ${freshCount} fresh + ${staleCount} stale prices from localStorage`);
+            
+            // v9.12.26: Устанавливаем lastPricesLoadTime из кэша чтобы инкрементальный sync работал сразу
+            if (freshCount > 0 || staleCount > 0) {
+                lastPricesLoadTime = Date.now();
+            }
         }
         
         // Загружаем предыдущие цены для отображения % изменения
