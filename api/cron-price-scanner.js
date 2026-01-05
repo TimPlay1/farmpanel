@@ -1,6 +1,6 @@
 /**
- * Vercel Cron Job - Централизованный сканер цен
- * Version: 2.9.0 - Increased batch size (tested: no rate limit on Eldorado)
+ * Vercel Cron Job - Централизованный сканер цен + офферов
+ * Version: 3.0.0 - Added offer scanning (replaces universal-scan)
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -14,12 +14,14 @@
  * 3. Сканируем следующие N брейнротов начиная с курсора
  * 4. Сохраняем новую позицию курсора
  * 5. При достижении конца - начинаем сначала (циклично)
+ * 6. v3.0.0: ПОСЛЕ цен - сканируем офферы на Eldorado (последовательно)
  * 
- * v2.9.0: Тесты показали что Eldorado API позволяет ~143 запроса/мин
- *         без rate limit. Увеличиваем batch size для быстрого сканирования.
+ * v3.0.0: Добавлено сканирование офферов (из universal-scan)
+ *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '2.9.0';  // Increased batch size
+const VERSION = '3.0.0';  // Added offer scanning
+const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
@@ -31,6 +33,26 @@ const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
 // Безопасный лимит: 100 запросов за 60 секунд = ~250 брейнротов
 const SCAN_BATCH_SIZE = 200;         // Увеличено с 100 (больше брейнротов за запуск)
 const SCAN_DELAY_MS = 30;            // Уменьшено с 50ms (быстрее сканирование)
+
+// v3.0.0: Параметры сканирования офферов
+const OFFER_SCAN_PAGES = 10;         // Страниц офферов за один запуск (1000 офферов)
+const OFFER_SCAN_DELAY_MS = 300;     // Задержка между страницами (Cloudflare)
+const ELDORADO_GAME_ID = '259';
+const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/';
+
+// Паттерны для извлечения кодов из тайтлов офферов
+const CODE_PATTERNS = [
+    /#([A-Z0-9]{4,12})\b/gi,
+    /\[([A-Z0-9]{4,12})\]/gi,
+    /\(([A-Z0-9]{4,12})\)/gi,
+];
+
+// Маппинг ID мутации -> название
+const MUTATION_ID_TO_NAME = {
+    '1-0': null, '1-1': 'Gold', '1-2': 'Diamond', '1-3': 'Bloodrot',
+    '1-4': 'Candy', '1-5': 'Lava', '1-6': 'Galaxy', '1-7': 'Yin-Yang',
+    '1-8': 'Radioactive', '1-9': 'Rainbow', '1-10': 'Cursed'
+};
 
 // Rate limiting (не используется когда AI отключён)
 const MAX_REQUESTS_PER_MINUTE = 3;
@@ -370,9 +392,200 @@ async function cleanupQueue(db) {
     });
 }
 
+// ==================== v3.0.0: OFFER SCANNING ====================
+
+/**
+ * Получает офферы с Eldorado API
+ */
+function fetchEldoradoOffers(pageIndex = 1, pageSize = 100) {
+    return new Promise((resolve) => {
+        const queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=CreationDate&isAscending=false`;
+
+        const options = {
+            hostname: 'www.eldorado.gg',
+            path: queryPath,
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        };
+
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    resolve({
+                        results: parsed.results || [],
+                        totalCount: parsed.recordCount || 0
+                    });
+                } catch (e) {
+                    resolve({ error: e.message, results: [] });
+                }
+            });
+        });
+
+        req.on('error', (e) => resolve({ error: e.message, results: [] }));
+        req.setTimeout(15000, () => {
+            req.destroy();
+            resolve({ error: 'timeout', results: [] });
+        });
+        req.end();
+    });
+}
+
+/**
+ * Извлекает коды из текста (#XXXXXXXX)
+ */
+function extractAllCodes(text) {
+    if (!text) return [];
+    const codes = new Set();
+    for (const pattern of CODE_PATTERNS) {
+        pattern.lastIndex = 0;
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const code = match[1].toUpperCase();
+            if (code.length >= 4 && !/^\d+$/.test(code)) {
+                codes.add(code);
+            }
+        }
+    }
+    return Array.from(codes);
+}
+
+/**
+ * Извлекает мутацию из атрибутов Eldorado
+ */
+function extractMutationFromAttributes(attributes) {
+    if (!attributes || !Array.isArray(attributes)) return null;
+    const mutAttr = attributes.find(a => a.name === 'Mutations' || a.name === 'Mutation');
+    if (mutAttr?.value && mutAttr.value !== 'None') {
+        return mutAttr.value;
+    }
+    const mutById = attributes.find(a => a.id?.startsWith('1-') && a.id !== '1-0');
+    if (mutById) return MUTATION_ID_TO_NAME[mutById.id] || null;
+    return null;
+}
+
+/**
+ * Строит URL изображения
+ */
+function buildImageUrl(imageName) {
+    if (!imageName) return null;
+    if (imageName.startsWith('http')) return imageName;
+    return ELDORADO_IMAGE_BASE + imageName;
+}
+
+/**
+ * v3.0.0: Сканирует офферы на Eldorado и обновляет БД
+ * Запускается ПОСЛЕ сканирования цен
+ */
+async function scanOffers(db) {
+    console.log(`\n📦 Starting offer scan (${OFFER_SCAN_PAGES} pages)...`);
+    const startTime = Date.now();
+    
+    const codesCollection = db.collection('offer_codes');
+    const offersCollection = db.collection('offers');
+    const now = new Date();
+    
+    // Загружаем зарегистрированные коды
+    const registeredCodes = await codesCollection.find({}).toArray();
+    const codeToOwner = new Map();
+    for (const doc of registeredCodes) {
+        codeToOwner.set(doc.code.toUpperCase(), doc);
+    }
+    console.log(`📋 Loaded ${registeredCodes.length} registered codes`);
+    
+    let totalScanned = 0;
+    let matchedCount = 0;
+    let updatedCount = 0;
+    
+    // Последовательно сканируем страницы
+    for (let page = 1; page <= OFFER_SCAN_PAGES; page++) {
+        const response = await fetchEldoradoOffers(page, 100);
+        
+        if (response.error) {
+            console.warn(`⚠️ Page ${page} error: ${response.error}`);
+            break;
+        }
+        if (!response.results?.length) break;
+        
+        totalScanned += response.results.length;
+        
+        // Обрабатываем офферы на странице
+        for (const item of response.results) {
+            const offer = item.offer || item;
+            const title = offer.offerTitle || '';
+            const codes = extractAllCodes(title);
+            
+            if (codes.length === 0) continue;
+            
+            // Проверяем каждый код
+            for (const code of codes) {
+                const owner = codeToOwner.get(code);
+                if (!owner) continue;
+                
+                matchedCount++;
+                
+                // Данные оффера
+                const price = offer.pricePerUnitInUSD?.amount || 0;
+                const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
+                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                
+                // Обновляем offer_codes
+                await codesCollection.updateOne(
+                    { code: code },
+                    { $set: {
+                        status: 'active',
+                        eldoradoOfferId: offer.id,
+                        currentPrice: price,
+                        mutation: mutation,
+                        lastSeenAt: now,
+                        updatedAt: now
+                    }}
+                );
+                
+                // Обновляем/создаём offers
+                const result = await offersCollection.updateOne(
+                    { farmKey: owner.farmKey, offerId: code },
+                    { $set: {
+                        status: 'active',
+                        eldoradoOfferId: offer.id,
+                        currentPrice: price,
+                        mutation: mutation,
+                        imageUrl: buildImageUrl(imageName),
+                        eldoradoTitle: title,
+                        sellerName: item.user?.username || null,
+                        lastScannedAt: now,
+                        updatedAt: now
+                    }},
+                    { upsert: false }
+                );
+                
+                if (result.modifiedCount > 0) updatedCount++;
+            }
+        }
+        
+        // Задержка между страницами (Cloudflare)
+        if (page < OFFER_SCAN_PAGES) {
+            await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
+        }
+    }
+    
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated (${duration}s)`);
+    
+    return { totalScanned, matchedCount, updatedCount, duration };
+}
+
+// ==================== END OFFER SCANNING ====================
+
 /**
  * Главная функция сканирования
  * v2.8.0: Приоритизация - новые брейнроты первые, дубликаты пропускаются
+ * v3.0.0: Добавлено сканирование офферов после цен
  * 
  * Приоритеты:
  * 1. Новые (нет в кэше) - сканируем ПЕРВЫМИ
@@ -524,6 +737,15 @@ async function runPriceScan() {
     // 6. Сохраняем состояние
     await saveScanState(db, scanState.cycleId, regexScanned, isNewCycle);
     
+    // 7. v3.0.0: Сканируем офферы
+    let offerScanResult = null;
+    try {
+        offerScanResult = await scanOffers(db);
+    } catch (e) {
+        console.warn('Offer scan error:', e.message);
+        offerScanResult = { error: e.message };
+    }
+    
     const duration = Math.round((Date.now() - startTime) / 1000);
     
     // Считаем прогресс цикла
@@ -545,10 +767,11 @@ async function runPriceScan() {
             isNew: isNewCycle,
             progress: `${cycleProgress}%`,
             remaining: staleBrainrots.length - regexScanned
-        }
+        },
+        offers: offerScanResult // v3.0.0
     };
     
-    console.log(`✅ Price scan complete:`, summary);
+    console.log(`✅ Cron scan complete:`, summary);
     
     return summary;
 }
