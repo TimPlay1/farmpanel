@@ -539,8 +539,10 @@ async function scanOffers(db) {
                 
                 // v3.0.2: Debug логирование для отладки мутаций
                 if (title.toLowerCase().includes('money money')) {
-                    console.log(`🔍 DEBUG ${code}: title="${title.substring(0, 50)}...", mutation=${mutation || 'null'}`);
-                    console.log(`   attributes:`, JSON.stringify(offer.offerAttributeIdValues?.slice(0, 5) || []));
+                    console.log(`🔍 DEBUG ${code}: title="${title.substring(0, 60)}...", mutation=${mutation || 'null'}`);
+                    console.log(`   offerAttributeIdValues:`, JSON.stringify(offer.offerAttributeIdValues || []));
+                    console.log(`   attributes (object):`, JSON.stringify(offer.attributes || []));
+                    console.log(`   Full offer keys:`, Object.keys(offer || {}).join(', '));
                 }
                 
                 // Парсим income из title
