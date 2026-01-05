@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.12 - No Loading spinner, instant cached prices display
+// FarmerPanel App v9.12.13 - Fix hasActiveOffer to consider mutation
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -5534,9 +5534,10 @@ function filterAndRenderCollection() {
     }
     
     // v9.11.11: Filter by listed/not listed status
+    // v9.12.13: Now considers mutation
     if (collectionState.listedFilter !== 'all') {
         filtered = filtered.filter(b => {
-            const isListed = hasActiveOffer(b.name, b.income);
+            const isListed = hasActiveOffer(b.name, b.income, b.mutation);
             return collectionState.listedFilter === 'listed' ? isListed : !isListed;
         });
     }
@@ -5648,8 +5649,8 @@ async function renderCollection() {
         const groupKey = getGroupKey(group);
         const isSelected = isSelectionMode && massSelectionState.selectedItems.has(groupKey);
         
-        // Check if brainrot has active offer
-        const hasOffer = hasActiveOffer(group.name, group.income);
+        // Check if brainrot has active offer (v9.12.13: now considers mutation)
+        const hasOffer = hasActiveOffer(group.name, group.income, group.mutation);
         
         let priceHtml;
         
@@ -6836,18 +6837,32 @@ function getGroupKey(nameOrGroup, incomeArg, mutationArg) {
 
 /**
  * Check if brainrot has an active offer
+ * v9.12.13: Now considers mutation - different mutations are different offers
  */
-function hasActiveOffer(brainrotName, income) {
+function hasActiveOffer(brainrotName, income, mutation = null) {
     if (!offersState.offers || offersState.offers.length === 0) return false;
     const normalizedIncome = normalizeIncomeForApi(income, null);
     const roundedIncome = Math.floor(normalizedIncome / 10) * 10;
+    
+    // Normalize mutation for comparison
+    const cleanMut = mutation ? cleanMutationText(mutation)?.toLowerCase() : null;
     
     return offersState.offers.some(offer => {
         if (!offer.brainrotName) return false;
         const offerIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
         const offerRoundedIncome = Math.floor(offerIncome / 10) * 10;
-        return offer.brainrotName.toLowerCase() === brainrotName.toLowerCase() && 
-               offerRoundedIncome === roundedIncome;
+        
+        // Check name and income match
+        const nameMatch = offer.brainrotName.toLowerCase() === brainrotName.toLowerCase();
+        const incomeMatch = offerRoundedIncome === roundedIncome;
+        
+        if (!nameMatch || !incomeMatch) return false;
+        
+        // Check mutation match
+        const offerMut = offer.mutation ? cleanMutationText(offer.mutation)?.toLowerCase() : null;
+        
+        // Both null = default, both same mutation = match
+        return cleanMut === offerMut;
     });
 }
 
