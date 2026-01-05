@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.13 - Fix hasActiveOffer to consider mutation
+// FarmerPanel App v9.12.14 - Add Cursed mutation support
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -967,6 +967,12 @@ function getMutationStyles(mutation) {
             background: 'linear-gradient(135deg, #32CD32, #00FF00)',
             textColor: '#003300',
             glowColor: '#32CD32'
+        },
+        'Cursed': {
+            background: 'linear-gradient(135deg, #2d1b4e, #4a1a6b, #1a0a2e)',
+            textColor: '#c9a0dc',
+            textShadow: '0 0 4px #8b5cf6, 0 0 8px #6d28d9',
+            glowColor: '#8b5cf6'
         }
     };
     return styles[clean] || { background: '#888', textColor: '#fff', glowColor: '#888' };
@@ -5297,7 +5303,8 @@ const MUTATION_ATTR_IDS = {
     'Yin-Yang': '1-7',
     'YinYang': '1-7',
     'Radioactive': '1-8',
-    'Rainbow': '1-9'
+    'Rainbow': '1-9',
+    'Cursed': '1-10'
 };
 
 /**

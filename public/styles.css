@@ -1726,6 +1726,13 @@ body {
     --glow-color: #32CD32;
 }
 
+.dropdown-item .mutation-badge.cursed {
+    background: linear-gradient(135deg, #2d1b4e, #4a1a6b, #1a0a2e);
+    color: #c9a0dc;
+    text-shadow: 0 0 4px #8b5cf6, 0 0 8px #6d28d9;
+    --glow-color: #8b5cf6;
+}
+
 .dropdown-item i {
     width: 16px;
     margin-right: 0.5rem;
