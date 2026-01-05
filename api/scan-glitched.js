@@ -99,13 +99,13 @@ function parseIncomeFromTitle(title) {
  * 2. Ищет каждый код на Eldorado напрямую по #CODE (ПАРАЛЛЕЛЬНО!)
  * 3. Обновляем статусы в БД
  * 
- * v10.4.0: Параллельные запросы для ускорения (batch по 5)
+ * v10.5.0: Последовательные запросы (Cloudflare rate limit 1015)
  */
 async function scanGlitchedStore(db) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    console.log('🔍 Universal offer scanner v10.4.0 starting (parallel mode)...');
+    console.log('🔍 Glitched scanner v10.5.0 starting (sequential mode)...');
     
     // Получаем все офферы из БД с кодами
     const dbOffers = await offersCollection.find({ 

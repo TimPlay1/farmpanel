@@ -4,29 +4,29 @@ const https = require('https');
 /**
  * API для отслеживания офферов на Eldorado
  * 
- * УНИВЕРСАЛЬНАЯ СИСТЕМА v2.0:
+ * УНИВЕРСАЛЬНАЯ СИСТЕМА v2.1:
  * - Офферы идентифицируются по уникальным кодам в тайтлах (#XXXXXXXX)
  * - Коды регистрируются в offer_codes и автоматически привязываются к farmKey
- * - Универсальный сканер находит все офферы и распределяет по пользователям
+ * - Сканирование теперь через cron-offer-scanner (не фоновый universal-scan)
  * 
  * При GET запросе:
- * 1. Запускает универсальный фоновый сканер (не блокирует ответ)
- * 2. Возвращает офферы пользователя с recommendedPrice из price_cache
+ * - Возвращает офферы пользователя с recommendedPrice из price_cache
+ * - НЕ запускает фоновое сканирование (избегаем Cloudflare rate limit 1015)
  */
 
-// Кэш последнего сканирования
-let lastBackgroundScanTime = 0;
-const BACKGROUND_SCAN_INTERVAL = 60000; // 60 секунд между фоновыми сканами
+// v2.1: Фоновое сканирование ОТКЛЮЧЕНО - вызывает Cloudflare rate limit
+// Сканирование офферов будет через отдельный cron job
+// let lastBackgroundScanTime = 0;
+// const BACKGROUND_SCAN_INTERVAL = 60000;
 
 /**
- * Запуск универсального фонового сканирования (не блокирует)
+ * v2.1: Фоновое сканирование ОТКЛЮЧЕНО
+ * Раньше вызывало universal-scan каждые 60 сек, что приводило к rate limit 1015
  */
 function triggerBackgroundScan() {
-    const now = Date.now();
-    if (now - lastBackgroundScanTime < BACKGROUND_SCAN_INTERVAL) {
-        return; // Ещё не время
-    }
-    lastBackgroundScanTime = now;
+    // DISABLED: Cloudflare rate limit 1015
+    // Офферы теперь сканируются через отдельный cron или вручную
+    return;
     
     // Запускаем универсальный сканер асинхронно
     const options = {
