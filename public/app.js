@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.27 - Protect offers cache from server returning 0 offers
+// FarmerPanel App v9.12.28 - Remove Unverified status for offers (useless and confusing)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -8240,17 +8240,14 @@ function renderOffers() {
         const isPaused = offer.status === 'paused';
         const isPending = offer.status === 'pending' || !offer.eldoradoOfferId;
         
-        // v9.8.22: Check if offer was recently scanned (within 1 hour)
-        const lastScannedAt = offer.lastScannedAt ? new Date(offer.lastScannedAt).getTime() : 0;
-        const scanAgeMs = Date.now() - lastScannedAt;
-        const isUnverified = !isPaused && !isPending && scanAgeMs > 60 * 60 * 1000; // > 1 hour = unverified
+        // v9.12.28: Removed Unverified status - it's not useful and confusing
+        // Offers are either: Active, Paused, or Pending
         
-        let statusBadgeClass = isPending ? 'pending' : (isPaused ? 'paused' : (isUnverified ? 'unverified' : (needsUpdate ? 'needs-update' : 'active')));
+        let statusBadgeClass = isPending ? 'pending' : (isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active'));
         // v9.7: Better status icons using FontAwesome
         let statusBadgeText = isPending ? '<i class="fas fa-clock"></i> ' + t('pending_status') :
                               (isPaused ? '<i class="fas fa-pause-circle"></i> ' + t('paused') : 
-                              (isUnverified ? '<i class="fas fa-question-circle"></i> ' + t('unverified_status') :
-                              (needsUpdate ? t('needs_update_status') : t('active_status_offer'))));
+                              (needsUpdate ? t('needs_update_status') : t('active_status_offer')));
         
         // v9.8.24: Count brainrots in collection with same name AND income for paused offers
         let brainrotsCountBadge = '';
@@ -8406,12 +8403,12 @@ function renderOffers() {
                         <i class="fas fa-edit"></i>
                         ${t('adjust_price')}
                     </button>
-                    ${isPaused || isUnverified ? `
+                    ${isPaused ? `
                     <button class="btn btn-sm btn-delete" onclick="deleteOffer('${offer.offerId}', '${(offer.brainrotName || 'Unknown').replace(/'/g, "\\'")}')">
                         <i class="fas fa-trash"></i>
                         ${t('delete')}
                     </button>
-                    ${isPaused ? pausedInfo : ''}
+                    ${pausedInfo}
                     ` : ''}
                 </div>
             </div>
@@ -8510,22 +8507,17 @@ async function deleteOffer(offerId, brainrotName) {
     }
 }
 
-// v10.2.0: Bulk delete multiple paused/unverified offers - no confirmations, always delete from both
+// v10.2.0: Bulk delete multiple paused offers - no confirmations, always delete from both
+// v9.12.28: Removed unverified - only paused offers can be bulk deleted
 async function bulkDeleteOffers() {
     const selectedOfferIds = Array.from(offersState.selectedOffers);
     const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
     
-    // Filter only paused or unverified offers
-    const deletableOffers = selectedOffers.filter(o => {
-        const isPaused = o.status === 'paused';
-        const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
-        const scanAgeMs = Date.now() - lastScannedAt;
-        const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
-        return isPaused || isUnverified;
-    });
+    // Filter only paused offers
+    const deletableOffers = selectedOffers.filter(o => o.status === 'paused');
     
     if (deletableOffers.length === 0) {
-        showNotification('⚠️ No paused/unverified offers selected', 'warning');
+        showNotification('⚠️ No paused offers selected', 'warning');
         return;
     }
     
@@ -8626,28 +8618,23 @@ function updateBulkActionsState() {
         adjustBtnEl.disabled = offersState.selectedOffers.size === 0;
     }
     
-    // v10.0.3: Show bulk delete button ONLY when paused/unverified offers are selected
+    // v10.0.3: Show bulk delete button ONLY when paused offers are selected
+    // v9.12.28: Removed unverified status
     if (deleteBtnEl) {
         const selectedOfferIds = Array.from(offersState.selectedOffers);
         const selectedOffers = offersState.offers.filter(o => selectedOfferIds.includes(o.offerId));
         
-        // Count only paused or unverified offers
-        const deletableOffers = selectedOffers.filter(o => {
-            const isPaused = o.status === 'paused';
-            const lastScannedAt = o.lastScannedAt ? new Date(o.lastScannedAt).getTime() : 0;
-            const scanAgeMs = Date.now() - lastScannedAt;
-            const isUnverified = !isPaused && scanAgeMs > 60 * 60 * 1000;
-            return isPaused || isUnverified;
-        });
+        // Count only paused offers
+        const deletableOffers = selectedOffers.filter(o => o.status === 'paused');
         
         console.log('updateBulkActionsState:', {
             selectedIds: selectedOfferIds,
-            selectedOffers: selectedOffers.map(o => ({ id: o.offerId, status: o.status, lastScannedAt: o.lastScannedAt })),
+            selectedOffers: selectedOffers.map(o => ({ id: o.offerId, status: o.status })),
             deletableCount: deletableOffers.length,
             btnFound: true
         });
         
-        // Show button ONLY if paused/unverified offers are selected
+        // Show button ONLY if paused offers are selected
         if (deletableOffers.length > 0) {
             deleteBtnEl.classList.remove('hidden');
             deleteBtnEl.disabled = false;
