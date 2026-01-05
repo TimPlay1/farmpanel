@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.28 - Remove Unverified status for offers (useless and confusing)
+// FarmerPanel App v9.12.29 - Fix chart "not visible" spam logging
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -10618,6 +10618,7 @@ let chartUpdateTimer = null;
 let lastChartDataHash = null; // Track if data actually changed
 let isChartUpdating = false; // Prevent concurrent updates
 let chartRetryCount = 0; // v9.11.24: Moved here for proper reset
+let chartNotVisibleLogged = false; // v9.12.29: Prevent spam when chart not visible
 
 // Update balance chart with debounce (non-blocking)
 function updateBalanceChart(period = currentChartPeriod) {
@@ -10628,6 +10629,7 @@ function updateBalanceChart(period = currentChartPeriod) {
     
     // v9.11.24: Reset retry count on new user-initiated update
     chartRetryCount = 0;
+    chartNotVisibleLogged = false; // Reset log flag
     
     // v9.11.22: Don't skip if updating - queue instead
     // Debounce chart updates to prevent flickering
@@ -10687,9 +10689,10 @@ function _doUpdateBalanceChart(period) {
             const retryDelay = isVisible ? 100 : 300;
             setTimeout(() => _doUpdateBalanceChart(period), retryDelay);
         } else {
-            // v9.12.26: Reduce spam - only log once per cycle
-            if (chartRetryCount === MAX_CHART_RETRIES) {
+            // v9.12.29: Only log once until chart becomes visible again
+            if (!chartNotVisibleLogged) {
                 console.warn('Chart container not visible, will retry when tab is active');
+                chartNotVisibleLogged = true;
             }
             chartRetryCount = 0;
             isChartUpdating = false;
@@ -10702,8 +10705,9 @@ function _doUpdateBalanceChart(period) {
         }
     }
     
-    // Reset retry count on success
+    // Reset retry count and log flag on success
     chartRetryCount = 0;
+    chartNotVisibleLogged = false;
     
     // При ручном рефреше НЕ обновляем график - оставляем как есть
     if (state.isManualPriceRefresh) {
