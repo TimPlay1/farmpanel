@@ -107,9 +107,46 @@ module.exports = async (req, res) => {
             // Получить все офферы
             const offers = await offersCollection.find({ farmKey }).sort({ createdAt: -1 }).toArray();
             
-            // v3.0.2: Мутация берётся ТОЛЬКО из БД (от cron сканера)
-            // Fallback по farmer data отключён - он неправильно присваивал мутации
-            // Если в оффере mutation = null, значит оффер без мутации
+            // v3.0.3: Получаем мутации из collection фермера
+            // Сопоставляем по (name + income) - это единственный надёжный способ
+            // т.к. Eldorado API не даёт нормальные данные о мутациях
+            const farmersCollection = db.collection('farmers');
+            const farmer = await farmersCollection.findOne({ farmKey });
+            
+            // Создаём map: (name_income) -> mutation
+            // Income округляем до ближайших 10 M/s для сопоставления
+            const mutationsMap = new Map();
+            
+            const parseIncomeToMs = (income) => {
+                if (typeof income === 'number' && income > 0) {
+                    // Если > 10000, это полное число - конвертируем в M/s
+                    if (income > 10000) return income / 1000000;
+                    return income;
+                }
+                return null;
+            };
+            
+            if (farmer && farmer.accounts) {
+                for (const account of farmer.accounts) {
+                    if (account.brainrots) {
+                        for (const b of account.brainrots) {
+                            if (b.name) {
+                                const nameLower = b.name.toLowerCase();
+                                const incomeMs = parseIncomeToMs(b.income);
+                                if (incomeMs !== null) {
+                                    // Округляем до 10 M/s
+                                    const roundedIncome = Math.floor(incomeMs / 10) * 10;
+                                    const key = `${nameLower}_${roundedIncome}`;
+                                    // Сохраняем мутацию (или null если нет)
+                                    mutationsMap.set(key, b.mutation || null);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            console.log(`[Offers] Built mutation map with ${mutationsMap.size} entries for farmKey: ${farmKey}`);
             
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
@@ -130,9 +167,8 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // Добавляем recommendedPrice к каждому офферу
-            // v3.0.2: Мутация теперь ТОЛЬКО из БД (cron сканер)
-            // Fallback по данным фермера ОТКЛЮЧЁН - он давал неправильные мутации
+            // Добавляем recommendedPrice и мутацию к каждому офферу
+            // v3.0.3: Мутация берётся из collection фермера по (name + income)
             for (const offer of offers) {
                 const key = getPriceCacheKey(offer.brainrotName, offer.income);
                 const priceData = key ? pricesMap.get(key) : null;
@@ -144,9 +180,11 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // v3.0.2: Мутация берётся ТОЛЬКО из БД (от cron сканера)
-                // Fallback отключён - он неправильно присваивал мутации
-                // Если mutation = null, значит оффер без мутации
+                // v3.0.3: Получаем мутацию из collection фермера по (name + income)
+                // Это единственный надёжный источник - Eldorado API не даёт мутации нормально
+                if (key && mutationsMap.has(key)) {
+                    offer.mutation = mutationsMap.get(key); // может быть null если без мутации
+                }
             }
             
             return res.json({ 

@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.23 - Fix mutation bug: remove fallback logic in offers.js
+// FarmerPanel App v9.12.24 - Incremental price sync from cron, fix mutation from collection
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1068,6 +1068,7 @@ let state = {
 // Кэш цен Eldorado (время жизни 10 минут для свежих, но показываем устаревшие сразу)
 const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут вместо 3
 const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
+const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // v9.12.24: Проверка обновлённых цен каждую минуту
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
 const PRICE_CACHE_VERSION = 5; // v9.11.10: Increment to invalidate cache - fix mutation prices in next range check
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
@@ -1075,6 +1076,9 @@ const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
 const BALANCE_HISTORY_CACHE_TTL = 5 * 60 * 1000; // 5 минут кэш для истории баланса
 const CHART_PERIOD_KEY = 'chartPeriodCache';
+
+// v9.12.24: Время последней загрузки цен для инкрементального обновления
+let lastPricesLoadTime = 0;
 
 // Периоды для графика
 const PERIODS = {
@@ -1609,6 +1613,9 @@ async function loadPricesFromServer() {
                 // Запоминаем время загрузки
                 localStorage.setItem('lastPricesServerLoad', now.toString());
                 
+                // v9.12.24: Обновляем время для инкрементальных обновлений
+                lastPricesLoadTime = loadTime;
+                
                 console.log(`Loaded ${Object.keys(data.prices).length} prices from centralized server cache`);
                 return true;
             }
@@ -1652,6 +1659,58 @@ async function loadPricesFromServer() {
         console.warn('Failed to load prices from server:', e);
     }
     return false;
+}
+
+/**
+ * v9.12.24: Загрузить только обновлённые цены с сервера (инкрементальное обновление)
+ * Вызывается каждую минуту для синхронизации с cron scanner
+ */
+async function loadUpdatedPricesFromServer() {
+    if (!lastPricesLoadTime) {
+        // Если нет времени последней загрузки - делаем полную загрузку
+        return loadPricesFromServer();
+    }
+    
+    try {
+        // Запрашиваем цены обновлённые после lastPricesLoadTime
+        const response = await fetch(`${API_BASE}/prices-cache?since=${lastPricesLoadTime}`);
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.prices) {
+                const updatedCount = Object.keys(data.prices).length;
+                
+                if (updatedCount > 0) {
+                    const loadTime = Date.now();
+                    
+                    // Обновляем только изменённые цены
+                    for (const [key, priceData] of Object.entries(data.prices)) {
+                        state.brainrotPrices[key] = {
+                            ...priceData,
+                            _timestamp: loadTime,
+                            _serverUpdatedAt: priceData.updatedAt
+                        };
+                    }
+                    
+                    // Сохраняем в localStorage
+                    savePriceCacheToStorage();
+                    
+                    console.log(`📊 Updated ${updatedCount} prices from cron scanner`);
+                    
+                    // Обновляем UI если на панели или коллекции
+                    if (state.currentKey) {
+                        updateUI();
+                    }
+                }
+                
+                // Обновляем время последней загрузки
+                lastPricesLoadTime = Date.now();
+                return updatedCount;
+            }
+        }
+    } catch (e) {
+        console.warn('Failed to load updated prices:', e.message);
+    }
+    return 0;
 }
 
 /**
@@ -6100,14 +6159,26 @@ function clearPriceCache() {
  * Постепенно обновляет цены для всех брейнротов в коллекции
  */
 let autoPriceRefreshInterval = null;
+let incrementalPriceRefreshInterval = null; // v9.12.24: Инкрементальное обновление каждую минуту
 let isAutoRefreshing = false;
 
 function startAutoPriceRefresh() {
     if (autoPriceRefreshInterval) {
         clearInterval(autoPriceRefreshInterval);
     }
+    if (incrementalPriceRefreshInterval) {
+        clearInterval(incrementalPriceRefreshInterval);
+    }
     
-    // Запускаем первое обновление через 10 минут
+    // v9.12.24: Инкрементальное обновление каждую минуту - забираем обновлённые цены от cron
+    incrementalPriceRefreshInterval = setInterval(async () => {
+        if (!state.currentKey || isAutoRefreshing) return;
+        await loadUpdatedPricesFromServer();
+    }, PRICE_INCREMENTAL_INTERVAL);
+    
+    console.log('⏰ Incremental price sync scheduled every 1 minute');
+    
+    // Полное обновление каждые 10 минут (на случай если что-то не синхронизировалось)
     autoPriceRefreshInterval = setInterval(async () => {
         if (!state.currentKey || isAutoRefreshing) return;
         
@@ -6115,13 +6186,18 @@ function startAutoPriceRefresh() {
         await refreshAllPricesGradually();
     }, PRICE_AUTO_REFRESH_INTERVAL);
     
-    console.log('⏰ Auto price refresh scheduled every 10 minutes');
+    console.log('⏰ Full price refresh scheduled every 10 minutes');
 }
 
 function stopAutoPriceRefresh() {
     if (autoPriceRefreshInterval) {
         clearInterval(autoPriceRefreshInterval);
         autoPriceRefreshInterval = null;
+    }
+    // v9.12.24: Также останавливаем инкрементальное обновление
+    if (incrementalPriceRefreshInterval) {
+        clearInterval(incrementalPriceRefreshInterval);
+        incrementalPriceRefreshInterval = null;
     }
 }
 
