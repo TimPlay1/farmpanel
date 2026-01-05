@@ -501,6 +501,8 @@ async function scanOffers(db) {
     let totalScanned = 0;
     let matchedCount = 0;
     let updatedCount = 0;
+    let createdCount = 0;
+    const foundCodes = new Set(); // Отслеживаем найденные коды
     
     // Последовательно сканируем страницы
     for (let page = 1; page <= OFFER_SCAN_PAGES; page++) {
@@ -527,12 +529,21 @@ async function scanOffers(db) {
                 const owner = codeToOwner.get(code);
                 if (!owner) continue;
                 
+                foundCodes.add(code); // Помечаем как найденный
                 matchedCount++;
                 
                 // Данные оффера
                 const price = offer.pricePerUnitInUSD?.amount || 0;
                 const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
                 const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                
+                // Парсим income из title
+                const incomeMatch = title.match(/(\d+(?:\.\d+)?)\s*([MB])\/s/i);
+                let income = null;
+                if (incomeMatch) {
+                    income = parseFloat(incomeMatch[1]);
+                    if (incomeMatch[2].toUpperCase() === 'B') income *= 1000;
+                }
                 
                 // Обновляем offer_codes
                 await codesCollection.updateOne(
@@ -547,24 +558,51 @@ async function scanOffers(db) {
                     }}
                 );
                 
-                // Обновляем/создаём offers
-                const result = await offersCollection.updateOne(
-                    { farmKey: owner.farmKey, offerId: code },
-                    { $set: {
-                        status: 'active',
-                        eldoradoOfferId: offer.id,
+                // Проверяем существует ли оффер
+                const existingOffer = await offersCollection.findOne({ 
+                    farmKey: owner.farmKey, 
+                    offerId: code 
+                });
+                
+                if (existingOffer) {
+                    // Обновляем существующий
+                    await offersCollection.updateOne(
+                        { _id: existingOffer._id },
+                        { $set: {
+                            status: 'active',
+                            eldoradoOfferId: offer.id,
+                            currentPrice: price,
+                            mutation: mutation,
+                            income: income || existingOffer.income,
+                            brainrotName: owner.brainrotName || existingOffer.brainrotName,
+                            imageUrl: buildImageUrl(imageName) || existingOffer.imageUrl,
+                            eldoradoTitle: title,
+                            sellerName: item.user?.username || null,
+                            lastScannedAt: now,
+                            updatedAt: now
+                        }}
+                    );
+                    updatedCount++;
+                } else {
+                    // Создаём новый оффер
+                    await offersCollection.insertOne({
+                        farmKey: owner.farmKey,
+                        offerId: code,
+                        brainrotName: owner.brainrotName,
+                        income: income,
                         currentPrice: price,
+                        status: 'active',
                         mutation: mutation,
                         imageUrl: buildImageUrl(imageName),
+                        eldoradoOfferId: offer.id,
                         eldoradoTitle: title,
                         sellerName: item.user?.username || null,
                         lastScannedAt: now,
+                        createdAt: now,
                         updatedAt: now
-                    }},
-                    { upsert: false }
-                );
-                
-                if (result.modifiedCount > 0) updatedCount++;
+                    });
+                    createdCount++;
+                }
             }
         }
         
@@ -574,10 +612,40 @@ async function scanOffers(db) {
         }
     }
     
-    const duration = Math.round((Date.now() - startTime) / 1000);
-    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated (${duration}s)`);
+    // Помечаем НЕ найденные active офферы как paused
+    let pausedCount = 0;
+    if (foundCodes.size > 0) {
+        const activeCodesNotFound = await codesCollection.find({
+            status: 'active',
+            code: { $nin: Array.from(foundCodes) }
+        }).toArray();
+        
+        for (const codeDoc of activeCodesNotFound) {
+            await codesCollection.updateOne(
+                { code: codeDoc.code },
+                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+            );
+            
+            await offersCollection.updateMany(
+                { offerId: codeDoc.code, status: 'active' },
+                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+            );
+            pausedCount++;
+        }
+    }
     
-    return { totalScanned, matchedCount, updatedCount, duration };
+    const duration = Math.round((Date.now() - startTime) / 1000);
+    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)`);
+    
+    return { 
+        totalScanned, 
+        matchedCount, 
+        updatedCount, 
+        createdCount,
+        pausedCount,
+        foundCodes: foundCodes.size,
+        duration 
+    };
 }
 
 // ==================== END OFFER SCANNING ====================
