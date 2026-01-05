@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.24 - Incremental price sync from cron, fix mutation from collection
+// FarmerPanel App v9.12.25 - Fix income conversion for B/s offers, improve incremental sync logging
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1666,14 +1666,18 @@ async function loadPricesFromServer() {
  * Вызывается каждую минуту для синхронизации с cron scanner
  */
 async function loadUpdatedPricesFromServer() {
+    // Если нет времени последней загрузки - пропускаем (полная загрузка ещё не завершилась)
     if (!lastPricesLoadTime) {
-        // Если нет времени последней загрузки - делаем полную загрузку
-        return loadPricesFromServer();
+        console.log('⏳ Incremental sync skipped: waiting for initial load');
+        return 0;
     }
     
     try {
         // Запрашиваем цены обновлённые после lastPricesLoadTime
-        const response = await fetch(`${API_BASE}/prices-cache?since=${lastPricesLoadTime}`);
+        const sinceTime = lastPricesLoadTime - 60000; // -1 минута для надёжности
+        console.log(`🔄 Checking for price updates since ${new Date(sinceTime).toLocaleTimeString()}...`);
+        
+        const response = await fetch(`${API_BASE}/prices-cache?since=${sinceTime}`);
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.prices) {
@@ -1700,12 +1704,16 @@ async function loadUpdatedPricesFromServer() {
                     if (state.currentKey) {
                         updateUI();
                     }
+                } else {
+                    console.log('📊 No new price updates from cron');
                 }
                 
                 // Обновляем время последней загрузки
                 lastPricesLoadTime = Date.now();
                 return updatedCount;
             }
+        } else {
+            console.warn('Failed to fetch price updates:', response.status);
         }
     } catch (e) {
         console.warn('Failed to load updated prices:', e.message);

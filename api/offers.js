@@ -51,11 +51,27 @@ function triggerBackgroundScan() {
 }
 
 /**
+ * Конвертирует income в M/s для унифицированного ключа
+ * В разных местах income может быть:
+ * - Полное число: 1100000000 (= 1.1B = 1100 M/s)
+ * - Уже в M/s: 1100
+ */
+function incomeToMs(income) {
+    if (typeof income !== 'number' || income <= 0) return null;
+    // Если > 10000, это полное число - конвертируем в M/s
+    if (income > 10000) return income / 1000000;
+    return income;
+}
+
+/**
  * Генерирует ключ кэша цены (как в клиенте)
+ * v3.0.4: Унифицируем income в M/s перед округлением
  */
 function getPriceCacheKey(name, income) {
     if (!name || income === undefined) return null;
-    const roundedIncome = Math.floor(income / 10) * 10;
+    const incomeMs = incomeToMs(income);
+    if (incomeMs === null) return null;
+    const roundedIncome = Math.floor(incomeMs / 10) * 10;
     return `${name.toLowerCase()}_${roundedIncome}`;
 }
 
@@ -114,29 +130,16 @@ module.exports = async (req, res) => {
             const farmer = await farmersCollection.findOne({ farmKey });
             
             // Создаём map: (name_income) -> mutation
-            // Income округляем до ближайших 10 M/s для сопоставления
+            // Используем ту же функцию getPriceCacheKey для единообразия
             const mutationsMap = new Map();
-            
-            const parseIncomeToMs = (income) => {
-                if (typeof income === 'number' && income > 0) {
-                    // Если > 10000, это полное число - конвертируем в M/s
-                    if (income > 10000) return income / 1000000;
-                    return income;
-                }
-                return null;
-            };
             
             if (farmer && farmer.accounts) {
                 for (const account of farmer.accounts) {
                     if (account.brainrots) {
                         for (const b of account.brainrots) {
-                            if (b.name) {
-                                const nameLower = b.name.toLowerCase();
-                                const incomeMs = parseIncomeToMs(b.income);
-                                if (incomeMs !== null) {
-                                    // Округляем до 10 M/s
-                                    const roundedIncome = Math.floor(incomeMs / 10) * 10;
-                                    const key = `${nameLower}_${roundedIncome}`;
+                            if (b.name && b.income) {
+                                const key = getPriceCacheKey(b.name, b.income);
+                                if (key) {
                                     // Сохраняем мутацию (или null если нет)
                                     mutationsMap.set(key, b.mutation || null);
                                 }
@@ -145,8 +148,6 @@ module.exports = async (req, res) => {
                     }
                 }
             }
-            
-            console.log(`[Offers] Built mutation map with ${mutationsMap.size} entries for farmKey: ${farmKey}`);
             
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];

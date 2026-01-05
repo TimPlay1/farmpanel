@@ -490,13 +490,34 @@ async function scanOffers(db) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    // Загружаем зарегистрированные коды
-    const registeredCodes = await codesCollection.find({}).toArray();
+    // v3.0.4: Загружаем коды из ДВУХ источников:
+    // 1. offer_codes - зарегистрированные коды
+    // 2. offers - существующие офферы (offerId = код)
     const codeToOwner = new Map();
+    
+    // Из offer_codes
+    const registeredCodes = await codesCollection.find({}).toArray();
     for (const doc of registeredCodes) {
-        codeToOwner.set(doc.code.toUpperCase(), doc);
+        codeToOwner.set(doc.code.toUpperCase(), {
+            farmKey: doc.farmKey,
+            brainrotName: doc.brainrotName,
+            source: 'offer_codes'
+        });
     }
-    console.log(`📋 Loaded ${registeredCodes.length} registered codes`);
+    
+    // Из offers (offerId = код в тайтле)
+    const existingOffers = await offersCollection.find({}).toArray();
+    for (const offer of existingOffers) {
+        if (offer.offerId && !codeToOwner.has(offer.offerId.toUpperCase())) {
+            codeToOwner.set(offer.offerId.toUpperCase(), {
+                farmKey: offer.farmKey,
+                brainrotName: offer.brainrotName,
+                source: 'offers'
+            });
+        }
+    }
+    
+    console.log(`📋 Loaded ${codeToOwner.size} codes (${registeredCodes.length} from offer_codes, ${existingOffers.length} from offers)`);
     
     let totalScanned = 0;
     let matchedCount = 0;
