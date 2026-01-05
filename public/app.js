@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.19 - Fix mutation from Eldorado, fast offers endpoint
+// FarmerPanel App v9.12.20 - Disable scan-glitched (cron handles it now)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -7767,14 +7767,8 @@ async function loadOffers(forceRefresh = false, silent = false) {
         // Save previous state for comparison
         const previousOffers = [...offersState.offers];
         
-        // Trigger server scan first (non-blocking for silent mode)
-        if (forceRefresh && typeof triggerServerScan === 'function') {
-            if (silent) {
-                triggerServerScan(); // Don't await in silent mode
-            } else {
-                await triggerServerScan();
-            }
-        }
+        // v3.0.1: НЕ вызываем triggerServerScan - cron делает это автоматически
+        // Раньше это вызывало Cloudflare rate limit 1015
         
         const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
@@ -10020,26 +10014,22 @@ function startOffersAutoRefresh() {
 
 async function doOffersRefresh() {
     if (state.currentKey && offersState.offers.length > 0) {
-        console.log('🔄 Auto-refreshing offers...');
+        console.log('🔄 Auto-refreshing offers from DB...');
         lastOffersRefreshTime = Date.now();
-        // First trigger server scan to update DB
-        await triggerServerScan();
-        // Then load updated offers
+        // v3.0.1: Больше НЕ вызываем scan-glitched - cron делает это автоматически
+        // await triggerServerScan();
+        // Загружаем свежие данные из БД (обновлённые cron'ом)
         await loadOffers(true, true); // Force refresh, silent mode
     }
 }
 
-// Trigger server-side scan of Glitched Store offers
+// v3.0.1: DEPRECATED - scan-glitched больше не нужен, cron сканирует офферы
+// Оставлено для обратной совместимости но не вызывается
 async function triggerServerScan() {
-    try {
-        const response = await fetch(`${API_BASE}/scan-glitched`);
-        const data = await response.json();
-        if (data.success && !data.cached) {
-            console.log(`📡 Server scan: ${data.updated} updated, ${data.markedPaused} paused`);
-        }
-    } catch (err) {
-        console.warn('Server scan failed:', err.message);
-    }
+    // DISABLED: Cron scanner now handles offer scanning
+    // This was causing Cloudflare rate limit 1015
+    console.log('⚠️ triggerServerScan() is deprecated - cron handles scanning');
+    return { success: true, cached: true };
 }
 
 function stopOffersAutoRefresh() {
