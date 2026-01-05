@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.0';  // Added offer scanning
+const VERSION = '3.0.6';  // Direct search for user codes not found in bulk scan
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -397,9 +397,14 @@ async function cleanupQueue(db) {
 /**
  * Получает офферы с Eldorado API
  */
-function fetchEldoradoOffers(pageIndex = 1, pageSize = 100) {
+function fetchEldoradoOffers(pageIndex = 1, pageSize = 100, searchText = null) {
     return new Promise((resolve) => {
-        const queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=CreationDate&isAscending=false`;
+        // v3.0.6: Добавляем поиск по тексту для поиска конкретных кодов
+        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=CreationDate&isAscending=false`;
+        
+        if (searchText) {
+            queryPath += `&offerTitle=${encodeURIComponent(searchText)}`;
+        }
 
         const options = {
             hostname: 'www.eldorado.gg',
@@ -638,6 +643,131 @@ async function scanOffers(db) {
         // Задержка между страницами (Cloudflare)
         if (page < OFFER_SCAN_PAGES) {
             await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
+        }
+    }
+    
+    // v3.0.6: Дополнительное сканирование - ищем конкретные коды пользователей которые НЕ были найдены
+    // Это нужно потому что офферы могут быть на страницах дальше чем первые 10
+    const notFoundCodes = [];
+    for (const [code, owner] of codeToOwner.entries()) {
+        if (!foundCodes.has(code)) {
+            notFoundCodes.push({ code, owner });
+        }
+    }
+    
+    if (notFoundCodes.length > 0) {
+        console.log(`🔍 Searching for ${notFoundCodes.length} not-found codes by direct search...`);
+        
+        // Ограничиваем количество доп. запросов чтобы не превысить лимиты
+        const MAX_DIRECT_SEARCHES = 20;
+        const codesToSearch = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES);
+        
+        for (const { code, owner } of codesToSearch) {
+            // Задержка между запросами
+            await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
+            
+            // Ищем по коду в заголовке
+            const response = await fetchEldoradoOffers(1, 10, code);
+            
+            if (response.error) {
+                console.warn(`⚠️ Search for ${code} failed: ${response.error}`);
+                continue;
+            }
+            
+            if (!response.results?.length) {
+                console.log(`   ❌ ${code} - not found on Eldorado`);
+                continue;
+            }
+            
+            // Ищем оффер с нашим кодом в результатах
+            for (const item of response.results) {
+                const offer = item.offer || item;
+                const title = offer.offerTitle || '';
+                const codes = extractAllCodes(title);
+                
+                if (!codes.includes(code)) continue;
+                
+                // Нашли! Обновляем
+                foundCodes.add(code);
+                matchedCount++;
+                
+                const price = offer.pricePerUnitInUSD?.amount || 0;
+                const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
+                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                
+                // Парсим income из title
+                const incomeMatch = title.match(/(\d+(?:\.\d+)?)\s*([MB])\/s/i);
+                let income = null;
+                if (incomeMatch) {
+                    income = parseFloat(incomeMatch[1]);
+                    if (incomeMatch[2].toUpperCase() === 'B') income *= 1000;
+                }
+                
+                // Обновляем offer_codes
+                await codesCollection.updateOne(
+                    { code: code },
+                    { $set: {
+                        status: 'active',
+                        eldoradoOfferId: offer.id,
+                        currentPrice: price,
+                        mutation: mutation,
+                        lastSeenAt: now,
+                        updatedAt: now
+                    }},
+                    { upsert: true }
+                );
+                
+                // Обновляем или создаём оффер
+                const existingOffer = await offersCollection.findOne({ 
+                    farmKey: owner.farmKey, 
+                    offerId: code 
+                });
+                
+                if (existingOffer) {
+                    await offersCollection.updateOne(
+                        { _id: existingOffer._id },
+                        { $set: {
+                            status: 'active',
+                            eldoradoOfferId: offer.id,
+                            currentPrice: price,
+                            mutation: mutation,
+                            income: income || existingOffer.income,
+                            brainrotName: owner.brainrotName || existingOffer.brainrotName,
+                            imageUrl: buildImageUrl(imageName) || existingOffer.imageUrl,
+                            eldoradoTitle: title,
+                            sellerName: item.user?.username || null,
+                            lastScannedAt: now,
+                            updatedAt: now
+                        }}
+                    );
+                    updatedCount++;
+                } else {
+                    await offersCollection.insertOne({
+                        farmKey: owner.farmKey,
+                        offerId: code,
+                        brainrotName: owner.brainrotName,
+                        income: income,
+                        currentPrice: price,
+                        status: 'active',
+                        mutation: mutation,
+                        imageUrl: buildImageUrl(imageName),
+                        eldoradoOfferId: offer.id,
+                        eldoradoTitle: title,
+                        sellerName: item.user?.username || null,
+                        lastScannedAt: now,
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                    createdCount++;
+                }
+                
+                console.log(`   ✅ ${code} - FOUND via direct search! price=$${price}`);
+                break; // Нашли, выходим из цикла
+            }
+        }
+        
+        if (notFoundCodes.length > MAX_DIRECT_SEARCHES) {
+            console.log(`   ⏭️ Skipped ${notFoundCodes.length - MAX_DIRECT_SEARCHES} codes (limit reached)`);
         }
     }
     
