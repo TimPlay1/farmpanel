@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.17 - Instant UI display (no blocking on data load)
+// FarmerPanel App v9.12.18 - Fast sync endpoint for instant data loading
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2692,11 +2692,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
             }
             
-            // Загружаем данные в фоне (не блокируем)
+            // v9.12.18: Используем быстрый sync-fast endpoint с in-memory кэшем
             fetchWithTimeout(
-                `${API_BASE}/sync?key=${encodeURIComponent(state.currentKey)}`,
+                `${API_BASE}/sync-fast?key=${encodeURIComponent(state.currentKey)}`,
                 {},
-                15000
+                10000 // Меньший таймаут - данные должны приходить быстро
             ).then(async response => {
                 if (response.ok) {
                     const data = await response.json();
@@ -2752,14 +2752,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const keyChanged = () => state.currentKey !== initialKey;
             
             try {
-                // v9.12.4: Если кэш был устаревший - загружаем свежие данные в фоне
+                // v9.12.18: Используем быстрый sync-fast endpoint
                 if (needsFreshData) {
                     console.log('🔄 Loading fresh data in background (cache was stale)...');
                     await delay(100);
                     try {
                         const response = await withTimeout(
-                            fetch(`${API_BASE}/sync?key=${encodeURIComponent(initialKey)}&_=${Date.now()}`, { cache: 'no-store' }),
-                            15000 // 15 секунд timeout для фоновой загрузки
+                            fetch(`${API_BASE}/sync-fast?key=${encodeURIComponent(initialKey)}&_=${Date.now()}`, { cache: 'no-store' }),
+                            10000 // 10 секунд - sync-fast должен быть быстрее
                         );
                         if (response.ok && !keyChanged()) {
                             const data = await response.json();
@@ -3509,9 +3509,10 @@ async function fetchFarmerData() {
             currentFetchController.abort();
         }, 6000); // 6 секунд таймаут (было бесконечно)
         
+        // v9.12.18: Используем быстрый sync-fast endpoint
         // Add cache-busting timestamp to prevent browser caching
         const cacheBuster = Date.now();
-        const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(requestKey)}&_=${cacheBuster}`, {
+        const response = await fetch(`${API_BASE}/sync-fast?key=${encodeURIComponent(requestKey)}&_=${cacheBuster}`, {
             cache: 'no-store',  // Disable HTTP caching
             signal: currentFetchController.signal,
             headers: {
@@ -3629,7 +3630,8 @@ async function fetchAllFarmersData() {
         }
         
         try {
-            const response = await fetch(`${API_BASE}/sync?key=${encodeURIComponent(key.farmKey)}`);
+            // v9.12.18: Используем быстрый sync-fast endpoint
+            const response = await fetch(`${API_BASE}/sync-fast?key=${encodeURIComponent(key.farmKey)}`);
             if (response.ok) {
                 const data = await response.json();
                 state.farmersData[key.farmKey] = data;
