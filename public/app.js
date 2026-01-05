@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.21 - Add cron refresh timer in Offers header
+// FarmerPanel App v9.12.22 - Move cron timer to main header (next to nav-tabs)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -3237,6 +3237,9 @@ function showMainApp() {
     mainApp.classList.remove('hidden');
     updateCurrentFarmer();
     renderFarmKeys();
+    
+    // Запускаем cron таймер в хедере
+    initCronTimer();
     
     // Восстанавливаем последнюю активную вкладку
     restoreLastView();
@@ -10117,9 +10120,6 @@ function stopCronTimer() {
 // Initialize offers when view is shown
 function initOffersView() {
     console.log('📋 Offers view opened');
-    
-    // Запускаем cron таймер
-    initCronTimer();
     
     // Load shop name for display
     loadShopName();

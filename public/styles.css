@@ -4429,8 +4429,8 @@ body {
     color: var(--text-muted);
     cursor: help;
     transition: all 0.2s ease;
-    margin-left: auto;
-    margin-right: 1rem;
+    margin-left: 1rem;
+    white-space: nowrap;
 }
 
 .cron-timer:hover {

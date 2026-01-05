@@ -173,6 +173,12 @@
                         <span data-i18n="nav_offers">Offers</span>
                     </button>
                 </nav>
+                <!-- Cron Refresh Timer -->
+                <div class="cron-timer" id="cronTimer" title="">
+                    <i class="fas fa-sync-alt"></i>
+                    <span class="cron-timer-label" data-i18n="refresh">Refresh</span>:
+                    <span class="cron-timer-value" id="cronTimerValue">0:00</span>
+                </div>
             </div>
             <div class="header-right">
                 <div class="account-switcher" id="accountSwitcher">
@@ -450,12 +456,6 @@
                             <i class="fas fa-store"></i>
                             <span data-i18n="eldorado_offers">Eldorado Offers</span>
                         </h2>
-                        <!-- Cron Refresh Timer -->
-                        <div class="cron-timer" id="cronTimer" title="">
-                            <i class="fas fa-sync-alt"></i>
-                            <span class="cron-timer-label" data-i18n="refresh">Refresh</span>:
-                            <span class="cron-timer-value" id="cronTimerValue">0:00</span>
-                        </div>
                         <div class="offers-stats" id="offersStats"></div>
                     </div>
                     
@@ -998,6 +998,6 @@
         </div>
     </div>
 
-    <script src="app.js?v=75"></script>
+    <script src="app.js?v=76"></script>
 </body>
 </html>
