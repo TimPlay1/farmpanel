@@ -223,7 +223,7 @@ function extractBrainrotName(title, attributes) {
 }
 
 /**
- * Сканирует все офферы и находит коды v10.4.0
+ * Сканирует все офферы и находит коды v10.5.0
  * ОПТИМИЗАЦИЯ: Параллельное сканирование страниц batch'ами
  */
 async function scanAllOffers(db, options = {}) {
@@ -238,7 +238,7 @@ async function scanAllOffers(db, options = {}) {
     const offersCollection = db.collection('offers');
     const now = new Date();
     
-    console.log(`🔍 Starting universal offer scan v10.4.0 (parallel)...`);
+    console.log(`🔍 Starting universal offer scan v10.5.0 (sequential)...`);
     
     // Получаем все зарегистрированные коды из БД
     const registeredCodes = await codesCollection.find({}).toArray();
@@ -255,7 +255,7 @@ async function scanAllOffers(db, options = {}) {
     
     let totalScanned = 0;
     
-    // v10.4.0: Сначала получаем первую страницу чтобы узнать общее количество
+    // v10.5.0: Сначала получаем первую страницу чтобы узнать общее количество
     const firstPage = await fetchEldoradoOffers(1, pageSize, searchQuery);
     if (firstPage.error || !firstPage.results?.length) {
         console.log('❌ Failed to fetch first page or no results');
@@ -278,38 +278,28 @@ async function scanAllOffers(db, options = {}) {
     const totalPages = Math.min(Math.ceil(totalCount / pageSize), maxPages);
     console.log(`📊 Total offers: ${totalCount}, pages to scan: ${totalPages}`);
     
-    // v10.4.0: Параллельное сканирование остальных страниц (batch по 5)
-    const BATCH_SIZE = 5;
-    for (let batchStart = 2; batchStart <= totalPages; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, totalPages);
-        const pagePromises = [];
+    // v10.5.0: Последовательное сканирование (Cloudflare rate limit 1015 при параллельном)
+    for (let page = 2; page <= totalPages; page++) {
+        // Задержка перед каждым запросом (Cloudflare rate limit)
+        await new Promise(r => setTimeout(r, 300));
         
-        for (let page = batchStart; page <= batchEnd; page++) {
-            pagePromises.push(fetchEldoradoOffers(page, pageSize, searchQuery));
+        const response = await fetchEldoradoOffers(page, pageSize, searchQuery);
+        
+        if (response.error) {
+            console.error(`❌ Error on page ${page}:`, response.error);
+            continue;
+        }
+        if (!response.results?.length) {
+            break;
         }
         
-        // Ждём все страницы в batch
-        const batchResults = await Promise.all(pagePromises);
+        processPageResults(response.results, foundOffers, matchedOffers, scannedCodes, codeToOwner, now);
+        totalScanned += response.results.length;
         
-        let shouldStop = false;
-        for (const response of batchResults) {
-            if (response.error) {
-                console.error(`❌ Error in batch:`, response.error);
-                continue;
-            }
-            if (!response.results?.length) {
-                shouldStop = true;
-                continue;
-            }
-            
-            processPageResults(response.results, foundOffers, matchedOffers, scannedCodes, codeToOwner, now);
-            totalScanned += response.results.length;
+        // Логируем прогресс каждые 10 страниц
+        if (page % 10 === 0) {
+            console.log(`📄 Progress: page ${page}/${totalPages}, scanned: ${totalScanned}`);
         }
-        
-        if (shouldStop) break;
-        
-        // Небольшая задержка между batch'ами
-        await new Promise(r => setTimeout(r, 50));
     }
     
     console.log(`📊 Scan complete: ${totalScanned} scanned, ${foundOffers.length} with codes, ${matchedOffers.length} matched`);
