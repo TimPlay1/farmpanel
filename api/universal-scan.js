@@ -70,13 +70,6 @@ function extractMutationFromAttributes(attributes) {
     return null;
 }
 
-// Паттерны для извлечения кодов из тайтлов
-const CODE_PATTERNS = [
-    /#([A-Z0-9]{4,12})\b/gi,     // #CODE (4-12 символов)
-    /\[([A-Z0-9]{4,12})\]/gi,    // [CODE]
-    /\(([A-Z0-9]{4,12})\)/gi,    // (CODE)
-];
-
 /**
  * Строит полный URL изображения
  */
