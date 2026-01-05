@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.6';  // Direct search for user codes not found in bulk scan
+const VERSION = '3.0.7';  // Fix direct search to use searchQuery like scan-glitched
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -396,14 +396,16 @@ async function cleanupQueue(db) {
 
 /**
  * Получает офферы с Eldorado API
+ * v3.0.7: searchQuery вместо offerTitle для поиска по коду
  */
 function fetchEldoradoOffers(pageIndex = 1, pageSize = 100, searchText = null) {
     return new Promise((resolve) => {
         // v3.0.6: Добавляем поиск по тексту для поиска конкретных кодов
         let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=CreationDate&isAscending=false`;
         
+        // v3.0.7: Используем searchQuery (как в scan-glitched) - ищет в title И description
         if (searchText) {
-            queryPath += `&offerTitle=${encodeURIComponent(searchText)}`;
+            queryPath += `&searchQuery=${encodeURIComponent(searchText)}`;
         }
 
         const options = {
@@ -666,16 +668,16 @@ async function scanOffers(db) {
             // Задержка между запросами
             await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
             
-            // Ищем по коду в заголовке
-            const response = await fetchEldoradoOffers(1, 10, code);
+            // v3.0.7: Ищем по #CODE (как в scan-glitched) - searchQuery ищет в title И description
+            const response = await fetchEldoradoOffers(1, 10, `#${code}`);
             
             if (response.error) {
-                console.warn(`⚠️ Search for ${code} failed: ${response.error}`);
+                console.warn(`⚠️ Search for #${code} failed: ${response.error}`);
                 continue;
             }
             
             if (!response.results?.length) {
-                console.log(`   ❌ ${code} - not found on Eldorado`);
+                console.log(`   ❌ #${code} - not found on Eldorado`);
                 continue;
             }
             
@@ -771,27 +773,10 @@ async function scanOffers(db) {
         }
     }
     
-    // Помечаем НЕ найденные active офферы как paused
-    let pausedCount = 0;
-    if (foundCodes.size > 0) {
-        const activeCodesNotFound = await codesCollection.find({
-            status: 'active',
-            code: { $nin: Array.from(foundCodes) }
-        }).toArray();
-        
-        for (const codeDoc of activeCodesNotFound) {
-            await codesCollection.updateOne(
-                { code: codeDoc.code },
-                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-            );
-            
-            await offersCollection.updateMany(
-                { offerId: codeDoc.code, status: 'active' },
-                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-            );
-            pausedCount++;
-        }
-    }
+    // v3.0.7: НЕ помечаем автоматически как paused - это делает scan-glitched.js с notFoundCount логикой
+    // Cron не может гарантировать что проверил ВСЕ коды (ограничения страниц и direct search)
+    // scan-glitched.js проверяет каждый код индивидуально и использует счётчик неудачных попыток
+    const pausedCount = 0;
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)`);
