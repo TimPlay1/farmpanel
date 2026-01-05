@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.14 - Add Cursed mutation support
+// FarmerPanel App v9.12.15 - Fix Cursed mutation style (dark red demonic)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -969,10 +969,10 @@ function getMutationStyles(mutation) {
             glowColor: '#32CD32'
         },
         'Cursed': {
-            background: 'linear-gradient(135deg, #2d1b4e, #4a1a6b, #1a0a2e)',
-            textColor: '#c9a0dc',
-            textShadow: '0 0 4px #8b5cf6, 0 0 8px #6d28d9',
-            glowColor: '#8b5cf6'
+            background: 'linear-gradient(135deg, #1a0000, #4a0a0a, #8b0000)',
+            textColor: '#ff6666',
+            textShadow: '0 0 4px #ff0000, 0 0 8px #990000',
+            glowColor: '#ff0000'
         }
     };
     return styles[clean] || { background: '#888', textColor: '#fff', glowColor: '#888' };

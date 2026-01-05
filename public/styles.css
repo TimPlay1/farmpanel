@@ -1727,10 +1727,10 @@ body {
 }
 
 .dropdown-item .mutation-badge.cursed {
-    background: linear-gradient(135deg, #2d1b4e, #4a1a6b, #1a0a2e);
-    color: #c9a0dc;
-    text-shadow: 0 0 4px #8b5cf6, 0 0 8px #6d28d9;
-    --glow-color: #8b5cf6;
+    background: linear-gradient(135deg, #1a0000, #4a0a0a, #8b0000);
+    color: #ff6666;
+    text-shadow: 0 0 4px #ff0000, 0 0 8px #990000;
+    --glow-color: #ff0000;
 }
 
 .dropdown-item i {
