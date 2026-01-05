@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.18 - Fast sync endpoint for instant data loading
+// FarmerPanel App v9.12.19 - Fix mutation from Eldorado, fast offers endpoint
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -9886,7 +9886,8 @@ function setupOffersListeners() {
     });
 }
 
-// Universal scan - scans ALL Eldorado offers and matches codes to users
+// v10.5.0: Scan All now fetches pre-scanned offers from database (instant!)
+// Offers are scanned by cron job, not by this button
 async function scanEldoradoOffers() {
     const scanBtn = document.getElementById('scanOffersBtn');
     const progressEl = document.getElementById('offersScanProgress');
@@ -9902,13 +9903,13 @@ async function scanEldoradoOffers() {
     
     const originalContent = scanBtn.innerHTML;
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('scanning');
+    scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ' + t('loading');
     
     // Show progress bar
     if (progressEl) {
         progressEl.classList.remove('hidden');
         if (progressFill) progressFill.style.width = '0%';
-        if (progressText) progressText.textContent = t('starting');
+        if (progressText) progressText.textContent = t('loading');
     }
     
     const updateProgress = (percent, text) => {
@@ -9917,43 +9918,51 @@ async function scanEldoradoOffers() {
     };
     
     try {
-        updateProgress(10, t('scanning_eldorado'));
+        updateProgress(30, t('fetching_offers'));
         
-        // Call universal scanner
-        const scanResponse = await fetch(`${API_BASE}/universal-scan?farmKey=${encodeURIComponent(state.currentKey)}&force=1`);
-        const scanResult = await scanResponse.json();
+        // v10.5.0: Fetch pre-scanned offers from database (FAST!)
+        const response = await fetch(`${API_BASE}/offers-fast?farmKey=${encodeURIComponent(state.currentKey)}`);
+        const result = await response.json();
         
-        updateProgress(60, t('processing_results'));
+        updateProgress(70, t('processing_results'));
         
-        if (scanResult.success) {
-            console.log(`Universal scan: ${scanResult.totalScanned} scanned, ${scanResult.matched} matched`);
+        if (result.success && result.offers) {
+            // Update offers state
+            offersState.offers = result.offers;
+            offersState.lastFetch = Date.now();
+            
+            // Save to localStorage for cache
+            saveOffersToStorage();
+            
+            console.log(`[Scan All] Loaded ${result.offers.length} offers from DB cache`);
         }
         
-        updateProgress(80, t('loading_offers'));
+        updateProgress(90, t('rendering'));
         
-        // Reload offers from server
-        await loadOffers(true);
+        // Re-render offers
+        filterAndRenderOffers();
         
         updateProgress(100, t('done'));
         
-        const activeCount = offersState.offers.filter(o => o.status === 'active').length;
-        const pendingCount = offersState.offers.filter(o => o.status === 'pending').length;
-        const pausedCount = offersState.offers.filter(o => o.status === 'paused').length;
-        const total = offersState.offers.length;
+        const stats = result.stats || {};
+        const total = stats.totalOffers || 0;
+        const activeCount = stats.activeOffers || 0;
+        const pausedCount = stats.pausedOffers || 0;
+        const pendingCount = stats.pendingOffers || 0;
         
         // Build message
         let message = '';
         let type = 'success';
         
         if (total === 0) {
-            message = `ℹ️ ${t('no_registered_codes').replace('{count}', scanResult.totalScanned || 0)}`;
+            message = `ℹ️ No offers found. Register codes first.`;
             type = 'info';
         } else {
             const parts = [];
             if (activeCount > 0) parts.push(`${activeCount} active`);
             if (pendingCount > 0) parts.push(`${pendingCount} pending`);
             if (pausedCount > 0) parts.push(`${pausedCount} paused`);
-            message = `✅ ${parts.join(', ')} (scanned ${scanResult.totalScanned || 0})`;
+            message = `✅ ${parts.join(', ')} (from DB cache)`;
         }
         
         showNotification(message, type);

@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен
- * Version: 2.7.0 - Cyclic scanning with cursor position
+ * Version: 2.9.0 - Increased batch size (tested: no rate limit on Eldorado)
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -14,18 +14,23 @@
  * 3. Сканируем следующие N брейнротов начиная с курсора
  * 4. Сохраняем новую позицию курсора
  * 5. При достижении конца - начинаем сначала (циклично)
+ * 
+ * v2.9.0: Тесты показали что Eldorado API позволяет ~143 запроса/мин
+ *         без rate limit. Увеличиваем batch size для быстрого сканирования.
  */
 
-const VERSION = '2.8.0';  // Priority scanning: new first, skip duplicates
+const VERSION = '2.9.0';  // Increased batch size
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
 const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
 
-// Сканирование
-const SCAN_BATCH_SIZE = 100;         // Сколько брейнротов за один запуск cron
-const SCAN_DELAY_MS = 50;            // Задержка между запросами к Eldorado API
+// v2.9.0: Увеличенные параметры сканирования
+// Тесты: 100 sequential requests = 42 sec, no rate limit errors
+// Безопасный лимит: 100 запросов за 60 секунд = ~250 брейнротов
+const SCAN_BATCH_SIZE = 200;         // Увеличено с 100 (больше брейнротов за запуск)
+const SCAN_DELAY_MS = 30;            // Уменьшено с 50ms (быстрее сканирование)
 
 // Rate limiting (не используется когда AI отключён)
 const MAX_REQUESTS_PER_MINUTE = 3;

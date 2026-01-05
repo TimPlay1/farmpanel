@@ -3,6 +3,7 @@ const { connectToDatabase } = require('./_lib/db');
 
 /**
  * Универсальный сканер офферов на Eldorado
+ * Version 10.5.0 - Extract mutation from Eldorado attributes
  * 
  * Сканирует ВСЕ офферы в категории Brainrot, ищет уникальные коды в тайтлах,
  * затем сопоставляет с зарегистрированными кодами пользователей панели.
@@ -10,13 +11,64 @@ const { connectToDatabase } = require('./_lib/db');
  * Логика:
  * 1. Получаем офферы с Eldorado (все страницы категории)
  * 2. Извлекаем коды из тайтлов (#XXXXXXXX)
- * 3. Сопоставляем с offer_codes в БД
- * 4. Обновляем статусы: active/paused
- * 5. Создаём/обновляем записи в offers коллекции
+ * 3. Извлекаем МУТАЦИЮ из атрибутов оффера (Mutations attribute)
+ * 4. Сопоставляем с offer_codes в БД
+ * 5. Обновляем статусы: active/paused
+ * 6. Создаём/обновляем записи в offers коллекции С МУТАЦИЕЙ
  */
 
 const ELDORADO_GAME_ID = '259';
 const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/';
+
+// Паттерны для извлечения кодов из тайтлов
+const CODE_PATTERNS = [
+    /#([A-Z0-9]{4,12})\b/gi,     // #CODE (4-12 символов)
+    /\[([A-Z0-9]{4,12})\]/gi,    // [CODE]
+    /\(([A-Z0-9]{4,12})\)/gi,    // (CODE)
+];
+
+// v10.5.0: Обратный маппинг ID атрибута -> название мутации
+const MUTATION_ID_TO_NAME = {
+    '1-0': null,        // None
+    '1-1': 'Gold',
+    '1-2': 'Diamond',
+    '1-3': 'Bloodrot',
+    '1-4': 'Candy',
+    '1-5': 'Lava',
+    '1-6': 'Galaxy',
+    '1-7': 'Yin-Yang',
+    '1-8': 'Radioactive',
+    '1-9': 'Rainbow',
+    '1-10': 'Cursed'
+};
+
+/**
+ * v10.5.0: Извлекает мутацию из атрибутов оффера Eldorado
+ * @param {Array} attributes - массив offerAttributeIdValues из оффера
+ * @returns {string|null} - название мутации или null если дефолтный
+ */
+function extractMutationFromAttributes(attributes) {
+    if (!attributes || !Array.isArray(attributes)) return null;
+    
+    // Ищем атрибут Mutations
+    const mutationAttr = attributes.find(a => a.name === 'Mutations');
+    if (mutationAttr && mutationAttr.value) {
+        // value может быть "Gold", "Rainbow" и т.д.
+        const val = mutationAttr.value;
+        if (val && val !== 'None' && val !== 'Default') {
+            return val;
+        }
+    }
+    
+    // Альтернативный способ - через id атрибута
+    const mutationByIdAttr = attributes.find(a => a.id && a.id.startsWith('1-') && a.id !== '1-0');
+    if (mutationByIdAttr) {
+        const mutName = MUTATION_ID_TO_NAME[mutationByIdAttr.id];
+        if (mutName) return mutName;
+    }
+    
+    return null;
+}
 
 // Паттерны для извлечения кодов из тайтлов
 const CODE_PATTERNS = [
@@ -302,6 +354,9 @@ function processPageResults(results, foundOffers, matchedOffers, scannedCodes, c
         const brainrotName = extractBrainrotName(title, offer.offerAttributeIdValues);
         const msAttr = offer.offerAttributeIdValues?.find(a => a.name === 'M/s');
         
+        // v10.5.0: Извлекаем мутацию из атрибутов Eldorado
+        const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
+        
         const offerData = {
             eldoradoOfferId: offer.id,
             title: title,
@@ -313,6 +368,7 @@ function processPageResults(results, foundOffers, matchedOffers, scannedCodes, c
             sellerName: item.user?.username || offer.seller?.nickname || null,
             sellerId: item.user?.id || offer.seller?.id || null,
             codes: allCodes,
+            mutation: mutation, // v10.5.0: Мутация из Eldorado API
             foundAt: now
         };
         
@@ -367,6 +423,7 @@ async function updateDatabaseWithMatches(matchedOffers, codesCollection, offersC
                         imageUrl: offer.imageUrl || null,
                         brainrotName: offer.brainrotName || offer.registeredBrainrotName,
                         income: offer.income,
+                        mutation: offer.mutation || null, // v10.5.0: Сохраняем мутацию
                         lastSeenAt: now,
                         updatedAt: now
                     }
@@ -393,6 +450,7 @@ async function updateDatabaseWithMatches(matchedOffers, codesCollection, offersC
                             eldoradoTitle: offer.title,
                             sellerName: offer.sellerName,
                             sellerId: offer.sellerId,
+                            mutation: offer.mutation, // v10.5.0: Мутация из Eldorado (перезаписываем!)
                             lastScannedAt: now,
                             updatedAt: now
                         }
@@ -411,6 +469,7 @@ async function updateDatabaseWithMatches(matchedOffers, codesCollection, offersC
                     eldoradoTitle: offer.title,
                     sellerName: offer.sellerName,
                     sellerId: offer.sellerId,
+                    mutation: offer.mutation, // v10.5.0: Мутация из Eldorado
                     status: 'active',
                     lastScannedAt: now,
                     createdAt: now,

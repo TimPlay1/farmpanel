@@ -203,9 +203,9 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // Добавляем мутацию из данных фермера
-                // 1. Сначала пробуем точный match по name+income
-                // 2. Если не найден - fallback по имени
+                // v10.5.0: НЕ перезаписываем мутацию если она уже есть в оффере из БД!
+                // Мутация из universal-scan (из Eldorado API) - приоритетная и корректная.
+                // Fallback на данные фермера ТОЛЬКО если mutation в оффере null/undefined.
                 if (!offer.mutation && offer.brainrotName) {
                     const nameLower = offer.brainrotName.toLowerCase();
                     let mutation = null;
@@ -229,8 +229,10 @@ module.exports = async (req, res) => {
                         mutation = mutationsMapFallback.get(nameLower);
                     }
                     
+                    // v10.5.0: Добавляем флаг что мутация из fallback (может быть неточная)
                     if (mutation) {
                         offer.mutation = mutation;
+                        offer.mutationSource = 'farmer_fallback';
                     }
                 }
             }
