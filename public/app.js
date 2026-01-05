@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.29 - Fix chart "not visible" spam logging
+// FarmerPanel App v9.12.30 - Fix chart localStorage cache overflow (limit to 500 records)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1260,6 +1260,7 @@ function loadBalanceHistoryFromCache() {
 
 /**
  * Сохранить историю баланса в localStorage кэш
+ * v9.12.30: Ограничиваем до 500 записей чтобы не переполнить localStorage
  */
 function saveBalanceHistoryToCache() {
     if (!state.currentKey || !state.balanceHistory[state.currentKey]) return;
@@ -1271,14 +1272,23 @@ function saveBalanceHistoryToCache() {
             cache = JSON.parse(stored);
         }
         
+        // v9.12.30: Ограничиваем кэш - последние 500 записей достаточно для графика
+        const history = state.balanceHistory[state.currentKey];
+        const limitedHistory = history.length > 500 ? history.slice(-500) : history;
+        
         cache[state.currentKey] = {
-            history: state.balanceHistory[state.currentKey],
+            history: limitedHistory,
             timestamp: Date.now()
         };
         
         localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(cache));
+        console.log(`📊 Cached ${limitedHistory.length} chart points (from ${history.length} total)`);
     } catch (e) {
         console.warn('Failed to save balance history cache:', e);
+        // v9.12.30: При ошибке (quota exceeded) - очищаем старый кэш
+        try {
+            localStorage.removeItem(BALANCE_HISTORY_KEY);
+        } catch (e2) {}
     }
 }
 

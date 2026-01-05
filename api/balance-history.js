@@ -26,7 +26,7 @@ module.exports = async (req, res) => {
 
         // GET - Получить историю баланса
         if (req.method === 'GET') {
-            const { farmKey, period } = req.query;
+            const { farmKey, period, limit } = req.query;
             
             if (!farmKey) {
                 return res.status(400).json({ error: 'Missing farmKey' });
@@ -35,11 +35,32 @@ module.exports = async (req, res) => {
             // Определяем период запроса (по умолчанию 30 дней)
             const periodMs = period ? parseInt(period) : 30 * 24 * 60 * 60 * 1000;
             const cutoffDate = new Date(Date.now() - periodMs);
+            
+            // v9.12.30: Ограничиваем количество записей (по умолчанию 1000)
+            const maxRecords = limit ? Math.min(parseInt(limit), 5000) : 1000;
 
-            const history = await balanceHistoryCollection.find({
+            // Сначала считаем общее количество
+            const totalCount = await balanceHistoryCollection.countDocuments({
                 farmKey,
                 timestamp: { $gte: cutoffDate }
-            }).sort({ timestamp: 1 }).toArray();
+            });
+            
+            // Загружаем последние N записей (сортируем по убыванию, потом разворачиваем)
+            let history;
+            if (totalCount > maxRecords) {
+                // Много записей - берём последние maxRecords
+                history = await balanceHistoryCollection.find({
+                    farmKey,
+                    timestamp: { $gte: cutoffDate }
+                }).sort({ timestamp: -1 }).limit(maxRecords).toArray();
+                history.reverse(); // Разворачиваем для правильного порядка
+            } else {
+                // Мало записей - берём все
+                history = await balanceHistoryCollection.find({
+                    farmKey,
+                    timestamp: { $gte: cutoffDate }
+                }).sort({ timestamp: 1 }).toArray();
+            }
 
             return res.status(200).json({
                 farmKey,
@@ -47,7 +68,8 @@ module.exports = async (req, res) => {
                     timestamp: h.timestamp.getTime(),
                     value: h.value
                 })),
-                count: history.length
+                count: history.length,
+                totalCount: totalCount // v9.12.30: Добавляем общее количество для информации
             });
         }
 
