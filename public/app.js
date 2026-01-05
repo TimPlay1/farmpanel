@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.26 - Fix incremental price sync (set lastPricesLoadTime in all paths)
+// FarmerPanel App v9.12.27 - Protect offers cache from server returning 0 offers
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -7865,6 +7865,7 @@ async function loadOffers(forceRefresh = false, silent = false) {
         
         // Save previous state for comparison
         const previousOffers = [...offersState.offers];
+        const hadOffers = previousOffers.length > 0;
         
         // v3.0.1: НЕ вызываем triggerServerScan - cron делает это автоматически
         // Раньше это вызывало Cloudflare rate limit 1015
@@ -7872,8 +7873,22 @@ async function loadOffers(forceRefresh = false, silent = false) {
         const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(farmKey)}`);
         const data = await response.json();
         
+        // v9.12.27: НЕ перезаписываем кэш если сервер вернул 0 офферов, а у нас были офферы
+        // Это защита от потери данных при timeout/ошибках сервера
+        const serverOffers = data.offers || [];
+        
+        if (serverOffers.length === 0 && hadOffers) {
+            console.warn('⚠️ Server returned 0 offers but we have cached offers - keeping cache');
+            // Просто обновляем цены для существующих офферов
+            await updateOffersRecommendedPrices();
+            if (!silent) {
+                filterAndRenderOffers();
+            }
+            return;
+        }
+        
         // Server already includes recommendedPrice from global_brainrot_prices
-        offersState.offers = data.offers || [];
+        offersState.offers = serverOffers;
         offersState.lastLoadedKey = farmKey;
         offersState.lastLoadTime = data.timestamp || now;
         
@@ -7894,7 +7909,9 @@ async function loadOffers(forceRefresh = false, silent = false) {
         console.log('Loaded offers from server:', offersState.offers.length, 'with prices from global cache');
     } catch (err) {
         console.error('Error loading offers:', err);
-        offersState.offers = [];
+        // v9.12.27: НЕ очищаем офферы при ошибке - оставляем кэш
+        // offersState.offers = [];
+        console.warn('⚠️ Keeping cached offers due to error');
     }
 }
 
