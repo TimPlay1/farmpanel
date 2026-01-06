@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.36 - Fix mutation null vs undefined handling
+// FarmerPanel App v9.12.37 - Fix Scan All stats calculation
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -10161,10 +10161,11 @@ async function scanEldoradoOffers() {
         updateProgress(100, t('done'));
         
         const stats = result.stats || {};
-        const total = stats.totalOffers || 0;
-        const activeCount = stats.activeOffers || 0;
-        const pausedCount = stats.pausedOffers || 0;
-        const pendingCount = stats.pendingOffers || 0;
+        // v9.12.37: Use result.offers.length as fallback when stats not provided
+        const total = stats.totalOffers || (result.offers?.length || 0);
+        const activeCount = stats.activeOffers || result.offers?.filter(o => o.status === 'active').length || 0;
+        const pausedCount = stats.pausedOffers || result.offers?.filter(o => o.status === 'paused').length || 0;
+        const pendingCount = stats.pendingOffers || result.offers?.filter(o => o.status === 'pending').length || 0;
         
         // Build message
         let message = '';
