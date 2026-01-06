@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.30 - Fix chart localStorage cache overflow (limit to 500 records)
+// FarmerPanel App v9.12.31 - Fix chart not rendering after data loads
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -10686,8 +10686,9 @@ function _doUpdateBalanceChart(period) {
     // v9.11.25: Check if section is visible (parent may be hidden)
     const isVisible = chartSection && chartSection.offsetParent !== null;
     
-    // v9.11.26: Use getBoundingClientRect for accurate size detection
-    const rect = chartContainer.getBoundingClientRect();
+    // v9.12.31: Check chartSection size instead of chartContainer (which may be display:none)
+    // chartContainer can be hidden when showing "Collecting data..." state
+    const rect = chartSection ? chartSection.getBoundingClientRect() : { width: 0, height: 0 };
     const hasSize = rect.width > 0 && rect.height > 0;
     
     // Check if canvas is properly sized - retry later if not ready yet (with limit)
