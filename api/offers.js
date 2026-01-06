@@ -195,9 +195,10 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // v3.0.6: Мутация - приоритет offer.mutation из БД (Eldorado API)
-                // Только если в БД нет мутации - смотрим в collection фермера
-                if (!offer.mutation && key && mutationsMap.has(key)) {
+                // v3.0.7: Мутация - приоритет offer.mutation из БД (Eldorado API)
+                // mutation = null означает "без мутации" от Eldorado - НЕ перезаписываем!
+                // mutation = undefined означает "неизвестно" - используем collection
+                if (offer.mutation === undefined && key && mutationsMap.has(key)) {
                     offer.mutation = mutationsMap.get(key);
                 }
             }

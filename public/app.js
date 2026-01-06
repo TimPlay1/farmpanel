@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.35 - Unify price block height
+// FarmerPanel App v9.12.36 - Fix mutation null vs undefined handling
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -7993,8 +7993,10 @@ async function updateOffersRecommendedPrices() {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
             
-            // v9.12.32: If offer doesn't have mutation, try to find it from collection
-            if (!offer.mutation || !cleanMutationText(offer.mutation)) {
+            // v9.12.36: Only use collection fallback if mutation is UNDEFINED
+            // mutation = null means "no mutation" from Eldorado API - don't override!
+            // mutation = undefined means "unknown" - use collection as fallback
+            if (offer.mutation === undefined) {
                 const collectionMatch = findMutationFromCollection(offer.brainrotName, offer.income, offer.incomeRaw);
                 if (collectionMatch.mutation) {
                     offer.mutation = collectionMatch.mutation;
