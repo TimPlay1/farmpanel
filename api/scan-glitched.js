@@ -2,18 +2,38 @@ const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
 /**
- * Универсальный сканер офферов v10.3.0
+ * Универсальный сканер офферов v10.6.0
  * Ищет офферы по уникальным кодам (#XXXXXX) напрямую на Eldorado
  * Поддерживает любые названия магазинов (не только Glitched Store)
  * 
- * v10.3.0 изменения:
- * - Добавлен retry при ошибках API
- * - Статус paused ставится только после 3 неудачных сканов (notFoundCount)
- * - Ошибки API не влияют на статус оффера
+ * v10.6.0 изменения:
+ * - Добавлен парсинг мутации из offerAttributeIdValues
+ * - Мутация сохраняется в БД при каждом сканировании
  */
 
 const ELDORADO_GAME_ID = '259';
 const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/';
+
+// v10.6.0: Маппинг ID мутации -> название
+const MUTATION_ID_TO_NAME = {
+    '1-0': null, '1-1': 'Gold', '1-2': 'Diamond', '1-3': 'Bloodrot',
+    '1-4': 'Candy', '1-5': 'Lava', '1-6': 'Galaxy', '1-7': 'Yin-Yang',
+    '1-8': 'Radioactive', '1-9': 'Rainbow', '1-10': 'Cursed'
+};
+
+/**
+ * v10.6.0: Извлекает мутацию из атрибутов Eldorado offer
+ */
+function extractMutationFromAttributes(attributes) {
+    if (!attributes || !Array.isArray(attributes)) return null;
+    const mutAttr = attributes.find(a => a.name === 'Mutations' || a.name === 'Mutation');
+    if (mutAttr?.value && mutAttr.value !== 'None') {
+        return mutAttr.value;
+    }
+    const mutById = attributes.find(a => a.id?.startsWith('1-') && a.id !== '1-0');
+    if (mutById) return MUTATION_ID_TO_NAME[mutById.id] || null;
+    return null;
+}
 
 /**
  * Строит полный URL изображения из имени файла
@@ -163,20 +183,24 @@ async function scanGlitchedStore(db) {
                 foundOnEldorado++;
                 
                 // Найден на Eldorado - обновляем данные
+                // v10.6.0: Добавляем mutation к обновлению
+                const updateData = {
+                    status: 'active',
+                    currentPrice: result.price,
+                    income: result.income || dbOffer.income,
+                    imageUrl: result.imageUrl || dbOffer.imageUrl,
+                    eldoradoOfferId: result.eldoradoId,
+                    lastScannedAt: now,
+                    updatedAt: now,
+                    notFoundCount: 0 // Сбрасываем счётчик
+                };
+                // v10.6.0: Сохраняем мутацию если найдена
+                if (result.mutation) {
+                    updateData.mutation = result.mutation;
+                }
                 await offersCollection.updateOne(
                     { _id: dbOffer._id },
-                    {
-                        $set: {
-                            status: 'active',
-                            currentPrice: result.price,
-                            income: result.income || dbOffer.income,
-                            imageUrl: result.imageUrl || dbOffer.imageUrl,
-                            eldoradoOfferId: result.eldoradoId,
-                            lastScannedAt: now,
-                            updatedAt: now,
-                            notFoundCount: 0 // Сбрасываем счётчик
-                        }
-                    }
+                    { $set: updateData }
                 );
                 updated++;
                 if (dbOffer.status !== 'active') {
@@ -280,6 +304,8 @@ async function findOfferByCode(code, retries = 2) {
             // Проверяем что код есть в title или description
             if (title.includes(`#${normalizedCode}`) || description.includes(`#${normalizedCode}`)) {
                 const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                // v10.6.0: Извлекаем мутацию из атрибутов оффера
+                const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
                 
                 return {
                     found: true,
@@ -289,7 +315,8 @@ async function findOfferByCode(code, retries = 2) {
                     income: parseIncomeFromTitle(offer.offerTitle),
                     imageUrl: buildImageUrl(imageName),
                     eldoradoId: offer.id,
-                    sellerName: item.user?.username || null
+                    sellerName: item.user?.username || null,
+                    mutation: mutation // v10.6.0: Мутация оффера
                 };
             }
         }

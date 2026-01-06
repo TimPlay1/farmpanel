@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.31 - Fix chart not rendering after data loads
+// FarmerPanel App v9.12.32 - Match offer mutations from collection by name+income
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -7976,11 +7976,24 @@ function setupOffersRefreshListener() {
 async function updateOffersRecommendedPrices() {
     let updated = 0;
     let notFound = 0;
+    let mutationsFromCollection = 0;
     
     for (const offer of offersState.offers) {
         if (offer.brainrotName && offer.income) {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
+            
+            // v9.12.32: If offer doesn't have mutation, try to find it from collection
+            if (!offer.mutation || !cleanMutationText(offer.mutation)) {
+                const collectionMatch = findMutationFromCollection(offer.brainrotName, offer.income, offer.incomeRaw);
+                if (collectionMatch.mutation) {
+                    offer.mutation = collectionMatch.mutation;
+                    offer._mutationSource = 'collection';
+                    mutationsFromCollection++;
+                    console.log(`🔮 Matched mutation for ${offer.brainrotName}: ${collectionMatch.mutation} (from collection, ${collectionMatch.count} matches)`);
+                }
+            }
+            
             const hasMutation = cleanMutationText(offer.mutation);
             
             // v9.11.4: Get both default and mutation prices for mutated offers
@@ -8048,8 +8061,8 @@ async function updateOffersRecommendedPrices() {
         }
     }
     
-    if (notFound > 0) {
-        console.log(`Offers prices: ${updated} updated, ${notFound} not found in cache`);
+    if (notFound > 0 || mutationsFromCollection > 0) {
+        console.log(`Offers prices: ${updated} updated, ${notFound} not found in cache${mutationsFromCollection > 0 ? `, ${mutationsFromCollection} mutations matched from collection` : ''}`);
     }
 }
 
@@ -8161,6 +8174,90 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
     // If recommended > current → positive (green, can raise)
     // If recommended < current → negative (red, need to lower)
     return ((recommendedPrice - currentPrice) / currentPrice) * 100;
+}
+
+/**
+ * v9.12.32: Find mutation from collection for offer by matching name + income
+ * Returns: { mutation: string|null, source: 'collection'|'eldorado'|null }
+ * 
+ * Logic:
+ * 1. Find all brainrots in collection with same name + income
+ * 2. If found exactly 1 - use its mutation
+ * 3. If found multiple with different mutations - we have ambiguity (need Eldorado check)
+ * 4. If found multiple with same mutation - use it
+ */
+function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
+    if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
+        return { mutation: null, source: null, ambiguous: false };
+    }
+    
+    if (!offerBrainrotName) return { mutation: null, source: null, ambiguous: false };
+    
+    // Normalize offer income
+    const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
+    const roundedOfferIncome = Math.floor(normalizedOfferIncome / 10) * 10;
+    
+    // Normalize brainrot name for comparison
+    const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    const matchingBrainrots = [];
+    
+    for (const b of collectionState.allBrainrots) {
+        if (!b.name) continue;
+        const normalizedBrainrotName = b.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // Match by name
+        if (normalizedBrainrotName === normalizedOfferName) {
+            // Also check income matches (rounded to 10)
+            const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
+            const roundedBrainrotIncome = Math.floor(normalizedBrainrotIncome / 10) * 10;
+            
+            if (roundedBrainrotIncome === roundedOfferIncome) {
+                matchingBrainrots.push(b);
+            }
+        }
+    }
+    
+    if (matchingBrainrots.length === 0) {
+        return { mutation: null, source: null, ambiguous: false };
+    }
+    
+    // Check if all matching brainrots have same mutation (or no mutation)
+    const mutations = new Set();
+    for (const b of matchingBrainrots) {
+        const mut = cleanMutationText(b.mutation) || 'default';
+        mutations.add(mut.toLowerCase());
+    }
+    
+    if (mutations.size === 1) {
+        // All same mutation (or all default)
+        const mutation = matchingBrainrots[0].mutation;
+        const cleanMut = cleanMutationText(mutation);
+        return { 
+            mutation: cleanMut || null, 
+            source: 'collection', 
+            ambiguous: false,
+            count: matchingBrainrots.length
+        };
+    }
+    
+    // Multiple different mutations - ambiguous case
+    // Return the first mutated one found, but mark as ambiguous
+    for (const b of matchingBrainrots) {
+        const cleanMut = cleanMutationText(b.mutation);
+        if (cleanMut) {
+            return { 
+                mutation: cleanMut, 
+                source: 'collection', 
+                ambiguous: true,
+                mutations: Array.from(mutations),
+                count: matchingBrainrots.length
+            };
+        }
+    }
+    
+    // All are default
+    return { mutation: null, source: 'collection', ambiguous: false, count: matchingBrainrots.length };
 }
 
 // v9.8.25: Count brainrots in collection with same name AND income (ignore mutation)
