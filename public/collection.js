@@ -743,10 +743,11 @@ function openMassGenerationModal() {
         originalIndex: idx
     }));
     
+    // v9.12.39: Store original filteredBrainrots index to preserve mutation data
     list.innerHTML = selectedBrainrots.map((b, i) => {
         const accountColor = collectionState.accountColors[b.accountId] || '#4ade80';
         return `
-            <div class="mass-gen-item" data-item-index="${i}">
+            <div class="mass-gen-item" data-item-index="${i}" data-original-index="${b.originalIndex}">
                 <img class="mass-gen-item-img" src="${b.imageUrl || ''}" alt="${b.name}" 
                      onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 40 40%22><rect fill=%22%231a1a2e%22 width=%2240%22 height=%2240%22/></svg>'">
                 <div class="mass-gen-item-info">
@@ -842,21 +843,22 @@ async function startMassGeneration() {
     const results = [];
     
     // Get brainrots data from the list
+    // v9.12.39: Use original index to preserve exact brainrot data (including mutation)
     const brainrotsToGenerate = [];
     items.forEach((item, idx) => {
-        const name = item.querySelector('.mass-gen-item-name')?.textContent || '';
-        const detailsEl = item.querySelector('.mass-gen-item-details');
-        const incomeText = detailsEl?.querySelector('span')?.textContent?.replace(/.*?(\d+.*?\/s).*/, '$1') || '';
-        const img = item.querySelector('.mass-gen-item-img');
-        const imageUrl = img?.src || '';
+        const originalIndex = parseInt(item.dataset.originalIndex, 10);
         
-        // Find the brainrot in filtered list by name
-        const brainrot = collectionState.filteredBrainrots.find(b => b.name === name);
+        // Use exact brainrot by index instead of searching by name
+        const brainrot = !isNaN(originalIndex) 
+            ? collectionState.filteredBrainrots[originalIndex]
+            : null;
+            
         if (brainrot) {
             brainrotsToGenerate.push({
                 ...brainrot,
                 itemIndex: idx
             });
+            console.log(`[MassGen] Item ${idx}: ${brainrot.name}, mutation: ${brainrot.mutation || 'None'}`);
         }
     });
     
@@ -904,6 +906,7 @@ async function startMassGeneration() {
             await saveGeneration(brainrot.name, brainrot.accountId, result.resultUrl);
             
             // Add to Eldorado queue
+            // v9.12.38: Include mutation in queue data
             if (createQueue) {
                 eldoradoQueue.push({
                     name: brainrot.name,
@@ -911,7 +914,8 @@ async function startMassGeneration() {
                     imageUrl: result.resultUrl,
                     price: price || 0,
                     accountId: brainrot.accountId,
-                    accountName: brainrot.accountName
+                    accountName: brainrot.accountName,
+                    mutation: brainrot.mutation || null  // v9.12.38: Pass mutation to queue
                 });
             }
             
