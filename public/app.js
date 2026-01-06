@@ -9218,11 +9218,11 @@ async function confirmOfferPriceAdjustment() {
         timestamp: Date.now()
     };
     
-    // Store in localStorage for Tampermonkey
+    // Store in localStorage for Tampermonkey (NOT in URL to avoid length limits)
     localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
     
-    // Open Eldorado dashboard
-    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adjust=${encodeURIComponent(JSON.stringify(adjustmentData))}`;
+    // Open Eldorado dashboard - NO URL params, data is in localStorage
+    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem`;
     window.open(eldoradoUrl, '_blank');
     
     closeModalFn(offerPriceModal);
@@ -9292,11 +9292,11 @@ async function confirmBulkPriceAdjustment() {
         timestamp: Date.now()
     };
     
-    // Store in localStorage for Tampermonkey
+    // Store in localStorage for Tampermonkey (NOT in URL to avoid length limits)
     localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
     
-    // Open Eldorado dashboard
-    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adjust=${encodeURIComponent(JSON.stringify(adjustmentData))}`;
+    // Open Eldorado dashboard - NO URL params, data is in localStorage
+    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem`;
     window.open(eldoradoUrl, '_blank');
     
     closeModalFn(bulkPriceModal);

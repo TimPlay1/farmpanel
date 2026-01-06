@@ -257,9 +257,40 @@ module.exports = async (req, res) => {
             return res.json({ success: true, offer });
         }
 
-        // PUT - обновить цену оффера
+        // PUT - обновить цену оффера или batch status update
         if (req.method === 'PUT') {
-            const { farmKey, offerId, currentPrice, recommendedPrice, status } = req.body;
+            const { farmKey, offerId, currentPrice, recommendedPrice, status, batchStatusUpdate } = req.body;
+
+            // v9.12.1: Batch status update from Tampermonkey auto-sync
+            if (farmKey && batchStatusUpdate && Array.isArray(batchStatusUpdate)) {
+                const now = new Date();
+                let updatedCount = 0;
+                
+                for (const update of batchStatusUpdate) {
+                    if (!update.offerId || !update.status) continue;
+                    
+                    const updateData = { 
+                        status: update.status,
+                        updatedAt: now 
+                    };
+                    
+                    // Track paused/active times
+                    if (update.status === 'paused') {
+                        updateData.pausedAt = now;
+                    } else if (update.status === 'active') {
+                        updateData.pausedAt = null;
+                    }
+                    
+                    await offersCollection.updateOne(
+                        { farmKey, offerId: update.offerId },
+                        { $set: updateData }
+                    );
+                    updatedCount++;
+                }
+                
+                console.log(`[offers] Batch status update: ${updatedCount} offers updated`);
+                return res.json({ success: true, updated: updatedCount });
+            }
 
             if (!farmKey || !offerId) {
                 return res.status(400).json({ error: 'farmKey and offerId are required' });

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.0
+// @version      9.12.1
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -21,15 +21,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.0
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.0
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.1
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.1
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.12.0';
+    const VERSION = '9.12.1';
     const API_BASE = 'https://farmpanel.vercel.app/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -2173,6 +2173,103 @@
         }
     }
     
+    // v9.12.1: Auto-sync visible offer statuses from Eldorado dashboard to farmpanel
+    // This runs when viewing offers and detects actual status (Active/Paused)
+    let lastAutoSyncTime = 0;
+    const AUTO_SYNC_COOLDOWN = 30000; // 30 seconds between syncs
+    
+    async function autoSyncVisibleOfferStatuses() {
+        // Only run on dashboard offers page
+        if (!window.location.pathname.includes('/dashboard/offers')) return;
+        
+        // Cooldown check
+        const now = Date.now();
+        if (now - lastAutoSyncTime < AUTO_SYNC_COOLDOWN) return;
+        lastAutoSyncTime = now;
+        
+        const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
+        if (!farmKey) return;
+        
+        // Collect actual status of all OUR offers visible on page
+        const statusUpdates = [];
+        const items = document.querySelectorAll('eld-dashboard-offers-list-item');
+        
+        for (const item of items) {
+            const code = extractOfferCodeFromElement(item);
+            if (!code) continue;
+            if (!userOfferCodes.has(code) && !userOfferCodes.has('#' + code)) continue;
+            
+            // Check actual status from Eldorado UI
+            const pausedChip = item.querySelector('[aria-label="Paused"]');
+            const resumeIcon = item.querySelector('.icon-chevron-right') || item.querySelector('.icon-play');
+            const activeChip = item.querySelector('[aria-label="Active"]');
+            
+            const status = (pausedChip || resumeIcon) ? 'paused' : 'active';
+            statusUpdates.push({ offerId: '#' + code, status });
+        }
+        
+        if (statusUpdates.length === 0) return;
+        
+        log(`Auto-syncing ${statusUpdates.length} offer statuses to farmpanel...`);
+        
+        // Batch update to API
+        try {
+            await new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: 'PUT',
+                    url: `${API_BASE}/offers`,
+                    headers: { 'Content-Type': 'application/json' },
+                    data: JSON.stringify({ 
+                        farmKey, 
+                        batchStatusUpdate: statusUpdates 
+                    }),
+                    onload: (response) => {
+                        if (response.status >= 200 && response.status < 300) {
+                            log('Auto-sync successful');
+                            resolve();
+                        } else {
+                            // Try individual updates as fallback
+                            log('Batch update failed, trying individual updates...');
+                            resolve();
+                        }
+                    },
+                    onerror: () => resolve() // Don't fail silently
+                });
+            });
+            
+            // Fallback: individual updates if batch fails
+            let successCount = 0;
+            for (const update of statusUpdates) {
+                try {
+                    await new Promise((resolve) => {
+                        GM_xmlhttpRequest({
+                            method: 'PUT',
+                            url: `${API_BASE}/offers`,
+                            headers: { 'Content-Type': 'application/json' },
+                            data: JSON.stringify({ 
+                                farmKey, 
+                                offerId: update.offerId, 
+                                status: update.status 
+                            }),
+                            onload: () => {
+                                successCount++;
+                                resolve();
+                            },
+                            onerror: () => resolve()
+                        });
+                    });
+                } catch (e) {}
+            }
+            
+            if (successCount > 0) {
+                log(`Auto-synced ${successCount} offers`);
+                triggerPanelRefresh();
+            }
+        } catch (e) {
+            logError('Auto-sync error:', e);
+        }
+    }
+    
     // ==================== REFRESH OFFERS ====================
     async function triggerOffersRefresh() {
         log('Triggering offers refresh...');
@@ -2850,6 +2947,11 @@
         if (highlighted > 0) {
             log(`Fallback: Highlighted ${highlighted} offer cards`);
         }
+        
+        // v9.12.1: Auto-sync offer statuses when on dashboard
+        if (window.location.pathname.includes('/dashboard/offers')) {
+            autoSyncVisibleOfferStatuses();
+        }
     }
     
     // ==================== АВТОЗАПОЛНЕНИЕ (из старого скрипта) ====================
@@ -2868,20 +2970,25 @@
         return null;
     }
     
+    // v9.12.1: Get adjustment data ONLY from localStorage (URL was causing bugs with large data)
     function getAdjustmentDataFromURL() {
-        const url = new URL(window.location.href);
-        const data = url.searchParams.get('glitched_adjust');
-        if (data) {
-            try {
-                return JSON.parse(decodeURIComponent(data));
-            } catch (e) {}
-        }
-        // Также проверяем localStorage
+        // v9.12.1: ONLY use localStorage - URL params cause bugs with many offers
+        // localStorage can handle much larger data without URL length limits
         const stored = localStorage.getItem('glitched_price_adjustment');
         if (stored) {
             try {
-                return JSON.parse(stored);
-            } catch (e) {}
+                const data = JSON.parse(stored);
+                // Check if data is recent (within 5 minutes) to avoid old stale data
+                if (data.timestamp && Date.now() - data.timestamp < 300000) {
+                    log(`Loaded adjustment data from localStorage: ${data.offers?.length || 0} offers`);
+                    return data;
+                } else {
+                    log('Adjustment data too old, ignoring');
+                    localStorage.removeItem('glitched_price_adjustment');
+                }
+            } catch (e) {
+                log('Failed to parse adjustment data from localStorage');
+            }
         }
         return null;
     }
