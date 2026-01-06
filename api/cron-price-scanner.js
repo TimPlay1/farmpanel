@@ -159,23 +159,31 @@ function cleanMutationForKey(mutation) {
  * Нормализует income к числу M/s
  */
 function normalizeIncome(income, incomeText) {
-    if (typeof income === 'number' && income > 0) {
-        // Округляем до ближайших 10
-        return Math.floor(income / 10) * 10;
-    }
-    
+    // v3.0.8: Сначала парсим incomeText если есть - это самый точный источник
     if (incomeText) {
-        const match = incomeText.match(/(\d+(?:\.\d+)?)\s*([KMBT])?\/s/i);
+        const match = incomeText.match(/\$?(\d+(?:\.\d+)?)\s*([KMBT])?\/s/i);
         if (match) {
             let value = parseFloat(match[1]);
-            const suffix = (match[2] || '').toUpperCase();
+            const suffix = (match[2] || 'M').toUpperCase(); // Default M если не указано
             
             if (suffix === 'K') value *= 0.001;
             else if (suffix === 'B') value *= 1000;
             else if (suffix === 'T') value *= 1000000;
+            // M = value as is
             
             return Math.floor(value / 10) * 10;
         }
+    }
+    
+    if (typeof income === 'number' && income > 0) {
+        // v3.0.8: Если income > 10000, это полное число - конвертируем в M/s
+        // Например: 163125000 → 163.125 M/s
+        let valueMs = income;
+        if (income > 10000) {
+            valueMs = income / 1000000;
+        }
+        // Округляем до ближайших 10
+        return Math.floor(valueMs / 10) * 10;
     }
     
     return 0;
