@@ -2197,6 +2197,20 @@ body {
     color: var(--text-muted);
 }
 
+/* v9.12.35: Price change row - matches variant cards height */
+.brainrot-price-single .price-change {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0.9rem;
+    font-size: 0.75rem;
+}
+
+.brainrot-price-single .price-change .price-change-up,
+.brainrot-price-single .price-change .price-change-down {
+    margin-left: 0;
+}
+
 .brainrot-price-single .price-additional {
     display: flex;
     justify-content: center;

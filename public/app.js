@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.34 - Fix mutation change detection + API priority
+// FarmerPanel App v9.12.35 - Unify price block height
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2488,8 +2488,8 @@ function renderPriceBlock(priceData, cacheKey) {
                 <div class="price-main">
                     <span class="price-text">${formatPrice(selectedPrice)}</span>
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
-                    ${changeHtml}
                 </div>
+                <div class="price-change">${changeHtml}</div>
                 ${additionalHtml}
             </div>
         </div>`;
