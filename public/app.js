@@ -9218,12 +9218,27 @@ async function confirmOfferPriceAdjustment() {
         timestamp: Date.now()
     };
     
-    // Store in localStorage for Tampermonkey (NOT in URL to avoid length limits)
-    localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
-    
-    // Open Eldorado dashboard - NO URL params, data is in localStorage
-    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem`;
-    window.open(eldoradoUrl, '_blank');
+    // v9.12.2: Store via API (localStorage doesn't work cross-domain!)
+    try {
+        const response = await fetch(`${API_BASE}/adjustment-queue`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey: state.currentKey, adjustmentData })
+        });
+        const result = await response.json();
+        
+        if (!result.success || !result.adjustmentId) {
+            throw new Error('Failed to store adjustment data');
+        }
+        
+        // Open Eldorado with adjustmentId in URL
+        const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adj=${result.adjustmentId}`;
+        window.open(eldoradoUrl, '_blank');
+    } catch (err) {
+        console.error('Failed to store adjustment:', err);
+        showNotification('❌ Failed to prepare price adjustment', 'error');
+        return;
+    }
     
     closeModalFn(offerPriceModal);
 }
@@ -9292,12 +9307,29 @@ async function confirmBulkPriceAdjustment() {
         timestamp: Date.now()
     };
     
-    // Store in localStorage for Tampermonkey (NOT in URL to avoid length limits)
-    localStorage.setItem('glitched_price_adjustment', JSON.stringify(adjustmentData));
-    
-    // Open Eldorado dashboard - NO URL params, data is in localStorage
-    const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem`;
-    window.open(eldoradoUrl, '_blank');
+    // v9.12.2: Store via API (localStorage doesn't work cross-domain!)
+    try {
+        const response = await fetch(`${API_BASE}/adjustment-queue`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey: state.currentKey, adjustmentData })
+        });
+        const result = await response.json();
+        
+        if (!result.success || !result.adjustmentId) {
+            throw new Error('Failed to store adjustment data');
+        }
+        
+        console.log(`[Bulk Adjust] Stored ${adjustments.length} offers, id=${result.adjustmentId}`);
+        
+        // Open Eldorado with adjustmentId in URL
+        const eldoradoUrl = `https://www.eldorado.gg/dashboard/offers?category=CustomItem&glitched_adj=${result.adjustmentId}`;
+        window.open(eldoradoUrl, '_blank');
+    } catch (err) {
+        console.error('Failed to store adjustment:', err);
+        document.getElementById('bulkPriceError').textContent = 'Failed to prepare adjustment: ' + err.message;
+        return;
+    }
     
     closeModalFn(bulkPriceModal);
 }

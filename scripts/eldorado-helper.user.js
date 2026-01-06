@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.1
+// @version      9.12.2
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -2970,26 +2970,59 @@
         return null;
     }
     
-    // v9.12.1: Get adjustment data ONLY from localStorage (URL was causing bugs with large data)
-    function getAdjustmentDataFromURL() {
-        // v9.12.1: ONLY use localStorage - URL params cause bugs with many offers
-        // localStorage can handle much larger data without URL length limits
-        const stored = localStorage.getItem('glitched_price_adjustment');
-        if (stored) {
+    // v9.12.2: Get adjustment data from API (cross-domain safe)
+    // Data is stored via API and retrieved using adjustmentId from URL
+    async function getAdjustmentDataFromURL() {
+        const url = new URL(window.location.href);
+        const adjustmentId = url.searchParams.get('glitched_adj');
+        
+        if (adjustmentId) {
+            log(`Found adjustmentId in URL: ${adjustmentId}`);
             try {
-                const data = JSON.parse(stored);
-                // Check if data is recent (within 5 minutes) to avoid old stale data
-                if (data.timestamp && Date.now() - data.timestamp < 300000) {
-                    log(`Loaded adjustment data from localStorage: ${data.offers?.length || 0} offers`);
-                    return data;
-                } else {
-                    log('Adjustment data too old, ignoring');
-                    localStorage.removeItem('glitched_price_adjustment');
-                }
+                // Fetch adjustment data from API
+                return new Promise((resolve) => {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: `${API_BASE}/adjustment-queue?adjustmentId=${encodeURIComponent(adjustmentId)}`,
+                        onload: (response) => {
+                            try {
+                                const result = JSON.parse(response.responseText);
+                                if (result.success && result.adjustmentData) {
+                                    log(`Loaded adjustment data: ${result.adjustmentData.offers?.length || 0} offers`);
+                                    resolve(result.adjustmentData);
+                                } else {
+                                    log('Adjustment data not found or expired');
+                                    resolve(null);
+                                }
+                            } catch (e) {
+                                logError('Failed to parse adjustment response:', e);
+                                resolve(null);
+                            }
+                        },
+                        onerror: (e) => {
+                            logError('Failed to fetch adjustment data:', e);
+                            resolve(null);
+                        },
+                        ontimeout: () => {
+                            logError('Adjustment data fetch timeout');
+                            resolve(null);
+                        }
+                    });
+                });
             } catch (e) {
-                log('Failed to parse adjustment data from localStorage');
+                logError('Error fetching adjustment data:', e);
+                return null;
             }
         }
+        
+        // Fallback: check old URL param format (for backwards compatibility)
+        const oldData = url.searchParams.get('glitched_adjust');
+        if (oldData) {
+            try {
+                return JSON.parse(decodeURIComponent(oldData));
+            } catch (e) {}
+        }
+        
         return null;
     }
 
@@ -4906,7 +4939,7 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         
         // Режим корректировки цен на dashboard
         if (isDashboard) {
-            adjustmentData = getAdjustmentDataFromURL();
+            adjustmentData = await getAdjustmentDataFromURL();
             if (adjustmentData) {
                 log(`Price adjustment mode: ${adjustmentData.offers?.length || 0} offers`);
                 await new Promise(r => setTimeout(r, 2000));
