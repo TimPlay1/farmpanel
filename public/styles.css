@@ -2408,6 +2408,21 @@ body {
     color: var(--text-muted);
 }
 
+/* v9.12.33: Price change percentage row in variants */
+.price-variant-change {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 0.9rem;
+    font-size: 0.65rem;
+}
+
+.price-variant-change .price-change-up,
+.price-variant-change .price-change-down {
+    font-size: 0.65rem;
+    margin-left: 0;
+}
+
 .price-variant-additional {
     display: flex;
     justify-content: center;

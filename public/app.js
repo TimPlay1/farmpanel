@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.32 - Match offer mutations from collection by name+income
+// FarmerPanel App v9.12.33 - Add price change % to mutation variant cards
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2545,7 +2545,8 @@ function renderPriceVariants(brainrotName, income, mutation) {
     
     // Рендер одного варианта цены
     // v9.12.12: Компактный placeholder вместо Loading... спиннера
-    const renderVariant = (priceData, type, label) => {
+    // v9.12.33: Added price change percentage support
+    const renderVariant = (priceData, type, label, cacheKey) => {
         if (!priceData) {
             return `
                 <div class="price-variant ${type} price-pending" data-price-loading="true">
@@ -2556,6 +2557,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
                     <div class="price-variant-main">
                         <span class="price-text price-pending-text">—</span>
                     </div>
+                    <div class="price-variant-change"></div>
                 </div>`;
         }
         
@@ -2566,6 +2568,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
                         <span class="price-variant-label ${type}">${label}</span>
                     </div>
                     <div class="price-variant-no-data">No data</div>
+                    <div class="price-variant-change"></div>
                 </div>`;
         }
         
@@ -2577,6 +2580,10 @@ function renderPriceVariants(brainrotName, income, mutation) {
         
         // Source badges
         const sourceBadges = renderSourceBadges(priceData);
+        
+        // v9.12.33: Price change percentage
+        const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
+        const changeHtml = formatPriceChange(priceChange);
         
         // Additional prices (median, next competitor)
         // v9.11.7: Add opportunity class when nextCompetitor gap > 100%
@@ -2614,6 +2621,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
                     <span class="price-text">${formatPrice(selectedPrice)}</span>
                     ${competitorInfo ? `<span class="price-market">${competitorInfo}</span>` : ''}
                 </div>
+                <div class="price-variant-change">${changeHtml}</div>
                 ${additionalHtml}
             </div>`;
     };
@@ -2623,8 +2631,8 @@ function renderPriceVariants(brainrotName, income, mutation) {
              data-brainrot-name="${brainrotName}" 
              data-brainrot-income="${income}"
              data-brainrot-mutation="${mutation}">
-            ${renderVariant(defaultPrice, 'default', 'DEFAULT')}
-            ${renderVariant(mutationPrice, 'mutated', cleanMutation)}
+            ${renderVariant(defaultPrice, 'default', 'DEFAULT', defaultCacheKey)}
+            ${renderVariant(mutationPrice, 'mutated', cleanMutation, mutationCacheKey)}
         </div>`;
 }
 
