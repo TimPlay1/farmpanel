@@ -216,31 +216,29 @@ async function scanGlitchedStore(db) {
                     { $set: { lastScannedAt: now } }
                 );
             } else if (result.notFound) {
-                // Точно не найден - используем счётчик notFoundCount
+                // v9.12.1 FIX: Если оффер точно не найден (no API error) - помечаем как paused СРАЗУ
+                // Eldorado API не кеширует - paused офферы исчезают из поиска мгновенно
+                // Старая логика ждала 3 неудачных попытки, что неправильно
                 const notFoundCount = (dbOffer.notFoundCount || 0) + 1;
                 
-                if (notFoundCount >= 3) {
-                    if (dbOffer.status === 'active') {
-                        await offersCollection.updateOne(
-                            { _id: dbOffer._id },
-                            {
-                                $set: {
-                                    status: 'paused',
-                                    pausedAt: now,
-                                    lastScannedAt: now,
-                                    updatedAt: now,
-                                    notFoundCount: notFoundCount
-                                }
-                            }
-                        );
-                        markedPaused++;
-                        console.log(`  ⏸️ Marked paused (not found ${notFoundCount}x): ${dbOffer.offerId}`);
+                // v9.12.1: Помечаем как paused сразу (1 попытка достаточно)
+                // Оставляем счётчик для логирования
+                await offersCollection.updateOne(
+                    { _id: dbOffer._id },
+                    {
+                        $set: {
+                            status: 'paused',
+                            pausedAt: now,
+                            lastScannedAt: now,
+                            updatedAt: now,
+                            notFoundCount: notFoundCount
+                        }
                     }
-                } else {
-                    await offersCollection.updateOne(
-                        { _id: dbOffer._id },
-                        { $set: { lastScannedAt: now, notFoundCount: notFoundCount } }
-                    );
+                );
+                
+                if (dbOffer.status === 'active') {
+                    markedPaused++;
+                    console.log(`  ⏸️ Marked paused (not found): ${dbOffer.offerId} (${dbOffer.brainrotName})`);
                 }
             }
         }

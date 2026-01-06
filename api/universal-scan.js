@@ -463,24 +463,57 @@ async function updateDatabaseWithMatches(matchedOffers, codesCollection, offersC
         }
     }
     
-    // Помечаем не найденные коды как paused
+    // v9.12.1 FIX: Помечаем ВСЕ не найденные коды как paused (независимо от текущего статуса)
+    // Ранее логика проверяла только status: 'active', что пропускало pending/other статусы
     const foundCodeSet = new Set(matchedOffers.map(o => o.matchedCode));
-    const activeCodesInDb = await codesCollection.find({ 
-        status: 'active',
-        code: { $nin: Array.from(foundCodeSet) }
+    
+    // Получаем ВСЕ зарегистрированные коды которые не были найдены
+    const notFoundCodes = await codesCollection.find({ 
+        code: { $nin: Array.from(foundCodeSet) },
+        status: { $ne: 'paused' } // Не обновляем уже paused (избегаем лишних записей)
     }).toArray();
     
-    for (const codeDoc of activeCodesInDb) {
+    for (const codeDoc of notFoundCodes) {
+        // Обновляем статус в offer_codes
         await codesCollection.updateOne(
             { code: codeDoc.code },
             { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
         );
         
+        // v9.12.1 FIX: Обновляем ВСЕ офферы с этим кодом (не только active)
+        // И добавляем farmKey для корректного обновления
         await offersCollection.updateMany(
-            { offerId: codeDoc.code, status: 'active' },
+            { offerId: codeDoc.code, farmKey: codeDoc.farmKey },
             { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
         );
+        
+        // Также обновляем по #CODE формату
+        await offersCollection.updateMany(
+            { offerId: '#' + codeDoc.code, farmKey: codeDoc.farmKey },
+            { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+        );
+        
         paused++;
+    }
+    
+    // v9.12.1: Также проверяем offers коллекцию напрямую - могут быть офферы без записи в offer_codes
+    // Это catch-all для офферов которые показывают active но не найдены на Eldorado
+    const allActiveOffers = await offersCollection.find({
+        status: 'active'
+    }).toArray();
+    
+    for (const offer of allActiveOffers) {
+        const code = offer.offerId?.replace(/^#/, '').toUpperCase();
+        if (!code) continue;
+        
+        // Если этот код не был найден в сканировании - помечаем как paused
+        if (!foundCodeSet.has(code)) {
+            await offersCollection.updateOne(
+                { _id: offer._id },
+                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+            );
+            console.log(`   Marking offer ${code} as paused (not found in Eldorado search)`);
+        }
     }
     
     console.log(`   Updated: ${updated}, Created: ${created}, Paused: ${paused}`);

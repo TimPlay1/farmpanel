@@ -772,6 +772,7 @@ async function scanOffers(db) {
                 }
                 
                 console.log(`   ✅ ${code} - FOUND via direct search! price=$${price}`);
+                foundCodes.add(code); // Добавляем в found после direct search
                 break; // Нашли, выходим из цикла
             }
         }
@@ -781,10 +782,41 @@ async function scanOffers(db) {
         }
     }
     
-    // v3.0.7: НЕ помечаем автоматически как paused - это делает scan-glitched.js с notFoundCount логикой
-    // Cron не может гарантировать что проверил ВСЕ коды (ограничения страниц и direct search)
-    // scan-glitched.js проверяет каждый код индивидуально и использует счётчик неудачных попыток
-    const pausedCount = 0;
+    // v9.12.1 FIX: Помечаем НЕ найденные офферы как paused
+    // Важно: помечаем только те коды которые были проверены через direct search
+    // Коды которые не попали в direct search (из-за лимита) - НЕ трогаем
+    let pausedCount = 0;
+    
+    // Получаем список кодов которые были проверены через direct search но НЕ найдены
+    const MAX_DIRECT_SEARCHES = 20;
+    const searchedCodes = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES).map(c => c.code);
+    const stillNotFound = searchedCodes.filter(code => !foundCodes.has(code));
+    
+    if (stillNotFound.length > 0) {
+        console.log(`🔍 Marking ${stillNotFound.length} offers as paused (not found after direct search)...`);
+        
+        for (const code of stillNotFound) {
+            const owner = codeToOwner.get(code);
+            if (!owner) continue;
+            
+            // Обновляем offer_codes
+            await codesCollection.updateOne(
+                { code: code },
+                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+            );
+            
+            // Обновляем offers
+            const result = await offersCollection.updateMany(
+                { farmKey: owner.farmKey, offerId: code, status: { $ne: 'paused' } },
+                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+            );
+            
+            if (result.modifiedCount > 0) {
+                pausedCount++;
+                console.log(`   ⏸️ Marked paused: ${code}`);
+            }
+        }
+    }
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)`);
