@@ -176,15 +176,16 @@ module.exports = async (req, res) => {
             }
             
             // Добавляем recommendedPrice и мутацию к каждому офферу
-            // v3.0.3: Мутация берётся из collection фермера по (name + income)
-            // v3.0.5: Debug logging для диагностики
+            // v3.0.6: Приоритет мутации:
+            // 1. offer.mutation из БД (от cron-price-scanner / Eldorado API) - самый точный
+            // 2. Fallback: из collection фермера по (name + income)
             for (const offer of offers) {
                 const key = getPriceCacheKey(offer.brainrotName, offer.income);
                 const priceData = key ? pricesMap.get(key) : null;
                 
                 // Debug: логируем для offers с B/s income
                 if (offer.income > 500) {
-                    console.log(`🔍 Offer "${offer.brainrotName}" income=${offer.income} → key="${key}", mutationsMap.has=${mutationsMap.has(key)}, mutation=${mutationsMap.get(key) || 'NOT_FOUND'}`);
+                    console.log(`🔍 Offer "${offer.brainrotName}" income=${offer.income} → key="${key}", db.mutation=${offer.mutation || 'null'}, collection.mutation=${mutationsMap.get(key) || 'NOT_FOUND'}`);
                 }
                 
                 if (priceData && priceData.suggestedPrice) {
@@ -194,10 +195,10 @@ module.exports = async (req, res) => {
                     offer.competitorPrice = priceData.competitorPrice || null;
                 }
                 
-                // v3.0.3: Получаем мутацию из collection фермера по (name + income)
-                // Это единственный надёжный источник - Eldorado API не даёт мутации нормально
-                if (key && mutationsMap.has(key)) {
-                    offer.mutation = mutationsMap.get(key); // может быть null если без мутации
+                // v3.0.6: Мутация - приоритет offer.mutation из БД (Eldorado API)
+                // Только если в БД нет мутации - смотрим в collection фермера
+                if (!offer.mutation && key && mutationsMap.has(key)) {
+                    offer.mutation = mutationsMap.get(key);
                 }
             }
             

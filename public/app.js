@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.33 - Add price change % to mutation variant cards
+// FarmerPanel App v9.12.34 - Fix mutation change detection + API priority
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -7934,6 +7934,7 @@ async function loadOffers(forceRefresh = false, silent = false) {
 }
 
 // Check if offers have changed (for smart UI updates)
+// v9.12.34: Added mutation check
 function hasOffersChanged(oldOffers, newOffers) {
     if (!oldOffers || oldOffers.length !== newOffers.length) return true;
     
@@ -7945,6 +7946,7 @@ function hasOffersChanged(oldOffers, newOffers) {
         if (oldOffer.status !== newOffer.status) return true;
         if (oldOffer.currentPrice !== newOffer.currentPrice) return true;
         if (oldOffer.imageUrl !== newOffer.imageUrl) return true;
+        if (oldOffer.mutation !== newOffer.mutation) return true; // v9.12.34
     }
     
     return false;
