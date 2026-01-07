@@ -2613,6 +2613,32 @@ function formatPriceUpdateTime(timestamp) {
 }
 
 /**
+ * v9.12.59: Refresh all time badges on the page to show live elapsed time
+ * Called every 30 seconds to update "<1m" -> "1m" -> "2m" etc
+ */
+function refreshPriceTimeBadges() {
+    const badges = document.querySelectorAll('.price-last-update[data-timestamp]');
+    let updated = 0;
+    badges.forEach(badge => {
+        const ts = parseInt(badge.dataset.timestamp, 10);
+        if (!isNaN(ts)) {
+            const newTime = formatPriceUpdateTime(ts);
+            if (badge.textContent !== newTime) {
+                badge.textContent = newTime || '<1m';
+                badge.title = `Cron scanned ${newTime || 'just now'} ago`;
+                updated++;
+            }
+        }
+    });
+    if (updated > 0) {
+        console.log(`⏱️ Refreshed ${updated} time badges`);
+    }
+}
+
+// v9.12.59: Start time badge refresh interval (every 30 seconds)
+setInterval(refreshPriceTimeBadges, 30000);
+
+/**
  * v9.11.1: Рендер единого блока цены для обычных карточек (без мутации)
  * Новый стиль, соответствующий карточкам с мутациями
  * v9.12.12: НИКОГДА не показываем Loading если есть хоть какие-то данные в кэше
@@ -2711,7 +2737,9 @@ function renderPriceBlock(priceData, cacheKey) {
     // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
     const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
     // Always show time badge (even <1m for fresh data)
-    additionalHtml += `<span class="price-last-update" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
+    // v9.12.59: Add data-timestamp for live refresh of time badges
+    const serverTs = priceData._serverUpdatedAt ? new Date(priceData._serverUpdatedAt).getTime() : Date.now();
+    additionalHtml += `<span class="price-last-update" data-timestamp="${serverTs}" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
     additionalHtml += '</div>';
     
     return `
@@ -2850,7 +2878,9 @@ function renderPriceVariants(brainrotName, income, mutation) {
         // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
         const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
         // Always show time badge
-        additionalHtml += `<span class="price-last-update" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
+        // v9.12.59: Add data-timestamp for live refresh of time badges
+        const serverTs = priceData._serverUpdatedAt ? new Date(priceData._serverUpdatedAt).getTime() : Date.now();
+        additionalHtml += `<span class="price-last-update" data-timestamp="${serverTs}" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
         additionalHtml += '</div>';
         
         return `
