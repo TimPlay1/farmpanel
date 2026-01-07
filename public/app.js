@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.60 - Fix time badge fallback to use _timestamp when _serverUpdatedAt missing
+// FarmerPanel App v9.12.61 - Fix price change % disappearing (preserve until next actual change)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1815,6 +1815,11 @@ async function loadPricesFromServer() {
                         hasUpdatedAt++;
                         if (!sampleUpdatedAt) sampleUpdatedAt = priceData.updatedAt;
                     }
+                    // v9.12.61: Track price changes before overwriting
+                    const oldData = state.brainrotPrices[key];
+                    if (oldData && oldData.suggestedPrice && priceData.suggestedPrice) {
+                        updatePreviousPriceOnChange(key, oldData.suggestedPrice, priceData.suggestedPrice);
+                    }
                     state.brainrotPrices[key] = {
                         ...priceData,
                         _timestamp: loadTime, // Время загрузки клиентом, не сервера!
@@ -1861,6 +1866,11 @@ async function loadPricesFromServer() {
                 // ВАЖНО: _timestamp = Date.now() - время загрузки клиентом
                 const loadTime = Date.now();
                 for (const [key, priceData] of Object.entries(data.prices)) {
+                    // v9.12.61: Track price changes before overwriting
+                    const oldData = state.brainrotPrices[key];
+                    if (oldData && oldData.suggestedPrice && priceData.suggestedPrice) {
+                        updatePreviousPriceOnChange(key, oldData.suggestedPrice, priceData.suggestedPrice);
+                    }
                     state.brainrotPrices[key] = {
                         ...priceData,
                         _timestamp: loadTime // Время загрузки клиентом
@@ -1913,12 +1923,20 @@ async function loadUpdatedPricesFromServer() {
                     
                     // Обновляем только изменённые цены
                     for (const [key, priceData] of Object.entries(data.prices)) {
+                        // v9.12.61: Track price changes before overwriting
+                        const oldData = state.brainrotPrices[key];
+                        if (oldData && oldData.suggestedPrice && priceData.suggestedPrice) {
+                            updatePreviousPriceOnChange(key, oldData.suggestedPrice, priceData.suggestedPrice);
+                        }
                         state.brainrotPrices[key] = {
                             ...priceData,
                             _timestamp: loadTime,
                             _serverUpdatedAt: priceData.updatedAt
                         };
                     }
+                    
+                    // v9.12.61: Save previousPrices to localStorage after updates
+                    savePreviousPrices();
                     
                     // Сохраняем в localStorage
                     savePriceCacheToStorage();
@@ -2155,22 +2173,47 @@ function calculateAccountValue(account) {
 
 /**
  * Сохранить предыдущие цены перед обновлением
+ * v9.12.61: FIXED - Don't overwrite previousPrices if price didn't change
+ * This preserves the % change display until the server updates the price again
+ * 
+ * Logic: previousPrices stores the ORIGINAL price before any change.
+ * If current price matches previous, don't update - keep showing % change.
+ * Only update previousPrices when price actually changes.
  */
 function savePreviousPrices() {
-    const now = Date.now();
-    for (const [key, data] of Object.entries(state.brainrotPrices)) {
-        if (data && data.suggestedPrice) {
-            state.previousPrices[key] = {
-                price: data.suggestedPrice,
-                timestamp: now
-            };
-        }
-    }
-    // Сохраняем в localStorage
+    // This function is called BEFORE loading new prices from server
+    // So state.brainrotPrices contains the OLD prices
+    // We want to save them only if they'll be different from the NEW prices
+    // But we don't know the new prices yet...
+    
+    // Solution: Don't update previousPrices here at all!
+    // Instead, we'll update it when we detect an actual price change
+    // during the loading process (see updatePreviousPriceIfChanged)
+    
+    // Just save current state to localStorage for persistence
     try {
         localStorage.setItem(PREVIOUS_PRICES_KEY, JSON.stringify(state.previousPrices));
     } catch (e) {
         console.warn('Failed to save previous prices:', e);
+    }
+}
+
+/**
+ * v9.12.61: Update previous price only when we detect an actual price change
+ * Called during price loading when new price differs from current
+ */
+function updatePreviousPriceOnChange(cacheKey, oldPrice, newPrice) {
+    if (!oldPrice || oldPrice === newPrice) return;
+    
+    // Price changed! Save the OLD price as "previous" with current timestamp
+    state.previousPrices[cacheKey] = {
+        price: oldPrice,
+        timestamp: Date.now()
+    };
+    
+    const change = ((newPrice - oldPrice) / oldPrice) * 100;
+    if (Math.abs(change) >= 1) {
+        console.log(`📊 Price change detected: ${cacheKey} $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)} (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)`);
     }
 }
 
