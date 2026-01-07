@@ -1070,7 +1070,7 @@ const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут вместо 3
 const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
 const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // v9.12.24: Проверка обновлённых цен каждую минуту
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
-const PRICE_CACHE_VERSION = 5; // v9.11.10: Increment to invalidate cache - fix mutation prices in next range check
+const PRICE_CACHE_VERSION = 6; // v9.12.50: Increment to invalidate cache - add _serverUpdatedAt field
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
@@ -2693,7 +2693,6 @@ function renderPriceBlock(priceData, cacheKey) {
     }
     // v9.12.50: Last update time in bottom-right corner
     const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
-    console.log('🕐 Price update time:', priceData._serverUpdatedAt, priceData.updatedAt, '->', lastUpdateTime);
     if (lastUpdateTime) {
         additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
     }
