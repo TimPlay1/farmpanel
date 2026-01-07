@@ -1262,8 +1262,16 @@ function loadBalanceHistoryFromCache() {
             if (cache[state.currentKey]) {
                 const cacheData = cache[state.currentKey];
                 state.balanceHistory[state.currentKey] = cacheData.history || [];
-                currentChartPeriod = cacheData.period || 'week';
-                console.log(`📊 Loaded ${state.balanceHistory[state.currentKey].length} cached points for period ${currentChartPeriod}`);
+                
+                // v2.1: period может быть числом (ms) или строкой, конвертируем
+                const savedPeriod = cacheData.period;
+                if (typeof savedPeriod === 'number' && Object.values(PERIODS).includes(savedPeriod)) {
+                    currentChartPeriod = savedPeriod;
+                } else {
+                    currentChartPeriod = PERIODS.week; // default
+                }
+                
+                console.log(`📊 Loaded ${state.balanceHistory[state.currentKey].length} cached points`);
                 return true;
             }
         }
