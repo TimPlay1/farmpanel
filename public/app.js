@@ -1445,12 +1445,38 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
                 return tsA - tsB;
             });
             
-            // Не перезаписываем если в памяти больше данных
+            // ВАЖНО: сохраняем локальные свежие записи (последние 10 минут)
+            // Серверные данные могут быть агрегированы и не содержать самые свежие точки
             const currentHistory = state.balanceHistory[state.currentKey] || [];
-            if (allRecords.length >= currentHistory.length) {
-                state.balanceHistory[state.currentKey] = allRecords;
-                console.log(`📊 Total: ${allRecords.length} records merged`);
+            const recentCutoff = now - 10 * 60 * 1000; // 10 минут
+            const localRecent = currentHistory.filter(r => {
+                const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+                return ts >= recentCutoff;
+            });
+            
+            // Находим самый свежий timestamp в серверных данных
+            const serverMaxTs = allRecords.length > 0 ? Math.max(...allRecords.map(r => 
+                typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime()
+            )) : 0;
+            
+            // Добавляем локальные записи которые новее серверных
+            const localNewer = localRecent.filter(r => {
+                const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+                return ts > serverMaxTs;
+            });
+            
+            if (localNewer.length > 0) {
+                console.log(`📊 Preserving ${localNewer.length} local recent records`);
+                allRecords = [...allRecords, ...localNewer];
+                allRecords.sort((a, b) => {
+                    const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                    const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                    return tsA - tsB;
+                });
             }
+            
+            state.balanceHistory[state.currentKey] = allRecords;
+            console.log(`📊 Total: ${allRecords.length} records merged`);
             
             saveBalanceHistoryToCache();
             updateBalanceChart();
