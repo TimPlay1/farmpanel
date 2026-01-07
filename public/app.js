@@ -1261,27 +1261,49 @@ function loadBalanceHistoryFromCache() {
             const cache = JSON.parse(stored);
             if (cache[state.currentKey]) {
                 const cacheData = cache[state.currentKey];
-                const cachedHistory = cacheData.history || [];
                 
-                // v2.3: Не перезаписываем если в памяти уже больше данных
+                // v2.7: Мержим 30d и 24h из кэша
+                const cached30d = cacheData.history30d || cacheData.history || [];
+                const cached24h = cacheData.history24h || [];
+                
+                let mergedHistory = [];
+                
+                if (cached30d.length > 0 && cached24h.length > 0) {
+                    // Мержим: старые 30d + детальные 24h
+                    const cutoff24h = Date.now() - PERIODS.day;
+                    const older30d = cached30d.filter(r => {
+                        const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+                        return ts < cutoff24h;
+                    });
+                    mergedHistory = [...older30d, ...cached24h];
+                    mergedHistory.sort((a, b) => {
+                        const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                        const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                        return tsA - tsB;
+                    });
+                } else {
+                    mergedHistory = cached30d.length > 0 ? cached30d : cached24h;
+                }
+                
+                // Не перезаписываем если в памяти уже больше данных
                 const currentHistory = state.balanceHistory[state.currentKey] || [];
-                if (currentHistory.length >= cachedHistory.length) {
-                    console.log(`📊 Skipping cache (memory: ${currentHistory.length} >= cache: ${cachedHistory.length})`);
+                if (currentHistory.length >= mergedHistory.length) {
+                    console.log(`📊 Skipping cache (memory: ${currentHistory.length} >= cache: ${mergedHistory.length})`);
                     return currentHistory.length >= 5;
                 }
                 
-                state.balanceHistory[state.currentKey] = cachedHistory;
+                state.balanceHistory[state.currentKey] = mergedHistory;
                 
-                // v2.1: period может быть числом (ms) или строкой, конвертируем
+                // Восстанавливаем период
                 const savedPeriod = cacheData.period;
                 if (typeof savedPeriod === 'number' && Object.values(PERIODS).includes(savedPeriod)) {
                     currentChartPeriod = savedPeriod;
                 } else {
-                    currentChartPeriod = PERIODS.week; // default
+                    currentChartPeriod = PERIODS.week;
                 }
                 
-                console.log(`📊 Loaded ${cachedHistory.length} cached points`);
-                return cachedHistory.length >= 5;
+                console.log(`📊 Loaded from cache: 30d=${cached30d.length}, 24h=${cached24h.length}, merged=${mergedHistory.length}`);
+                return mergedHistory.length >= 5;
             }
         }
     } catch (e) {
@@ -1292,7 +1314,7 @@ function loadBalanceHistoryFromCache() {
 
 /**
  * Сохранить историю баланса в localStorage кэш
- * v2.0: Сохраняем текущий период и ограниченные данные
+ * v2.7: Сохраняем отдельно 30d и 24h данные
  */
 function saveBalanceHistoryToCache() {
     if (!state.currentKey || !state.balanceHistory[state.currentKey]) return;
@@ -1304,28 +1326,38 @@ function saveBalanceHistoryToCache() {
             cache = JSON.parse(stored);
         }
         
-        // v2.0: Ограничиваем кэш - последние 300 записей (достаточно для графика)
         const history = state.balanceHistory[state.currentKey];
-        const limitedHistory = history.length > 300 ? history.slice(-300) : history;
+        const now = Date.now();
+        const cutoff24h = now - PERIODS.day;
+        
+        // v2.7: Разделяем на 30d и 24h для правильного кэширования
+        // 24h - детальные данные за последние 24 часа
+        const history24h = history.filter(r => {
+            const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+            return ts >= cutoff24h;
+        });
+        
+        // 30d - все данные, но лимитируем до 500 записей
+        const history30d = history.length > 500 ? history.slice(-500) : history;
         
         cache[state.currentKey] = {
-            history: limitedHistory,
+            history30d: history30d,
+            history24h: history24h,
             period: currentChartPeriod,
-            timestamp: Date.now()
+            timestamp: now
         };
         
         // Очищаем кэш других ключей если слишком много
         const keys = Object.keys(cache);
-        if (keys.length > 5) {
-            // Оставляем только 5 последних по timestamp
+        if (keys.length > 3) {
             const sorted = keys.sort((a, b) => (cache[b].timestamp || 0) - (cache[a].timestamp || 0));
-            for (let i = 5; i < sorted.length; i++) {
+            for (let i = 3; i < sorted.length; i++) {
                 delete cache[sorted[i]];
             }
         }
         
         localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(cache));
-        console.log(`📊 Cached ${limitedHistory.length} chart points for ${state.currentKey}`);
+        console.log(`📊 Cached: 30d=${history30d.length}, 24h=${history24h.length} for ${state.currentKey}`);
     } catch (e) {
         console.warn('Failed to save balance history cache:', e);
         try {
