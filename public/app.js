@@ -1629,32 +1629,13 @@ function getChartData(farmKey, periodMs, points = 30) {
         return ts >= periodStart;
     });
     
-    // v2.5: Для RT - строго 5 минут, без fallback на старые данные
-    if (isRealtime) {
-        // RT показывает только данные за последние 5 минут
-        // Если мало точек - показываем что есть (график будет расти по мере накопления)
-        if (periodHistory.length < 2) {
-            // Если совсем нет данных за 5 минут - берём последнюю 1 точку для старта
-            const lastEntry = history[history.length - 1];
-            if (lastEntry) {
-                periodHistory = [lastEntry];
-            }
-        }
-    } else {
-        // Для других периодов (1H, 24H, 7D, 30D)
-        const isShortPeriod = periodMs <= PERIODS.day;
-        
-        if (periodHistory.length < 5) {
-            if (isShortPeriod && history.length >= 5) {
-                // 1H/24H - можно взять fallback для накопления
-                const fallbackCount = Math.min(30, history.length);
-                periodHistory = history.slice(-fallbackCount);
-                console.log(`Chart: ${periodMs}ms period fallback, using last ${periodHistory.length} records`);
-            } else {
-                // 7D/30D - строго в периоде
-                return { labels: [], values: [] };
-            }
-        }
+    // v2.6: ВСЕ периоды показывают только данные строго в периоде (без fallback)
+    // RT: минимум 2 точки, остальные: минимум 5
+    const minRequired = isRealtime ? 2 : 5;
+    
+    if (periodHistory.length < minRequired) {
+        // Недостаточно данных за период - показываем пустой график
+        return { labels: [], values: [] };
     }
     
     if (periodHistory.length < 2) return { labels: [], values: [] };
