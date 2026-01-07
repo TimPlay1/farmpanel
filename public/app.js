@@ -1134,26 +1134,26 @@ function saveAvatarToCache(userId, avatarUrl) {
     };
     
     try {
-        // Ограничиваем размер кэша - максимум 30 аватаров чтобы не забить localStorage
+        // v2.5: Ограничиваем размер кэша - максимум 20 аватаров
         const cacheKeys = Object.keys(state.avatarCache);
-        if (cacheKeys.length > 30) {
+        if (cacheKeys.length > 20) {
             // Удаляем старые записи
             const sorted = cacheKeys.sort((a, b) => 
                 (state.avatarCache[a].timestamp || 0) - (state.avatarCache[b].timestamp || 0)
             );
-            // Удаляем половину старых
-            for (let i = 0; i < 15; i++) {
+            // Удаляем 10 старых
+            for (let i = 0; i < 10; i++) {
                 delete state.avatarCache[sorted[i]];
             }
         }
         localStorage.setItem(AVATAR_STORAGE_KEY, JSON.stringify(state.avatarCache));
     } catch (e) {
-        console.warn('Failed to save avatar cache:', e);
-        // Если localStorage переполнен, очищаем кэш
-        if (e.name === 'QuotaExceededError') {
-            state.avatarCache = {};
+        // v2.5: При любой ошибке (включая QuotaExceeded) очищаем кэш
+        console.warn('Avatar cache save failed, clearing:', e.name);
+        state.avatarCache = {};
+        try {
             localStorage.removeItem(AVATAR_STORAGE_KEY);
-        }
+        } catch (e2) {}
     }
 }
 
@@ -1620,33 +1620,47 @@ function getChartData(farmKey, periodMs, points = 30) {
         return 0;
     };
     
+    // v2.5: RT работает только с данными за последние 5 минут (строго)
+    const isRealtime = periodMs <= PERIODS.realtime;
+    
     // Фильтруем записи в периоде
     let periodHistory = history.filter(e => {
         const ts = normalizeTimestamp(e.timestamp);
         return ts >= periodStart;
     });
     
-    // v2.4: Для RT/1H/24H - если мало данных, показываем что есть (для накопления)
-    // Для 7D/30D - НЕ показываем данные вне периода, просто пустой график
-    const isShortPeriod = periodMs <= PERIODS.day;
-    
-    if (periodHistory.length < 5) {
-        if (isShortPeriod && history.length >= 5) {
-            // Короткий период - берём последние данные для накопления
-            const fallbackCount = Math.min(50, history.length);
-            periodHistory = history.slice(-fallbackCount);
-            console.log(`Chart: short period fallback, using last ${periodHistory.length} records`);
-        } else {
-            // Длинный период (7D/30D) - не показываем данные вне периода
-            return { labels: [], values: [] };
+    // v2.5: Для RT - строго 5 минут, без fallback на старые данные
+    if (isRealtime) {
+        // RT показывает только данные за последние 5 минут
+        // Если мало точек - показываем что есть (график будет расти по мере накопления)
+        if (periodHistory.length < 2) {
+            // Если совсем нет данных за 5 минут - берём последнюю 1 точку для старта
+            const lastEntry = history[history.length - 1];
+            if (lastEntry) {
+                periodHistory = [lastEntry];
+            }
+        }
+    } else {
+        // Для других периодов (1H, 24H, 7D, 30D)
+        const isShortPeriod = periodMs <= PERIODS.day;
+        
+        if (periodHistory.length < 5) {
+            if (isShortPeriod && history.length >= 5) {
+                // 1H/24H - можно взять fallback для накопления
+                const fallbackCount = Math.min(30, history.length);
+                periodHistory = history.slice(-fallbackCount);
+                console.log(`Chart: ${periodMs}ms period fallback, using last ${periodHistory.length} records`);
+            } else {
+                // 7D/30D - строго в периоде
+                return { labels: [], values: [] };
+            }
         }
     }
     
     if (periodHistory.length < 2) return { labels: [], values: [] };
     
     // Для realtime показываем все точки
-    const isRealtimePeriod = periodMs <= PERIODS.realtime;
-    const maxPoints = isRealtimePeriod ? 100 : points;
+    const maxPoints = isRealtime ? 100 : points;
     
     // Сэмплируем до нужного количества точек
     const step = Math.max(1, Math.floor(periodHistory.length / maxPoints));
@@ -2852,6 +2866,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAvatarCache(); // Кэш аватаров
     loadOffersFromStorage(); // Кэш офферов
     loadShopNameFromCache(); // Кэш названия магазина (мгновенно)
+    
+    // v2.5: Загружаем кэш графиков СРАЗУ (до показа UI)
+    if (state.currentKey) {
+        const chartCacheLoaded = loadBalanceHistoryFromCache();
+        if (chartCacheLoaded) {
+            console.log('📊 Chart cache loaded at startup');
+        }
+    }
+    
     setupEventListeners();
     
     // === ЭТАП 2: Загружаем критические ресурсы перед показом UI ===
@@ -11025,9 +11048,12 @@ function _doUpdateBalanceChart(period) {
     
     console.log(`Chart update: period=${period}, points=${chartData.labels.length}, history=${state.balanceHistory[state.currentKey]?.length || 0}`);
     
-    // v2.3: Минимум 5 точек для нормального графика (не диагональ)
-    if (chartData.labels.length < 5) {
-        console.log('Not enough chart data (need 5+), showing empty state');
+    // v2.5: RT нужно минимум 2 точки, остальные периоды - 5
+    const isRealtimePeriod = period <= PERIODS.realtime;
+    const minPoints = isRealtimePeriod ? 2 : 5;
+    
+    if (chartData.labels.length < minPoints) {
+        console.log(`Not enough chart data (need ${minPoints}+), showing empty state`);
         chartContainer.style.display = 'none';
         if (chartEmpty) chartEmpty.style.display = 'flex';
         if (chartStats) chartStats.innerHTML = '';
