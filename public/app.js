@@ -1359,7 +1359,7 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         console.log('loadBalanceHistory: fetching 30d from', url);
         
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
+        const timeout = setTimeout(() => controller.abort(), 8000); // v2.3: Быстрее таймаут
         
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
@@ -10989,9 +10989,9 @@ function _doUpdateBalanceChart(period) {
     
     console.log(`Chart update: period=${period}, points=${chartData.labels.length}, history=${state.balanceHistory[state.currentKey]?.length || 0}`);
     
-    if (chartData.labels.length < 2) {
-        // Not enough data
-        console.log('Not enough chart data, showing empty state');
+    // v2.3: Минимум 5 точек для нормального графика (не диагональ)
+    if (chartData.labels.length < 5) {
+        console.log('Not enough chart data (need 5+), showing empty state');
         chartContainer.style.display = 'none';
         if (chartEmpty) chartEmpty.style.display = 'flex';
         if (chartStats) chartStats.innerHTML = '';
@@ -11056,16 +11056,16 @@ function _doUpdateBalanceChart(period) {
                 borderWidth: 2.5,
                 fill: true,
                 tension: 0.4,
-                // v2.2: Точки скрыты по умолчанию, появляются при наведении
+                // v2.3: Точки маленькие, увеличиваются при наведении
                 pointRadius: 0,
-                pointHitRadius: 20, // Увеличенная зона клика для удобства
-                pointHoverRadius: 7,
+                pointHitRadius: 15,
+                pointHoverRadius: 5,
                 pointBackgroundColor: chartColor,
-                pointBorderColor: '#1a1a2e',
-                pointBorderWidth: 3,
+                pointBorderColor: chartColor,
+                pointBorderWidth: 0,
                 pointHoverBackgroundColor: '#fff',
                 pointHoverBorderColor: chartColor,
-                pointHoverBorderWidth: 3
+                pointHoverBorderWidth: 2
             }]
         },
         options: {
@@ -11082,17 +11082,15 @@ function _doUpdateBalanceChart(period) {
                     backgroundColor: 'rgba(20, 20, 30, 0.95)',
                     titleColor: '#fff',
                     bodyColor: '#fff',
-                    titleFont: { size: 12, weight: 'bold' },
-                    bodyFont: { size: 14, weight: 'bold' },
+                    titleFont: { size: 11, weight: '600' },
+                    bodyFont: { size: 13, weight: 'bold' },
                     borderColor: chartColor,
                     borderWidth: 1,
-                    padding: { top: 10, bottom: 10, left: 14, right: 14 },
-                    cornerRadius: 8,
+                    padding: { top: 8, bottom: 8, left: 12, right: 12 },
+                    cornerRadius: 6,
                     displayColors: false,
-                    // v2.2: Фиксированное позиционирование без мерцания
-                    position: 'nearest',
-                    caretSize: 6,
-                    caretPadding: 8,
+                    // v2.3: Убираем мерцание
+                    animation: { duration: 100 },
                     callbacks: {
                         title: function(context) {
                             return context[0].label;

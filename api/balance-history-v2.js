@@ -121,6 +121,13 @@ module.exports = async (req, res) => {
     try {
         const { db } = await connectToDatabase();
         const collection = db.collection('balance_history');
+        
+        // v2.3: Создаём индекс для быстрого поиска (один раз)
+        try {
+            await collection.createIndex({ farmKey: 1, timestamp: -1 }, { background: true });
+        } catch (e) {
+            // Индекс уже существует - игнорируем
+        }
 
         // ==================== GET ====================
         if (req.method === 'GET') {
