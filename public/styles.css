@@ -2452,12 +2452,14 @@ body {
     margin-left: 0;
 }
 
+/* v9.12.56: Changed to flex-start to make room for time badge on right */
 .price-variant-additional {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     gap: 0.25rem;
     margin-top: 0.15rem;
     position: relative;
+    padding-right: 22px; /* Reserve space for absolute time badge */
 }
 
 .price-variant-additional .additional-price {
