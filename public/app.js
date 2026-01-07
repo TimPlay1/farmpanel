@@ -2046,6 +2046,7 @@ function loadPriceCacheFromStorage() {
             // Устаревшие будут помечены и обновлены в фоне
             let freshCount = 0;
             let staleCount = 0;
+            let oldestServerTime = Infinity; // v9.12.63: Track oldest serverUpdatedAt for proper sync
             for (const [name, entry] of Object.entries(data.brainrotPrices || {})) {
                 if (entry.data && entry.timestamp) {
                     state.brainrotPrices[name] = entry.data;
@@ -2053,6 +2054,13 @@ function loadPriceCacheFromStorage() {
                     // v9.12.57: Restore server update time for accurate time badges
                     if (entry.serverUpdatedAt) {
                         state.brainrotPrices[name]._serverUpdatedAt = entry.serverUpdatedAt;
+                        // v9.12.63: Track oldest serverUpdatedAt
+                        const serverTs = typeof entry.serverUpdatedAt === 'number' 
+                            ? entry.serverUpdatedAt 
+                            : new Date(entry.serverUpdatedAt).getTime();
+                        if (serverTs < oldestServerTime) {
+                            oldestServerTime = serverTs;
+                        }
                     }
                     
                     if (now - entry.timestamp < PRICE_CACHE_TTL) {
@@ -2067,9 +2075,18 @@ function loadPriceCacheFromStorage() {
             
             console.log(`Loaded ${freshCount} fresh + ${staleCount} stale prices from localStorage`);
             
-            // v9.12.26: Устанавливаем lastPricesLoadTime из кэша чтобы инкрементальный sync работал сразу
+            // v9.12.63: Set lastPricesLoadTime to oldest serverUpdatedAt minus 1 minute
+            // This ensures the first incremental sync gets ALL prices updated since localStorage was saved
             if (freshCount > 0 || staleCount > 0) {
-                lastPricesLoadTime = Date.now();
+                if (oldestServerTime !== Infinity) {
+                    // Use oldest server time minus 2 minutes for safety margin
+                    lastPricesLoadTime = oldestServerTime - 120000;
+                    console.log(`📊 lastPricesLoadTime set to ${new Date(lastPricesLoadTime).toLocaleTimeString()} (oldest serverUpdatedAt - 2min)`);
+                } else {
+                    // Fallback: if no serverUpdatedAt, use 10 minutes ago to get recent updates
+                    lastPricesLoadTime = Date.now() - 10 * 60 * 1000;
+                    console.log(`📊 lastPricesLoadTime set to 10 minutes ago (no serverUpdatedAt in cache)`);
+                }
             }
         }
         
