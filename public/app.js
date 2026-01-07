@@ -1337,8 +1337,8 @@ function saveBalanceHistoryToCache() {
             return ts >= cutoff24h;
         });
         
-        // 30d - все данные, но лимитируем до 500 записей
-        const history30d = history.length > 500 ? history.slice(-500) : history;
+        // 30d - история за месяц (увеличили лимит с 500 до 2500 чтобы не терять старые данные)
+        const history30d = history.length > 2500 ? history.slice(-2500) : history;
         
         cache[state.currentKey] = {
             history30d: history30d,
