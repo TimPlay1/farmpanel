@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.9';  // Added cursor for direct search - scan different offers each cycle
+const VERSION = '3.0.10';  // Fix: don't skip prices in new cycle
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -969,7 +969,8 @@ async function runPriceScan() {
             
             // Проверяем не сканировали ли уже в этом цикле (двойная проверка)
             const cached = cachedPrices.get(cacheKey);
-            if (cached && cached.cycleId >= currentCycleId) {
+            // v3.0.10: Fix - don't skip in new cycle
+            if (cached && cached.cycleId >= currentCycleId && !isNewCycle) {
                 skipped++;
                 continue;
             }
