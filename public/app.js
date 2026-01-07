@@ -1070,7 +1070,7 @@ const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут вместо 3
 const PRICE_AUTO_REFRESH_INTERVAL = 10 * 60 * 1000; // Автообновление каждые 10 минут
 const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // v9.12.24: Проверка обновлённых цен каждую минуту
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
-const PRICE_CACHE_VERSION = 6; // v9.12.50: Increment to invalidate cache - add _serverUpdatedAt field
+const PRICE_CACHE_VERSION = 7; // v9.12.57: Save serverUpdatedAt for accurate time badges
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
@@ -2017,6 +2017,10 @@ function loadPriceCacheFromStorage() {
                 if (entry.data && entry.timestamp) {
                     state.brainrotPrices[name] = entry.data;
                     state.brainrotPrices[name]._timestamp = entry.timestamp;
+                    // v9.12.57: Restore server update time for accurate time badges
+                    if (entry.serverUpdatedAt) {
+                        state.brainrotPrices[name]._serverUpdatedAt = entry.serverUpdatedAt;
+                    }
                     
                     if (now - entry.timestamp < PRICE_CACHE_TTL) {
                         freshCount++;
@@ -2062,6 +2066,7 @@ function loadPriceCacheFromStorage() {
 
 /**
  * Сохранить кэш цен в localStorage
+ * v9.12.57: Also save _serverUpdatedAt for accurate time badges
  */
 function savePriceCacheToStorage() {
     try {
@@ -2075,7 +2080,8 @@ function savePriceCacheToStorage() {
             if (data && !data.error) {
                 toStore.brainrotPrices[name] = {
                     data: data,
-                    timestamp: data._timestamp || now
+                    timestamp: data._timestamp || now,
+                    serverUpdatedAt: data._serverUpdatedAt // v9.12.57: Save cron scan time
                 };
             }
         }
