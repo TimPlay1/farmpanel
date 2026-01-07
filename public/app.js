@@ -1233,10 +1233,24 @@ async function getAccountAvatar(userId, serverAvatars) {
     return fetchRobloxAvatar(userId);
 }
 
-// ============ Balance History Functions ============
+// ============ Balance History Functions v2.0 ============
 
 /**
- * Загрузить историю баланса из localStorage кэша
+ * v2.0: Новая архитектура истории баланса
+ * 
+ * Принципы:
+ * 1. БД - единственный источник правды (сервер хранит всё)
+ * 2. localStorage - только для мгновенного показа при загрузке
+ * 3. Очистка старых данных (>30 дней) происходит на сервере
+ * 4. Периоды: RT (5min), 1H, 24H, 7D, 30D
+ * 5. Агрегация данных на сервере для оптимизации
+ */
+
+// Текущий выбранный период графика объявлен ниже в секции графиков (currentChartPeriod)
+
+/**
+ * Загрузить историю баланса из localStorage кэша (для мгновенного отображения)
+ * v2.0: Теперь хранит данные для каждого периода отдельно
  */
 function loadBalanceHistoryFromCache() {
     if (!state.currentKey) return false;
@@ -1245,10 +1259,11 @@ function loadBalanceHistoryFromCache() {
         const stored = localStorage.getItem(BALANCE_HISTORY_KEY);
         if (stored) {
             const cache = JSON.parse(stored);
-            if (cache[state.currentKey] && cache[state.currentKey].history) {
+            if (cache[state.currentKey]) {
                 const cacheData = cache[state.currentKey];
-                state.balanceHistory[state.currentKey] = cacheData.history;
-                console.log(`📊 Loaded ${cacheData.history.length} chart points from cache`);
+                state.balanceHistory[state.currentKey] = cacheData.history || [];
+                currentChartPeriod = cacheData.period || 'week';
+                console.log(`📊 Loaded ${state.balanceHistory[state.currentKey].length} cached points for period ${currentChartPeriod}`);
                 return true;
             }
         }
@@ -1260,7 +1275,7 @@ function loadBalanceHistoryFromCache() {
 
 /**
  * Сохранить историю баланса в localStorage кэш
- * v9.12.30: Ограничиваем до 500 записей чтобы не переполнить localStorage
+ * v2.0: Сохраняем текущий период и ограниченные данные
  */
 function saveBalanceHistoryToCache() {
     if (!state.currentKey || !state.balanceHistory[state.currentKey]) return;
@@ -1272,20 +1287,30 @@ function saveBalanceHistoryToCache() {
             cache = JSON.parse(stored);
         }
         
-        // v9.12.30: Ограничиваем кэш - последние 500 записей достаточно для графика
+        // v2.0: Ограничиваем кэш - последние 300 записей (достаточно для графика)
         const history = state.balanceHistory[state.currentKey];
-        const limitedHistory = history.length > 500 ? history.slice(-500) : history;
+        const limitedHistory = history.length > 300 ? history.slice(-300) : history;
         
         cache[state.currentKey] = {
             history: limitedHistory,
+            period: currentChartPeriod,
             timestamp: Date.now()
         };
         
+        // Очищаем кэш других ключей если слишком много
+        const keys = Object.keys(cache);
+        if (keys.length > 5) {
+            // Оставляем только 5 последних по timestamp
+            const sorted = keys.sort((a, b) => (cache[b].timestamp || 0) - (cache[a].timestamp || 0));
+            for (let i = 5; i < sorted.length; i++) {
+                delete cache[sorted[i]];
+            }
+        }
+        
         localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(cache));
-        console.log(`📊 Cached ${limitedHistory.length} chart points (from ${history.length} total)`);
+        console.log(`📊 Cached ${limitedHistory.length} chart points for ${state.currentKey}`);
     } catch (e) {
         console.warn('Failed to save balance history cache:', e);
-        // v9.12.30: При ошибке (quota exceeded) - очищаем старый кэш
         try {
             localStorage.removeItem(BALANCE_HISTORY_KEY);
         } catch (e2) {}
@@ -1293,90 +1318,162 @@ function saveBalanceHistoryToCache() {
 }
 
 /**
- * Загрузить историю баланса из сервера (MongoDB)
- * v9.12.9: Сначала показываем кэшированные данные, затем обновляем в фоне
- * v9.12.10: Только показываем график из кэша если есть >= 2 точек
+ * Загрузить историю баланса из сервера v2.0
+ * Использует новый API с агрегацией и автоочисткой
+ * 
+ * @param {string} period - Период: 'realtime', 'hour', 'day', 'week', 'month'
+ * @param {boolean} forceRefresh - Игнорировать кэш
  */
-async function loadBalanceHistory() {
+async function loadBalanceHistory(period = null, forceRefresh = false) {
     if (!state.currentKey) {
         console.log('loadBalanceHistory: no currentKey, skipping');
         return;
     }
     
-    console.log('loadBalanceHistory: loading for', state.currentKey);
+    // Используем текущий период если не указан
+    const requestPeriod = period || currentChartPeriod || 'week';
+    console.log(`loadBalanceHistory: loading ${requestPeriod} for ${state.currentKey}`);
     
-    // v9.12.9: Сначала загружаем из кэша
-    const hasCachedData = loadBalanceHistoryFromCache();
-    
-    // v9.12.10: Показываем график только если есть >= 2 точек данных
-    if (hasCachedData) {
-        const cachedHistory = state.balanceHistory[state.currentKey];
-        if (cachedHistory && cachedHistory.length >= 2) {
-            console.log('📊 Cache has enough data, updating chart immediately');
-            updateBalanceChart();
-        } else {
-            console.log(`📊 Cache has only ${cachedHistory?.length || 0} points, need >= 2 to show chart`);
+    // v2.0: Сначала загружаем из кэша для мгновенного отображения
+    if (!forceRefresh) {
+        const hasCachedData = loadBalanceHistoryFromCache();
+        if (hasCachedData) {
+            const cachedHistory = state.balanceHistory[state.currentKey];
+            if (cachedHistory && cachedHistory.length >= 2) {
+                console.log('📊 Showing cached data while loading fresh...');
+                updateBalanceChart();
+            }
         }
     }
     
-    // Затем загружаем свежие данные с сервера в фоне
+    // Загружаем свежие данные с сервера
     try {
-        const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
+        // Конвертируем период в формат API
+        const periodMap = {
+            'realtime': 'rt',
+            'hour': '1h',
+            'day': '24h',
+            'week': '7d',
+            'month': '30d'
+        };
+        const apiPeriod = periodMap[requestPeriod] || '7d';
+        
+        // Используем новый API v2
+        const url = `${API_BASE}/balance-history-v2?farmKey=${encodeURIComponent(state.currentKey)}&period=${apiPeriod}`;
         console.log('loadBalanceHistory: fetching from', url);
         
-        // v9.12.10: Добавляем таймаут 15 секунд для сервера
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
         
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
         
-        console.log('loadBalanceHistory: response status', response.status);
-        
         if (response.ok) {
             const data = await response.json();
-            console.log('loadBalanceHistory: received data', data.count, 'records');
             
-            if (data.history && data.history.length > 0) {
+            if (data.success && data.history && data.history.length > 0) {
                 state.balanceHistory[state.currentKey] = data.history;
-                console.log(`✅ Loaded ${data.history.length} balance history records from server`);
                 
-                // Сохраняем в кэш для быстрого показа при следующей загрузке
+                // v2.0: Конвертируем строковый период обратно в миллисекунды
+                const periodMsMap = {
+                    'realtime': PERIODS.realtime,
+                    'hour': PERIODS.hour,
+                    'day': PERIODS.day,
+                    'week': PERIODS.week,
+                    'month': PERIODS.month
+                };
+                currentChartPeriod = periodMsMap[requestPeriod] || PERIODS.week;
+                
+                console.log(`✅ Loaded ${data.history.length} records (${data.totalRecords} total) for period ${requestPeriod}`);
+                
+                // Обновляем изменение баланса из серверных данных
+                if (data.change) {
+                    state.currentBalanceChange = {
+                        change: data.change.value,
+                        changePercent: data.change.percent,
+                        oldValue: data.change.from,
+                        newValue: data.change.to
+                    };
+                }
+                
+                // Сохраняем в кэш
                 saveBalanceHistoryToCache();
                 
-                // Обновляем график свежими данными
+                // Обновляем график
                 updateBalanceChart();
                 return;
             } else {
                 console.log('loadBalanceHistory: no history records on server');
             }
         } else {
-            console.warn('loadBalanceHistory: server returned', response.status);
+            // Fallback на старый API если новый не работает
+            console.log('loadBalanceHistory: v2 API failed, trying legacy...');
+            await loadBalanceHistoryLegacy();
+            return;
         }
     } catch (e) {
         if (e.name === 'AbortError') {
-            console.warn('loadBalanceHistory: request timed out (15s)');
+            console.warn('loadBalanceHistory: request timed out');
         } else {
-            console.warn('Failed to load balance history from server:', e);
+            console.warn('Failed to load balance history:', e);
         }
+        // Fallback на старый API
+        await loadBalanceHistoryLegacy();
+    }
+}
+
+/**
+ * Fallback на старый API balance-history
+ */
+async function loadBalanceHistoryLegacy() {
+    try {
+        const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
+        const response = await fetch(url);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.history && data.history.length > 0) {
+                state.balanceHistory[state.currentKey] = data.history;
+                saveBalanceHistoryToCache();
+                updateBalanceChart();
+            }
+        }
+    } catch (e) {
+        console.warn('Legacy balance history also failed:', e);
     }
     
-    // Инициализируем пустой массив если сервер недоступен и кэша нет
+    // Инициализируем пустой массив если ничего не загрузилось
     if (!state.balanceHistory[state.currentKey]) {
         state.balanceHistory[state.currentKey] = [];
     }
 }
 
 /**
- * Сохранить запись истории баланса на сервер
+ * Сохранить запись истории баланса на сервер v2.0
+ * Использует новый API с автоочисткой старых данных
  */
 async function saveBalanceHistoryToServer(farmKey, value) {
     try {
-        await fetch(`${API_BASE}/balance-history`, {
+        // Используем новый API v2
+        const response = await fetch(`${API_BASE}/balance-history-v2`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ farmKey, value, timestamp: Date.now() })
+            body: JSON.stringify({ 
+                farmKey, 
+                value, 
+                timestamp: Date.now(),
+                source: 'client'
+            })
         });
+        
+        if (!response.ok) {
+            // Fallback на старый API
+            await fetch(`${API_BASE}/balance-history`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ farmKey, value, timestamp: Date.now() })
+            });
+        }
     } catch (e) {
         console.warn('Failed to save balance history to server:', e);
     }
@@ -10885,10 +10982,26 @@ function _doUpdateBalanceChart(period) {
     currentChartPeriod = period;
     saveChartPeriod(period);
     
-    // Update active tab
+    // Update active tab (перенесено выше чтобы работало при смене периода)
     document.querySelectorAll('.period-tab').forEach(tab => {
         tab.classList.toggle('active', parseInt(tab.dataset.period) === period);
     });
+    
+    // v2.0: При смене периода загружаем свежие данные с сервера
+    if (periodChanged) {
+        console.log(`📊 Period changed to ${period}ms, loading fresh data from server...`);
+        isChartUpdating = false;
+        
+        // Конвертируем период в строку для API
+        const periodStr = period === PERIODS.realtime ? 'realtime' :
+                          period === PERIODS.hour ? 'hour' :
+                          period === PERIODS.day ? 'day' :
+                          period === PERIODS.week ? 'week' : 'month';
+        
+        // Загружаем данные асинхронно (функция сама обновит график)
+        loadBalanceHistory(periodStr, true);
+        return;
+    }
     
     const chartData = getChartData(state.currentKey, period);
     
