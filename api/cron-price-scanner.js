@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.8';  // Increased MAX_DIRECT_SEARCHES from 20 to 100, reduced delay
+const VERSION = '3.0.9';  // Added cursor for direct search - scan different offers each cycle
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -690,8 +690,29 @@ async function scanOffers(db) {
     if (notFoundCodes.length > 0) {
         console.log(`🔍 Searching for ${notFoundCodes.length} not-found codes by direct search...`);
         
-        // v3.0.8: Используем глобальный MAX_DIRECT_SEARCHES (100)
-        const codesToSearch = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES);
+        // v3.0.9: Курсор для direct search - сканируем разные офферы в каждом запуске
+        // Получаем текущую позицию курсора из БД
+        const scanStateCollection = db.collection('scan_state');
+        const offerCursorDoc = await scanStateCollection.findOne({ _id: 'offer_direct_cursor' });
+        let cursorPosition = offerCursorDoc?.position || 0;
+        
+        // Если курсор вышел за пределы - сбрасываем
+        if (cursorPosition >= notFoundCodes.length) {
+            cursorPosition = 0;
+        }
+        
+        // Берём офферы начиная с позиции курсора
+        const codesToSearch = notFoundCodes.slice(cursorPosition, cursorPosition + MAX_DIRECT_SEARCHES);
+        const nextCursorPosition = cursorPosition + codesToSearch.length;
+        
+        // Сохраняем новую позицию курсора
+        await scanStateCollection.updateOne(
+            { _id: 'offer_direct_cursor' },
+            { $set: { position: nextCursorPosition, updatedAt: now, totalCodes: notFoundCodes.length } },
+            { upsert: true }
+        );
+        
+        console.log(`📍 Direct search cursor: ${cursorPosition} → ${nextCursorPosition} of ${notFoundCodes.length}`);
         
         for (const { code, owner } of codesToSearch) {
             // Задержка между запросами
@@ -798,8 +819,9 @@ async function scanOffers(db) {
             }
         }
         
-        if (notFoundCodes.length > MAX_DIRECT_SEARCHES) {
-            console.log(`   ⏭️ Skipped ${notFoundCodes.length - MAX_DIRECT_SEARCHES} codes (limit reached)`);
+        if (notFoundCodes.length > codesToSearch.length) {
+            const remaining = notFoundCodes.length - nextCursorPosition;
+            console.log(`   ⏭️ ${remaining} codes remaining for next scan cycle`);
         }
     }
     
@@ -808,9 +830,9 @@ async function scanOffers(db) {
     // Коды которые не попали в direct search (из-за лимита) - НЕ трогаем
     let pausedCount = 0;
     
-    // Получаем список кодов которые были проверены через direct search но НЕ найдены
-    // v3.0.8: Используем глобальный MAX_DIRECT_SEARCHES (100)
-    const searchedCodes = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES).map(c => c.code);
+    // v3.0.9: Используем codesToSearch которые реально были просканированы
+    // codesToSearch определена внутри if блока, поэтому проверяем существование
+    const searchedCodes = (typeof codesToSearch !== 'undefined' ? codesToSearch : []).map(c => c.code);
     const stillNotFound = searchedCodes.filter(code => !foundCodes.has(code));
     
     if (stillNotFound.length > 0) {
