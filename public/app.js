@@ -1368,7 +1368,7 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         console.log('loadBalanceHistory: fetching 30d from', url);
         
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000); // v2.3: Быстрее таймаут
+        const timeout = setTimeout(() => controller.abort(), 20000); // v2.4: 20 секунд для 30d данных
         
         const response = await fetch(url, { signal: controller.signal });
         clearTimeout(timeout);
@@ -1377,9 +1377,14 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
             const data = await response.json();
             
             if (data.success && data.history && data.history.length > 0) {
-                state.balanceHistory[state.currentKey] = data.history;
-                
-                console.log(`✅ Loaded ${data.history.length} records (30d) - client will filter by period`);
+                // v2.4: Мержим с существующими данными (не перезаписываем если сервер вернул меньше)
+                const currentHistory = state.balanceHistory[state.currentKey] || [];
+                if (data.history.length >= currentHistory.length) {
+                    state.balanceHistory[state.currentKey] = data.history;
+                    console.log(`✅ Loaded ${data.history.length} records from server (30d)`);
+                } else {
+                    console.log(`⚠️ Server returned ${data.history.length} records, keeping ${currentHistory.length} from memory`);
+                }
                 
                 // Сохраняем в кэш
                 saveBalanceHistoryToCache();
@@ -1398,7 +1403,7 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         }
     } catch (e) {
         if (e.name === 'AbortError') {
-            console.warn('loadBalanceHistory: request timed out');
+            console.warn('loadBalanceHistory: request timed out (20s)');
         } else {
             console.warn('Failed to load balance history:', e);
         }

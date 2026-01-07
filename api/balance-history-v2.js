@@ -142,11 +142,15 @@ module.exports = async (req, res) => {
             const maxRecords = MAX_RECORDS[periodKey];
             const cutoffDate = new Date(Date.now() - periodMs);
             
-            // Загружаем записи за период
+            // v2.4: Загружаем записи за период с лимитом для скорости
+            // Берём больше записей чем нужно, потом агрегируем
+            const dbLimit = maxRecords * 3; // 3x запас для агрегации
             const records = await collection.find({
                 farmKey,
                 timestamp: { $gte: cutoffDate }
-            }).sort({ timestamp: 1 }).toArray();
+            }).sort({ timestamp: 1 }).limit(dbLimit).toArray();
+            
+            console.log(`[balance-history-v2] ${farmKey} period=${periodKey}: ${records.length} records from DB`);
             
             // Агрегируем для уменьшения количества точек
             const aggregated = aggregateForPeriod(records, periodKey, maxRecords);
