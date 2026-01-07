@@ -1446,35 +1446,43 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
             });
             
             // ВАЖНО: сохраняем локальные свежие записи (последние 10 минут)
-            // Серверные данные могут быть агрегированы и не содержать самые свежие точки
+            // И ТАКЖЕ: не удаляем старые локальные записи, которых нет на сервере (защита от потери данных)
             const currentHistory = state.balanceHistory[state.currentKey] || [];
-            const nowMs = Date.now();
-            const recentCutoff = nowMs - 10 * 60 * 1000; // 10 минут
-            const localRecent = currentHistory.filter(r => {
+            
+            // Создаем Map для дедупликации данных
+            const historyMap = new Map();
+            
+            // Сначала добавляем данные с сервера (они приоритетнее для совпадений)
+            allRecords.forEach(r => {
                 const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                return ts >= recentCutoff;
+                historyMap.set(ts, r);
             });
             
-            // Находим самый свежий timestamp в серверных данных
-            const serverMaxTs = allRecords.length > 0 ? Math.max(...allRecords.map(r => 
-                typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime()
-            )) : 0;
+            // Если сервер вернул очень мало данных (например < 50 записей), а в кэше много (> 200)
+            // То мы считаем что сервер возможно отдал не все данные, и мержим аккуратнее
+            // Но чтобы не мусорить, фильтруем локальные данные по валидности (30 дней)
+            const cutoff30d = Date.now() - PERIODS.month;
             
-            // Добавляем локальные записи которые новее серверных
-            const localNewer = localRecent.filter(r => {
+            // Добавляем отсутствующие локальные записи
+            let restoreCount = 0;
+            currentHistory.forEach(r => {
                 const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                return ts > serverMaxTs;
+                if (ts > cutoff30d && !historyMap.has(ts)) {
+                    historyMap.set(ts, r);
+                    restoreCount++;
+                }
             });
             
-            if (localNewer.length > 0) {
-                console.log(`📊 Preserving ${localNewer.length} local recent records`);
-                allRecords = [...allRecords, ...localNewer];
-                allRecords.sort((a, b) => {
-                    const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
-                    const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-                    return tsA - tsB;
-                });
+            if (restoreCount > 0) {
+                console.log(`📊 Restored ${restoreCount} missing records from local cache`);
             }
+            
+            // Превращаем обратно в массив и сортируем
+            allRecords = Array.from(historyMap.values()).sort((a, b) => {
+                const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                return tsA - tsB;
+            });
             
             state.balanceHistory[state.currentKey] = allRecords;
             console.log(`📊 Total: ${allRecords.length} records merged`);
@@ -1508,7 +1516,23 @@ async function loadBalanceHistoryLegacy() {
         if (response.ok) {
             const data = await response.json();
             if (data.history && data.history.length > 0) {
-                state.balanceHistory[state.currentKey] = data.history;
+                // v9.12.63 - Безопасный мерж с легаси API тоже
+                const currentHistory = state.balanceHistory[state.currentKey] || [];
+                const cutoff30d = Date.now() - PERIODS.month;
+                const historyMap = new Map();
+                
+                // С сервера
+                data.history.forEach(r => historyMap.set(r.timestamp, r));
+                
+                // С кэша если не перекрывается
+                currentHistory.forEach(r => {
+                    const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+                    if (ts > cutoff30d && !historyMap.has(ts)) {
+                        historyMap.set(ts, r);
+                    }
+                });
+                
+                state.balanceHistory[state.currentKey] = Array.from(historyMap.values()).sort((a,b) => a.timestamp - b.timestamp);
                 saveBalanceHistoryToCache();
                 updateBalanceChart();
             }
