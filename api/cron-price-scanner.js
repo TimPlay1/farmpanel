@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.13';  // Fix cycle detection - 95% threshold instead of 100%
+const VERSION = '3.0.14';  // Sort stale brainrots by oldest updatedAt first
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -927,6 +927,7 @@ async function runPriceScan() {
             newBrainrots.push(b);
         } else if (cached.cycleId < scanState.cycleId) {
             // Есть в кэше, но сканировался в прошлом цикле
+            b._cachedUpdatedAt = cached.updatedAt; // v3.0.14: Сохраняем для сортировки
             staleBrainrots.push(b);
         } else {
             // Уже сканировался в текущем цикле - пропускаем
@@ -934,9 +935,17 @@ async function runPriceScan() {
         }
     }
     
-    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale, ${freshBrainrots.length} fresh (skipped)`);
+    // v3.0.14: Сортируем stale брейнроты по updatedAt (по возрастанию)
+    // Те что дольше всего не обновлялись - сканируются первыми
+    staleBrainrots.sort((a, b) => {
+        const aTime = a._cachedUpdatedAt ? new Date(a._cachedUpdatedAt).getTime() : 0;
+        const bTime = b._cachedUpdatedAt ? new Date(b._cachedUpdatedAt).getTime() : 0;
+        return aTime - bTime; // Ascending: oldest first
+    });
     
-    // 4. Формируем список для сканирования: сначала новые, потом устаревшие
+    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale (sorted by oldest), ${freshBrainrots.length} fresh (skipped)`);
+    
+    // 4. Формируем список для сканирования: сначала новые, потом устаревшие (sorted by oldest)
     const toScanAll = [...newBrainrots, ...staleBrainrots];
     
     // Ограничиваем batch
@@ -952,7 +961,19 @@ async function runPriceScan() {
         // Начинаем новый цикл - все брейнроты считаются stale для нового cycleId
         currentCycleId = scanState.cycleId + 1;
         console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId} (${Math.round(freshRatio*100)}% was fresh)`);
-        // Берём первых N для нового цикла
+        
+        // v3.0.14: При новом цикле сортируем ВСЕ брейнроты по давности обновления
+        // Добавляем updatedAt ко всем брейнротам для сортировки
+        for (const b of brainrots) {
+            const cached = cachedPrices.get(b._cacheKey);
+            b._cachedUpdatedAt = cached?.updatedAt || null;
+        }
+        brainrots.sort((a, b) => {
+            const aTime = a._cachedUpdatedAt ? new Date(a._cachedUpdatedAt).getTime() : 0;
+            const bTime = b._cachedUpdatedAt ? new Date(b._cachedUpdatedAt).getTime() : 0;
+            return aTime - bTime; // Ascending: oldest first
+        });
+        
         toScan = brainrots.slice(0, SCAN_BATCH_SIZE);
     }
     
