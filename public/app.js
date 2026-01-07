@@ -1607,23 +1607,41 @@ function getChartData(farmKey, periodMs, points = 30) {
     const now = Date.now();
     const periodStart = now - periodMs;
     
-    // Фильтруем записи в периоде
-    let periodHistory = history.filter(e => e.timestamp >= periodStart);
+    // v2.4: Нормализуем timestamp (может быть Date, string или number)
+    const normalizeTimestamp = (ts) => {
+        if (typeof ts === 'number') return ts;
+        if (ts instanceof Date) return ts.getTime();
+        if (typeof ts === 'string') return new Date(ts).getTime();
+        return 0;
+    };
     
-    // Fallback: если для периода < 2 записей, берём последние записи
-    if (periodHistory.length < 2 && history.length >= 2) {
-        // Для realtime берём последние 50 записей, для остальных - 30
-        const isRealtime = periodMs <= PERIODS.realtime;
-        const fallbackCount = isRealtime ? Math.min(50, history.length) : Math.min(30, history.length);
-        periodHistory = history.slice(-fallbackCount);
-        console.log(`Chart fallback: using last ${periodHistory.length} records instead of period filter`);
+    // Фильтруем записи в периоде
+    let periodHistory = history.filter(e => {
+        const ts = normalizeTimestamp(e.timestamp);
+        return ts >= periodStart;
+    });
+    
+    // v2.4: Для RT/1H/24H - если мало данных, показываем что есть (для накопления)
+    // Для 7D/30D - НЕ показываем данные вне периода, просто пустой график
+    const isShortPeriod = periodMs <= PERIODS.day;
+    
+    if (periodHistory.length < 5) {
+        if (isShortPeriod && history.length >= 5) {
+            // Короткий период - берём последние данные для накопления
+            const fallbackCount = Math.min(50, history.length);
+            periodHistory = history.slice(-fallbackCount);
+            console.log(`Chart: short period fallback, using last ${periodHistory.length} records`);
+        } else {
+            // Длинный период (7D/30D) - не показываем данные вне периода
+            return { labels: [], values: [] };
+        }
     }
     
     if (periodHistory.length < 2) return { labels: [], values: [] };
     
     // Для realtime показываем все точки
-    const isRealtime = periodMs <= PERIODS.realtime;
-    const maxPoints = isRealtime ? 100 : points;
+    const isRealtimePeriod = periodMs <= PERIODS.realtime;
+    const maxPoints = isRealtimePeriod ? 100 : points;
     
     // Сэмплируем до нужного количества точек
     const step = Math.max(1, Math.floor(periodHistory.length / maxPoints));
@@ -1636,9 +1654,10 @@ function getChartData(farmKey, periodMs, points = 30) {
         sampled.push(periodHistory[periodHistory.length - 1]);
     }
     
-    // Форматируем метки времени
+    // Форматируем метки времени (нормализуем timestamp)
     const labels = sampled.map(entry => {
-        const date = new Date(entry.timestamp);
+        const ts = normalizeTimestamp(entry.timestamp);
+        const date = new Date(ts);
         if (periodMs <= PERIODS.hour) {
             return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         } else if (periodMs <= PERIODS.day) {
