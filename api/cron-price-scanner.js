@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.7';  // Fix direct search to use searchQuery like scan-glitched
+const VERSION = '3.0.8';  // Increased MAX_DIRECT_SEARCHES from 20 to 100, reduced delay
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -36,7 +36,10 @@ const SCAN_DELAY_MS = 30;            // Уменьшено с 50ms (быстре
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Страниц офферов за один запуск (1000 офферов)
-const OFFER_SCAN_DELAY_MS = 300;     // Задержка между страницами (Cloudflare)
+const OFFER_SCAN_DELAY_MS = 150;     // Уменьшено с 300ms - Eldorado API держит
+
+// v3.0.8: Увеличен лимит direct search для pending офферов
+const MAX_DIRECT_SEARCHES = 100;     // Увеличено с 20 - проверяем больше pending офферов
 const ELDORADO_GAME_ID = '259';
 const ELDORADO_IMAGE_BASE = 'https://fileserviceusprod.blob.core.windows.net/offerimages/';
 
@@ -665,11 +668,29 @@ async function scanOffers(db) {
         }
     }
     
+    // v3.0.8: Приоритизируем pending офферы - сканируем их первыми
+    // Это важно чтобы новые офферы быстрее получали статус active
+    const pendingOffers = await offersCollection.find({ 
+        status: 'pending',
+        offerId: { $exists: true, $ne: null }
+    }).toArray();
+    const pendingCodes = new Set(pendingOffers.map(o => o.offerId?.toUpperCase()).filter(Boolean));
+    
+    // Сортируем: pending первые, потом остальные
+    notFoundCodes.sort((a, b) => {
+        const aIsPending = pendingCodes.has(a.code);
+        const bIsPending = pendingCodes.has(b.code);
+        if (aIsPending && !bIsPending) return -1;
+        if (!aIsPending && bIsPending) return 1;
+        return 0;
+    });
+    
+    console.log(`📊 Priority sort: ${pendingCodes.size} pending codes will be scanned first`);
+    
     if (notFoundCodes.length > 0) {
         console.log(`🔍 Searching for ${notFoundCodes.length} not-found codes by direct search...`);
         
-        // Ограничиваем количество доп. запросов чтобы не превысить лимиты
-        const MAX_DIRECT_SEARCHES = 20;
+        // v3.0.8: Используем глобальный MAX_DIRECT_SEARCHES (100)
         const codesToSearch = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES);
         
         for (const { code, owner } of codesToSearch) {
@@ -788,7 +809,7 @@ async function scanOffers(db) {
     let pausedCount = 0;
     
     // Получаем список кодов которые были проверены через direct search но НЕ найдены
-    const MAX_DIRECT_SEARCHES = 20;
+    // v3.0.8: Используем глобальный MAX_DIRECT_SEARCHES (100)
     const searchedCodes = notFoundCodes.slice(0, MAX_DIRECT_SEARCHES).map(c => c.code);
     const stillNotFound = searchedCodes.filter(code => !foundCodes.has(code));
     
