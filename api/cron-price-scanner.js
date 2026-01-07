@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.11';  // Fix cycle logic - properly handle new cycle start
+const VERSION = '3.0.12';  // Fix saveScanState to use correct cycleId
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -1035,7 +1035,8 @@ async function runPriceScan() {
     }
     
     // 6. Сохраняем состояние
-    await saveScanState(db, scanState.cycleId, regexScanned, isNewCycle);
+    // v3.0.11: Передаём currentCycleId (уже увеличенный если новый цикл)
+    await saveScanState(db, currentCycleId, regexScanned, false); // isNewCycle=false т.к. cycleId уже правильный
     
     // 7. v3.0.0: Сканируем офферы
     let offerScanResult = null;
