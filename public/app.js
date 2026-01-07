@@ -1353,33 +1353,7 @@ function saveBalanceHistoryToCache() {
     }
 }
 
-/**
- * Загрузить историю баланса из сервера v2.0
- * Использует новый API с агрегацией и автоочисткой
- * 
- * @param {string} period - Период: 'realtime', 'hour', 'day', 'week', 'month'
- * @param {boolean} forceRefresh - Игнорировать кэш
- */
-async function loadBalanceHistory(period = null, forceRefresh = false) {
-    if (!state.currentKey) {
-        console.log('loadBalanceHistory: no currentKey, skipping');
-        return;
-    }
-    
-    console.log(`loadBalanceHistory: loading data for ${state.currentKey}`);
-    
-    // v2.7: Сначала загружаем из кэша для мгновенного отображения
-    if (!forceRefresh) {
-        const hasCachedData = loadBalanceHistoryFromCache();
-        if (hasCachedData) {
-            const cachedHistory = state.balanceHistory[state.currentKey];
-            if (cachedHistory && cachedHistory.length >= 2) {
-                console.log('📊 Showing cached data while loading fresh...');
-                updateBalanceChart();
-            }
-        }
-    }
-    
+
 /**
  * Загрузить историю баланса из сервера v3.0 (Unified & Robust)
  * Fetch both aggregated (30d) and detailed (24h) data, then merge.
