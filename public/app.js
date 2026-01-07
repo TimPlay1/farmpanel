@@ -2693,7 +2693,13 @@ function renderPriceBlock(priceData, cacheKey) {
         additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
     }
     // v9.12.50: Last update time in bottom-right corner
-    const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
+    const updateSource = priceData._serverUpdatedAt || priceData.updatedAt;
+    const lastUpdateTime = formatPriceUpdateTime(updateSource);
+    // Debug first price
+    if (!window._debuggedPriceUpdate) {
+        console.log('🕐 First price updatedAt:', updateSource, 'formatted:', lastUpdateTime, 'priceData keys:', Object.keys(priceData));
+        window._debuggedPriceUpdate = true;
+    }
     if (lastUpdateTime) {
         additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
     }
