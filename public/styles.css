@@ -2216,11 +2216,25 @@ body {
     justify-content: center;
     gap: 0.3rem;
     margin-top: 0.2rem;
+    position: relative;
 }
 
 .brainrot-price-single .price-additional .additional-price {
     font-size: 0.55rem;
     padding: 1px 4px;
+}
+
+/* v9.12.50: Last update time badge - positioned at right */
+.brainrot-price-single .price-additional .price-last-update {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.5rem;
+    color: rgba(148, 163, 184, 0.6);
+    font-weight: 500;
+    padding: 1px 3px;
+    cursor: help;
 }
 
 .brainrot-price-single .price-loading {
@@ -2442,6 +2456,7 @@ body {
     justify-content: center;
     gap: 0.25rem;
     margin-top: 0.15rem;
+    position: relative;
 }
 
 .price-variant-additional .additional-price {
@@ -2477,6 +2492,19 @@ body {
     border-color: rgba(251, 146, 60, 0.5);
     color: #fb923c;
     animation: pulse-opportunity 2s ease-in-out infinite;
+}
+
+/* v9.12.50: Last update time badge for variant cards */
+.price-variant-additional .price-last-update {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.45rem;
+    color: rgba(148, 163, 184, 0.6);
+    font-weight: 500;
+    padding: 1px 2px;
+    cursor: help;
 }
 
 .price-variant-loading {

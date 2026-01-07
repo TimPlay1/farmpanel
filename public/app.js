@@ -2571,6 +2571,28 @@ function formatPrice(price) {
 }
 
 /**
+ * v9.12.50: Форматировать время последнего обновления цены в компактном формате
+ * @param {number|string} timestamp - timestamp или ISO строка
+ * @returns {string} - "1m", "5m", "1h", "2h", "1d", "3d" etc
+ */
+function formatPriceUpdateTime(timestamp) {
+    if (!timestamp) return '';
+    
+    const ts = typeof timestamp === 'number' ? timestamp : new Date(timestamp).getTime();
+    if (isNaN(ts)) return '';
+    
+    const now = Date.now();
+    const diffMs = now - ts;
+    const diffSeconds = Math.floor(diffMs / 1000);
+    
+    if (diffSeconds < 0) return '<1m'; // Future time
+    if (diffSeconds < 60) return '<1m';
+    if (diffSeconds < 3600) return Math.floor(diffSeconds / 60) + 'm';
+    if (diffSeconds < 86400) return Math.floor(diffSeconds / 3600) + 'h';
+    return Math.floor(diffSeconds / 86400) + 'd';
+}
+
+/**
  * v9.11.1: Рендер единого блока цены для обычных карточек (без мутации)
  * Новый стиль, соответствующий карточкам с мутациями
  * v9.12.12: НИКОГДА не показываем Loading если есть хоть какие-то данные в кэше
@@ -2665,6 +2687,11 @@ function renderPriceBlock(priceData, cacheKey) {
         additionalHtml += `<span class="additional-price next-comp ${hasNextOpportunity ? 'opportunity' : ''}" title="${nextTooltip}"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
     } else {
         additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
+    }
+    // v9.12.50: Last update time in bottom-right corner
+    const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
+    if (lastUpdateTime) {
+        additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
     }
     additionalHtml += '</div>';
     
@@ -2800,6 +2827,11 @@ function renderPriceVariants(brainrotName, income, mutation) {
             additionalHtml += `<span class="additional-price next-comp ${hasOpportunity ? 'opportunity' : ''}" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
         } else {
             additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
+        }
+        // v9.12.50: Last update time in bottom-right corner
+        const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
+        if (lastUpdateTime) {
+            additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
         }
         additionalHtml += '</div>';
         
