@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.10';  // Fix: don't skip prices in new cycle
+const VERSION = '3.0.11';  // Fix cycle logic - properly handle new cycle start
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -940,18 +940,20 @@ async function runPriceScan() {
     const toScanAll = [...newBrainrots, ...staleBrainrots];
     
     // Ограничиваем batch
-    const toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
+    let toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
     
-    // Проверяем завершился ли цикл (все отсканированы)
-    const isNewCycle = toScan.length === 0 || (newBrainrots.length === 0 && staleBrainrots.length === 0);
-    const currentCycleId = isNewCycle ? scanState.cycleId + 1 : scanState.cycleId;
+    // v3.0.11: Проверяем завершился ли цикл (все отсканированы)
+    // Если ничего для сканирования - начинаем новый цикл
+    let isNewCycle = toScan.length === 0 && brainrots.length > 0;
+    let currentCycleId = scanState.cycleId;
     
-    if (isNewCycle && brainrots.length > 0) {
+    if (isNewCycle) {
+        // Начинаем новый цикл - берём ВСЕХ брейнротов, не только первых N
+        // Потому что они все "fresh" для старого цикла, но "stale" для нового
+        currentCycleId = scanState.cycleId + 1;
         console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId}`);
-        // При новом цикле - сканируем всех заново (они станут stale для нового cycleId)
         // Берём первых N для нового цикла
-        toScan.length = 0;
-        toScan.push(...brainrots.slice(0, SCAN_BATCH_SIZE));
+        toScan = brainrots.slice(0, SCAN_BATCH_SIZE);
     }
     
     console.log(`📋 Scanning ${toScan.length} brainrots (${newBrainrots.length} new priority)`);
@@ -967,12 +969,14 @@ async function runPriceScan() {
         try {
             const cacheKey = brainrot._cacheKey;
             
-            // Проверяем не сканировали ли уже в этом цикле (двойная проверка)
-            const cached = cachedPrices.get(cacheKey);
-            // v3.0.10: Fix - don't skip in new cycle
-            if (cached && cached.cycleId >= currentCycleId && !isNewCycle) {
-                skipped++;
-                continue;
+            // v3.0.11: При новом цикле - сканируем всех, не пропускаем
+            // В обычном режиме - пропускаем если уже сканировали в этом цикле
+            if (!isNewCycle) {
+                const cached = cachedPrices.get(cacheKey);
+                if (cached && cached.cycleId >= currentCycleId) {
+                    skipped++;
+                    continue;
+                }
             }
             
             // Получаем новую цену через regex
@@ -1045,7 +1049,9 @@ async function runPriceScan() {
     const duration = Math.round((Date.now() - startTime) / 1000);
     
     // Считаем прогресс цикла
-    const scannedInCycle = freshBrainrots.length + regexScanned;
+    // v3.0.11: При новом цикле freshBrainrots не считаются как отсканированные
+    const actualFreshCount = isNewCycle ? 0 : freshBrainrots.length;
+    const scannedInCycle = actualFreshCount + regexScanned;
     const cycleProgress = Math.round(scannedInCycle / brainrots.length * 100);
     
     const summary = {
@@ -1056,13 +1062,13 @@ async function runPriceScan() {
         scanned: regexScanned,
         newPrices,
         priceChanges,
-        skipped: skipped + freshBrainrots.length,
+        skipped: skipped + actualFreshCount,
         errors,
         cycle: {
             id: currentCycleId,
             isNew: isNewCycle,
             progress: `${cycleProgress}%`,
-            remaining: staleBrainrots.length - regexScanned
+            remaining: isNewCycle ? brainrots.length - regexScanned : staleBrainrots.length - regexScanned
         },
         offers: offerScanResult // v3.0.0
     };
