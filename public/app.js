@@ -2694,9 +2694,14 @@ function renderPriceBlock(priceData, cacheKey) {
     }
     // v9.12.53: Use _timestamp (client load time) for freshness indicator
     const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
-    if (lastUpdateTime) {
-        additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime} ago">${lastUpdateTime}</span>`;
+    // Debug: log first few prices
+    if (!window._priceTimeDebugCount) window._priceTimeDebugCount = 0;
+    if (window._priceTimeDebugCount < 3) {
+        console.log('🕐 Price time:', priceData._timestamp, '->', lastUpdateTime);
+        window._priceTimeDebugCount++;
     }
+    // Always show time badge (even <1m for fresh data)
+    additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
     additionalHtml += '</div>';
     
     return `
@@ -2834,9 +2839,8 @@ function renderPriceVariants(brainrotName, income, mutation) {
         }
         // v9.12.53: Use _timestamp (client load time) for freshness indicator
         const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
-        if (lastUpdateTime) {
-            additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime} ago">${lastUpdateTime}</span>`;
-        }
+        // Always show time badge
+        additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
         additionalHtml += '</div>';
         
         return `
