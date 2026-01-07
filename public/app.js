@@ -11053,38 +11053,50 @@ function _doUpdateBalanceChart(period) {
                 data: chartData.values,
                 borderColor: chartColor,
                 backgroundColor: gradient,
-                borderWidth: 2,
+                borderWidth: 2.5,
                 fill: true,
                 tension: 0.4,
-                // v9.11.23: Points hidden by default, visible on hover
+                // v2.2: Точки скрыты по умолчанию, появляются при наведении
                 pointRadius: 0,
-                pointHoverRadius: 6,
+                pointHitRadius: 20, // Увеличенная зона клика для удобства
+                pointHoverRadius: 7,
                 pointBackgroundColor: chartColor,
                 pointBorderColor: '#1a1a2e',
-                pointBorderWidth: 2,
-                pointHoverBackgroundColor: chartColor,
-                pointHoverBorderColor: '#fff',
-                pointHoverBorderWidth: 2
+                pointBorderWidth: 3,
+                pointHoverBackgroundColor: '#fff',
+                pointHoverBorderColor: chartColor,
+                pointHoverBorderWidth: 3
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: shouldAnimate ? { duration: 400 } : false, // v9.12.0: Animate only on first/period change
+            animation: shouldAnimate ? { duration: 400 } : false,
             resizeDelay: 50,
             plugins: {
                 legend: {
                     display: false
                 },
                 tooltip: {
-                    backgroundColor: 'rgba(30, 30, 30, 0.95)',
+                    enabled: true,
+                    backgroundColor: 'rgba(20, 20, 30, 0.95)',
                     titleColor: '#fff',
                     bodyColor: '#fff',
-                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    titleFont: { size: 12, weight: 'bold' },
+                    bodyFont: { size: 14, weight: 'bold' },
+                    borderColor: chartColor,
                     borderWidth: 1,
-                    padding: 12,
+                    padding: { top: 10, bottom: 10, left: 14, right: 14 },
+                    cornerRadius: 8,
                     displayColors: false,
+                    // v2.2: Фиксированное позиционирование без мерцания
+                    position: 'nearest',
+                    caretSize: 6,
+                    caretPadding: 8,
                     callbacks: {
+                        title: function(context) {
+                            return context[0].label;
+                        },
                         label: function(context) {
                             return '$' + context.raw.toFixed(2);
                         }
@@ -11124,7 +11136,13 @@ function _doUpdateBalanceChart(period) {
             },
             interaction: {
                 intersect: false,
-                mode: 'index'
+                mode: 'nearest',
+                axis: 'x'
+            },
+            hover: {
+                mode: 'nearest',
+                intersect: false,
+                animationDuration: 0 // Убираем задержку анимации при hover
             }
         }
     });
