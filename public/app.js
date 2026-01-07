@@ -1809,8 +1809,12 @@ async function loadPricesFromServer() {
                 // (updatedAt - время обновления на сервере cron'ом, может быть давно)
                 const loadTime = Date.now();
                 let hasUpdatedAt = 0;
+                let sampleUpdatedAt = null;
                 for (const [key, priceData] of Object.entries(data.prices)) {
-                    if (priceData.updatedAt) hasUpdatedAt++;
+                    if (priceData.updatedAt) {
+                        hasUpdatedAt++;
+                        if (!sampleUpdatedAt) sampleUpdatedAt = priceData.updatedAt;
+                    }
                     state.brainrotPrices[key] = {
                         ...priceData,
                         _timestamp: loadTime, // Время загрузки клиентом, не сервера!
@@ -1818,6 +1822,12 @@ async function loadPricesFromServer() {
                     };
                 }
                 console.log(`📊 Prices with updatedAt: ${hasUpdatedAt}/${Object.keys(data.prices).length}`);
+                // Debug: show sample updatedAt value and age
+                if (sampleUpdatedAt) {
+                    const sampleTime = new Date(sampleUpdatedAt).getTime();
+                    const ageMs = Date.now() - sampleTime;
+                    console.log(`📊 Sample updatedAt: "${sampleUpdatedAt}" -> ${Math.round(ageMs/1000)}s ago`);
+                }
                 
                 // ВАЖНО: Сохраняем в localStorage для мгновенной загрузки при следующем визите
                 savePriceCacheToStorage();
