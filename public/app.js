@@ -1807,13 +1807,16 @@ async function loadPricesFromServer() {
                 // ВАЖНО: _timestamp = Date.now() чтобы считать данные свежими
                 // (updatedAt - время обновления на сервере cron'ом, может быть давно)
                 const loadTime = Date.now();
+                let hasUpdatedAt = 0;
                 for (const [key, priceData] of Object.entries(data.prices)) {
+                    if (priceData.updatedAt) hasUpdatedAt++;
                     state.brainrotPrices[key] = {
                         ...priceData,
                         _timestamp: loadTime, // Время загрузки клиентом, не сервера!
                         _serverUpdatedAt: priceData.updatedAt // Сохраняем оригинал для справки
                     };
                 }
+                console.log(`📊 Prices with updatedAt: ${hasUpdatedAt}/${Object.keys(data.prices).length}`);
                 
                 // ВАЖНО: Сохраняем в localStorage для мгновенной загрузки при следующем визите
                 savePriceCacheToStorage();
@@ -2690,6 +2693,7 @@ function renderPriceBlock(priceData, cacheKey) {
     }
     // v9.12.50: Last update time in bottom-right corner
     const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
+    console.log('🕐 Price update time:', priceData._serverUpdatedAt, priceData.updatedAt, '->', lastUpdateTime);
     if (lastUpdateTime) {
         additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
     }
