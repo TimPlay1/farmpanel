@@ -1347,9 +1347,9 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         return;
     }
     
-    console.log(`loadBalanceHistory: loading 30d data for ${state.currentKey} (client filters by period)`);
+    console.log(`loadBalanceHistory: loading data for ${state.currentKey}`);
     
-    // v2.1: Сначала загружаем из кэша для мгновенного отображения
+    // v2.7: Сначала загружаем из кэша для мгновенного отображения
     if (!forceRefresh) {
         const hasCachedData = loadBalanceHistoryFromCache();
         if (hasCachedData) {
@@ -1361,49 +1361,75 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         }
     }
     
-    // v2.1: Всегда загружаем 30d данные - клиент сам фильтрует по периоду
-    // Это экономит запросы к БД при смене периодов
+    // v2.7: Параллельно загружаем 30d и 24h данные
+    // 30d - агрегированные для 7D/30D графиков
+    // 24h - детальные для RT/1H/24H графиков
     try {
-        const url = `${API_BASE}/balance-history-v2?farmKey=${encodeURIComponent(state.currentKey)}&period=30d`;
-        console.log('loadBalanceHistory: fetching 30d from', url);
-        
+        const farmKey = encodeURIComponent(state.currentKey);
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 20000); // v2.4: 20 секунд для 30d данных
+        const timeout = setTimeout(() => controller.abort(), 15000);
         
-        const response = await fetch(url, { signal: controller.signal });
+        // Параллельные запросы
+        const [response30d, response24h] = await Promise.all([
+            fetch(`${API_BASE}/balance-history-v2?farmKey=${farmKey}&period=30d`, { signal: controller.signal }),
+            fetch(`${API_BASE}/balance-history-v2?farmKey=${farmKey}&period=24h`, { signal: controller.signal })
+        ]);
         clearTimeout(timeout);
         
-        if (response.ok) {
-            const data = await response.json();
-            
-            if (data.success && data.history && data.history.length > 0) {
-                // v2.4: Мержим с существующими данными (не перезаписываем если сервер вернул меньше)
-                const currentHistory = state.balanceHistory[state.currentKey] || [];
-                if (data.history.length >= currentHistory.length) {
-                    state.balanceHistory[state.currentKey] = data.history;
-                    console.log(`✅ Loaded ${data.history.length} records from server (30d)`);
-                } else {
-                    console.log(`⚠️ Server returned ${data.history.length} records, keeping ${currentHistory.length} from memory`);
-                }
-                
-                // Сохраняем в кэш
-                saveBalanceHistoryToCache();
-                
-                // Обновляем график (getChartData отфильтрует по текущему периоду)
-                updateBalanceChart();
-                return;
-            } else {
-                console.log('loadBalanceHistory: no history records on server');
+        let allRecords = [];
+        
+        // Обрабатываем 30d данные
+        if (response30d.ok) {
+            const data30d = await response30d.json();
+            if (data30d.success && data30d.history) {
+                allRecords = [...data30d.history];
+                console.log(`✅ Loaded ${data30d.history.length} records (30d)`);
             }
-        } else {
-            // Fallback на старый API если новый не работает
-            console.log('loadBalanceHistory: v2 API failed, trying legacy...');
-            await loadBalanceHistoryLegacy();
+        }
+        
+        // Обрабатываем 24h данные (более детальные, добавляем к 30d)
+        if (response24h.ok) {
+            const data24h = await response24h.json();
+            if (data24h.success && data24h.history && data24h.history.length > 0) {
+                console.log(`✅ Loaded ${data24h.history.length} records (24h detail)`);
+                
+                // Мержим: 24h данные более детальные, заменяем ими последние 24h из 30d
+                const cutoff24h = Date.now() - PERIODS.day;
+                // Оставляем из 30d только данные старше 24h
+                const older30d = allRecords.filter(r => {
+                    const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+                    return ts < cutoff24h;
+                });
+                // Добавляем все 24h данные
+                allRecords = [...older30d, ...data24h.history];
+            }
+        }
+        
+        if (allRecords.length > 0) {
+            // Сортируем по времени
+            allRecords.sort((a, b) => {
+                const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                return tsA - tsB;
+            });
+            
+            // Не перезаписываем если в памяти больше данных
+            const currentHistory = state.balanceHistory[state.currentKey] || [];
+            if (allRecords.length >= currentHistory.length) {
+                state.balanceHistory[state.currentKey] = allRecords;
+                console.log(`📊 Total: ${allRecords.length} records merged`);
+            }
+            
+            saveBalanceHistoryToCache();
+            updateBalanceChart();
             return;
         }
+        
+        console.log('loadBalanceHistory: no history records on server');
+        
     } catch (e) {
         if (e.name === 'AbortError') {
-            console.warn('loadBalanceHistory: request timed out (20s)');
+            console.warn('loadBalanceHistory: request timed out');
         } else {
             console.warn('Failed to load balance history:', e);
         }
