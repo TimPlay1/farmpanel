@@ -1448,7 +1448,8 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
             // ВАЖНО: сохраняем локальные свежие записи (последние 10 минут)
             // Серверные данные могут быть агрегированы и не содержать самые свежие точки
             const currentHistory = state.balanceHistory[state.currentKey] || [];
-            const recentCutoff = now - 10 * 60 * 1000; // 10 минут
+            const nowMs = Date.now();
+            const recentCutoff = nowMs - 10 * 60 * 1000; // 10 минут
             const localRecent = currentHistory.filter(r => {
                 const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
                 return ts >= recentCutoff;
