@@ -1910,11 +1910,16 @@ async function loadUpdatedPricesFromServer() {
     try {
         // Запрашиваем цены обновлённые после lastPricesLoadTime
         const sinceTime = lastPricesLoadTime - 60000; // -1 минута для надёжности
-        console.log(`🔄 Checking for price updates since ${new Date(sinceTime).toLocaleTimeString()}...`);
+        const clientNow = Date.now();
+        console.log(`🔄 Checking for price updates since ${new Date(sinceTime).toLocaleTimeString()}... (clientNow=${new Date(clientNow).toLocaleTimeString()}, diff=${Math.round((clientNow - sinceTime)/1000)}s)`);
         
         const response = await fetch(`${API_BASE}/prices-cache?since=${sinceTime}`);
         if (response.ok) {
             const data = await response.json();
+            
+            // Debug: log server response
+            console.log(`🔍 Server response: count=${data.count}, serverTime=${data.serverTime}, since=${data.since}`);
+            
             if (data.success && data.prices) {
                 const updatedCount = Object.keys(data.prices).length;
                 

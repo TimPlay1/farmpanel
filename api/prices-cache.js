@@ -89,9 +89,26 @@ module.exports = async (req, res) => {
         // Получить цены обновлённые после определённого времени
         if (since) {
             const sinceDate = new Date(parseInt(since));
+            const serverNow = new Date();
+            
+            // Debug: log time comparison
+            console.log(`[prices-cache] since=${sinceDate.toISOString()}, serverNow=${serverNow.toISOString()}, diff=${Math.round((serverNow - sinceDate)/1000)}s`);
+            
             const prices = await collection.find({
                 updatedAt: { $gt: sinceDate }
             }).toArray();
+            
+            // Debug: log a few sample updatedAt times
+            if (prices.length > 0) {
+                const sample = prices.slice(0, 3).map(p => `${p._id}: ${p.updatedAt?.toISOString()}`);
+                console.log(`[prices-cache] Found ${prices.length} updated prices. Sample: ${sample.join(', ')}`);
+            } else {
+                // Check what's the latest updatedAt in the collection
+                const latest = await collection.find({}).sort({ updatedAt: -1 }).limit(1).toArray();
+                if (latest.length > 0) {
+                    console.log(`[prices-cache] No prices found after ${sinceDate.toISOString()}. Latest updatedAt: ${latest[0].updatedAt?.toISOString()}`);
+                }
+            }
             
             const pricesMap = {};
             for (const p of prices) {
@@ -112,11 +129,15 @@ module.exports = async (req, res) => {
                 };
             }
             
+            // No caching for incremental updates
+            res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            
             return res.status(200).json({
                 success: true,
                 count: prices.length,
                 prices: pricesMap,
-                since: sinceDate.toISOString()
+                since: sinceDate.toISOString(),
+                serverTime: serverNow.toISOString()
             });
         }
         
