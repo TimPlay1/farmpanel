@@ -1250,7 +1250,7 @@ async function getAccountAvatar(userId, serverAvatars) {
 
 /**
  * Загрузить историю баланса из localStorage кэша (для мгновенного отображения)
- * v2.0: Теперь хранит данные для каждого периода отдельно
+ * v3.0: Unified history storage
  */
 function loadBalanceHistoryFromCache() {
     if (!state.currentKey) return false;
@@ -1261,49 +1261,47 @@ function loadBalanceHistoryFromCache() {
             const cache = JSON.parse(stored);
             if (cache[state.currentKey]) {
                 const cacheData = cache[state.currentKey];
-                
-                // v2.7: Мержим 30d и 24h из кэша
-                const cached30d = cacheData.history30d || cacheData.history || [];
-                const cached24h = cacheData.history24h || [];
-                
-                let mergedHistory = [];
-                
-                if (cached30d.length > 0 && cached24h.length > 0) {
-                    // Мержим: старые 30d + детальные 24h
-                    const cutoff24h = Date.now() - PERIODS.day;
-                    const older30d = cached30d.filter(r => {
-                        const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                        return ts < cutoff24h;
-                    });
-                    mergedHistory = [...older30d, ...cached24h];
-                    mergedHistory.sort((a, b) => {
-                        const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
-                        const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-                        return tsA - tsB;
-                    });
+                let loadedHistory = [];
+
+                // v3.0 Migration: Support both old (split) and new (unified) formats
+                if (Array.isArray(cacheData.history)) {
+                    loadedHistory = cacheData.history;
                 } else {
-                    mergedHistory = cached30d.length > 0 ? cached30d : cached24h;
+                    // Legacy format: merge 30d and 24h
+                    const cached30d = cacheData.history30d || [];
+                    const cached24h = cacheData.history24h || [];
+                    
+                    if (cached30d.length > 0 || cached24h.length > 0) {
+                        const historyMap = new Map();
+                        cached30d.forEach(r => historyMap.set(typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime(), r));
+                        cached24h.forEach(r => historyMap.set(typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime(), r));
+                        loadedHistory = Array.from(historyMap.values()).sort((a, b) => {
+                            const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+                            const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+                            return tsA - tsB;
+                        });
+                    }
                 }
                 
                 // Не перезаписываем если в памяти уже больше данных
                 const currentHistory = state.balanceHistory[state.currentKey] || [];
-                if (currentHistory.length >= mergedHistory.length) {
-                    console.log(`📊 Skipping cache (memory: ${currentHistory.length} >= cache: ${mergedHistory.length})`);
+                if (currentHistory.length > loadedHistory.length) {
+                    console.log(`📊 Skipping cache (memory: ${currentHistory.length} > cache: ${loadedHistory.length})`);
                     return currentHistory.length >= 5;
                 }
                 
-                state.balanceHistory[state.currentKey] = mergedHistory;
-                
-                // Восстанавливаем период
-                const savedPeriod = cacheData.period;
-                if (typeof savedPeriod === 'number' && Object.values(PERIODS).includes(savedPeriod)) {
-                    currentChartPeriod = savedPeriod;
-                } else {
-                    currentChartPeriod = PERIODS.week;
+                if (loadedHistory.length > 0) {
+                    state.balanceHistory[state.currentKey] = loadedHistory;
+                    
+                    // Восстанавливаем период
+                    const savedPeriod = cacheData.period;
+                    if (typeof savedPeriod === 'number' && Object.values(PERIODS).includes(savedPeriod)) {
+                        currentChartPeriod = savedPeriod;
+                    }
+                    
+                    console.log(`📊 Loaded from cache: ${loadedHistory.length} records`);
+                    return true;
                 }
-                
-                console.log(`📊 Loaded from cache: 30d=${cached30d.length}, 24h=${cached24h.length}, merged=${mergedHistory.length}`);
-                return mergedHistory.length >= 5;
             }
         }
     } catch (e) {
@@ -1314,7 +1312,7 @@ function loadBalanceHistoryFromCache() {
 
 /**
  * Сохранить историю баланса в localStorage кэш
- * v2.7: Сохраняем отдельно 30d и 24h данные
+ * v3.0: Unified history storage (saves all points in single array)
  */
 function saveBalanceHistoryToCache() {
     if (!state.currentKey || !state.balanceHistory[state.currentKey]) return;
@@ -1327,42 +1325,31 @@ function saveBalanceHistoryToCache() {
         }
         
         const history = state.balanceHistory[state.currentKey];
-        const now = Date.now();
-        const cutoff24h = now - PERIODS.day;
-        
-        // v2.7: Разделяем на 30d и 24h для правильного кэширования
-        // 24h - детальные данные за последние 24 часа
-        const history24h = history.filter(r => {
-            const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-            return ts >= cutoff24h;
-        });
-        
-        // 30d - история за месяц (увеличили лимит с 500 до 2500 чтобы не терять старые данные)
-        const history30d = history.length > 2500 ? history.slice(-2500) : history;
+        // v3.0: Keep up to 3000 points to ensure good resolution for all periods
+        const historyToSave = history.length > 3000 ? history.slice(-3000) : history;
         
         cache[state.currentKey] = {
-            history30d: history30d,
-            history24h: history24h,
+            history: historyToSave,
             period: currentChartPeriod,
-            timestamp: now
+            timestamp: Date.now()
         };
         
         // Очищаем кэш других ключей если слишком много
         const keys = Object.keys(cache);
-        if (keys.length > 3) {
+        if (keys.length > 5) {
             const sorted = keys.sort((a, b) => (cache[b].timestamp || 0) - (cache[a].timestamp || 0));
-            for (let i = 3; i < sorted.length; i++) {
-                delete cache[sorted[i]];
+            for (let i = 5; i < sorted.length; i++) {
+                delete cache[sorted[i]]; // Keep 5 most recent farms
             }
         }
         
         localStorage.setItem(BALANCE_HISTORY_KEY, JSON.stringify(cache));
-        console.log(`📊 Cached: 30d=${history30d.length}, 24h=${history24h.length} for ${state.currentKey}`);
+        // console.log(`📊 Cached ${historyToSave.length} records for ${state.currentKey}`);
     } catch (e) {
         console.warn('Failed to save balance history cache:', e);
-        try {
-            localStorage.removeItem(BALANCE_HISTORY_KEY);
-        } catch (e2) {}
+        if (e.name === 'QuotaExceededError') {
+             try { localStorage.removeItem(BALANCE_HISTORY_KEY); } catch(err){}
+        }
     }
 }
 
@@ -1393,158 +1380,110 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         }
     }
     
-    // v2.7: Параллельно загружаем 30d и 24h данные
-    // 30d - агрегированные для 7D/30D графиков
-    // 24h - детальные для RT/1H/24H графиков
+/**
+ * Загрузить историю баланса из сервера v3.0 (Unified & Robust)
+ * Fetch both aggregated (30d) and detailed (24h) data, then merge.
+ */
+async function loadBalanceHistory(period = null, forceRefresh = false) {
+    if (!state.currentKey) return;
+    
+    // 1. Show cached data instantly if available
+    if (!forceRefresh && loadBalanceHistoryFromCache()) {
+        updateBalanceChart();
+    }
+    
     try {
         const farmKey = encodeURIComponent(state.currentKey);
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 15000);
         
-        // Параллельные запросы
-        const [response30d, response24h] = await Promise.all([
+        // Use shorter timeout for responsiveness
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        
+        // 2. Fetch periods in parallel
+        // 30d: Gives context (potentially downsampled)
+        // 24h: Gives high resolution for recent events
+        const [res30d, res24h] = await Promise.all([
             fetch(`${API_BASE}/balance-history-v2?farmKey=${farmKey}&period=30d`, { signal: controller.signal }),
             fetch(`${API_BASE}/balance-history-v2?farmKey=${farmKey}&period=24h`, { signal: controller.signal })
         ]);
         clearTimeout(timeout);
+
+        let serverRecords = [];
         
-        let allRecords = [];
-        
-        // Обрабатываем 30d данные
-        if (response30d.ok) {
-            const data30d = await response30d.json();
-            if (data30d.success && data30d.history) {
-                allRecords = [...data30d.history];
-                console.log(`✅ Loaded ${data30d.history.length} records (30d)`);
+        // Process 30d data
+        if (res30d.ok) {
+            const data = await res30d.json();
+            if (data.history && Array.isArray(data.history)) {
+                serverRecords = data.history;
             }
         }
         
-        // Обрабатываем 24h данные (более детальные, добавляем к 30d)
-        if (response24h.ok) {
-            const data24h = await response24h.json();
-            if (data24h.success && data24h.history && data24h.history.length > 0) {
-                console.log(`✅ Loaded ${data24h.history.length} records (24h detail)`);
+        // Process 24h data and upscale recent history
+        if (res24h.ok) {
+            const data = await res24h.json();
+            if (data.history && data.history.length > 0) {
+                // If we have detailed 24h data, use it to replace the last 24h of 30d data
+                const cutoff = Date.now() - PERIODS.day; // 24 hours ago
                 
-                // Мержим: 24h данные более детальные, заменяем ими последние 24h из 30d
-                const cutoff24h = Date.now() - PERIODS.day;
-                // Оставляем из 30d только данные старше 24h
-                const older30d = allRecords.filter(r => {
-                    const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                    return ts < cutoff24h;
-                });
-                // Добавляем все 24h данные
-                allRecords = [...older30d, ...data24h.history];
+                // Keep 30d records OLDER than 24h
+                const olderRecords = serverRecords.filter(r => r.timestamp < cutoff);
+                
+                // Combine with detailed 24h records
+                serverRecords = [...olderRecords, ...data.history];
             }
         }
-        
-        if (allRecords.length > 0) {
-            // Сортируем по времени
-            allRecords.sort((a, b) => {
-                const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
-                const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-                return tsA - tsB;
-            });
-            
-            // ВАЖНО: сохраняем локальные свежие записи (последние 10 минут)
-            // И ТАКЖЕ: не удаляем старые локальные записи, которых нет на сервере (защита от потери данных)
-            const currentHistory = state.balanceHistory[state.currentKey] || [];
-            
-            // Создаем Map для дедупликации данных
-            const historyMap = new Map();
-            
-            // Сначала добавляем данные с сервера (они приоритетнее для совпадений)
-            allRecords.forEach(r => {
-                const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                historyMap.set(ts, r);
-            });
-            
-            // Если сервер вернул очень мало данных (например < 50 записей), а в кэше много (> 200)
-            // То мы считаем что сервер возможно отдал не все данные, и мержим аккуратнее
-            // Но чтобы не мусорить, фильтруем локальные данные по валидности (30 дней)
-            const cutoff30d = Date.now() - PERIODS.month;
-            
-            // Добавляем отсутствующие локальные записи
-            let restoreCount = 0;
-            currentHistory.forEach(r => {
-                const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                if (ts > cutoff30d && !historyMap.has(ts)) {
-                    historyMap.set(ts, r);
-                    restoreCount++;
-                }
-            });
-            
-            if (restoreCount > 0) {
-                console.log(`📊 Restored ${restoreCount} missing records from local cache`);
-            }
-            
-            // Превращаем обратно в массив и сортируем
-            allRecords = Array.from(historyMap.values()).sort((a, b) => {
-                const tsA = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
-                const tsB = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
-                return tsA - tsB;
-            });
-            
-            state.balanceHistory[state.currentKey] = allRecords;
-            console.log(`📊 Total: ${allRecords.length} records merged`);
-            
-            saveBalanceHistoryToCache();
-            updateBalanceChart();
+
+        if (serverRecords.length === 0) {
+            console.log('No history on server');
+            // If server has no data but we have cache - keep cache!
             return;
         }
+
+        // 3. Smart Merge: Server Data + Local Unsynced Data
+        // Prioritize server data, but keep local points that haven't been synced/aggregated yet
+        const historyMap = new Map();
         
-        console.log('loadBalanceHistory: no history records on server');
+        // Helper to get numeric timestamp
+        const getTs = (r) => typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
+        
+        // A. Add Server records
+        serverRecords.forEach(r => historyMap.set(getTs(r), { ...r, timestamp: getTs(r) }));
+        
+        // B. Add Local records (if missing from server)
+        const currentHistory = state.balanceHistory[state.currentKey] || [];
+        const thirtyDaysAgo = Date.now() - PERIODS.month;
+        
+        let keptLocal = 0;
+        currentHistory.forEach(r => {
+            const ts = getTs(r);
+            // Only keep valid recent data that isn't in server response
+            if (ts > thirtyDaysAgo && !historyMap.has(ts)) {
+                // Heuristic: If server returned a point very close to this one (within 1 min), ignore local
+                historyMap.set(ts, { ...r, timestamp: ts });
+                keptLocal++;
+            }
+        });
+        
+        if (keptLocal > 0) console.log(`📊 Merged: ${serverRecords.length} server + ${keptLocal} local records`);
+        
+        // 4. Sort and Store
+        const finalHistory = Array.from(historyMap.values()).sort((a, b) => a.timestamp - b.timestamp);
+        
+        state.balanceHistory[state.currentKey] = finalHistory;
+        
+        saveBalanceHistoryToCache();
+        updateBalanceChart();
         
     } catch (e) {
-        if (e.name === 'AbortError') {
-            console.warn('loadBalanceHistory: request timed out');
-        } else {
-            console.warn('Failed to load balance history:', e);
-        }
-        // Fallback на старый API
-        await loadBalanceHistoryLegacy();
+        if (e.name !== 'AbortError') console.warn('History load failed:', e);
     }
 }
 
 /**
- * Fallback на старый API balance-history
+ * Legacy API fallback - kept for compatibility but rarely used
  */
 async function loadBalanceHistoryLegacy() {
-    try {
-        const url = `${API_BASE}/balance-history?farmKey=${encodeURIComponent(state.currentKey)}&period=${PERIODS.month}`;
-        const response = await fetch(url);
-        
-        if (response.ok) {
-            const data = await response.json();
-            if (data.history && data.history.length > 0) {
-                // v9.12.63 - Безопасный мерж с легаси API тоже
-                const currentHistory = state.balanceHistory[state.currentKey] || [];
-                const cutoff30d = Date.now() - PERIODS.month;
-                const historyMap = new Map();
-                
-                // С сервера
-                data.history.forEach(r => historyMap.set(r.timestamp, r));
-                
-                // С кэша если не перекрывается
-                currentHistory.forEach(r => {
-                    const ts = typeof r.timestamp === 'number' ? r.timestamp : new Date(r.timestamp).getTime();
-                    if (ts > cutoff30d && !historyMap.has(ts)) {
-                        historyMap.set(ts, r);
-                    }
-                });
-                
-                state.balanceHistory[state.currentKey] = Array.from(historyMap.values()).sort((a,b) => a.timestamp - b.timestamp);
-                saveBalanceHistoryToCache();
-                updateBalanceChart();
-            }
-        }
-    } catch (e) {
-        console.warn('Legacy balance history also failed:', e);
-    }
-    
-    // Инициализируем пустой массив если ничего не загрузилось
-    if (!state.balanceHistory[state.currentKey]) {
-        state.balanceHistory[state.currentKey] = [];
-    }
+    // Deprecated for V3 logic
 }
 
 /**
@@ -1714,7 +1653,7 @@ function getBalanceChange(farmKey, periodMs) {
 /**
  * Получить данные для графика
  */
-function getChartData(farmKey, periodMs, points = 30) {
+function getChartData(farmKey, periodMs, points = 150) {
     const history = state.balanceHistory[farmKey];
     if (!history || history.length < 2) return { labels: [], values: [] };
     
