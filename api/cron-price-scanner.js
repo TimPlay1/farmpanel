@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.14';  // Sort stale brainrots by oldest updatedAt first
+const VERSION = '3.0.15';  // Fix 'cached is not defined' error
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -990,10 +990,12 @@ async function runPriceScan() {
         try {
             const cacheKey = brainrot._cacheKey;
             
+            // v3.0.15: Get cached data first (needed for oldPrice comparison later)
+            const cached = cachedPrices.get(cacheKey);
+            
             // v3.0.11: При новом цикле - сканируем всех, не пропускаем
             // В обычном режиме - пропускаем если уже сканировали в этом цикле
             if (!isNewCycle) {
-                const cached = cachedPrices.get(cacheKey);
                 if (cached && cached.cycleId >= currentCycleId) {
                     skipped++;
                     continue;
