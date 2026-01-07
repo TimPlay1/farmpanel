@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.37 - Fix Scan All stats calculation
+// FarmerPanel App v9.12.60 - Fix time badge fallback to use _timestamp when _serverUpdatedAt missing
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2735,10 +2735,12 @@ function renderPriceBlock(priceData, cacheKey) {
         additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
     }
     // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
-    const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
+    // v9.12.60: Fallback to _timestamp if _serverUpdatedAt is missing (old cached data)
+    const timeSource = priceData._serverUpdatedAt || priceData._timestamp;
+    const lastUpdateTime = formatPriceUpdateTime(timeSource);
     // Always show time badge (even <1m for fresh data)
     // v9.12.59: Add data-timestamp for live refresh of time badges
-    const serverTs = priceData._serverUpdatedAt ? new Date(priceData._serverUpdatedAt).getTime() : Date.now();
+    const serverTs = timeSource ? (typeof timeSource === 'number' ? timeSource : new Date(timeSource).getTime()) : Date.now();
     additionalHtml += `<span class="price-last-update" data-timestamp="${serverTs}" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
     additionalHtml += '</div>';
     
@@ -2876,10 +2878,12 @@ function renderPriceVariants(brainrotName, income, mutation) {
             additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
         }
         // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
-        const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
+        // v9.12.60: Fallback to _timestamp if _serverUpdatedAt is missing (old cached data)
+        const timeSource = priceData._serverUpdatedAt || priceData._timestamp;
+        const lastUpdateTime = formatPriceUpdateTime(timeSource);
         // Always show time badge
         // v9.12.59: Add data-timestamp for live refresh of time badges
-        const serverTs = priceData._serverUpdatedAt ? new Date(priceData._serverUpdatedAt).getTime() : Date.now();
+        const serverTs = timeSource ? (typeof timeSource === 'number' ? timeSource : new Date(timeSource).getTime()) : Date.now();
         additionalHtml += `<span class="price-last-update" data-timestamp="${serverTs}" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
         additionalHtml += '</div>';
         
