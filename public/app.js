@@ -2692,16 +2692,10 @@ function renderPriceBlock(priceData, cacheKey) {
     } else {
         additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
     }
-    // v9.12.53: Use _timestamp (client load time) for freshness indicator
-    const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
-    // Debug: log first few prices
-    if (!window._priceTimeDebugCount) window._priceTimeDebugCount = 0;
-    if (window._priceTimeDebugCount < 3) {
-        console.log('🕐 Price time:', priceData._timestamp, '->', lastUpdateTime);
-        window._priceTimeDebugCount++;
-    }
+    // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
+    const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
     // Always show time badge (even <1m for fresh data)
-    additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
+    additionalHtml += `<span class="price-last-update" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
     additionalHtml += '</div>';
     
     return `
@@ -2837,10 +2831,10 @@ function renderPriceVariants(brainrotName, income, mutation) {
         } else {
             additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
         }
-        // v9.12.53: Use _timestamp (client load time) for freshness indicator
-        const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
+        // v9.12.55: Use _serverUpdatedAt (cron scan time) for accurate freshness indicator
+        const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt);
         // Always show time badge
-        additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
+        additionalHtml += `<span class="price-last-update" title="Cron scanned ${lastUpdateTime || 'just now'} ago">${lastUpdateTime || '<1m'}</span>`;
         additionalHtml += '</div>';
         
         return `
