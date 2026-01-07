@@ -7829,6 +7829,7 @@ function getCachedOfferImage(imageUrl, offerId) {
 loadOfferImagesCache();
 
 // Load offers from localStorage cache
+// v9.12.35: Always force refresh from server on page load - localStorage is for instant render only
 function loadOffersFromStorage() {
     try {
         const cached = localStorage.getItem(OFFERS_STORAGE_KEY);
@@ -7837,8 +7838,10 @@ function loadOffersFromStorage() {
             if (data.farmKey === state.currentKey && data.offers) {
                 offersState.offers = data.offers;
                 offersState.lastLoadedKey = data.farmKey;
-                offersState.lastLoadTime = data.timestamp || 0;
-                console.log('Loaded', data.offers.length, 'offers from localStorage cache');
+                // v9.12.35: Set lastLoadTime to 0 to ALWAYS fetch fresh data from server
+                // localStorage is only for instant initial render, not for skipping server fetch
+                offersState.lastLoadTime = 0;
+                console.log('Loaded', data.offers.length, 'offers from localStorage cache (will refresh from server)');
                 return true;
             }
         }
@@ -7934,7 +7937,7 @@ async function loadOffers(forceRefresh = false, silent = false) {
 }
 
 // Check if offers have changed (for smart UI updates)
-// v9.12.34: Added mutation check
+// v9.12.35: Added eldoradoOfferId check for pending state detection
 function hasOffersChanged(oldOffers, newOffers) {
     if (!oldOffers || oldOffers.length !== newOffers.length) return true;
     
@@ -7947,6 +7950,8 @@ function hasOffersChanged(oldOffers, newOffers) {
         if (oldOffer.currentPrice !== newOffer.currentPrice) return true;
         if (oldOffer.imageUrl !== newOffer.imageUrl) return true;
         if (oldOffer.mutation !== newOffer.mutation) return true; // v9.12.34
+        // v9.12.35: Check eldoradoOfferId change (affects pending state)
+        if (Boolean(oldOffer.eldoradoOfferId) !== Boolean(newOffer.eldoradoOfferId)) return true;
     }
     
     return false;
