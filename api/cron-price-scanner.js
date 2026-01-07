@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.12';  // Fix saveScanState to use correct cycleId
+const VERSION = '3.0.13';  // Fix cycle detection - 95% threshold instead of 100%
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -942,16 +942,16 @@ async function runPriceScan() {
     // Ограничиваем batch
     let toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
     
-    // v3.0.11: Проверяем завершился ли цикл (все отсканированы)
-    // Если ничего для сканирования - начинаем новый цикл
-    let isNewCycle = toScan.length === 0 && brainrots.length > 0;
+    // v3.0.13: Проверяем завершился ли цикл
+    // Цикл завершён если > 95% брейнротов fresh (позволяет 1-2 ошибки)
+    const freshRatio = freshBrainrots.length / brainrots.length;
+    let isNewCycle = freshRatio > 0.95 && brainrots.length > 0;
     let currentCycleId = scanState.cycleId;
     
     if (isNewCycle) {
-        // Начинаем новый цикл - берём ВСЕХ брейнротов, не только первых N
-        // Потому что они все "fresh" для старого цикла, но "stale" для нового
+        // Начинаем новый цикл - все брейнроты считаются stale для нового cycleId
         currentCycleId = scanState.cycleId + 1;
-        console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId}`);
+        console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId} (${Math.round(freshRatio*100)}% was fresh)`);
         // Берём первых N для нового цикла
         toScan = brainrots.slice(0, SCAN_BATCH_SIZE);
     }
