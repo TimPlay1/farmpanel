@@ -1330,11 +1330,9 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         return;
     }
     
-    // Используем текущий период если не указан
-    const requestPeriod = period || currentChartPeriod || 'week';
-    console.log(`loadBalanceHistory: loading ${requestPeriod} for ${state.currentKey}`);
+    console.log(`loadBalanceHistory: loading 30d data for ${state.currentKey} (client filters by period)`);
     
-    // v2.0: Сначала загружаем из кэша для мгновенного отображения
+    // v2.1: Сначала загружаем из кэша для мгновенного отображения
     if (!forceRefresh) {
         const hasCachedData = loadBalanceHistoryFromCache();
         if (hasCachedData) {
@@ -1346,21 +1344,11 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
         }
     }
     
-    // Загружаем свежие данные с сервера
+    // v2.1: Всегда загружаем 30d данные - клиент сам фильтрует по периоду
+    // Это экономит запросы к БД при смене периодов
     try {
-        // Конвертируем период в формат API
-        const periodMap = {
-            'realtime': 'rt',
-            'hour': '1h',
-            'day': '24h',
-            'week': '7d',
-            'month': '30d'
-        };
-        const apiPeriod = periodMap[requestPeriod] || '7d';
-        
-        // Используем новый API v2
-        const url = `${API_BASE}/balance-history-v2?farmKey=${encodeURIComponent(state.currentKey)}&period=${apiPeriod}`;
-        console.log('loadBalanceHistory: fetching from', url);
+        const url = `${API_BASE}/balance-history-v2?farmKey=${encodeURIComponent(state.currentKey)}&period=30d`;
+        console.log('loadBalanceHistory: fetching 30d from', url);
         
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 15000);
@@ -1374,32 +1362,12 @@ async function loadBalanceHistory(period = null, forceRefresh = false) {
             if (data.success && data.history && data.history.length > 0) {
                 state.balanceHistory[state.currentKey] = data.history;
                 
-                // v2.0: Конвертируем строковый период обратно в миллисекунды
-                const periodMsMap = {
-                    'realtime': PERIODS.realtime,
-                    'hour': PERIODS.hour,
-                    'day': PERIODS.day,
-                    'week': PERIODS.week,
-                    'month': PERIODS.month
-                };
-                currentChartPeriod = periodMsMap[requestPeriod] || PERIODS.week;
-                
-                console.log(`✅ Loaded ${data.history.length} records (${data.totalRecords} total) for period ${requestPeriod}`);
-                
-                // Обновляем изменение баланса из серверных данных
-                if (data.change) {
-                    state.currentBalanceChange = {
-                        change: data.change.value,
-                        changePercent: data.change.percent,
-                        oldValue: data.change.from,
-                        newValue: data.change.to
-                    };
-                }
+                console.log(`✅ Loaded ${data.history.length} records (30d) - client will filter by period`);
                 
                 // Сохраняем в кэш
                 saveBalanceHistoryToCache();
                 
-                // Обновляем график
+                // Обновляем график (getChartData отфильтрует по текущему периоду)
                 updateBalanceChart();
                 return;
             } else {
@@ -1558,6 +1526,16 @@ function recordBalanceHistory(farmKey, value) {
     
     // v9.12.9: Сохраняем в localStorage кэш для быстрого показа графика
     saveBalanceHistoryToCache();
+    
+    // v2.1: Обновляем график если выбран RT период и это текущий ключ
+    // RT реагирует на изменения в реальном времени без загрузки с сервера
+    if (farmKey === state.currentKey && currentChartPeriod === PERIODS.realtime) {
+        // Debounce - не чаще раза в 2 секунды для RT
+        if (!recordBalanceHistory._lastRTUpdate || now - recordBalanceHistory._lastRTUpdate > 2000) {
+            recordBalanceHistory._lastRTUpdate = now;
+            updateBalanceChart();
+        }
+    }
 }
 
 /**
@@ -10982,26 +10960,14 @@ function _doUpdateBalanceChart(period) {
     currentChartPeriod = period;
     saveChartPeriod(period);
     
-    // Update active tab (перенесено выше чтобы работало при смене периода)
+    // Update active tab
     document.querySelectorAll('.period-tab').forEach(tab => {
         tab.classList.toggle('active', parseInt(tab.dataset.period) === period);
     });
     
-    // v2.0: При смене периода загружаем свежие данные с сервера
-    if (periodChanged) {
-        console.log(`📊 Period changed to ${period}ms, loading fresh data from server...`);
-        isChartUpdating = false;
-        
-        // Конвертируем период в строку для API
-        const periodStr = period === PERIODS.realtime ? 'realtime' :
-                          period === PERIODS.hour ? 'hour' :
-                          period === PERIODS.day ? 'day' :
-                          period === PERIODS.week ? 'week' : 'month';
-        
-        // Загружаем данные асинхронно (функция сама обновит график)
-        loadBalanceHistory(periodStr, true);
-        return;
-    }
+    // v2.1: При смене периода НЕ загружаем с сервера - данные уже есть (30d)
+    // getChartData сам отфильтрует по текущему периоду
+    // Это экономит запросы и ускоряет переключение вкладок
     
     const chartData = getChartData(state.currentKey, period);
     
