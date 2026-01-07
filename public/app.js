@@ -2692,16 +2692,10 @@ function renderPriceBlock(priceData, cacheKey) {
     } else {
         additionalHtml += `<span class="additional-price next-comp empty" title="No next competitor"><i class="fas fa-arrow-up"></i>--</span>`;
     }
-    // v9.12.50: Last update time in bottom-right corner
-    const updateSource = priceData._serverUpdatedAt || priceData.updatedAt;
-    const lastUpdateTime = formatPriceUpdateTime(updateSource);
-    // Debug first price
-    if (!window._debuggedPriceUpdate) {
-        console.log('🕐 First price updatedAt:', updateSource, 'formatted:', lastUpdateTime, 'priceData keys:', Object.keys(priceData));
-        window._debuggedPriceUpdate = true;
-    }
+    // v9.12.53: Use _timestamp (client load time) for freshness indicator
+    const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
     if (lastUpdateTime) {
-        additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
+        additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime} ago">${lastUpdateTime}</span>`;
     }
     additionalHtml += '</div>';
     
@@ -2838,10 +2832,10 @@ function renderPriceVariants(brainrotName, income, mutation) {
         } else {
             additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
         }
-        // v9.12.50: Last update time in bottom-right corner
-        const lastUpdateTime = formatPriceUpdateTime(priceData._serverUpdatedAt || priceData.updatedAt);
+        // v9.12.53: Use _timestamp (client load time) for freshness indicator
+        const lastUpdateTime = formatPriceUpdateTime(priceData._timestamp);
         if (lastUpdateTime) {
-            additionalHtml += `<span class="price-last-update" title="Last price update">${lastUpdateTime}</span>`;
+            additionalHtml += `<span class="price-last-update" title="Data loaded ${lastUpdateTime} ago">${lastUpdateTime}</span>`;
         }
         additionalHtml += '</div>';
         
