@@ -6505,14 +6505,15 @@ async function deleteFarmer(playerName) {
 
 /**
  * Очистить кэш цен и перезагрузить
+ * v9.12.64: Оптимизировано - загружаем из серверного кэша вместо пересканирования
  */
-function clearPriceCache() {
+async function clearPriceCache() {
     // РУЧНОЙ РЕФРЕШ - не записываем изменения в историю баланса
     state.isManualPriceRefresh = true;
     
     // ЗАМОРАЖИВАЕМ баланс ПЕРЕД очисткой цен - он будет отображаться пока цены загружаются
     state.frozenBalance = state.currentTotalValue;
-    console.log('Manual price refresh started - balance frozen at $' + state.frozenBalance.toFixed(2));
+    console.log('Manual price refresh started - balance frozen at $' + state.frozenBalance?.toFixed(2));
     
     // Сохраняем текущие цены как предыдущие для отображения % изменения
     savePreviousPrices();
@@ -6529,19 +6530,44 @@ function clearPriceCache() {
         state.previousTotalValue = calculateTotalValue(allBrainrots);
     }
     
+    // Очищаем локальный кэш
     state.brainrotPrices = {};
     state.eldoradoPrices = {};
     localStorage.removeItem(PRICE_STORAGE_KEY);
     console.log('Price cache cleared');
-    // Перезагружаем цены
-    filterAndRenderCollection();
     
-    // Сбрасываем флаг после завершения рефреша (с задержкой чтобы все обновления прошли)
+    // v9.12.64: Быстрая загрузка из серверного кэша (cron уже просканировал все цены)
+    const startTime = Date.now();
+    console.log('⏳ Loading prices from server cache...');
+    
+    try {
+        const loaded = await loadPricesFromServer(); // Загружаем из /api/prices-cache
+        const duration = Date.now() - startTime;
+        
+        if (loaded) {
+            console.log(`✅ Prices loaded from server cache in ${duration}ms`);
+            // Обновляем UI с новыми ценами (включая карточки)
+            updateUI();
+            // Ререндерим коллекцию для обновления цен на карточках
+            if (typeof renderCollection === 'function' && collectionState?.filteredBrainrots) {
+                await renderCollection();
+            }
+        } else {
+            console.log('⚠️ Server cache unavailable, falling back to collection render');
+            // Fallback на старый метод
+            filterAndRenderCollection();
+        }
+    } catch (e) {
+        console.warn('Error loading from server cache:', e);
+        filterAndRenderCollection();
+    }
+    
+    // Сбрасываем флаг после завершения рефреша
     setTimeout(() => {
         state.isManualPriceRefresh = false;
         state.frozenBalance = null;
         console.log('Manual price refresh completed - balance unfrozen');
-    }, 30000); // 30 секунд на загрузку всех цен
+    }, 5000); // 5 секунд достаточно для серверного кэша
 }
 
 /**
