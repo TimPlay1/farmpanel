@@ -1261,7 +1261,16 @@ function loadBalanceHistoryFromCache() {
             const cache = JSON.parse(stored);
             if (cache[state.currentKey]) {
                 const cacheData = cache[state.currentKey];
-                state.balanceHistory[state.currentKey] = cacheData.history || [];
+                const cachedHistory = cacheData.history || [];
+                
+                // v2.3: Не перезаписываем если в памяти уже больше данных
+                const currentHistory = state.balanceHistory[state.currentKey] || [];
+                if (currentHistory.length >= cachedHistory.length) {
+                    console.log(`📊 Skipping cache (memory: ${currentHistory.length} >= cache: ${cachedHistory.length})`);
+                    return currentHistory.length >= 5;
+                }
+                
+                state.balanceHistory[state.currentKey] = cachedHistory;
                 
                 // v2.1: period может быть числом (ms) или строкой, конвертируем
                 const savedPeriod = cacheData.period;
@@ -1271,8 +1280,8 @@ function loadBalanceHistoryFromCache() {
                     currentChartPeriod = PERIODS.week; // default
                 }
                 
-                console.log(`📊 Loaded ${state.balanceHistory[state.currentKey].length} cached points`);
-                return true;
+                console.log(`📊 Loaded ${cachedHistory.length} cached points`);
+                return cachedHistory.length >= 5;
             }
         }
     } catch (e) {
@@ -1532,8 +1541,11 @@ function recordBalanceHistory(farmKey, value) {
         state.balanceHistory[farmKey] = history.slice(-1000);
     }
     
-    // v9.12.9: Сохраняем в localStorage кэш для быстрого показа графика
-    saveBalanceHistoryToCache();
+    // v2.3: Сохраняем в кэш ТОЛЬКО если у нас достаточно данных (5+)
+    // Это предотвращает перезапись полного кэша 1-2 записями при первой загрузке
+    if (history.length >= 5) {
+        saveBalanceHistoryToCache();
+    }
     
     // v2.1: Обновляем график если выбран RT период и это текущий ключ
     // RT реагирует на изменения в реальном времени без загрузки с сервера
