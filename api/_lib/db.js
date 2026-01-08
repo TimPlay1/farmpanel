@@ -931,6 +931,11 @@ async function getAICache(cacheKey) {
 }
 
 async function setAICache(cacheKey, data) {
+    // v9.12.87: Skip saving null/undefined data to avoid MySQL constraint error
+    if (data === null || data === undefined) {
+        console.warn('⚠️ Skipping AI cache save - data is null/undefined for key:', cacheKey);
+        return false;
+    }
     try {
         const p = await getPool();
         await p.execute(
