@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.78 - Fix totalValue and parseFloat in all endpoints
-// - Add totalValue and valueUpdatedAt to /api/sync response
-// - Add parseFloat for totalValue in sync-fast
-// - All numeric values from MySQL now properly converted to numbers
+// FarmerPanel App v9.12.79 - Fix balance calculation from prices
+// - Always calculate totalValue from brainrot prices on frontend
+// - Don't use outdated totalValue from MySQL database
+// - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -4054,10 +4054,9 @@ async function fetchAllFarmersData() {
                 }
                 
                 // Записываем баланс в историю
-                if (data.totalValue && data.totalValue > 0) {
-                    recordBalanceHistory(key.farmKey, data.totalValue);
-                } else if (data.accounts && data.accounts.length > 0) {
-                    // Рассчитываем если нет totalValue
+                // v9.12.79: ВСЕГДА рассчитываем баланс из цен брейнротов на frontend
+                // НЕ используем data.totalValue из сервера (он может быть устаревшим)
+                if (data.accounts && data.accounts.length > 0) {
                     let totalValue = 0;
                     data.accounts.forEach(account => {
                         if (account.brainrots) {
