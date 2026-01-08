@@ -671,6 +671,7 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
         }
 
         // v3.0.21: Use rotating User-Agent
+        // v9.12.90: Use SOCKS5 proxy agent if configured
         const options = {
             hostname: 'www.eldorado.gg',
             path: '/api/flexibleOffers?' + params.toString(),
@@ -680,7 +681,8 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
                 'Accept-Language': 'en-US,en;q=0.9',
                 'Cache-Control': 'no-cache',
                 'User-Agent': getRotatingUserAgent()
-            }
+            },
+            agent: proxyAgent || undefined  // v9.12.90: Use SOCKS5 proxy if available
         };
 
         const req = https.request(options, (res) => {
