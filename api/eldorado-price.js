@@ -1114,36 +1114,57 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             // v9.12.84: Validate mutation attribute from offer
             // Eldorado API may not filter correctly - offers with wrong mutations can slip through
+            // v9.12.86: CRITICAL FIX - When searching for a specific mutation (e.g. radioactive),
+            // we must REQUIRE that the offer has that mutation, not just skip offers with DIFFERENT mutations.
+            // Otherwise default/none offers slip through (like $1111 Swaggy Bros without radioactive)
             let skipDueToMutation = false;
             if (mutation && mutation !== 'None' && mutation !== 'Default') {
                 const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation');
                 const offerMutation = mutationAttr?.value?.toLowerCase() || '';
                 const targetMutation = mutation.toLowerCase();
                 
-                // If offer has explicit mutation attribute that doesn't match, skip
-                if (offerMutation && offerMutation !== targetMutation && offerMutation !== 'none') {
+                // All known mutations (for checking title)
+                const mutationPatterns = {
+                    'gold': /\bgold\b/i,
+                    'diamond': /\bdiamond\b/i,
+                    'bloodrot': /\bbloodrot\b/i,
+                    'candy': /\bcandy\b/i,
+                    'lava': /\blava\b/i,
+                    'galaxy': /\bgalaxy\b/i,
+                    'yin-yang': /\byin[-\s]?yang\b/i,
+                    'yinyang': /\byin[-\s]?yang\b/i,
+                    'radioactive': /\bradioactive\b/i,
+                    'rainbow': /\brainbow\b/i,
+                    'cursed': /\bcursed\b/i
+                };
+                
+                // Normalize target mutation pattern key
+                let targetPatternKey = targetMutation.replace('-', '');
+                if (targetPatternKey === 'yinyang') targetPatternKey = 'yin-yang';
+                const targetPattern = mutationPatterns[targetMutation] || mutationPatterns[targetPatternKey];
+                
+                // Check if offer has target mutation in attribute
+                const hasTargetMutationAttr = offerMutation === targetMutation || 
+                    offerMutation === targetMutation.replace('-', '') ||
+                    offerMutation.replace('-', '') === targetMutation.replace('-', '');
+                
+                // Check if offer has target mutation in title
+                const hasTargetMutationInTitle = targetPattern ? targetPattern.test(offerTitle) : false;
+                
+                // v9.12.86: REQUIRE target mutation - offer must have it either in attr or title
+                if (!hasTargetMutationAttr && !hasTargetMutationInTitle) {
+                    // Offer doesn't have the target mutation at all - skip it
+                    // This catches default/none mutation offers like "$1111 Swaggy Bros 700M/S"
                     skipDueToMutation = true;
                 }
                 
-                // v9.12.84b: If no mutation attribute, check title for explicit wrong mutations
-                // This catches cases where Eldorado API doesn't filter properly
-                if (!skipDueToMutation && !offerMutation) {
-                    // Check for explicit mutation names in title (with word boundaries)
-                    // Only check mutations that are DIFFERENT from target
-                    const mutationPatterns = {
-                        'gold': /\bgold\b/i,
-                        'diamond': /\bdiamond\b/i,
-                        'bloodrot': /\bbloodrot\b/i,
-                        'candy': /\bcandy\b/i,
-                        'lava': /\blava\b/i,
-                        'galaxy': /\bgalaxy\b/i,
-                        'yin-yang': /\byin[-\s]?yang\b/i,
-                        'radioactive': /\bradioactive\b/i,
-                        'rainbow': /\brainbow\b/i
-                    };
-                    
+                // Also check for explicit WRONG mutations (extra safety)
+                if (!skipDueToMutation) {
                     for (const [mutName, pattern] of Object.entries(mutationPatterns)) {
-                        if (mutName !== targetMutation && pattern.test(offerTitle)) {
+                        // Skip if this is the target mutation
+                        if (mutName === targetMutation || mutName === targetPatternKey) continue;
+                        // If offer mentions a DIFFERENT mutation in title, skip
+                        if (pattern.test(offerTitle)) {
                             skipDueToMutation = true;
                             break;
                         }
