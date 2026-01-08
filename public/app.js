@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.83 - Fix aggregate toArray compatibility for MySQL adapter
+// FarmerPanel App v9.12.84 - Add mutation validation for offers (fixes wrong mutation in price scan)
+// - v9.12.83: Fix aggregate toArray compatibility for MySQL adapter
 // - v9.12.82: Fix price type casting (string to number)
-// - Don't use outdated totalValue from MySQL database
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 

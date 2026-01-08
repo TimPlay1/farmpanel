@@ -1112,7 +1112,33 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             if (!checkBrainrotMatch()) continue;
             
-            // НЕ проверяем M/s атрибут - API уже отфильтровал по offerAttributeIdsCsv
+            // v9.12.84: Validate mutation attribute from offer
+            // Eldorado API may not filter correctly - offers with wrong mutations can slip through
+            let skipDueToMutation = false;
+            if (mutation && mutation !== 'None' && mutation !== 'Default') {
+                const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation');
+                const offerMutation = mutationAttr?.value?.toLowerCase() || '';
+                const targetMutation = mutation.toLowerCase();
+                
+                // If offer has explicit mutation attribute that doesn't match, skip
+                if (offerMutation && offerMutation !== targetMutation && offerMutation !== 'none') {
+                    console.log(`⚠️ Skipping wrong mutation offer: "${offerTitle.substring(0, 50)}..." (attr: ${offerMutation}, want ${mutation})`);
+                    skipDueToMutation = true;
+                }
+                
+                // Also check title for explicit mutation mentions (in case attr is wrong/missing)
+                if (!skipDueToMutation) {
+                    const wrongMutations = ['gold', 'diamond', 'bloodrot', 'candy', 'lava', 'galaxy', 'yin-yang', 'yinyang', 'radioactive', 'rainbow'];
+                    for (const wrongMut of wrongMutations) {
+                        if (wrongMut !== targetMutation && titleLower.includes(wrongMut)) {
+                            console.log(`⚠️ Skipping wrong mutation offer (title): "${offerTitle.substring(0, 50)}..." (has ${wrongMut}, want ${mutation})`);
+                            skipDueToMutation = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (skipDueToMutation) continue;
             
             // v10.3.0: Пропускаем офферы от пользователей нашей панели
             if (isOurStoreOffer(offer, panelUsers)) {
