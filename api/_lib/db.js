@@ -263,6 +263,13 @@ class MySQLCollection {
         return [];
     }
     
+    // MySQL doesn't need dynamic index creation - indexes are defined in schema.sql
+    async createIndex(keys, options = {}) {
+        // Stub method for MongoDB compatibility
+        // In MySQL, indexes are created via schema.sql
+        return { ok: 1 };
+    }
+    
     // ============ Helper Methods ============
     
     _buildSelect(filter, options = {}) {
@@ -487,7 +494,11 @@ class MySQLCollection {
     _docToRow(doc) {
         const row = {};
         for (const [key, value] of Object.entries(doc)) {
-            if (key === '_id') continue;
+            // Map _id to id column for tables that use custom IDs
+            if (key === '_id') {
+                row['id'] = this._toValue(value);
+                continue;
+            }
             row[this._toColumn(key)] = this._toValue(value);
         }
         return row;

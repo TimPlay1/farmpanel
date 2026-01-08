@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.70 - Fix all toFixed errors (parseFloat) for MySQL string values
+// FarmerPanel App v9.12.71 - Fix supa-generate, adjustment-queue, JSON limit, more toFixed
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -1558,7 +1558,8 @@ function recordBalanceHistory(farmKey, value) {
     }
     
     history.push({ timestamp: now, value: value });
-    console.log(`Balance history: recorded $${value.toFixed(2)} for ${farmKey}`);
+    // v9.12.71: parseFloat for MySQL compatibility
+    console.log(`Balance history: recorded $${parseFloat(value).toFixed(2)} for ${farmKey}`);
     
     // Сохраняем на сервер (async, не блокируем)
     saveBalanceHistoryToServer(farmKey, value);
@@ -1944,16 +1945,18 @@ async function savePricesToServer() {
         }
         
         if (Object.keys(pricesToSave).length > 0) {
+            // v9.12.71: parseFloat for totalValue (MySQL compatibility)
+            const parsedTotalValue = parseFloat(totalValue) || 0;
             await fetch(`${API_BASE}/prices`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     farmKey: state.currentKey,
                     prices: pricesToSave,
-                    totalValue: totalValue
+                    totalValue: parsedTotalValue
                 })
             });
-            console.log(`Saved ${Object.keys(pricesToSave).length} prices and totalValue $${totalValue.toFixed(2)} to server`);
+            console.log(`Saved ${Object.keys(pricesToSave).length} prices and totalValue $${parsedTotalValue.toFixed(2)} to server`);
         }
     } catch (e) {
         console.warn('Failed to save prices to server:', e);
@@ -6017,9 +6020,10 @@ async function renderCollection() {
     // При ручном рефреше используем frozen balance
     if (collectionStatsEl) {
         const uniqueNames = new Set(collectionState.allBrainrots.map(b => b.name.toLowerCase()));
-        const totalValue = state.isManualPriceRefresh && state.frozenBalance !== null 
+        // v9.12.71: parseFloat for MySQL compatibility
+        const totalValue = parseFloat(state.isManualPriceRefresh && state.frozenBalance !== null 
             ? state.frozenBalance 
-            : state.currentTotalValue;
+            : state.currentTotalValue) || 0;
         
         // Get balance change for collection (используем из state) - НЕ при ручном рефреше
         let changeHtml = '';
@@ -9238,8 +9242,9 @@ function openOfferPriceModal(offerId) {
         const medianValueEl = document.getElementById('medianPriceValue');
         const medianRadio = document.querySelector('input[name="priceType"][value="median"]');
         if (medianValueEl && medianRadio) {
-            if (offer.medianPrice && offer.medianPrice > 0) {
-                medianValueEl.textContent = `$${offer.medianPrice.toFixed(2)}`;
+            const medianPrice = parseFloat(offer.medianPrice) || 0;
+            if (medianPrice > 0) {
+                medianValueEl.textContent = `$${medianPrice.toFixed(2)}`;
                 medianRadio.disabled = false;
                 medianRadio.closest('.price-option')?.classList.remove('disabled');
             } else {
@@ -9253,8 +9258,9 @@ function openOfferPriceModal(offerId) {
         const nextCompValueEl = document.getElementById('nextCompetitorPriceValue');
         const nextCompRadio = document.querySelector('input[name="priceType"][value="nextCompetitor"]');
         if (nextCompValueEl && nextCompRadio) {
-            if (offer.nextCompetitorPrice && offer.nextCompetitorPrice > 0) {
-                nextCompValueEl.textContent = `$${offer.nextCompetitorPrice.toFixed(2)}`;
+            const nextCompPrice = parseFloat(offer.nextCompetitorPrice) || 0;
+            if (nextCompPrice > 0) {
+                nextCompValueEl.textContent = `$${nextCompPrice.toFixed(2)}`;
                 nextCompRadio.disabled = false;
                 nextCompRadio.closest('.price-option')?.classList.remove('disabled');
             } else {
@@ -11159,8 +11165,11 @@ function getChartDataHash(chartData) {
     if (!chartData || !chartData.values) return '';
     const vals = chartData.values;
     // Use first, last, length and sum for quick comparison
-    const sum = vals.reduce((a, b) => a + b, 0);
-    return `${vals.length}_${vals[0]?.toFixed(2)}_${vals[vals.length-1]?.toFixed(2)}_${sum.toFixed(2)}`;
+    // v9.12.71: parseFloat for MySQL compatibility
+    const sum = vals.reduce((a, b) => parseFloat(a) + parseFloat(b), 0);
+    const firstVal = parseFloat(vals[0] || 0);
+    const lastVal = parseFloat(vals[vals.length - 1] || 0);
+    return `${vals.length}_${firstVal.toFixed(2)}_${lastVal.toFixed(2)}_${sum.toFixed(2)}`;
 }
 
 // v9.11.24: MAX_CHART_RETRIES - increased back, retry count is now reset properly

@@ -53,7 +53,9 @@ const GENERATIONS_DATA_PATH = path.join(__dirname, 'data', 'generations.json');
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+// v9.12.71: Increase JSON body limit to 10mb (default 100kb caused 413 errors)
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve brainrot images from downloaded_images folder
@@ -357,6 +359,8 @@ const queueHandler = require('./api/queue');
 const validateHandler = require('./api/validate');
 const userColorHandler = require('./api/user-color');
 const accountColorsHandler = require('./api/account-colors');
+const supaGenerateHandler = require('./api/supa-generate');
+const supaStatusHandler = require('./api/supa-status');
 
 // API Routes
 
@@ -476,6 +480,16 @@ app.post('/api/user-color', async (req, res) => {
 // Account colors endpoint
 app.get('/api/account-colors', async (req, res) => {
     await accountColorsHandler(req, res);
+});
+
+// Supa Generate endpoint - generates offer images via Supa.ru API
+app.post('/api/supa-generate', async (req, res) => {
+    await supaGenerateHandler(req, res);
+});
+
+// Supa status endpoint - check generation status
+app.get('/api/supa-status', async (req, res) => {
+    await supaStatusHandler(req, res);
 });
 
 // Eldorado price endpoint - get optimal price for brainrot
