@@ -1,6 +1,25 @@
 const https = require('https');
+const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// v3.0.21: User-Agent Rotation Pool (shared with cron-price-scanner)
+const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+];
+let userAgentIndex = 0;
+
+function getRotatingUserAgent() {
+    userAgentIndex = (userAgentIndex + 1) % USER_AGENTS.length;
+    return USER_AGENTS[userAgentIndex];
+}
 
 // v10.3.0: Импортируем подключение к БД для загрузки пользователей панели
 let connectToDatabase = null;
@@ -625,6 +644,7 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
             params.set('searchQuery', searchQuery);
         }
 
+        // v3.0.21: Use rotating User-Agent
         const options = {
             hostname: 'www.eldorado.gg',
             path: '/api/flexibleOffers?' + params.toString(),
@@ -632,7 +652,8 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
             headers: {
                 'Accept': 'application/json, text/plain, */*',
                 'Accept-Language': 'en-US,en;q=0.9',
-                'swagger': 'Swager request'  // Обязательный header из swagger
+                'Cache-Control': 'no-cache',
+                'User-Agent': getRotatingUserAgent()
             }
         };
 

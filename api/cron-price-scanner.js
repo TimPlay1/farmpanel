@@ -20,13 +20,36 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.20';  // Adaptive rate limiting system
+const VERSION = '3.0.21';  // User-Agent rotation & proxy support
 const https = require('https');
+const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
 const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
+
+// v3.0.21: User-Agent Rotation Pool
+// При ошибке 1015 переключаемся на следующий User-Agent
+const USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/120.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
+];
+
+// v3.0.21: Proxy configuration (optional)
+// Set these environment variables to use a proxy:
+// PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS
+const PROXY_CONFIG = {
+    host: process.env.PROXY_HOST || null,
+    port: parseInt(process.env.PROXY_PORT) || 0,
+    auth: process.env.PROXY_USER ? `${process.env.PROXY_USER}:${process.env.PROXY_PASS}` : null,
+};
 
 // v3.0.20: Adaptive Rate Limiting System
 // Автоматически адаптируется к rate limit ошибкам Cloudflare
@@ -39,7 +62,25 @@ const adaptiveRateLimit = {
     errorThreshold: 5,              // После 5 ошибок - включаем backup mode
     backupModeDuration: 30 * 60 * 1000, // Backup mode на 30 минут
     cooldownPeriod: 5 * 60 * 1000,  // 5 минут без ошибок - сбрасываем множитель
+    currentUserAgentIndex: 0,       // v3.0.21: Текущий индекс User-Agent
+    useProxy: false,                // v3.0.21: Использовать прокси (активируется при ошибках)
 };
+
+// v3.0.21: Get current User-Agent (rotates on errors)
+function getCurrentUserAgent() {
+    return USER_AGENTS[adaptiveRateLimit.currentUserAgentIndex % USER_AGENTS.length];
+}
+
+// v3.0.21: Rotate to next User-Agent
+function rotateUserAgent() {
+    adaptiveRateLimit.currentUserAgentIndex = (adaptiveRateLimit.currentUserAgentIndex + 1) % USER_AGENTS.length;
+    console.log(`🔄 Rotated to User-Agent #${adaptiveRateLimit.currentUserAgentIndex + 1}/${USER_AGENTS.length}`);
+}
+
+// v3.0.21: Check if proxy is configured
+function isProxyConfigured() {
+    return PROXY_CONFIG.host && PROXY_CONFIG.port > 0;
+}
 
 // Проверяем backup mode
 function isInBackupMode() {
@@ -62,7 +103,16 @@ function handleRateLimitError() {
         adaptiveRateLimit.maxBackoffMultiplier
     );
     
+    // v3.0.21: Rotate User-Agent on each error
+    rotateUserAgent();
+    
     console.log(`⚠️ Rate limit error #${adaptiveRateLimit.consecutiveErrors}, backoff: ${adaptiveRateLimit.backoffMultiplier}x`);
+    
+    // v3.0.21: После 3 ошибок - включаем прокси если настроен
+    if (adaptiveRateLimit.consecutiveErrors >= 3 && isProxyConfigured() && !adaptiveRateLimit.useProxy) {
+        adaptiveRateLimit.useProxy = true;
+        console.log(`🔀 Proxy mode ENABLED (${PROXY_CONFIG.host}:${PROXY_CONFIG.port})`);
+    }
     
     // После threshold ошибок - включаем backup mode
     if (adaptiveRateLimit.consecutiveErrors >= adaptiveRateLimit.errorThreshold) {
@@ -493,6 +543,7 @@ async function cleanupQueue(db) {
  * Получает офферы с Eldorado API
  * v3.0.7: searchQuery вместо offerTitle для поиска по коду
  * v3.0.17: Eldorado убрал offerSortingCriterion, ограничил pageSize до 50
+ * v3.0.21: User-Agent rotation + proxy support
  */
 function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
     return new Promise((resolve) => {
@@ -504,17 +555,35 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             queryPath += `&searchQuery=${encodeURIComponent(searchText)}`;
         }
 
+        // v3.0.21: Use rotating User-Agent
+        const userAgent = getCurrentUserAgent();
+        
         const options = {
             hostname: 'www.eldorado.gg',
             path: queryPath,
             method: 'GET',
             headers: {
                 'Accept': 'application/json',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache',
+                'User-Agent': userAgent
             }
         };
 
-        const req = https.request(options, (res) => {
+        // v3.0.21: Add proxy support if enabled
+        let httpModule = https;
+        if (adaptiveRateLimit.useProxy && isProxyConfigured()) {
+            options.host = PROXY_CONFIG.host;
+            options.port = PROXY_CONFIG.port;
+            options.path = `https://www.eldorado.gg${queryPath}`;
+            delete options.hostname;
+            if (PROXY_CONFIG.auth) {
+                options.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(PROXY_CONFIG.auth).toString('base64');
+            }
+            httpModule = http; // Most proxies use HTTP for CONNECT
+        }
+
+        const req = httpModule.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
