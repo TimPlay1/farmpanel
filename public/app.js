@@ -2162,17 +2162,21 @@ function savePreviousPrices() {
  * Called during price loading when new price differs from current
  */
 function updatePreviousPriceOnChange(cacheKey, oldPrice, newPrice) {
-    if (!oldPrice || oldPrice === newPrice) return;
+    // v9.12.65: Ensure prices are numbers
+    const oldNum = parseFloat(oldPrice);
+    const newNum = parseFloat(newPrice);
+    
+    if (!oldNum || isNaN(oldNum) || oldNum === newNum) return;
     
     // Price changed! Save the OLD price as "previous" with current timestamp
     state.previousPrices[cacheKey] = {
-        price: oldPrice,
+        price: oldNum,
         timestamp: Date.now()
     };
     
-    const change = ((newPrice - oldPrice) / oldPrice) * 100;
+    const change = ((newNum - oldNum) / oldNum) * 100;
     if (Math.abs(change) >= 1) {
-        console.log(`📊 Price change detected: ${cacheKey} $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)} (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)`);
+        console.log(`📊 Price change detected: ${cacheKey} $${oldNum.toFixed(2)} → $${newNum.toFixed(2)} (${change >= 0 ? '+' : ''}${change.toFixed(1)}%)`);
     }
 }
 

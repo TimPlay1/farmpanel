@@ -1047,21 +1047,22 @@ async function runPriceScan() {
             const oldPrice = cached?.suggestedPrice;
             
             // Сохраняем в кэш с текущим cycleId
+            // v3.0.22: Ensure JSON fields are null or valid objects, not undefined
             await savePriceToCache(db, brainrot.name, brainrot.income, {
                 suggestedPrice: newPrice,
                 source: regexResult.parsingSource || 'regex',
-                priceSource: regexResult.priceSource,
-                competitorPrice: regexResult.competitorPrice,
-                competitorIncome: regexResult.competitorIncome,
-                targetMsRange: regexResult.targetMsRange,
-                medianPrice: regexResult.medianPrice,
-                medianData: regexResult.medianData,
-                nextCompetitorPrice: regexResult.nextCompetitorPrice,
-                nextCompetitorData: regexResult.nextCompetitorData,
-                nextRangeChecked: regexResult.nextRangeChecked,
-                isInEldoradoList: regexResult.isInEldoradoList,
-                lowerPrice: regexResult.lowerPrice,
-                lowerIncome: regexResult.lowerIncome
+                priceSource: regexResult.priceSource || null,
+                competitorPrice: regexResult.competitorPrice || null,
+                competitorIncome: regexResult.competitorIncome || null,
+                targetMsRange: regexResult.targetMsRange || null,
+                medianPrice: regexResult.medianPrice || null,
+                medianData: regexResult.medianData || null,
+                nextCompetitorPrice: regexResult.nextCompetitorPrice || null,
+                nextCompetitorData: regexResult.nextCompetitorData || null,
+                nextRangeChecked: regexResult.nextRangeChecked || false,
+                isInEldoradoList: regexResult.isInEldoradoList || false,
+                lowerPrice: regexResult.lowerPrice || null,
+                lowerIncome: regexResult.lowerIncome || null
             }, brainrot.mutation, currentCycleId);
             
             // Обновляем локальный кэш чтобы не сканировать повторно в этом запуске
