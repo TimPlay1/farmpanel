@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.76 - Fix sync endpoints to include calculated fields
-// - /api/sync and /api/sync-fast now return totalIncome, totalIncomeFormatted, totalBrainrots
-// - Dashboard cards and accounts page now show correct income and brainrot count
-// - All endpoints calculate income from brainrots array
+// FarmerPanel App v9.12.77 - Fix balance chart toFixed error and parseFloat for MySQL
+// - Fix Chart.js tooltip toFixed error (context.raw is string from MySQL)
+// - Fix balance-history-v2 aggregation to parseFloat all values
+// - All numeric values from MySQL now properly converted to numbers
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -11384,7 +11384,9 @@ function _doUpdateBalanceChart(period) {
                             return context[0].label;
                         },
                         label: function(context) {
-                            return '$' + context.raw.toFixed(2);
+                            // v9.12.77: parseFloat to handle string values from MySQL
+                            const val = parseFloat(context.raw) || 0;
+                            return '$' + val.toFixed(2);
                         }
                     }
                 }

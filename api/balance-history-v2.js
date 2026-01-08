@@ -51,27 +51,33 @@ const MIN_INTERVALS = {
  * Уменьшает количество точек путём семплирования
  */
 function aggregateForPeriod(records, period, maxPoints) {
-    if (records.length <= maxPoints) return records;
+    // v9.12.77: Normalize all values to numbers first (MySQL returns strings)
+    const normalizedRecords = records.map(r => ({
+        timestamp: r.timestamp,
+        value: parseFloat(r.value) || 0
+    }));
+    
+    if (normalizedRecords.length <= maxPoints) return normalizedRecords;
     
     // Вычисляем шаг для равномерного семплирования
-    const step = Math.ceil(records.length / maxPoints);
+    const step = Math.ceil(normalizedRecords.length / maxPoints);
     const result = [];
     
-    for (let i = 0; i < records.length; i += step) {
+    for (let i = 0; i < normalizedRecords.length; i += step) {
         // Берём среднее значение в окне для сглаживания
-        const windowEnd = Math.min(i + step, records.length);
+        const windowEnd = Math.min(i + step, normalizedRecords.length);
         let sum = 0;
         for (let j = i; j < windowEnd; j++) {
-            sum += records[j].value;
+            sum += normalizedRecords[j].value;
         }
         result.push({
-            timestamp: records[i].timestamp,
+            timestamp: normalizedRecords[i].timestamp,
             value: sum / (windowEnd - i)
         });
     }
     
     // Всегда включаем последнюю точку
-    const lastRecord = records[records.length - 1];
+    const lastRecord = normalizedRecords[normalizedRecords.length - 1];
     if (result.length > 0 && result[result.length - 1].timestamp !== lastRecord.timestamp) {
         result.push({
             timestamp: lastRecord.timestamp,
@@ -181,7 +187,8 @@ module.exports = async (req, res) => {
                 periodMs,
                 history: aggregated.map(r => ({
                     timestamp: r.timestamp instanceof Date ? r.timestamp.getTime() : r.timestamp,
-                    value: r.value
+                    // v9.12.77: Ensure value is always a number
+                    value: parseFloat(r.value) || 0
                 })),
                 count: aggregated.length,
                 totalRecords: records.length,
