@@ -1027,7 +1027,10 @@ app.get('/api/sync', async (req, res) => {
                 username: farmer.username || 'Farmer',
                 avatar: farmer.avatar || { icon: 'fa-seedling', color: '#4ade80' },
                 accounts: accounts,
-                totalGlobalIncome: totalGlobalIncome
+                totalGlobalIncome: totalGlobalIncome,
+                // v9.12.78: Add totalValue from database (calculated by frontend and saved)
+                totalValue: parseFloat(farmer.totalValue) || 0,
+                valueUpdatedAt: farmer.valueUpdatedAt || null
             });
         } else {
             res.status(401).json({ error: 'Invalid key' });

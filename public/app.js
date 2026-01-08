@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.77 - Fix balance chart toFixed error and parseFloat for MySQL
-// - Fix Chart.js tooltip toFixed error (context.raw is string from MySQL)
-// - Fix balance-history-v2 aggregation to parseFloat all values
+// FarmerPanel App v9.12.78 - Fix totalValue and parseFloat in all endpoints
+// - Add totalValue and valueUpdatedAt to /api/sync response
+// - Add parseFloat for totalValue in sync-fast
 // - All numeric values from MySQL now properly converted to numbers
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 

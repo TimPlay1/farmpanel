@@ -128,7 +128,8 @@ module.exports = async (req, res) => {
             accountAvatars: farmer.accountAvatars || {},
             playerUserIdMap: farmer.playerUserIdMap || {},
             lastUpdate: farmer.lastUpdate,
-            totalValue: farmer.totalValue || 0,
+            // v9.12.78: parseFloat for MySQL compatibility
+            totalValue: parseFloat(farmer.totalValue) || 0,
             valueUpdatedAt: farmer.valueUpdatedAt || null
         };
 
@@ -224,7 +225,8 @@ async function refreshCacheInBackground(key, cacheKey) {
             accountAvatars: farmer.accountAvatars || {},
             playerUserIdMap: farmer.playerUserIdMap || {},
             lastUpdate: farmer.lastUpdate,
-            totalValue: farmer.totalValue || 0,
+            // v9.12.78: parseFloat for MySQL compatibility
+            totalValue: parseFloat(farmer.totalValue) || 0,
             valueUpdatedAt: farmer.valueUpdatedAt || null
         };
 
