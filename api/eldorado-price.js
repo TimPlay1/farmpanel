@@ -1155,15 +1155,22 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 // Check if offer has target mutation in title
                 const hasTargetMutationInTitle = targetPattern ? targetPattern.test(offerTitle) : false;
                 
+                // v9.12.88: Check for multi-mutation offers ("x2 mutations", "double mutation", "2x mutation")
+                // These offers have MULTIPLE mutations and may include our target - don't skip them
+                const isMultiMutationOffer = /\b(x2|2x|double|multi|dual)\s*mutation/i.test(offerTitle) ||
+                                             /\bmutation(s)?\s*(x2|2x)/i.test(offerTitle);
+                
                 // v9.12.86: REQUIRE target mutation - offer must have it either in attr or title
-                if (!hasTargetMutationAttr && !hasTargetMutationInTitle) {
+                // v9.12.88: EXCEPT for multi-mutation offers which we can't determine from title alone
+                if (!hasTargetMutationAttr && !hasTargetMutationInTitle && !isMultiMutationOffer) {
                     // Offer doesn't have the target mutation at all - skip it
                     // This catches default/none mutation offers like "$1111 Swaggy Bros 700M/S"
                     skipDueToMutation = true;
                 }
                 
                 // Also check for explicit WRONG mutations (extra safety)
-                if (!skipDueToMutation) {
+                // v9.12.88: Skip this check for multi-mutation offers
+                if (!skipDueToMutation && !isMultiMutationOffer) {
                     for (const [mutName, pattern] of Object.entries(mutationPatterns)) {
                         // Skip if this is the target mutation
                         if (mutName === targetMutation || mutName === targetPatternKey) continue;
@@ -1215,8 +1222,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 upperPage = page;
                 console.log('Found UPPER at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
             }
-            // v9.9.0: Ищем nextCompetitor (после upper с income >= target И цена > upper.price)
-            else if (upperOffer && !nextCompetitor && parsedIncome && parsedIncome >= targetIncome && price > upperOffer.price) {
+            // v9.12.88: Ищем nextCompetitor (после upper с income >= target И цена >= upper.price, но ДРУГОЙ оффер)
+            // Изменено: price >= upperOffer.price (было >) чтобы учитывать офферы с той же ценой от других продавцов
+            else if (upperOffer && !nextCompetitor && parsedIncome && parsedIncome >= targetIncome && 
+                     price >= upperOffer.price && offer.offerId !== upperOffer.id) {
                 nextCompetitor = offerData;
                 console.log('Found NEXT COMPETITOR at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
             }
