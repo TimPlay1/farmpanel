@@ -1,20 +1,16 @@
 # Farmer Panel - Production Dockerfile for Coolify
 FROM node:20-alpine
 
-# Install dependencies for sharp (image processing)
-RUN apk add --no-cache python3 make g++ vips-dev pkgconfig
+# Install vips for sharp (prebuilt binary support)
+RUN apk add --no-cache vips
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install node-addon-api first (required for sharp build)
-RUN npm install node-addon-api
-
-# Install all dependencies
-RUN npm ci --omit=dev --ignore-scripts && \
-    npm rebuild sharp
+# Install dependencies with sharp prebuilt for linux-x64
+RUN npm ci --omit=dev
 
 # Copy application code
 COPY . .
