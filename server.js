@@ -22,14 +22,30 @@ const server = http.createServer(app);
 const wss = new WebSocket.Server({ server });
 
 // Configuration
-const PORT = 3001;
-// Try seliware-workspace first, then Wave workspace
-const SELIWARE_FARM_PATH = path.join(process.env.LOCALAPPDATA, 'seliware-workspace', 'farm_data');
-const WAVE_FARM_PATH = path.join(process.env.LOCALAPPDATA, 'Wave', 'workspace', 'workspace', 'ScriptManager', 'farm');
-const FARM_DATA_PATH = fs.existsSync(SELIWARE_FARM_PATH) ? SELIWARE_FARM_PATH : WAVE_FARM_PATH;
-const BRAINROT_PARSER_PATH = 'C:\\Users\\Administrator\\Downloads\\sabwikiparser';
-const BRAINROT_IMAGES_PATH = path.join(BRAINROT_PARSER_PATH, 'downloaded_images');
-const BRAINROT_DATA_PATH = path.join(BRAINROT_PARSER_PATH, 'brainrots.json');
+const PORT = process.env.PORT || 3001;
+
+// Paths - support both Windows (local) and Linux (Docker/VPS)
+const isDocker = process.env.NODE_ENV === 'production' || !process.env.LOCALAPPDATA;
+
+let FARM_DATA_PATH;
+let BRAINROT_IMAGES_PATH;
+let BRAINROT_DATA_PATH;
+
+if (isDocker) {
+    // Docker/VPS paths
+    FARM_DATA_PATH = '/app/data/farm_data';
+    BRAINROT_IMAGES_PATH = '/app/data/brainrot_images';
+    BRAINROT_DATA_PATH = '/app/data/brainrots.json';
+} else {
+    // Windows local paths
+    const SELIWARE_FARM_PATH = path.join(process.env.LOCALAPPDATA, 'seliware-workspace', 'farm_data');
+    const WAVE_FARM_PATH = path.join(process.env.LOCALAPPDATA, 'Wave', 'workspace', 'workspace', 'ScriptManager', 'farm');
+    FARM_DATA_PATH = fs.existsSync(SELIWARE_FARM_PATH) ? SELIWARE_FARM_PATH : WAVE_FARM_PATH;
+    const BRAINROT_PARSER_PATH = 'C:\\Users\\Administrator\\Downloads\\sabwikiparser';
+    BRAINROT_IMAGES_PATH = path.join(BRAINROT_PARSER_PATH, 'downloaded_images');
+    BRAINROT_DATA_PATH = path.join(BRAINROT_PARSER_PATH, 'brainrots.json');
+}
+
 const GENERATIONS_DATA_PATH = path.join(__dirname, 'data', 'generations.json');
 
 // Middleware

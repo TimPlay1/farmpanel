@@ -15,8 +15,11 @@ RUN npm ci --omit=dev
 # Copy application code
 COPY . .
 
-# Create data directory
-RUN mkdir -p /app/data
+# Create data directories for Docker/VPS
+RUN mkdir -p /app/data/farm_data /app/data/brainrot_images
+
+# Set production environment
+ENV NODE_ENV=production
 
 # Expose port
 EXPOSE 3001
