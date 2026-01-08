@@ -2714,7 +2714,7 @@ function renderPriceBlock(priceData, cacheKey) {
     // Additional prices - v9.11.19: Always show row for consistent height
     const hasNextOpportunity = priceData.nextCompetitorPrice && priceData.competitorPrice && 
         !priceData.nextRangeChecked &&
-        ((priceData.nextCompetitorPrice / priceData.competitorPrice) > 2);
+        ((parseFloat(priceData.nextCompetitorPrice) / parseFloat(priceData.competitorPrice)) > 2);
     
     // Always show additional row for consistent card height
     let additionalHtml = '<div class="price-additional">';
@@ -2851,7 +2851,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
         const selectedPrice = getSelectedPrice(priceData);
         const isAboveMarket = priceData.priceSource && priceData.priceSource.includes('above market');
         const competitorInfo = priceData.competitorPrice 
-            ? `${isAboveMarket ? 'max' : '~'}$${priceData.competitorPrice.toFixed(2)}` 
+            ? `${isAboveMarket ? 'max' : '~'}$${parseFloat(priceData.competitorPrice).toFixed(2)}` 
             : '';
         
         // Source badges
@@ -2874,7 +2874,7 @@ function renderPriceVariants(brainrotName, income, mutation) {
         // Next competitor - always show
         if (priceData.nextCompetitorPrice) {
             const hasOpportunity = priceData.competitorPrice && 
-                (priceData.nextCompetitorPrice / priceData.competitorPrice) > 2;
+                (parseFloat(priceData.nextCompetitorPrice) / parseFloat(priceData.competitorPrice)) > 2;
             additionalHtml += `<span class="additional-price next-comp ${hasOpportunity ? 'opportunity' : ''}" title="Next"><i class="fas fa-arrow-up"></i>${formatPrice(priceData.nextCompetitorPrice)}</span>`;
         } else {
             additionalHtml += `<span class="additional-price next-comp empty" title="No next"><i class="fas fa-arrow-up"></i>--</span>`;
@@ -6768,9 +6768,9 @@ function openSupaGenerator(brainrotData) {
         const medianEl = document.getElementById('supaPriceMedian');
         const nextEl = document.getElementById('supaPriceNext');
         
-        if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${priceData.suggestedPrice.toFixed(2)}` : 'N/A';
-        if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${priceData.medianPrice.toFixed(2)}` : 'N/A';
-        if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${priceData.nextCompetitorPrice.toFixed(2)}` : 'N/A';
+        if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${parseFloat(priceData.suggestedPrice).toFixed(2)}` : 'N/A';
+        if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${parseFloat(priceData.medianPrice).toFixed(2)}` : 'N/A';
+        if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${parseFloat(priceData.nextCompetitorPrice).toFixed(2)}` : 'N/A';
         
         // Disable options if price not available
         const medianOption = document.querySelector('input[name="supaPriceType"][value="median"]');
