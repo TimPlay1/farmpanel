@@ -61,9 +61,9 @@ module.exports = async (req, res) => {
         const pricesCollection = db.collection('global_brainrot_prices');
         
         // Получаем всех фермеров с данными
-        const farmers = await farmersCollection.find({
-            accounts: { $exists: true, $ne: [] }
-        }).toArray();
+        // Note: In MySQL, we get all farmers and filter in JS (accounts is JSON column)
+        const allFarmers = await farmersCollection.find({}).toArray();
+        const farmers = allFarmers.filter(f => f.accounts && Array.isArray(f.accounts) && f.accounts.length > 0);
         
         // Для топа по стоимости получаем все цены из базы
         let allPrices = {};
