@@ -40,11 +40,10 @@ module.exports = async (req, res) => {
             }).toArray();
             const existingMap = new Map(existing.map(e => [e.cacheKey, e]));
             
-            // Абсолютные лимиты цен по M/s диапазонам (защита от багов)
-            const maxPriceLimits = {
-                '0-24': 5, '25-49': 8, '50-99': 12, '100-249': 15,
-                '250-499': 25, '500-749': 40, '750-999': 60, '1+': 150
-            };
+            // v9.12.92: Removed strict price limits - eldorado-price.js has dynamic limits
+            // High-income brainrots can legitimately cost $2000+
+            // Only keep a very high sanity check to catch obvious bugs
+            const ABSOLUTE_MAX_PRICE = 10000; // $10k absolute max
             
             // Сохраняем каждую цену отдельно в глобальный кэш
             for (const [cacheKey, priceData] of Object.entries(prices)) {
@@ -52,21 +51,8 @@ module.exports = async (req, res) => {
                     const prev = existingMap.get(cacheKey);
                     const prevPrice = prev?.suggestedPrice || null;
                     
-                    // ДИНАМИЧЕСКИЙ ЛИМИТ: используем dynamicMaxPrice если есть, иначе статический fallback
-                    let maxLimit = priceData.dynamicMaxPrice;
-                    
-                    if (!maxLimit) {
-                        // Fallback на статический лимит
-                        let msRangeKey = null;
-                        for (const key of Object.keys(maxPriceLimits)) {
-                            if (cacheKey.includes(key)) {
-                                msRangeKey = key;
-                                break;
-                            }
-                        }
-                        // v9.12.85: Increased fallback from $50 to $500 for high-value brainrots
-                        maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 500;
-                    }
+                    // v9.12.92: Use dynamic limit if provided, otherwise use absolute max
+                    const maxLimit = priceData.dynamicMaxPrice || ABSOLUTE_MAX_PRICE;
                     
                     // SANITY CHECK: если цена превышает лимит - отклоняем
                     if (priceData.suggestedPrice > maxLimit) {
