@@ -5,10 +5,7 @@
  * DELETE /api/delete-queue?farmKey=XXX - очистить очередь
  */
 
-const { MongoClient } = require('mongodb');
-
-const uri = process.env.MYSQL_URI;
-const DB_NAME = process.env.MONGODB_DB_NAME || 'farmpanel';
+const { connectToDatabase } = require('./_lib/db');
 
 // Cache for delete queue data (short TTL - 5 minutes)
 const deleteQueueCache = new Map();
@@ -24,10 +21,9 @@ module.exports = async (req, res) => {
         return res.status(200).end();
     }
     
-    let client;
-    
     try {
         const { farmKey } = req.query;
+        const { db } = await connectToDatabase();
         
         if (req.method === 'GET') {
             if (!farmKey) {
@@ -39,10 +35,6 @@ module.exports = async (req, res) => {
             if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
                 return res.json({ success: true, ...cached.data, cached: true });
             }
-            
-            client = new MongoClient(uri);
-            await client.connect();
-            const db = client.db(DB_NAME);
             
             const queueDoc = await db.collection('delete_queues').findOne({ farmKey });
             
@@ -72,10 +64,6 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Missing farmKey or offerCodes' });
             }
             
-            client = new MongoClient(uri);
-            await client.connect();
-            const db = client.db(DB_NAME);
-            
             await db.collection('delete_queues').updateOne(
                 { farmKey: key },
                 { 
@@ -103,10 +91,6 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Missing farmKey' });
             }
             
-            client = new MongoClient(uri);
-            await client.connect();
-            const db = client.db(DB_NAME);
-            
             await db.collection('delete_queues').deleteOne({ farmKey });
             
             // Clear cache
@@ -120,9 +104,5 @@ module.exports = async (req, res) => {
     } catch (error) {
         console.error('Delete queue API error:', error);
         return res.status(500).json({ error: 'Internal server error', details: error.message });
-    } finally {
-        if (client) {
-            await client.close();
-        }
     }
 };
