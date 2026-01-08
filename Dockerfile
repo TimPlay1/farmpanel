@@ -2,15 +2,19 @@
 FROM node:20-alpine
 
 # Install dependencies for sharp (image processing)
-RUN apk add --no-cache python3 make g++ vips-dev
+RUN apk add --no-cache python3 make g++ vips-dev pkgconfig
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install node-addon-api first (required for sharp build)
+RUN npm install node-addon-api
+
+# Install all dependencies
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm rebuild sharp
 
 # Copy application code
 COPY . .
