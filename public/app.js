@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.69 - Fix chart retry spam + remove app.js preload warning
+// FarmerPanel App v9.12.70 - Fix all toFixed errors (parseFloat) for MySQL string values
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -6366,7 +6366,7 @@ function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
     if (priceData && priceData.suggestedPrice) {
         // competitorPrice это цена upper оффера (ближайший конкурент с income >= наш)
         const competitorInfo = priceData.competitorPrice 
-            ? `~$${priceData.competitorPrice.toFixed(2)}` 
+            ? `~$${parseFloat(priceData.competitorPrice).toFixed(2)}` 
             : '';
         const priceChange = getPriceChangePercent(cacheKey, priceData.suggestedPrice);
         const changeHtml = formatPriceChange(priceChange);
@@ -6377,7 +6377,7 @@ function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
             ? `<span class="price-spike-badge" title="Price spike detected!">⚠️ Spike</span>` 
             : '';
         const pendingInfo = isSpikePrice && priceData.pendingPrice 
-            ? `<span class="price-pending">→ $${priceData.pendingPrice.toFixed(2)}</span>` 
+            ? `<span class="price-pending">→ $${parseFloat(priceData.pendingPrice).toFixed(2)}</span>` 
             : '';
         
         // Parsing source badge (regex, ai, or hybrid)
@@ -7554,9 +7554,9 @@ function openMassGenerationModal() {
                     <select class="mass-gen-price-select" data-index="${i}"
                             data-def-suggested="${suggestedPrice}" data-def-median="${medianPrice}" data-def-next="${nextCompPrice}"
                             data-mut-suggested="${mutSuggested}" data-mut-median="${mutMedian}" data-mut-next="${mutNext}">
-                        <option value="suggested" ${suggestedPrice > 0 ? '' : 'disabled'}>💰 $${suggestedPrice.toFixed(2)}</option>
-                        <option value="median" ${medianPrice > 0 ? '' : 'disabled'}>📊 $${medianPrice.toFixed(2)}</option>
-                        <option value="nextCompetitor" ${nextCompPrice > 0 ? '' : 'disabled'}>⬆️ $${nextCompPrice.toFixed(2)}</option>
+                        <option value="suggested" ${suggestedPrice > 0 ? '' : 'disabled'}>💰 $${parseFloat(suggestedPrice).toFixed(2)}</option>
+                        <option value="median" ${medianPrice > 0 ? '' : 'disabled'}>📊 $${parseFloat(medianPrice).toFixed(2)}</option>
+                        <option value="nextCompetitor" ${nextCompPrice > 0 ? '' : 'disabled'}>⬆️ $${parseFloat(nextCompPrice).toFixed(2)}</option>
                         <option value="custom">✏️ Custom</option>
                     </select>
                     <input type="number" step="0.01" min="0" class="mass-gen-custom-price hidden" data-index="${i}" placeholder="$0.00">
@@ -7800,7 +7800,7 @@ async function doStartMassGeneration() {
                 body: JSON.stringify({ 
                     name: group.name, 
                     income: group.incomeText || formatIncome(group.income), 
-                    price: price ? `$${price.toFixed(2)}` : '',
+                    price: price ? `$${parseFloat(price).toFixed(2)}` : '',
                     imageUrl: group.imageUrl,
                     borderColor,
                     quantity: group.quantity || 1,
@@ -9151,11 +9151,11 @@ function openOfferPriceModal(offerId) {
                 <div class="variant-selector-options">
                     <button class="variant-btn default active" data-variant="default">
                         <span class="variant-btn-label">DEFAULT</span>
-                        <span class="variant-btn-price">$${(offer.defaultRecommendedPrice || 0).toFixed(2)}</span>
+                        <span class="variant-btn-price">$${parseFloat(offer.defaultRecommendedPrice || 0).toFixed(2)}</span>
                     </button>
                     <button class="variant-btn mutation" data-variant="mutation" style="--mutation-bg: ${mStyles.background}; --mutation-color: ${mStyles.textColor}; --mutation-glow: ${mStyles.glowColor};">
                         <span class="variant-btn-label" style="background: ${mStyles.background}; color: ${mStyles.textColor};">${cleanMutationText(offer.mutation)}</span>
-                        <span class="variant-btn-price">$${(offer.mutationRecommendedPrice || 0).toFixed(2)}</span>
+                        <span class="variant-btn-price">$${parseFloat(offer.mutationRecommendedPrice || 0).toFixed(2)}</span>
                     </button>
                 </div>
             `;
@@ -9178,9 +9178,9 @@ function openOfferPriceModal(offerId) {
     // Helper to update prices based on selected variant
     function updateOfferModalPrices(offer, variant) {
         const isMutation = variant === 'mutation';
-        const recPrice = isMutation ? (offer.mutationRecommendedPrice || 0) : (offer.defaultRecommendedPrice || offer.recommendedPrice || 0);
-        const medPrice = isMutation ? (offer.mutationMedianPrice || 0) : (offer.defaultMedianPrice || offer.medianPrice || 0);
-        const nextPrice = isMutation ? (offer.mutationNextCompetitorPrice || 0) : (offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0);
+        const recPrice = parseFloat(isMutation ? (offer.mutationRecommendedPrice || 0) : (offer.defaultRecommendedPrice || offer.recommendedPrice || 0));
+        const medPrice = parseFloat(isMutation ? (offer.mutationMedianPrice || 0) : (offer.defaultMedianPrice || offer.medianPrice || 0));
+        const nextPrice = parseFloat(isMutation ? (offer.mutationNextCompetitorPrice || 0) : (offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0));
         
         if (recommendedValueEl) {
             recommendedValueEl.textContent = `$${recPrice.toFixed(2)}`;
@@ -9322,12 +9322,12 @@ function openBulkPriceModal() {
             const selectedVariant = 'default'; // Start with default variant
             
             // Get prices based on variant
-            const defRecPrice = offer.defaultRecommendedPrice || offer.recommendedPrice || 0;
-            const defMedPrice = offer.defaultMedianPrice || offer.medianPrice || 0;
-            const defNextPrice = offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0;
-            const mutRecPrice = offer.mutationRecommendedPrice || 0;
-            const mutMedPrice = offer.mutationMedianPrice || 0;
-            const mutNextPrice = offer.mutationNextCompetitorPrice || 0;
+            const defRecPrice = parseFloat(offer.defaultRecommendedPrice || offer.recommendedPrice || 0);
+            const defMedPrice = parseFloat(offer.defaultMedianPrice || offer.medianPrice || 0);
+            const defNextPrice = parseFloat(offer.defaultNextCompetitorPrice || offer.nextCompetitorPrice || 0);
+            const mutRecPrice = parseFloat(offer.mutationRecommendedPrice || 0);
+            const mutMedPrice = parseFloat(offer.mutationMedianPrice || 0);
+            const mutNextPrice = parseFloat(offer.mutationNextCompetitorPrice || 0);
             
             // Use default prices initially
             const recPrice = defRecPrice;

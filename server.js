@@ -348,6 +348,7 @@ const pricesHandler = require('./api/prices');
 const pricesCacheHandler = require('./api/prices-cache');
 const shopNameHandler = require('./api/shop-name');
 const balanceHistoryHandler = require('./api/balance-history');
+const balanceHistoryV2Handler = require('./api/balance-history-v2');
 const generationsHandler = require('./api/generations');
 const offerCodesHandler = require('./api/offer-codes');
 const adjustmentQueueHandler = require('./api/adjustment-queue');
@@ -406,13 +407,13 @@ app.post('/api/balance-history', async (req, res) => {
     await balanceHistoryHandler(req, res);
 });
 
-// Balance history v2 endpoint (alias for balance-history)
+// Balance history v2 endpoint (uses separate handler with aggregation)
 app.get('/api/balance-history-v2', async (req, res) => {
-    await balanceHistoryHandler(req, res);
+    await balanceHistoryV2Handler(req, res);
 });
 
 app.post('/api/balance-history-v2', async (req, res) => {
-    await balanceHistoryHandler(req, res);
+    await balanceHistoryV2Handler(req, res);
 });
 
 // Offer codes endpoint
