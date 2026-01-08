@@ -1,0 +1,58 @@
+# Git
+.git
+.gitignore
+
+# Dependencies
+node_modules
+npm-debug.log
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Old MongoDB scripts (not needed in production)
+old-mongodb-scripts/
+
+# Development files
+*.md
+*.txt
+*.html
+*.jpg
+*.png
+!public/**
+
+# Test files
+test-*.js
+check-*.js
+verify-*.js
+fix-*.js
+setup-*.js
+create-*.js
+init-*.js
+
+# Temporary files
+temp_*
+*.log
+server.log
+server-err.log
+server-output.log
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Vercel (no longer needed)
+.vercel
+vercel.json
+
+# Windows
+Thumbs.db
+*.exe
+*.bat
+
+# Other
+waicore-instrucitondonotcommit!
+installer.exe

@@ -1,13 +1,16 @@
 {
   "name": "farmer-panel",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Brainrot Farm Panel - Monitor your farming accounts",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
+    "production": "NODE_ENV=production node server.js",
     "sync-images": "node scripts/sync-images.mjs",
-    "vercel-build": "echo 'No build required'"
+    "check-db": "node check-mysql-all.js",
+    "check-farmers": "node check-mysql-farmers.js",
+    "check-offers": "node check-mysql-offers.js"
   },
   "dependencies": {
     "chokidar": "^5.0.0",
@@ -15,8 +18,9 @@
     "express": "^4.18.2",
     "form-data": "^4.0.0",
     "jsdom": "^24.1.3",
-    "mongodb": "^6.3.0",
+    "mysql2": "^3.16.0",
     "node-fetch": "^2.7.0",
+    "node-ssh": "^13.2.1",
     "puppeteer": "^24.34.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-stealth": "^2.11.2",

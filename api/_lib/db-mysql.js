@@ -1,7 +1,7 @@
 /**
- * Database Adapter - MySQL Backend
- * Main database module for Farmer Panel
- * Uses MySQL/MariaDB for data storage
+ * Database Adapter - MySQL Backend with MongoDB-compatible Interface
+ * Этот файл заменяет db.js и обеспечивает работу с MySQL
+ * сохраняя совместимость с существующим кодом API
  */
 
 const mysql = require('mysql2/promise');
@@ -9,7 +9,7 @@ const mysql = require('mysql2/promise');
 let pool = null;
 
 // ============================================================
-// Constants
+// Constants (same as MongoDB version)
 // ============================================================
 
 const AVATAR_ICONS = [
@@ -45,6 +45,7 @@ const AI_CACHE_TTL_MS = 10 * 60 * 1000;
 async function getPool() {
     if (pool) return pool;
     
+    // Support both MYSQL_URI and MONGODB_URI for backward compatibility
     const dbUri = process.env.MYSQL_URI || process.env.DATABASE_URL;
     
     if (!dbUri) {

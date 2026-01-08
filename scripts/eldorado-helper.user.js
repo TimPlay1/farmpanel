@@ -14,7 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        window.close
-// @connect      farmpanel.vercel.app
+// @connect      instance195290.waicore.network
 // @connect      api.supa.ru
 // @connect      storage.supa.ru
 // @connect      supa-temp.storage.yandexcloud.net
@@ -30,7 +30,7 @@
     'use strict';
 
     const VERSION = '9.12.1';
-    const API_BASE = 'https://farmpanel.vercel.app/api';
+    const API_BASE = 'https://instance195290.waicore.network/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
     // If running inside TalkJS iframe, handle messages from parent
@@ -3224,7 +3224,7 @@
         setTimeout(() => {
             if (!window.closed) {
                 log('Window still open, redirecting to panel...');
-                window.location.href = 'https://farmpanel.vercel.app';
+                window.location.href = 'https://instance195290.waicore.network';
             }
         }, 500);
     }
@@ -3239,8 +3239,12 @@
             return false;
         }
         log(`Processing queue item: ${item.name} (qty: ${item.quantity || 1}, mutation: ${item.mutation || 'None'})`);
+        // v9.12.42: incomeText для отображения, income - числовое значение
         const offerDataForUrl = {
-            name: item.name, income: item.income, generatedImageUrl: item.imageUrl,
+            name: item.name, 
+            income: item.income,  // Числовое значение M/s для сохранения в БД
+            incomeText: item.incomeText || item.income, // Текст для отображения в title
+            generatedImageUrl: item.imageUrl,
             maxPrice: parseFloat(item.price) || 0, minPrice: parseFloat(item.price) || 0,
             quantity: item.quantity || 1,
             mutation: item.mutation || '', // v9.8.27: Мутация брейнрота
@@ -4128,19 +4132,21 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
                 try {
                     const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
                     if (farmKey && offerData) {
+                        // v9.12.42: income теперь числовое, incomeRaw сохраняем для display
                         await fetch(`${API_BASE}/offers`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
                                 farmKey, offerId,
                                 brainrotName: offerData.name,
-                                income: offerData.income,
+                                income: offerData.income,  // Числовое значение M/s
+                                incomeRaw: offerData.incomeText || offerData.income, // Текст для отображения
                                 currentPrice: offerData.maxPrice || offerData.minPrice || 0,
                                 imageUrl: offerData.generatedImageUrl,
                                 status: 'pending'
                             })
                         });
-                        log(`Offer ${offerId} saved to panel`);
+                        log(`Offer ${offerId} saved to panel with income=${offerData.income}`);
                         
                         // Trigger offers refresh in panel
                         localStorage.setItem('glitched_refresh_offers', Date.now().toString());

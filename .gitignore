@@ -21,8 +21,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 
-# Local files
-server.js
+# Test files
 test.json
 
 # Test scripts (keep userscripts)

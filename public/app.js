@@ -1181,7 +1181,7 @@ function getCachedAvatar(userId) {
  */
 async function fetchRobloxAvatar(userId) {
     try {
-        // Используем серверный API который конвертирует в base64 и сохраняет в MongoDB
+        // Используем серверный API который конвертирует в base64 и сохраняет в БД
         const response = await fetch(`${API_BASE}/account-avatar?userId=${userId}`);
         const data = await response.json();
         
@@ -1715,7 +1715,7 @@ function formatBalanceChange(changePercent, compact = false) {
 }
 
 /**
- * Загрузить кэш цен из MongoDB (серверный централизованный кэш)
+ * Загрузить кэш цен из БД (серверный централизованный кэш)
  * Сначала пробуем новый prices-cache API (от cron сканера)
  * Fallback на старый prices API
  */
@@ -1907,7 +1907,7 @@ async function loadUpdatedPricesFromServer() {
 }
 
 /**
- * Сохранить кэш цен в MongoDB
+ * Сохранить кэш цен в БД
  */
 async function savePricesToServer() {
     if (!state.currentKey) return;
@@ -2992,7 +2992,7 @@ function updateLoadingText(text) {
 }
 
 /**
- * v9.11.20: Fetch с timeout чтобы не висеть вечно при MongoDB проблемах
+ * v9.11.20: Fetch с timeout чтобы не висеть вечно при проблемах с БД
  */
 function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
     return Promise.race([
@@ -3109,7 +3109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         }
         
-        // === ЭТАП 3: Последовательная фоновая загрузка (снижает нагрузку на MongoDB) ===
+        // === ЭТАП 3: Последовательная фоновая загрузка (снижает нагрузку на БД) ===
         // Загружаем данные с небольшими задержками чтобы избежать перегрузки
         // ВАЖНО: loadBrainrotMapping уже вызван выше (для preload изображений)
         
@@ -3706,7 +3706,7 @@ let fetchRequestId = 0; // ID запроса для проверки актуа�
 
 function startPolling() {
     fetchFarmerData();
-    // Full data every 10 seconds (reduced from 5s to lower MongoDB load)
+    // Full data every 10 seconds (reduced from 5s to lower DB load)
     pollingInterval = setInterval(fetchFarmerData, 10000);
     // Fast status updates every 6 seconds (reduced from 3s)
     statusPollingInterval = setInterval(fetchStatusOnly, 6000);
@@ -5472,7 +5472,7 @@ async function saveGeneration(brainrotName, accountId, resultUrl, income) {
 }
 
 // Генерация уникального ключа для брейнрота
-// ВАЖНО: Заменяем точки на подчёркивания (MongoDB не позволяет точки в ключах)
+// ВАЖНО: Заменяем точки на подчёркивания для совместимости с БД
 function getGenerationKey(accountId, name, income) {
     if (!name) return null;
     const normalizedIncome = String(normalizeIncomeForApi(income, '')).replace(/\./g, '_');
