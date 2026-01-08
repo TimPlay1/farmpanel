@@ -349,6 +349,13 @@ const pricesCacheHandler = require('./api/prices-cache');
 const shopNameHandler = require('./api/shop-name');
 const balanceHistoryHandler = require('./api/balance-history');
 const generationsHandler = require('./api/generations');
+const offerCodesHandler = require('./api/offer-codes');
+const adjustmentQueueHandler = require('./api/adjustment-queue');
+const deleteQueueHandler = require('./api/delete-queue');
+const queueHandler = require('./api/queue');
+const validateHandler = require('./api/validate');
+const userColorHandler = require('./api/user-color');
+const accountColorsHandler = require('./api/account-colors');
 
 // API Routes
 
@@ -397,6 +404,68 @@ app.get('/api/balance-history', async (req, res) => {
 
 app.post('/api/balance-history', async (req, res) => {
     await balanceHistoryHandler(req, res);
+});
+
+// Offer codes endpoint
+app.get('/api/offer-codes', async (req, res) => {
+    await offerCodesHandler(req, res);
+});
+
+app.post('/api/offer-codes', async (req, res) => {
+    await offerCodesHandler(req, res);
+});
+
+// Adjustment queue endpoint
+app.get('/api/adjustment-queue', async (req, res) => {
+    await adjustmentQueueHandler(req, res);
+});
+
+app.post('/api/adjustment-queue', async (req, res) => {
+    await adjustmentQueueHandler(req, res);
+});
+
+app.delete('/api/adjustment-queue', async (req, res) => {
+    await adjustmentQueueHandler(req, res);
+});
+
+// Delete queue endpoint
+app.get('/api/delete-queue', async (req, res) => {
+    await deleteQueueHandler(req, res);
+});
+
+app.post('/api/delete-queue', async (req, res) => {
+    await deleteQueueHandler(req, res);
+});
+
+app.delete('/api/delete-queue', async (req, res) => {
+    await deleteQueueHandler(req, res);
+});
+
+// Queue endpoint
+app.get('/api/queue', async (req, res) => {
+    await queueHandler(req, res);
+});
+
+app.post('/api/queue', async (req, res) => {
+    await queueHandler(req, res);
+});
+
+app.delete('/api/queue', async (req, res) => {
+    await queueHandler(req, res);
+});
+
+// User color endpoint
+app.get('/api/user-color', async (req, res) => {
+    await userColorHandler(req, res);
+});
+
+app.post('/api/user-color', async (req, res) => {
+    await userColorHandler(req, res);
+});
+
+// Account colors endpoint
+app.get('/api/account-colors', async (req, res) => {
+    await accountColorsHandler(req, res);
 });
 
 // Eldorado price endpoint - get optimal price for brainrot
