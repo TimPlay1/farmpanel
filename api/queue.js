@@ -7,7 +7,7 @@
 
 const { MongoClient } = require('mongodb');
 
-const uri = process.env.MONGODB_URI;
+const uri = process.env.MYSQL_URI;
 const DB_NAME = process.env.MONGODB_DB_NAME || 'farmpanel';
 
 // Cache for queue data (short TTL - 5 minutes)

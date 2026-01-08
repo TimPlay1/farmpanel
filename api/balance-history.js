@@ -17,7 +17,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        if (!process.env.MONGODB_URI) {
+        if (!process.env.MYSQL_URI) {
             return res.status(500).json({ error: 'Database not configured' });
         }
 

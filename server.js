@@ -343,6 +343,12 @@ const eldoradoPriceHandler = require('./api/eldorado-price');
 const aiPriceHandler = require('./api/ai-price');
 const syncFastHandler = require('./api/sync-fast');
 const syncHandler = require('./api/sync');
+const topHandler = require('./api/top');
+const pricesHandler = require('./api/prices');
+const pricesCacheHandler = require('./api/prices-cache');
+const shopNameHandler = require('./api/shop-name');
+const balanceHistoryHandler = require('./api/balance-history');
+const generationsHandler = require('./api/generations');
 
 // API Routes
 
@@ -354,6 +360,43 @@ app.get('/api/sync-fast', async (req, res) => {
 // Sync POST endpoint - receives data from panel_sync.lua
 app.post('/api/sync', async (req, res) => {
     await syncHandler(req, res);
+});
+
+// Top leaderboards endpoint
+app.get('/api/top', async (req, res) => {
+    await topHandler(req, res);
+});
+
+// Prices endpoints
+app.get('/api/prices', async (req, res) => {
+    await pricesHandler(req, res);
+});
+
+app.post('/api/prices', async (req, res) => {
+    await pricesHandler(req, res);
+});
+
+// Prices cache endpoint (for incremental updates)
+app.get('/api/prices-cache', async (req, res) => {
+    await pricesCacheHandler(req, res);
+});
+
+// Shop name endpoint
+app.get('/api/shop-name', async (req, res) => {
+    await shopNameHandler(req, res);
+});
+
+app.post('/api/shop-name', async (req, res) => {
+    await shopNameHandler(req, res);
+});
+
+// Balance history endpoint
+app.get('/api/balance-history', async (req, res) => {
+    await balanceHistoryHandler(req, res);
+});
+
+app.post('/api/balance-history', async (req, res) => {
+    await balanceHistoryHandler(req, res);
 });
 
 // Eldorado price endpoint - get optimal price for brainrot
