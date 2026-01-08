@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.75 - Fix status endpoint to use MySQL in server.js
-// - Status endpoint was using local file functions instead of MySQL
-// - Now reads farmer.accounts from MySQL database
-// - Calculate totalIncome from brainrots array
+// FarmerPanel App v9.12.76 - Fix sync endpoints to include calculated fields
+// - /api/sync and /api/sync-fast now return totalIncome, totalIncomeFormatted, totalBrainrots
+// - Dashboard cards and accounts page now show correct income and brainrot count
+// - All endpoints calculate income from brainrots array
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 

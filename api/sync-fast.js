@@ -70,7 +70,7 @@ module.exports = async (req, res) => {
             return res.status(404).json({ error: 'Farm key not found' });
         }
 
-        // Process accounts with online status
+        // Process accounts with online status and calculated income
         const ONLINE_THRESHOLD = 180 * 1000; // 3 minutes
         const accountsWithStatus = (farmer.accounts || []).map(acc => {
             let isOnline = false;
@@ -80,11 +80,42 @@ module.exports = async (req, res) => {
                     isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
                 } catch (e) {}
             }
+            
+            // Calculate totalIncome from brainrots
+            const brainrots = acc.brainrots || [];
+            let totalIncome = 0;
+            for (const br of brainrots) {
+                if (typeof br.income === 'number') {
+                    totalIncome += br.income;
+                } else if (typeof br.income === 'string') {
+                    const num = parseFloat(br.income.replace(/[^\d.]/g, ''));
+                    if (!isNaN(num)) totalIncome += num;
+                }
+            }
+            
+            // Format income
+            let totalIncomeFormatted = '0/s';
+            if (totalIncome > 0) {
+                if (totalIncome >= 1e9) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e9).toFixed(1)}B/s`;
+                } else if (totalIncome >= 1e6) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e6).toFixed(1)}M/s`;
+                } else if (totalIncome >= 1e3) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e3).toFixed(1)}K/s`;
+                } else {
+                    totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
+                }
+            }
+            
             return {
                 ...acc,
                 isOnline: isOnline,
                 status: acc.status || 'idle',
-                action: acc.action || ''
+                action: acc.action || '',
+                totalIncome: totalIncome,
+                totalIncomeFormatted: totalIncomeFormatted,
+                totalBrainrots: brainrots.length,
+                maxSlots: acc.maxSlots || 10
             };
         });
 
@@ -145,11 +176,42 @@ async function refreshCacheInBackground(key, cacheKey) {
                     isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
                 } catch (e) {}
             }
+            
+            // Calculate totalIncome from brainrots
+            const brainrots = acc.brainrots || [];
+            let totalIncome = 0;
+            for (const br of brainrots) {
+                if (typeof br.income === 'number') {
+                    totalIncome += br.income;
+                } else if (typeof br.income === 'string') {
+                    const num = parseFloat(br.income.replace(/[^\d.]/g, ''));
+                    if (!isNaN(num)) totalIncome += num;
+                }
+            }
+            
+            // Format income
+            let totalIncomeFormatted = '0/s';
+            if (totalIncome > 0) {
+                if (totalIncome >= 1e9) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e9).toFixed(1)}B/s`;
+                } else if (totalIncome >= 1e6) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e6).toFixed(1)}M/s`;
+                } else if (totalIncome >= 1e3) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e3).toFixed(1)}K/s`;
+                } else {
+                    totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
+                }
+            }
+            
             return {
                 ...acc,
                 isOnline: isOnline,
                 status: acc.status || 'idle',
-                action: acc.action || ''
+                action: acc.action || '',
+                totalIncome: totalIncome,
+                totalIncomeFormatted: totalIncomeFormatted,
+                totalBrainrots: brainrots.length,
+                maxSlots: acc.maxSlots || 10
             };
         });
 

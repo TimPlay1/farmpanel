@@ -969,7 +969,58 @@ app.get('/api/sync', async (req, res) => {
         const farmer = await farmersCollection.findOne({ farmKey: key });
         
         if (farmer) {
-            const accounts = farmer.accounts || [];
+            const rawAccounts = farmer.accounts || [];
+            const now = Date.now();
+            const ONLINE_THRESHOLD = 180 * 1000; // 3 minutes
+            
+            // Process accounts to add calculated fields
+            const accounts = rawAccounts.map(acc => {
+                // Calculate isOnline from lastUpdate
+                let isOnline = false;
+                if (acc.lastUpdate) {
+                    try {
+                        const lastUpdateTime = new Date(acc.lastUpdate).getTime();
+                        isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
+                    } catch (e) {}
+                }
+                
+                // Calculate totalIncome from brainrots
+                const brainrots = acc.brainrots || [];
+                let totalIncome = 0;
+                for (const br of brainrots) {
+                    if (typeof br.income === 'number') {
+                        totalIncome += br.income;
+                    } else if (typeof br.income === 'string') {
+                        const num = parseFloat(br.income.replace(/[^\d.]/g, ''));
+                        if (!isNaN(num)) totalIncome += num;
+                    }
+                }
+                
+                // Format income
+                let totalIncomeFormatted = '0/s';
+                if (totalIncome > 0) {
+                    if (totalIncome >= 1e9) {
+                        totalIncomeFormatted = `$${(totalIncome / 1e9).toFixed(1)}B/s`;
+                    } else if (totalIncome >= 1e6) {
+                        totalIncomeFormatted = `$${(totalIncome / 1e6).toFixed(1)}M/s`;
+                    } else if (totalIncome >= 1e3) {
+                        totalIncomeFormatted = `$${(totalIncome / 1e3).toFixed(1)}K/s`;
+                    } else {
+                        totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
+                    }
+                }
+                
+                return {
+                    ...acc,
+                    isOnline: isOnline,
+                    totalIncome: totalIncome,
+                    totalIncomeFormatted: totalIncomeFormatted,
+                    totalBrainrots: brainrots.length,
+                    maxSlots: acc.maxSlots || 10,
+                    brainrots: brainrots
+                };
+            });
+            
             const totalGlobalIncome = accounts.reduce((sum, acc) => sum + (acc.totalIncome || 0), 0);
             
             res.json({
