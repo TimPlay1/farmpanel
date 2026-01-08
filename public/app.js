@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.68 - Fix all toFixed errors for MySQL string values (competitorPrice, defPrice, mutPrice, etc.)
+// FarmerPanel App v9.12.69 - Fix chart retry spam + remove app.js preload warning
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -11128,6 +11128,7 @@ let lastChartDataHash = null; // Track if data actually changed
 let isChartUpdating = false; // Prevent concurrent updates
 let chartRetryCount = 0; // v9.11.24: Moved here for proper reset
 let chartNotVisibleLogged = false; // v9.12.29: Prevent spam when chart not visible
+let chartWasVisible = false; // v9.12.69: Track if chart was ever visible
 
 // Update balance chart with debounce (non-blocking)
 function updateBalanceChart(period = currentChartPeriod) {
@@ -11136,9 +11137,12 @@ function updateBalanceChart(period = currentChartPeriod) {
         clearTimeout(chartUpdateTimer);
     }
     
-    // v9.11.24: Reset retry count on new user-initiated update
-    chartRetryCount = 0;
-    chartNotVisibleLogged = false; // Reset log flag
+    // v9.12.69: Only reset retry count if chart was visible (user switched tabs)
+    // Don't reset if chart was never visible to prevent infinite retry spam
+    if (chartWasVisible) {
+        chartRetryCount = 0;
+        chartNotVisibleLogged = false; // Reset log flag
+    }
     
     // v9.11.22: Don't skip if updating - queue instead
     // Debounce chart updates to prevent flickering
@@ -11214,6 +11218,9 @@ function _doUpdateBalanceChart(period) {
             return;
         }
     }
+    
+    // v9.12.69: Mark chart as having been visible at least once
+    chartWasVisible = true;
     
     // Reset retry count and log flag on success
     chartRetryCount = 0;
