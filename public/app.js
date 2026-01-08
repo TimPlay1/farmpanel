@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.74 - Fix status endpoint empty accounts
-// - Debug: farmer.accounts not loading from MySQL
-// - Remove MongoDB projection from status.js (not supported in MySQL adapter)
-// - Calculate totalIncome from brainrots in status endpoint
+// FarmerPanel App v9.12.75 - Fix status endpoint to use MySQL in server.js
+// - Status endpoint was using local file functions instead of MySQL
+// - Now reads farmer.accounts from MySQL database
+// - Calculate totalIncome from brainrots array
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 

@@ -860,9 +860,10 @@ function mergeAllAccountsData(forceRefresh = false) {
 }
 
 // Fast status-only endpoint - lightweight for quick updates
+// v9.12.74: Fixed to use MySQL instead of local files
 app.get('/api/status', async (req, res) => {
     res.set({
-        'Cache-Control': 'public, max-age=1',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
         'Content-Type': 'application/json'
     });
     
@@ -871,58 +872,78 @@ app.get('/api/status', async (req, res) => {
         return res.status(400).json({ error: 'Farm key required' });
     }
     
-    // Read the key from file (for local development)
-    let storedKey = null;
-    const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
     try {
-        if (fs.existsSync(keyFilePath)) {
-            storedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
+        // Get farmer from MySQL database
+        const { db } = await connectToDatabase();
+        const farmer = await db.collection('farmers').findOne({ farmKey: key });
+        
+        if (!farmer) {
+            return res.status(404).json({ error: 'Farm not found' });
         }
-    } catch (err) {}
-    
-    const panelData = readPanelData();
-    const panelKey = panelData?.farmKey;
-    
-    // First check local files
-    let isValidKey = key === storedKey || key === panelKey;
-    
-    // If not found locally, check MySQL database
-    if (!isValidKey) {
-        try {
-            const { db } = await connectToDatabase();
-            const farmersCollection = db.collection('farmers');
-            const farmer = await farmersCollection.findOne({ farmKey: key });
-            if (farmer) {
-                isValidKey = true;
+        
+        // Calculate isOnline on server based on lastUpdate
+        const now = Date.now();
+        const ONLINE_THRESHOLD = 180 * 1000; // 3 minutes
+        
+        const accounts = (farmer.accounts || []).map(acc => {
+            let isOnline = false;
+            if (acc.lastUpdate) {
+                try {
+                    const lastUpdateTime = new Date(acc.lastUpdate).getTime();
+                    isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
+                } catch (e) {}
             }
-        } catch (err) {
-            console.error('Error checking MySQL for farm key:', err.message);
-        }
+            
+            // Calculate totalIncome from brainrots
+            const brainrots = acc.brainrots || [];
+            let totalIncome = 0;
+            for (const br of brainrots) {
+                if (typeof br.income === 'number') {
+                    totalIncome += br.income;
+                } else if (typeof br.income === 'string') {
+                    const num = parseFloat(br.income.replace(/[^\d.]/g, ''));
+                    if (!isNaN(num)) totalIncome += num;
+                }
+            }
+            
+            // Format income
+            let totalIncomeFormatted = '0/s';
+            if (totalIncome > 0) {
+                if (totalIncome >= 1e9) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e9).toFixed(1)}B/s`;
+                } else if (totalIncome >= 1e6) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e6).toFixed(1)}M/s`;
+                } else if (totalIncome >= 1e3) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e3).toFixed(1)}K/s`;
+                } else {
+                    totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
+                }
+            }
+            
+            return {
+                playerName: acc.playerName,
+                userId: acc.userId,
+                isOnline: isOnline,
+                lastUpdate: acc.lastUpdate,
+                status: acc.status || 'idle',
+                action: acc.action || '',
+                totalIncome: totalIncome,
+                totalIncomeFormatted: totalIncomeFormatted,
+                totalBrainrots: brainrots.length,
+                maxSlots: acc.maxSlots || 10,
+                brainrots: brainrots
+            };
+        });
+        
+        res.json({
+            timestamp: Date.now(),
+            accounts: accounts
+        });
+        
+    } catch (error) {
+        console.error('Status endpoint error:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
-    
-    if (!isValidKey) {
-        return res.status(401).json({ error: 'Invalid key' });
-    }
-    
-    // Get accounts with minimal processing
-    const accounts = mergeAllAccountsData();
-    
-    const statusData = accounts.map(acc => ({
-        playerName: acc.playerName,
-        isOnline: acc.isOnline,
-        lastUpdate: acc.lastUpdate,
-        status: acc.status,
-        action: acc.action,
-        totalIncome: acc.totalIncome,
-        totalIncomeFormatted: acc.totalIncomeFormatted,
-        totalBrainrots: acc.totalBrainrots,
-        maxSlots: acc.maxSlots
-    }));
-    
-    res.json({
-        timestamp: Date.now(),
-        accounts: statusData
-    });
 });
 
 // Sync endpoint - returns current panel data from MySQL
