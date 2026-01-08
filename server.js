@@ -629,6 +629,8 @@ app.get('/api/generations', async (req, res) => {
         // Convert array to object keyed by brainrotName
         const userGenerations = {};
         for (const gen of generations) {
+            // v9.12.85: Guard against undefined brainrotName
+            if (!gen.brainrotName) continue;
             userGenerations[gen.brainrotName.toLowerCase()] = {
                 name: gen.brainrotName,
                 accountId: gen.accountId,
@@ -656,6 +658,8 @@ app.get('/api/generations/:farmKey', async (req, res) => {
         // Convert array to object keyed by brainrotName
         const userGenerations = {};
         for (const gen of generations) {
+            // v9.12.85: Guard against undefined brainrotName
+            if (!gen.brainrotName) continue;
             userGenerations[gen.brainrotName.toLowerCase()] = {
                 name: gen.brainrotName,
                 accountId: gen.accountId,

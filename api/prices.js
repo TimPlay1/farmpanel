@@ -64,7 +64,8 @@ module.exports = async (req, res) => {
                                 break;
                             }
                         }
-                        maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 50;
+                        // v9.12.85: Increased fallback from $50 to $500 for high-value brainrots
+                        maxLimit = msRangeKey ? maxPriceLimits[msRangeKey] : 500;
                     }
                     
                     // SANITY CHECK: если цена превышает лимит - отклоняем
