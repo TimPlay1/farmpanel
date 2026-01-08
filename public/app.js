@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.81 - Add aggregated totals to sync-fast response
+// FarmerPanel App v9.12.82 - Fix price type casting (string to number) for balance calculation
 // - Always calculate totalValue from brainrot prices on frontend
 // - Don't use outdated totalValue from MySQL database
 // - Balance history now records calculated values only
@@ -5780,15 +5780,21 @@ function getSelectedPrice(priceData) {
     
     const priceType = collectionState.priceType || 'suggested';
     
+    let price = null;
     switch (priceType) {
         case 'median':
-            return priceData.medianPrice || priceData.suggestedPrice || null;
+            price = priceData.medianPrice || priceData.suggestedPrice || null;
+            break;
         case 'nextCompetitor':
-            return priceData.nextCompetitorPrice || priceData.suggestedPrice || null;
+            price = priceData.nextCompetitorPrice || priceData.suggestedPrice || null;
+            break;
         case 'suggested':
         default:
-            return priceData.suggestedPrice || null;
+            price = priceData.suggestedPrice || null;
     }
+    
+    // v9.12.82: Always return number (MySQL returns strings)
+    return price !== null ? parseFloat(price) : null;
 }
 
 /**
