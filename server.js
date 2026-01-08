@@ -406,6 +406,15 @@ app.post('/api/balance-history', async (req, res) => {
     await balanceHistoryHandler(req, res);
 });
 
+// Balance history v2 endpoint (alias for balance-history)
+app.get('/api/balance-history-v2', async (req, res) => {
+    await balanceHistoryHandler(req, res);
+});
+
+app.post('/api/balance-history-v2', async (req, res) => {
+    await balanceHistoryHandler(req, res);
+});
+
 // Offer codes endpoint
 app.get('/api/offer-codes', async (req, res) => {
     await offerCodesHandler(req, res);
@@ -836,7 +845,7 @@ function mergeAllAccountsData(forceRefresh = false) {
 }
 
 // Fast status-only endpoint - lightweight for quick updates
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
     res.set({
         'Cache-Control': 'public, max-age=1',
         'Content-Type': 'application/json'
@@ -847,7 +856,7 @@ app.get('/api/status', (req, res) => {
         return res.status(400).json({ error: 'Farm key required' });
     }
     
-    // Read the key from file
+    // Read the key from file (for local development)
     let storedKey = null;
     const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
     try {
@@ -859,7 +868,24 @@ app.get('/api/status', (req, res) => {
     const panelData = readPanelData();
     const panelKey = panelData?.farmKey;
     
-    if (key !== storedKey && key !== panelKey) {
+    // First check local files
+    let isValidKey = key === storedKey || key === panelKey;
+    
+    // If not found locally, check MySQL database
+    if (!isValidKey) {
+        try {
+            const { db } = await connectToDatabase();
+            const farmersCollection = db.collection('farmers');
+            const farmer = await farmersCollection.findOne({ farmKey: key });
+            if (farmer) {
+                isValidKey = true;
+            }
+        } catch (err) {
+            console.error('Error checking MySQL for farm key:', err.message);
+        }
+    }
+    
+    if (!isValidKey) {
         return res.status(401).json({ error: 'Invalid key' });
     }
     

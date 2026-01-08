@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.61 - Fix price change % disappearing (preserve until next actual change)
+// FarmerPanel App v9.12.68 - Fix all toFixed errors for MySQL string values (competitorPrice, defPrice, mutPrice, etc.)
 // - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
 // - Removed Roblox API calls from GET request (only done on POST sync from script)
 // - GET sync now does single DB query instead of N+1 queries
@@ -2689,7 +2689,7 @@ function renderPriceBlock(priceData, cacheKey) {
     
     const isAboveMarket = priceData.priceSource && priceData.priceSource.includes('above market');
     const competitorInfo = priceData.competitorPrice 
-        ? `${isAboveMarket ? 'max ' : '~'}$${priceData.competitorPrice.toFixed(2)}` 
+        ? `${isAboveMarket ? 'max ' : '~'}$${parseFloat(priceData.competitorPrice).toFixed(2)}` 
         : '';
     const priceChange = getPriceChangePercent(cacheKey, selectedPrice);
     const changeHtml = formatPriceChange(priceChange);
@@ -8808,9 +8808,9 @@ function renderOffers() {
                 <div class="offer-price-variants">
                     ${(() => {
                         // v9.11.7: Default variant with opportunity animation
-                        const defPrice = offer.defaultRecommendedPrice || offer._lastDefaultPrice || 0;
+                        const defPrice = parseFloat(offer.defaultRecommendedPrice || offer._lastDefaultPrice || 0);
                         const defHasOpportunity = offer.defaultNextCompetitorPrice && offer.defaultRecommendedPrice && 
-                            (offer.defaultNextCompetitorPrice / offer.defaultRecommendedPrice) > 2;
+                            (parseFloat(offer.defaultNextCompetitorPrice) / parseFloat(offer.defaultRecommendedPrice)) > 2;
                         return `
                         <div class="offer-price-variant default" data-price="${defPrice}">
                             <div class="offer-variant-header">
@@ -8825,16 +8825,16 @@ function renderOffers() {
                             </div>
                             <div class="offer-variant-price ${defPrice > 0 ? '' : 'no-price'}">${defPrice > 0 ? '$' + defPrice.toFixed(2) : 'N/A'}</div>
                             <div class="offer-variant-extras">
-                                ${offer.defaultMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${offer.defaultMedianPrice.toFixed(2)}</span>` : ''}
-                                ${offer.defaultNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${defHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${offer.defaultNextCompetitorPrice.toFixed(2)}</span>` : ''}
+                                ${offer.defaultMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${parseFloat(offer.defaultMedianPrice).toFixed(2)}</span>` : ''}
+                                ${offer.defaultNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${defHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${parseFloat(offer.defaultNextCompetitorPrice).toFixed(2)}</span>` : ''}
                             </div>
                         </div>`;
                     })()}
                     ${(() => {
                         // v9.11.7: Mutation variant with opportunity animation
-                        const mutPrice = offer.mutationRecommendedPrice || offer._lastMutationPrice || 0;
+                        const mutPrice = parseFloat(offer.mutationRecommendedPrice || offer._lastMutationPrice || 0);
                         const mutHasOpportunity = offer.mutationNextCompetitorPrice && offer.mutationRecommendedPrice && 
-                            (offer.mutationNextCompetitorPrice / offer.mutationRecommendedPrice) > 2;
+                            (parseFloat(offer.mutationNextCompetitorPrice) / parseFloat(offer.mutationRecommendedPrice)) > 2;
                         const mStyles = getMutationStyles(offer.mutation);
                         return `
                         <div class="offer-price-variant mutated" data-price="${mutPrice}" style="--mutation-glow: ${mStyles.glowColor}40; --mutation-bg: ${mStyles.background};">
@@ -8850,8 +8850,8 @@ function renderOffers() {
                             </div>
                             <div class="offer-variant-price ${mutPrice > 0 ? '' : 'no-price'}">${mutPrice > 0 ? '$' + mutPrice.toFixed(2) : 'N/A'}</div>
                             <div class="offer-variant-extras">
-                                ${offer.mutationMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${offer.mutationMedianPrice.toFixed(2)}</span>` : ''}
-                                ${offer.mutationNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${mutHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${offer.mutationNextCompetitorPrice.toFixed(2)}</span>` : ''}
+                                ${offer.mutationMedianPrice ? `<span class="offer-variant-extra median"><i class="fas fa-chart-bar"></i>$${parseFloat(offer.mutationMedianPrice).toFixed(2)}</span>` : ''}
+                                ${offer.mutationNextCompetitorPrice ? `<span class="offer-variant-extra next-comp ${mutHasOpportunity ? 'opportunity' : ''}"><i class="fas fa-arrow-up"></i>$${parseFloat(offer.mutationNextCompetitorPrice).toFixed(2)}</span>` : ''}
                             </div>
                         </div>`;
                     })()}
