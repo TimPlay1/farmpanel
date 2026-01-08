@@ -270,6 +270,48 @@ class MySQLCollection {
         return { ok: 1 };
     }
     
+    // Bulk write operations (MongoDB compatibility)
+    async bulkWrite(operations, options = {}) {
+        let insertCount = 0;
+        let updateCount = 0;
+        let deleteCount = 0;
+        
+        for (const op of operations) {
+            try {
+                if (op.insertOne) {
+                    await this.insertOne(op.insertOne.document || op.insertOne);
+                    insertCount++;
+                } else if (op.updateOne) {
+                    const result = await this.updateOne(
+                        op.updateOne.filter,
+                        op.updateOne.update,
+                        { upsert: op.updateOne.upsert || false }
+                    );
+                    updateCount++;
+                } else if (op.deleteOne) {
+                    await this.deleteOne(op.deleteOne.filter);
+                    deleteCount++;
+                } else if (op.updateMany) {
+                    await this.updateMany(op.updateMany.filter, op.updateMany.update);
+                    updateCount++;
+                } else if (op.deleteMany) {
+                    await this.deleteMany(op.deleteMany.filter);
+                    deleteCount++;
+                }
+            } catch (e) {
+                console.error(`bulkWrite operation failed:`, e.message);
+            }
+        }
+        
+        return {
+            ok: 1,
+            insertedCount: insertCount,
+            modifiedCount: updateCount,
+            deletedCount: deleteCount,
+            acknowledged: true
+        };
+    }
+    
     // ============ Helper Methods ============
     
     _buildSelect(filter, options = {}) {

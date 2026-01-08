@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.71 - Fix supa-generate, adjustment-queue, JSON limit, more toFixed
-// - Removed slow avatar lookups from GET /api/sync (was loading ALL avatars from DB)
-// - Removed Roblox API calls from GET request (only done on POST sync from script)
-// - GET sync now does single DB query instead of N+1 queries
+// FarmerPanel App v9.12.72 - Fix MySQL adapter for generations, queue, bulkWrite
+// - Added bulkWrite method to MySQL adapter for MongoDB compatibility
+// - Fixed generations.js to use full JSON replacement (MySQL compatible)
+// - Fixed queue.js to use correct column name (queueData -> queue_data)
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 

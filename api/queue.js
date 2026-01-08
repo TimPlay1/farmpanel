@@ -38,13 +38,17 @@ module.exports = async (req, res) => {
             
             const queueDoc = await db.collection('queues').findOne({ farmKey });
             
-            if (queueDoc && queueDoc.queue && queueDoc.queue.length > 0) {
-                // Check if queue is not expired (1 hour max)
-                const age = Date.now() - (queueDoc.timestamp || 0);
-                if (age < 3600000) {
-                    // Cache it
-                    queueCache.set(farmKey, { queue: queueDoc.queue, timestamp: Date.now() });
-                    return res.json({ success: true, queue: queueDoc.queue });
+            if (queueDoc) {
+                // MySQL stores in 'queueData' (camelCase from queue_data)
+                const queue = queueDoc.queueData || queueDoc.queue || [];
+                if (queue.length > 0) {
+                    // Check if queue is not expired (1 hour max)
+                    const age = Date.now() - (queueDoc.timestamp || queueDoc.createdAt?.getTime() || 0);
+                    if (age < 3600000) {
+                        // Cache it
+                        queueCache.set(farmKey, { queue: queue, timestamp: Date.now() });
+                        return res.json({ success: true, queue: queue });
+                    }
                 }
             }
             
@@ -59,13 +63,13 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Missing farmKey or queue' });
             }
             
+            // MySQL uses queue_data column (maps to queueData)
             await db.collection('queues').updateOne(
                 { farmKey: key },
                 { 
                     $set: { 
                         farmKey: key,
-                        queue: queue,
-                        timestamp: Date.now()
+                        queueData: queue  // MySQL column name
                     }
                 },
                 { upsert: true }

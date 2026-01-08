@@ -40,7 +40,8 @@ module.exports = async (req, res) => {
             }
 
             const doc = await collection.findOne({ farmKey });
-            const generations = doc?.generations || {};
+            // MySQL stores JSON in 'data' column
+            const generations = doc?.data || doc?.generations || {};
             
             return res.json({ generations });
         }
@@ -54,15 +55,16 @@ module.exports = async (req, res) => {
             }
 
             // Уникальный ключ: accountId_name_income
-            // ВАЖНО: Заменяем точки на подчёркивания (MongoDB не позволяет точки в ключах)
+            // ВАЖНО: Заменяем точки на подчёркивания (MySQL JSON keys can have dots but we avoid for consistency)
             const normalizedIncome = String(income || '0').replace(/\./g, '_');
             const brainrotKey = `${accountId}_${brainrotName.toLowerCase().trim().replace(/\./g, '_')}_${normalizedIncome}`;
             
             console.log('Saving generation with key:', brainrotKey);
             
-            // Get current count for this specific brainrot
+            // Get current data (MySQL stores in 'data' JSON column)
             const existing = await collection.findOne({ farmKey });
-            const currentCount = existing?.generations?.[brainrotKey]?.count || 0;
+            const currentData = existing?.data || existing?.generations || {};
+            const currentCount = currentData[brainrotKey]?.count || 0;
 
             const generation = {
                 name: brainrotName,
@@ -73,17 +75,21 @@ module.exports = async (req, res) => {
                 count: currentCount + 1
             };
 
-            // Upsert the generation
-            await collection.updateOne(
-                { farmKey },
-                { 
-                    $set: { 
-                        [`generations.${brainrotKey}`]: generation,
-                        updatedAt: new Date()
-                    }
-                },
-                { upsert: true }
-            );
+            // Update the data object
+            currentData[brainrotKey] = generation;
+            
+            // For MySQL: upsert with full data replacement
+            if (existing) {
+                await collection.updateOne(
+                    { farmKey },
+                    { $set: { data: currentData } }
+                );
+            } else {
+                await collection.insertOne({
+                    farmKey,
+                    data: currentData
+                });
+            }
 
             return res.json({ success: true, generation, key: brainrotKey });
         }
@@ -98,10 +104,16 @@ module.exports = async (req, res) => {
 
             const brainrotKey = brainrotName.toLowerCase().trim();
 
-            await collection.updateOne(
-                { farmKey },
-                { $unset: { [`generations.${brainrotKey}`]: "" } }
-            );
+            // Get current data and remove the key
+            const existing = await collection.findOne({ farmKey });
+            if (existing) {
+                const currentData = existing.data || existing.generations || {};
+                delete currentData[brainrotKey];
+                await collection.updateOne(
+                    { farmKey },
+                    { $set: { data: currentData } }
+                );
+            }
 
             return res.json({ success: true });
         }
