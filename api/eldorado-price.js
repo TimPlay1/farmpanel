@@ -1,7 +1,20 @@
 const https = require('https');
-const http = require('http');
 const fs = require('fs');
 const path = require('path');
+
+// v3.0.22: SOCKS5 proxy support
+let SocksProxyAgent = null;
+let proxyAgent = null;
+try {
+    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
+    const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL;
+    if (SOCKS5_PROXY_URL) {
+        proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
+        console.log('✅ SOCKS5 proxy agent loaded for eldorado-price');
+    }
+} catch (e) {
+    console.warn('⚠️ socks-proxy-agent not available:', e.message);
+}
 
 // v3.0.21: User-Agent Rotation Pool (shared with cron-price-scanner)
 const USER_AGENTS = [

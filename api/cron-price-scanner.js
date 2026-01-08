@@ -20,10 +20,19 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.21';  // User-Agent rotation & proxy support
+const VERSION = '3.0.22';  // SOCKS5 proxy support via socks-proxy-agent
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
+
+// v3.0.22: SOCKS5 proxy support
+let SocksProxyAgent = null;
+try {
+    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
+    console.log('✅ SOCKS proxy agent loaded');
+} catch (e) {
+    console.warn('⚠️ socks-proxy-agent not available:', e.message);
+}
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
@@ -42,14 +51,29 @@ const USER_AGENTS = [
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
 ];
 
-// v3.0.21: Proxy configuration (optional)
-// Set these environment variables to use a proxy:
-// PROXY_HOST, PROXY_PORT, PROXY_USER, PROXY_PASS
-const PROXY_CONFIG = {
-    host: process.env.PROXY_HOST || null,
-    port: parseInt(process.env.PROXY_PORT) || 0,
-    auth: process.env.PROXY_USER ? `${process.env.PROXY_USER}:${process.env.PROXY_PASS}` : null,
-};
+// v3.0.22: SOCKS5 Proxy configuration
+// Set SOCKS5_PROXY_URL environment variable:
+// socks5://username:password@host:port
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null;
+
+// v3.0.22: Create proxy agent if configured
+let proxyAgent = null;
+function getProxyAgent() {
+    if (!proxyAgent && SOCKS5_PROXY_URL && SocksProxyAgent) {
+        try {
+            proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
+            console.log('✅ SOCKS5 proxy agent created');
+        } catch (e) {
+            console.error('❌ Failed to create proxy agent:', e.message);
+        }
+    }
+    return proxyAgent;
+}
+
+// v3.0.22: Check if SOCKS5 proxy is configured
+function isProxyConfigured() {
+    return !!SOCKS5_PROXY_URL && !!SocksProxyAgent;
+}
 
 // v3.0.20: Adaptive Rate Limiting System
 // Автоматически адаптируется к rate limit ошибкам Cloudflare
@@ -75,11 +99,6 @@ function getCurrentUserAgent() {
 function rotateUserAgent() {
     adaptiveRateLimit.currentUserAgentIndex = (adaptiveRateLimit.currentUserAgentIndex + 1) % USER_AGENTS.length;
     console.log(`🔄 Rotated to User-Agent #${adaptiveRateLimit.currentUserAgentIndex + 1}/${USER_AGENTS.length}`);
-}
-
-// v3.0.21: Check if proxy is configured
-function isProxyConfigured() {
-    return PROXY_CONFIG.host && PROXY_CONFIG.port > 0;
 }
 
 // Проверяем backup mode
@@ -570,20 +589,16 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             }
         };
 
-        // v3.0.21: Add proxy support if enabled
-        let httpModule = https;
+        // v3.0.22: Add SOCKS5 proxy support if enabled
         if (adaptiveRateLimit.useProxy && isProxyConfigured()) {
-            options.host = PROXY_CONFIG.host;
-            options.port = PROXY_CONFIG.port;
-            options.path = `https://www.eldorado.gg${queryPath}`;
-            delete options.hostname;
-            if (PROXY_CONFIG.auth) {
-                options.headers['Proxy-Authorization'] = 'Basic ' + Buffer.from(PROXY_CONFIG.auth).toString('base64');
+            const agent = getProxyAgent();
+            if (agent) {
+                options.agent = agent;
+                console.log('🔀 Using SOCKS5 proxy for this request');
             }
-            httpModule = http; // Most proxies use HTTP for CONNECT
         }
 
-        const req = httpModule.request(options, (res) => {
+        const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
