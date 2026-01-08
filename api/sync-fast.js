@@ -119,6 +119,28 @@ module.exports = async (req, res) => {
             };
         });
 
+        // v9.12.80: Calculate totals from all accounts
+        let aggregatedTotalIncome = 0;
+        let aggregatedTotalBrainrots = 0;
+        for (const acc of accountsWithStatus) {
+            aggregatedTotalIncome += acc.totalIncome || 0;
+            aggregatedTotalBrainrots += acc.totalBrainrots || 0;
+        }
+        
+        // Format aggregated income
+        let aggregatedTotalIncomeFormatted = '0/s';
+        if (aggregatedTotalIncome > 0) {
+            if (aggregatedTotalIncome >= 1e9) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e9).toFixed(1)}B/s`;
+            } else if (aggregatedTotalIncome >= 1e6) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e6).toFixed(1)}M/s`;
+            } else if (aggregatedTotalIncome >= 1e3) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e3).toFixed(1)}K/s`;
+            } else {
+                aggregatedTotalIncomeFormatted = `$${aggregatedTotalIncome.toFixed(0)}/s`;
+            }
+        }
+
         const responseData = {
             success: true,
             farmKey: farmer.farmKey,
@@ -130,7 +152,11 @@ module.exports = async (req, res) => {
             lastUpdate: farmer.lastUpdate,
             // v9.12.78: parseFloat for MySQL compatibility
             totalValue: parseFloat(farmer.totalValue) || 0,
-            valueUpdatedAt: farmer.valueUpdatedAt || null
+            valueUpdatedAt: farmer.valueUpdatedAt || null,
+            // v9.12.80: Add aggregated totals
+            totalIncome: aggregatedTotalIncome,
+            totalIncomeFormatted: aggregatedTotalIncomeFormatted,
+            totalBrainrots: aggregatedTotalBrainrots
         };
 
         // Cache the result
@@ -216,6 +242,28 @@ async function refreshCacheInBackground(key, cacheKey) {
             };
         });
 
+        // v9.12.80: Calculate totals from all accounts (background refresh)
+        let aggregatedTotalIncome = 0;
+        let aggregatedTotalBrainrots = 0;
+        for (const acc of accountsWithStatus) {
+            aggregatedTotalIncome += acc.totalIncome || 0;
+            aggregatedTotalBrainrots += acc.totalBrainrots || 0;
+        }
+        
+        // Format aggregated income
+        let aggregatedTotalIncomeFormatted = '0/s';
+        if (aggregatedTotalIncome > 0) {
+            if (aggregatedTotalIncome >= 1e9) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e9).toFixed(1)}B/s`;
+            } else if (aggregatedTotalIncome >= 1e6) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e6).toFixed(1)}M/s`;
+            } else if (aggregatedTotalIncome >= 1e3) {
+                aggregatedTotalIncomeFormatted = `$${(aggregatedTotalIncome / 1e3).toFixed(1)}K/s`;
+            } else {
+                aggregatedTotalIncomeFormatted = `$${aggregatedTotalIncome.toFixed(0)}/s`;
+            }
+        }
+
         const responseData = {
             success: true,
             farmKey: farmer.farmKey,
@@ -227,7 +275,11 @@ async function refreshCacheInBackground(key, cacheKey) {
             lastUpdate: farmer.lastUpdate,
             // v9.12.78: parseFloat for MySQL compatibility
             totalValue: parseFloat(farmer.totalValue) || 0,
-            valueUpdatedAt: farmer.valueUpdatedAt || null
+            valueUpdatedAt: farmer.valueUpdatedAt || null,
+            // v9.12.80: Add aggregated totals
+            totalIncome: aggregatedTotalIncome,
+            totalIncomeFormatted: aggregatedTotalIncomeFormatted,
+            totalBrainrots: aggregatedTotalBrainrots
         };
 
         syncCache.set(cacheKey, {
