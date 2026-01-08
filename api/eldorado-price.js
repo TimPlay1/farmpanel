@@ -1202,6 +1202,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             if (price <= 0) continue;
             
             const offerData = {
+                id: offerId, // v9.12.89: Store offerId for nextCompetitor comparison
                 title: offerTitle,
                 income: parsedIncome || 0,
                 price: price,
@@ -1222,10 +1223,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 upperPage = page;
                 console.log('Found UPPER at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
             }
-            // v9.12.88: Ищем nextCompetitor (после upper с income >= target И цена >= upper.price, но ДРУГОЙ оффер)
+            // v9.12.89: Ищем nextCompetitor (после upper с income >= target И цена >= upper.price, но ДРУГОЙ оффер)
             // Изменено: price >= upperOffer.price (было >) чтобы учитывать офферы с той же ценой от других продавцов
             else if (upperOffer && !nextCompetitor && parsedIncome && parsedIncome >= targetIncome && 
-                     price >= upperOffer.price && offer.offerId !== upperOffer.id) {
+                     price >= upperOffer.price && offerId !== upperOffer.id) {
                 nextCompetitor = offerData;
                 console.log('Found NEXT COMPETITOR at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
             }
@@ -1648,6 +1649,49 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                                         nextRange: nextRange
                                     };
                                     console.log(`   📊 Median recalculated from next range ${nextRange}: $${nextMedian.toFixed(2)} → -$${nextMedianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                                }
+                            }
+                            
+                            // v9.12.89: Когда переключаемся на next range, обновляем nextCompetitorPrice
+                            // из результатов ТЕКУЩЕГО (исходного) диапазона - это следующий конкурент после нашего upper
+                            // Если в текущем диапазоне были офферы с income >= наш и price > nextRangeCompetitor.price
+                            // то они становятся нашим nextCompetitor
+                            if (nextCompetitor && nextCompetitor.price > competitorPrice) {
+                                // NextCompetitor из текущего диапазона ещё актуален
+                                // Пересчитываем с новым lower (= cheapestOffer из nextRange)
+                                const ncReduction = calculateReduction(nextCompetitor.price, competitorPrice);
+                                nextCompetitorPrice = Math.round((nextCompetitor.price - ncReduction) * 100) / 100;
+                                nextCompetitorData = {
+                                    income: nextCompetitor.income,
+                                    price: nextCompetitor.price,
+                                    lowerPrice: competitorPrice,
+                                    lowerIncome: competitorIncome,
+                                    priceDiff: nextCompetitor.price - competitorPrice,
+                                    recalculatedFromNextRange: true
+                                };
+                                console.log(`   📈 NextCompetitor recalculated: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}, lower: $${competitorPrice.toFixed(2)} → $${nextCompetitorPrice.toFixed(2)}`);
+                            } else {
+                                // Нет актуального nextCompetitor из текущего диапазона
+                                // Используем nextCompetitor из следующего диапазона если есть
+                                if (nextRangeResult.nextCompetitor) {
+                                    const nrc = nextRangeResult.nextCompetitor;
+                                    const nrcReduction = calculateReduction(nrc.price, competitorPrice);
+                                    nextCompetitorPrice = Math.round((nrc.price - nrcReduction) * 100) / 100;
+                                    nextCompetitorData = {
+                                        income: nrc.income,
+                                        price: nrc.price,
+                                        lowerPrice: competitorPrice,
+                                        lowerIncome: competitorIncome,
+                                        priceDiff: nrc.price - competitorPrice,
+                                        fromNextRange: true,
+                                        nextRange: nextRange
+                                    };
+                                    console.log(`   📈 NextCompetitor from next range: ${nrc.income}M/s @ $${nrc.price.toFixed(2)} → $${nextCompetitorPrice.toFixed(2)}`);
+                                } else {
+                                    // Сбрасываем nextCompetitor - нет подходящего
+                                    nextCompetitorPrice = null;
+                                    nextCompetitorData = null;
+                                    console.log(`   📈 No valid nextCompetitor after switching to next range`);
                                 }
                             }
                         } else {
