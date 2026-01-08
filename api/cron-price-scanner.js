@@ -29,16 +29,17 @@ const { connectToDatabase } = require('./_lib/db');
 const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
 
 // v2.9.0: Увеличенные параметры сканирования
-// Тесты: 100 sequential requests = 42 sec, no rate limit errors
-// Безопасный лимит: 100 запросов за 60 секунд = ~250 брейнротов
-const SCAN_BATCH_SIZE = 200;         // Увеличено с 100 (больше брейнротов за запуск)
-const SCAN_DELAY_MS = 30;            // Уменьшено с 50ms (быстрее сканирование)
+// v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
+// Vercel worked because it used distributed IPs, VPS uses single IP
+const SCAN_BATCH_SIZE = 100;         // Reduced from 200 (less requests per cycle)
+const SCAN_DELAY_MS = 500;           // Increased from 30ms to 500ms (2 req/sec instead of 33 req/sec)
 
 // v3.0.0: Параметры сканирования офферов
 // v3.0.17: Eldorado ограничил pageSize до 50, увеличили количество страниц
-const OFFER_SCAN_PAGES = 20;         // Страниц офферов за один запуск (20*50=1000 офферов)
+// v3.0.19: VPS adjustments
+const OFFER_SCAN_PAGES = 10;         // Reduced from 20 (less requests)
 const OFFER_SCAN_PAGE_SIZE = 50;     // v3.0.17: Eldorado лимит - максимум 50
-const OFFER_SCAN_DELAY_MS = 150;     // Уменьшено с 300ms - Eldorado API держит
+const OFFER_SCAN_DELAY_MS = 500;     // Increased from 150ms to 500ms
 
 // v3.0.8: Увеличен лимит direct search для pending офферов
 const MAX_DIRECT_SEARCHES = 100;     // Увеличено с 20 - проверяем больше pending офферов
