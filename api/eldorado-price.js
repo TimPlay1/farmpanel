@@ -1121,10 +1121,33 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 const targetMutation = mutation.toLowerCase();
                 
                 // If offer has explicit mutation attribute that doesn't match, skip
-                // But allow offers with no mutation attribute (seller may have set it wrong)
                 if (offerMutation && offerMutation !== targetMutation && offerMutation !== 'none') {
-                    // Don't log every skip to avoid spam - just count them
                     skipDueToMutation = true;
+                }
+                
+                // v9.12.84b: If no mutation attribute, check title for explicit wrong mutations
+                // This catches cases where Eldorado API doesn't filter properly
+                if (!skipDueToMutation && !offerMutation) {
+                    // Check for explicit mutation names in title (with word boundaries)
+                    // Only check mutations that are DIFFERENT from target
+                    const mutationPatterns = {
+                        'gold': /\bgold\b/i,
+                        'diamond': /\bdiamond\b/i,
+                        'bloodrot': /\bbloodrot\b/i,
+                        'candy': /\bcandy\b/i,
+                        'lava': /\blava\b/i,
+                        'galaxy': /\bgalaxy\b/i,
+                        'yin-yang': /\byin[-\s]?yang\b/i,
+                        'radioactive': /\bradioactive\b/i,
+                        'rainbow': /\brainbow\b/i
+                    };
+                    
+                    for (const [mutName, pattern] of Object.entries(mutationPatterns)) {
+                        if (mutName !== targetMutation && pattern.test(offerTitle)) {
+                            skipDueToMutation = true;
+                            break;
+                        }
+                    }
                 }
             }
             if (skipDueToMutation) continue;
