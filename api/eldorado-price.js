@@ -785,7 +785,8 @@ const MUTATION_ATTR_IDS = {
     'Yin-Yang': '1-7',
     'YinYang': '1-7',   // альтернативное написание
     'Radioactive': '1-8',
-    'Rainbow': '1-9'
+    'Rainbow': '1-9',
+    'Cursed': '1-10'    // v9.12.87: Added Cursed mutation
 };
 
 /**
@@ -797,7 +798,10 @@ function getMutationAttrId(mutation) {
     if (!mutation || mutation === 'None' || mutation === 'Default' || mutation === '') {
         return null; // Для дефолтных брейнротов не фильтруем по мутации
     }
-    return MUTATION_ATTR_IDS[mutation] || null;
+    // v9.12.87: Case-insensitive lookup - normalize to Title Case
+    const normalizedMutation = mutation.charAt(0).toUpperCase() + mutation.slice(1).toLowerCase();
+    // Also check for exact match (like 'Yin-Yang', 'YinYang')
+    return MUTATION_ATTR_IDS[normalizedMutation] || MUTATION_ATTR_IDS[mutation] || null;
 }
 
 /**
