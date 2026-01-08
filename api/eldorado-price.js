@@ -1121,21 +1121,10 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 const targetMutation = mutation.toLowerCase();
                 
                 // If offer has explicit mutation attribute that doesn't match, skip
+                // But allow offers with no mutation attribute (seller may have set it wrong)
                 if (offerMutation && offerMutation !== targetMutation && offerMutation !== 'none') {
-                    console.log(`⚠️ Skipping wrong mutation offer: "${offerTitle.substring(0, 50)}..." (attr: ${offerMutation}, want ${mutation})`);
+                    // Don't log every skip to avoid spam - just count them
                     skipDueToMutation = true;
-                }
-                
-                // Also check title for explicit mutation mentions (in case attr is wrong/missing)
-                if (!skipDueToMutation) {
-                    const wrongMutations = ['gold', 'diamond', 'bloodrot', 'candy', 'lava', 'galaxy', 'yin-yang', 'yinyang', 'radioactive', 'rainbow'];
-                    for (const wrongMut of wrongMutations) {
-                        if (wrongMut !== targetMutation && titleLower.includes(wrongMut)) {
-                            console.log(`⚠️ Skipping wrong mutation offer (title): "${offerTitle.substring(0, 50)}..." (has ${wrongMut}, want ${mutation})`);
-                            skipDueToMutation = true;
-                            break;
-                        }
-                    }
                 }
             }
             if (skipDueToMutation) continue;
