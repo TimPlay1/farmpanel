@@ -640,6 +640,15 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                // v3.0.20: Detect Cloudflare rate limit (1015)
+                if (res.statusCode === 403 || res.statusCode === 429) {
+                    if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
+                        console.log('🚫 Cloudflare 1015 detected in eldorado-price!');
+                        resolve({ error: 'cloudflare_1015', rateLimited: true, results: [] });
+                        return;
+                    }
+                }
+                
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed.code && parsed.code !== 200) {
@@ -652,6 +661,12 @@ function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null,
                         totalPages: parsed.totalPages || 0
                     });
                 } catch (e) {
+                    // v3.0.20: Parse error might be Cloudflare HTML
+                    if (data.includes('1015') || data.includes('Cloudflare')) {
+                        console.log('🚫 Cloudflare block detected in eldorado-price!');
+                        resolve({ error: 'cloudflare_block', rateLimited: true, results: [] });
+                        return;
+                    }
                     resolve({ error: e.message, results: [] });
                 }
             });

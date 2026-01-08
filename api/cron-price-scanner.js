@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.18';  // Scan offers by shopName instead of all offers
+const VERSION = '3.0.20';  // Adaptive rate limiting system
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -28,18 +28,76 @@ const { connectToDatabase } = require('./_lib/db');
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
 const CRON_USE_AI = false;           // НЕ МЕНЯТЬ! AI отключён!
 
+// v3.0.20: Adaptive Rate Limiting System
+// Автоматически адаптируется к rate limit ошибкам Cloudflare
+const adaptiveRateLimit = {
+    consecutiveErrors: 0,           // Последовательные ошибки 1015
+    backoffMultiplier: 1,           // Множитель задержки (1x, 2x, 4x, 8x...)
+    lastErrorTime: null,            // Время последней ошибки
+    backupModeUntil: null,          // Если установлено - backup mode до этого времени
+    maxBackoffMultiplier: 16,       // Максимальный множитель (16x = 8 секунд)
+    errorThreshold: 5,              // После 5 ошибок - включаем backup mode
+    backupModeDuration: 30 * 60 * 1000, // Backup mode на 30 минут
+    cooldownPeriod: 5 * 60 * 1000,  // 5 минут без ошибок - сбрасываем множитель
+};
+
+// Проверяем backup mode
+function isInBackupMode() {
+    if (!adaptiveRateLimit.backupModeUntil) return false;
+    if (Date.now() < adaptiveRateLimit.backupModeUntil) return true;
+    // Backup mode истёк
+    adaptiveRateLimit.backupModeUntil = null;
+    adaptiveRateLimit.consecutiveErrors = 0;
+    adaptiveRateLimit.backoffMultiplier = 1;
+    console.log('🟢 Backup mode ended, resuming normal scanning');
+    return false;
+}
+
+// Обработка rate limit ошибки
+function handleRateLimitError() {
+    adaptiveRateLimit.consecutiveErrors++;
+    adaptiveRateLimit.lastErrorTime = Date.now();
+    adaptiveRateLimit.backoffMultiplier = Math.min(
+        adaptiveRateLimit.backoffMultiplier * 2,
+        adaptiveRateLimit.maxBackoffMultiplier
+    );
+    
+    console.log(`⚠️ Rate limit error #${adaptiveRateLimit.consecutiveErrors}, backoff: ${adaptiveRateLimit.backoffMultiplier}x`);
+    
+    // После threshold ошибок - включаем backup mode
+    if (adaptiveRateLimit.consecutiveErrors >= adaptiveRateLimit.errorThreshold) {
+        adaptiveRateLimit.backupModeUntil = Date.now() + adaptiveRateLimit.backupModeDuration;
+        console.log(`🔴 BACKUP MODE ENABLED for ${adaptiveRateLimit.backupModeDuration / 60000} minutes`);
+        console.log(`   Will resume at: ${new Date(adaptiveRateLimit.backupModeUntil).toISOString()}`);
+    }
+}
+
+// Успешный запрос - уменьшаем backoff
+function handleSuccessfulRequest() {
+    if (adaptiveRateLimit.consecutiveErrors > 0) {
+        adaptiveRateLimit.consecutiveErrors = 0;
+        // Постепенно уменьшаем backoff
+        if (adaptiveRateLimit.backoffMultiplier > 1) {
+            adaptiveRateLimit.backoffMultiplier = Math.max(1, adaptiveRateLimit.backoffMultiplier / 2);
+        }
+    }
+}
+
+// Получить текущий delay с учётом backoff
+function getCurrentDelay(baseDelay) {
+    return baseDelay * adaptiveRateLimit.backoffMultiplier;
+}
+
 // v2.9.0: Увеличенные параметры сканирования
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
-// Vercel worked because it used distributed IPs, VPS uses single IP
-const SCAN_BATCH_SIZE = 100;         // Reduced from 200 (less requests per cycle)
-const SCAN_DELAY_MS = 500;           // Increased from 30ms to 500ms (2 req/sec instead of 33 req/sec)
+// v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
+const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
+const BASE_SCAN_DELAY_MS = 500;      // Base delay between requests (500ms = 2 req/sec)
 
 // v3.0.0: Параметры сканирования офферов
-// v3.0.17: Eldorado ограничил pageSize до 50, увеличили количество страниц
-// v3.0.19: VPS adjustments
-const OFFER_SCAN_PAGES = 10;         // Reduced from 20 (less requests)
-const OFFER_SCAN_PAGE_SIZE = 50;     // v3.0.17: Eldorado лимит - максимум 50
-const OFFER_SCAN_DELAY_MS = 500;     // Increased from 150ms to 500ms
+const OFFER_SCAN_PAGES = 10;         // Pages per scan
+const OFFER_SCAN_PAGE_SIZE = 50;     // Eldorado limit
+const BASE_OFFER_SCAN_DELAY_MS = 500; // Base delay for offers
 
 // v3.0.8: Увеличен лимит direct search для pending офферов
 const MAX_DIRECT_SEARCHES = 100;     // Увеличено с 20 - проверяем больше pending офферов
@@ -460,13 +518,32 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                // v3.0.20: Detect Cloudflare rate limit (error 1015)
+                if (res.statusCode === 403 || res.statusCode === 429) {
+                    if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
+                        console.log('🚫 Cloudflare 1015 detected!');
+                        handleRateLimitError();
+                        resolve({ error: 'cloudflare_1015', rateLimited: true, results: [] });
+                        return;
+                    }
+                }
+                
                 try {
                     const parsed = JSON.parse(data);
+                    // v3.0.20: Success - reduce backoff
+                    handleSuccessfulRequest();
                     resolve({
                         results: parsed.results || [],
                         totalCount: parsed.recordCount || 0
                     });
                 } catch (e) {
+                    // v3.0.20: Parse error might be Cloudflare HTML page
+                    if (data.includes('1015') || data.includes('Cloudflare')) {
+                        console.log('🚫 Cloudflare block detected (HTML response)!');
+                        handleRateLimitError();
+                        resolve({ error: 'cloudflare_block', rateLimited: true, results: [] });
+                        return;
+                    }
                     resolve({ error: e.message, results: [] });
                 }
             });
@@ -531,6 +608,15 @@ function buildImageUrl(imageName) {
  */
 async function scanOffers(db) {
     console.log(`\n📦 Starting offer scan v3.0.18 (by shopName)...`);
+    
+    // v3.0.20: Check backup mode
+    if (isInBackupMode()) {
+        const remainingMs = adaptiveRateLimit.backupModeUntil - Date.now();
+        const remainingMin = Math.ceil(remainingMs / 60000);
+        console.log(`🔴 BACKUP MODE - Skipping offer scan, resume in ${remainingMin} min`);
+        return { skipped: true, backupMode: true };
+    }
+    
     const startTime = Date.now();
     
     const codesCollection = db.collection('offer_codes');
@@ -578,9 +664,16 @@ async function scanOffers(db) {
         
         // Сканируем до 5 страниц для каждого магазина (250 офферов макс)
         for (let page = 1; page <= 5; page++) {
-            await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
+            // v3.0.20: Use adaptive delay
+            await new Promise(r => setTimeout(r, getCurrentDelay(BASE_OFFER_SCAN_DELAY_MS)));
             
             const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, cleanShopName);
+            
+            // v3.0.20: Check for rate limit
+            if (response.rateLimited) {
+                console.warn(`   🚫 Rate limited! Breaking scan loop.`);
+                break;
+            }
             
             if (response.error) {
                 console.warn(`   ⚠️ Page ${page} error: ${response.error}`);
@@ -719,6 +812,27 @@ async function scanOffers(db) {
 async function runPriceScan() {
     console.log(`🚀 Starting centralized price scan v${VERSION}`);
     console.log(`⚠️ AI DISABLED: CRON_USE_AI=${CRON_USE_AI} - using regex only`);
+    
+    // v3.0.20: Check backup mode FIRST
+    if (isInBackupMode()) {
+        const remainingMs = adaptiveRateLimit.backupModeUntil - Date.now();
+        const remainingMin = Math.ceil(remainingMs / 60000);
+        console.log(`🔴 BACKUP MODE ACTIVE - Cloudflare rate limit detected`);
+        console.log(`   Skipping scan, will resume in ${remainingMin} minutes`);
+        console.log(`   Resume at: ${new Date(adaptiveRateLimit.backupModeUntil).toISOString()}`);
+        return { 
+            success: true, 
+            backupMode: true, 
+            resumeAt: adaptiveRateLimit.backupModeUntil,
+            message: `Backup mode active, resuming in ${remainingMin} minutes` 
+        };
+    }
+    
+    // v3.0.20: Log current backoff state
+    if (adaptiveRateLimit.backoffMultiplier > 1) {
+        console.log(`⚠️ Rate limit recovery: backoff ${adaptiveRateLimit.backoffMultiplier}x, delay ${getCurrentDelay(BASE_SCAN_DELAY_MS)}ms`);
+    }
+    
     const startTime = Date.now();
     
     const { db } = await connectToDatabase();
@@ -877,8 +991,8 @@ async function runPriceScan() {
                 console.log(`   💰 Price change: ${brainrot.name}${brainrot.mutation ? ' [' + brainrot.mutation + ']' : ''} @ ${brainrot.income}M/s: $${oldPrice} → $${newPrice}`);
             }
             
-            // Задержка между запросами к Eldorado API
-            await new Promise(r => setTimeout(r, SCAN_DELAY_MS));
+            // v3.0.20: Adaptive delay между запросами к Eldorado API
+            await new Promise(r => setTimeout(r, getCurrentDelay(BASE_SCAN_DELAY_MS)));
             
         } catch (e) {
             errors++;
