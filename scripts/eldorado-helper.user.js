@@ -14,7 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        window.close
-// @connect      instance195290.waicore.network
+// @connect      ody.farm
 // @connect      api.supa.ru
 // @connect      storage.supa.ru
 // @connect      supa-temp.storage.yandexcloud.net
@@ -30,7 +30,7 @@
     'use strict';
 
     const VERSION = '9.12.1';
-    const API_BASE = 'https://instance195290.waicore.network/api';
+    const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
     // If running inside TalkJS iframe, handle messages from parent
@@ -3224,7 +3224,7 @@
         setTimeout(() => {
             if (!window.closed) {
                 log('Window still open, redirecting to panel...');
-                window.location.href = 'https://instance195290.waicore.network';
+                window.location.href = 'https://ody.farm';
             }
         }, 500);
     }
