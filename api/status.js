@@ -112,7 +112,12 @@ module.exports = async (req, res) => {
 
         const response = {
             timestamp: Date.now(),
-            accounts: accounts
+            accounts: accounts,
+            _debug: {
+                farmerFound: !!farmer,
+                farmerId: farmer?.id,
+                rawAccountsCount: farmer?.accounts?.length || 0
+            }
         };
 
         // Cache the response
