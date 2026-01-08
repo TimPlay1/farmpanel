@@ -491,20 +491,33 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
     // - "250m~500m/s" (с тильдой)
     // - "88M to 220M/s" (со словом "to")
     // - "100 to 500M/s" (первое число может быть без M)
+    // v3.0.23: Added M-B range patterns like "30M-1B/S", "100M-2B/s"
     const rangePatterns = [
         /(\d+)\s*[mM]?\s*[-~]\s*(\d+)\s*[mM]\/[sS]/i,          // 150m - 500m/s, 100-500M/s
         /(\d+)\s*[mM]?\s+to\s+(\d+)\s*[mM]\/[sS]/i,             // 88M to 220M/s, 100 to 500M/s
         /(\d+)\s*[mM]?\s*[-~]\s*(\d+)\s*[mM]\s/i,               // 150m - 500m (без /s, но с пробелом после)
         /(\d+)\s*[mM]?\s+to\s+(\d+)\s*[mM]\s/i,                 // 88M to 220M (без /s)
+        // v3.0.23: M-B range patterns (30M-1B/S, 100M-2B/s, 150Ms-1B/S)
+        /(\d+)\s*[mM][sS]?\s*[-~]\s*(\d+(?:\.\d+)?)\s*[bB]\/[sS]/i,  // 30M-1B/s, 100M-2B/S, 150Ms-1B/S
+        /(\d+)\s*[mM]\s*[-~]\s*(\d+(?:\.\d+)?)\s*[bB]\s/i,           // 30M-1B (with space after)
+        // v3.0.23: M/s - M/s range patterns (150M/s - 500M/s)
+        /(\d+)\s*[mM]\/[sS]\s*[-~]\s*(\d+)\s*[mM]\/[sS]/i,           // 150M/s - 500M/s
+        /(\d+)\s*[mM]\/[sS]\s+to\s+(\d+)\s*[mM]\/[sS]/i,             // 100M/s to 500M/s
     ];
     
     for (const rangePattern of rangePatterns) {
         const rangeMatch = cleanTitle.match(rangePattern);
         if (rangeMatch) {
             // Это диапазон, возвращаем null чтобы не использовать этот оффер как референс
-            console.log(`⚠️ Skipping range offer: "${title}" (${rangeMatch[1]}-${rangeMatch[2]} M/s)`);
+            console.log(`⚠️ Skipping range offer: "${title}" (${rangeMatch[1]}-${rangeMatch[2]} range)`);
             return null;
         }
+    }
+    
+    // v3.0.23: Check for "HIGH VALUE" pattern which is typically random/box offers
+    if (/HIGH\s+VALUE.*SECRET/i.test(cleanTitle) && /\d+\s*[mM]\s*[-~]\s*\d+/i.test(cleanTitle)) {
+        console.log(`⚠️ Skipping HIGH VALUE range offer: "${title}"`);
+        return null;
     }
     
     // Также проверяем паттерны "Spin the Wheel", "Random", "Mystery" - это ненадёжные офферы

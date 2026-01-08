@@ -1,4 +1,4 @@
-// FarmerPanel App v9.12.79 - Fix balance calculation from prices
+// FarmerPanel App v9.12.80 - Fix range offer filtering in price scanner (30M-1B/S patterns)
 // - Always calculate totalValue from brainrot prices on frontend
 // - Don't use outdated totalValue from MySQL database
 // - Balance history now records calculated values only

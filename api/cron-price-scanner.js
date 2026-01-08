@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.22';  // SOCKS5 proxy support via socks-proxy-agent
+const VERSION = '3.0.23';  // Fixed range offer filtering (30M-1B/S patterns)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -336,10 +336,24 @@ function cleanMutation(mutation) {
 
 /**
  * v3.0.16: Парсит income из title оффера
+ * v3.0.23: Added range offer filtering (30M-1B/S, 100M-2B/s patterns)
  * Поддерживает форматы: "$310.0M/s", "310M/s", "$1.5B/s", "1500M/s"
  */
 function parseIncomeFromTitle(title) {
     if (!title) return null;
+    
+    // v3.0.23: Skip range offers like "30M-1B/S", "100M-2B/s", "150Ms-1B/S"
+    if (/\d+\s*[mM][sS]?\s*[-~]\s*\d+(?:\.\d+)?\s*[bB]\/[sS]/i.test(title)) {
+        return null;
+    }
+    // Skip M/s to M/s ranges like "100M/s to 500M/s"
+    if (/\d+\s*[mM]\/[sS]\s*(?:[-~]|to)\s*\d+\s*[mM]\/[sS]/i.test(title)) {
+        return null;
+    }
+    // Skip HIGH VALUE range offers
+    if (/HIGH\s+VALUE.*SECRET/i.test(title) && /\d+\s*[mM]\s*[-~]\s*\d+/i.test(title)) {
+        return null;
+    }
     
     // Паттерн: число (с опциональной точкой), опциональный пробел, M или B, /s
     const match = title.match(/\$?(\d+(?:\.\d+)?)\s*([KMBT])\/s/i);
