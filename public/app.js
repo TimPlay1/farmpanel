@@ -4246,7 +4246,7 @@ function updateAccountCard(cardEl, account) {
     if (accountValue > 0) {
         if (valueStat) {
             const valueEl = valueStat.querySelector('.account-stat-value');
-            if (valueEl) valueEl.textContent = '$' + accountValue.toFixed(2);
+            if (valueEl) valueEl.textContent = '$' + (parseFloat(accountValue) || 0).toFixed(2);
         } else {
             // Create value stat if it doesn't exist
             const statsContainer = cardEl.querySelector('.account-stats');
@@ -4254,7 +4254,7 @@ function updateAccountCard(cardEl, account) {
                 const newValueStat = document.createElement('div');
                 newValueStat.className = 'account-stat account-value';
                 newValueStat.innerHTML = `
-                    <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
+                    <div class="account-stat-value">$${(parseFloat(accountValue) || 0).toFixed(2)}</div>
                     <div class="account-stat-label">Value</div>
                 `;
                 statsContainer.appendChild(newValueStat);
@@ -4411,7 +4411,8 @@ function updateUI() {
     // Update total value with change indicator
     if (statsEls.totalValue) {
         const displayValue = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
-        statsEls.totalValue.textContent = displayValue > 0 ? `$${displayValue.toFixed(2)}` : '$0.00';
+        const displayNum = parseFloat(displayValue) || 0;
+        statsEls.totalValue.textContent = displayNum > 0 ? `$${displayNum.toFixed(2)}` : '$0.00';
         
         // Show % change from history (hour period) - но НЕ при ручном рефреше
         if (statsEls.totalValueChange) {
@@ -4475,7 +4476,9 @@ function updateCurrentFarmer() {
         if (!state.isManualPriceRefresh && state.currentBalanceChange && Math.abs(state.currentBalanceChange.changePercent) > 0.01) {
             changeHtml = ` ${formatBalanceChange(state.currentBalanceChange.changePercent, true)}`;
         }
-        balanceEl.innerHTML = `$${displayBalance.toFixed(2)}${changeHtml}`;
+        // v9.12.67: Parse as float to handle string values from MySQL
+        const displayNum = parseFloat(displayBalance) || 0;
+        balanceEl.innerHTML = `$${displayNum.toFixed(2)}${changeHtml}`;
     }
     
     const accountText = accountCount === 1 ? 'account' : 'accounts';
@@ -4532,7 +4535,7 @@ function updateFarmerSwitcherDropdown() {
                     <div class="dropdown-key">...${shortKey}</div>
                 </div>
                 <div class="dropdown-stats">
-                    <div class="dropdown-value">$${farmerValue.toFixed(2)}</div>
+                    <div class="dropdown-value">$${(parseFloat(farmerValue) || 0).toFixed(2)}</div>
                     <div class="dropdown-accounts">${accountCount} ${accountText}</div>
                 </div>
             </div>
@@ -4713,7 +4716,7 @@ async function renderAccountsGrid(accounts) {
                         <div class="account-stat-label">${t('brainrots_label')}</div>
                     </div>
                     <div class="account-stat account-value">
-                        <div class="account-stat-value">$${accountValue.toFixed(2)}</div>
+                        <div class="account-stat-value">$${(parseFloat(accountValue) || 0).toFixed(2)}</div>
                         <div class="account-stat-label">${t('value_label')}</div>
                     </div>
                 </div>
@@ -4805,7 +4808,7 @@ function renderAccountsList(accounts) {
                 </div>
                 ${accountValue > 0 ? `
                 <div class="account-list-value">
-                    <div class="value">$${accountValue.toFixed(2)}</div>
+                    <div class="value">$${(parseFloat(accountValue) || 0).toFixed(2)}</div>
                     <div class="label">${t('value_label')}</div>
                 </div>
                 ` : ''}
@@ -4883,7 +4886,7 @@ function renderFarmKeys() {
                     </div>
                     ${farmerValue > 0 ? `
                     <div class="farm-key-stats farm-key-value">
-                        <div class="farm-key-accounts">$${farmerValue.toFixed(2)} ${changeHtml}</div>
+                        <div class="farm-key-accounts">$${(parseFloat(farmerValue) || 0).toFixed(2)} ${changeHtml}</div>
                         <div class="farm-key-label">${t('value_lower')}</div>
                     </div>
                     ` : ''}
@@ -6460,7 +6463,9 @@ async function clearPriceCache() {
     
     // ЗАМОРАЖИВАЕМ баланс ПЕРЕД очисткой цен - он будет отображаться пока цены загружаются
     state.frozenBalance = state.currentTotalValue;
-    console.log('Manual price refresh started - balance frozen at $' + state.frozenBalance?.toFixed(2));
+    // v9.12.67: Parse as float to handle string values
+    const frozenNum = parseFloat(state.frozenBalance) || 0;
+    console.log('Manual price refresh started - balance frozen at $' + frozenNum.toFixed(2));
     
     // Сохраняем текущие цены как предыдущие для отображения % изменения
     savePreviousPrices();
