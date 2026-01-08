@@ -591,7 +591,37 @@ app.get('/api/account-colors', (req, res) => {
     res.json({ colors });
 });
 
-// Get generations for a specific user (farm key) - MySQL version
+// Get generations for a specific user (farm key) - MySQL version (query param)
+app.get('/api/generations', async (req, res) => {
+    const farmKey = req.query.farmKey;
+    if (!farmKey) {
+        return res.status(400).json({ error: 'farmKey is required' });
+    }
+    try {
+        const { db } = await connectToDatabase();
+        const generationsCollection = db.collection('generations');
+        const generations = await generationsCollection.find({ farmKey }).toArray();
+        
+        // Convert array to object keyed by brainrotName
+        const userGenerations = {};
+        for (const gen of generations) {
+            userGenerations[gen.brainrotName.toLowerCase()] = {
+                name: gen.brainrotName,
+                accountId: gen.accountId,
+                resultUrl: gen.resultUrl,
+                generatedAt: gen.generatedAt,
+                count: gen.count || 1
+            };
+        }
+        
+        res.json({ generations: userGenerations });
+    } catch (err) {
+        console.error('Error loading generations:', err);
+        res.json({ generations: {} });
+    }
+});
+
+// Get generations for a specific user (farm key) - MySQL version (path param)
 app.get('/api/generations/:farmKey', async (req, res) => {
     const { farmKey } = req.params;
     try {
