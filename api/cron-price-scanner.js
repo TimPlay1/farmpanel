@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.23';  // Fixed range offer filtering (30M-1B/S patterns)
+const VERSION = '3.0.24';  // Reduced rate limiting: 1s delay, 10min backup mode
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -82,9 +82,9 @@ const adaptiveRateLimit = {
     backoffMultiplier: 1,           // Множитель задержки (1x, 2x, 4x, 8x...)
     lastErrorTime: null,            // Время последней ошибки
     backupModeUntil: null,          // Если установлено - backup mode до этого времени
-    maxBackoffMultiplier: 16,       // Максимальный множитель (16x = 8 секунд)
-    errorThreshold: 5,              // После 5 ошибок - включаем backup mode
-    backupModeDuration: 30 * 60 * 1000, // Backup mode на 30 минут
+    maxBackoffMultiplier: 16,       // Максимальный множитель (16x = 16 секунд)
+    errorThreshold: 8,              // v3.0.24: После 8 ошибок - включаем backup mode (was 5)
+    backupModeDuration: 10 * 60 * 1000, // v3.0.24: Backup mode на 10 минут (was 30)
     cooldownPeriod: 5 * 60 * 1000,  // 5 минут без ошибок - сбрасываем множитель
     currentUserAgentIndex: 0,       // v3.0.21: Текущий индекс User-Agent
     useProxy: false,                // v3.0.21: Использовать прокси (активируется при ошибках)
@@ -160,13 +160,14 @@ function getCurrentDelay(baseDelay) {
 // v2.9.0: Увеличенные параметры сканирования
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
+// v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
-const BASE_SCAN_DELAY_MS = 500;      // Base delay between requests (500ms = 2 req/sec)
+const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
 const OFFER_SCAN_PAGE_SIZE = 50;     // Eldorado limit
-const BASE_OFFER_SCAN_DELAY_MS = 500; // Base delay for offers
+const BASE_OFFER_SCAN_DELAY_MS = 1000; // v3.0.24: 1 req/sec for offers too
 
 // v3.0.8: Увеличен лимит direct search для pending офферов
 const MAX_DIRECT_SEARCHES = 100;     // Увеличено с 20 - проверяем больше pending офферов
