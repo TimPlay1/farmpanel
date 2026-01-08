@@ -479,58 +479,94 @@ app.get('/api/account-colors', (req, res) => {
     res.json({ colors });
 });
 
-// Get generations for a specific user (farm key)
-app.get('/api/generations/:farmKey', (req, res) => {
+// Get generations for a specific user (farm key) - MySQL version
+app.get('/api/generations/:farmKey', async (req, res) => {
     const { farmKey } = req.params;
-    const userGenerations = generationsData[farmKey] || {};
-    res.json({ generations: userGenerations });
+    try {
+        const { db } = await connectToDatabase();
+        const generationsCollection = db.collection('generations');
+        const generations = await generationsCollection.find({ farmKey }).toArray();
+        
+        // Convert array to object keyed by brainrotName
+        const userGenerations = {};
+        for (const gen of generations) {
+            userGenerations[gen.brainrotName.toLowerCase()] = {
+                name: gen.brainrotName,
+                accountId: gen.accountId,
+                resultUrl: gen.resultUrl,
+                generatedAt: gen.generatedAt,
+                count: gen.count || 1
+            };
+        }
+        
+        res.json({ generations: userGenerations });
+    } catch (err) {
+        console.error('Error loading generations:', err);
+        res.json({ generations: {} });
+    }
 });
 
-// Record a generation
-app.post('/api/generations', (req, res) => {
+// Record a generation - MySQL version
+app.post('/api/generations', async (req, res) => {
     const { farmKey, brainrotName, accountId, resultUrl, timestamp } = req.body;
     
     if (!farmKey || !brainrotName) {
         return res.status(400).json({ error: 'farmKey and brainrotName are required' });
     }
     
-    // Initialize user data if not exists
-    if (!generationsData[farmKey]) {
-        generationsData[farmKey] = {};
+    try {
+        const { db } = await connectToDatabase();
+        const generationsCollection = db.collection('generations');
+        const brainrotKey = brainrotName.toLowerCase().trim();
+        
+        // Check if generation exists
+        const existing = await generationsCollection.findOne({ farmKey, brainrotName: brainrotKey });
+        
+        const generationData = {
+            farmKey,
+            brainrotName: brainrotKey,
+            displayName: brainrotName,
+            accountId: accountId || null,
+            resultUrl: resultUrl || null,
+            generatedAt: timestamp || new Date().toISOString(),
+            count: (existing?.count || 0) + 1
+        };
+        
+        await generationsCollection.updateOne(
+            { farmKey, brainrotName: brainrotKey },
+            { $set: generationData },
+            { upsert: true }
+        );
+        
+        res.json({ 
+            success: true, 
+            generation: generationData 
+        });
+    } catch (err) {
+        console.error('Error saving generation:', err);
+        res.status(500).json({ error: 'Database error' });
     }
-    
-    // Create unique key for brainrot (lowercase name)
-    const brainrotKey = brainrotName.toLowerCase().trim();
-    
-    // Store generation with metadata
-    generationsData[farmKey][brainrotKey] = {
-        name: brainrotName,
-        accountId: accountId || null,
-        resultUrl: resultUrl || null,
-        generatedAt: timestamp || new Date().toISOString(),
-        count: (generationsData[farmKey][brainrotKey]?.count || 0) + 1
-    };
-    
-    // Save to file
-    saveGenerationsData();
-    
-    res.json({ 
-        success: true, 
-        generation: generationsData[farmKey][brainrotKey] 
-    });
 });
 
-// Delete a generation record
-app.delete('/api/generations/:farmKey/:brainrotName', (req, res) => {
+// Delete a generation record - MySQL version
+app.delete('/api/generations/:farmKey/:brainrotName', async (req, res) => {
     const { farmKey, brainrotName } = req.params;
     const brainrotKey = brainrotName.toLowerCase().trim();
     
-    if (generationsData[farmKey] && generationsData[farmKey][brainrotKey]) {
-        delete generationsData[farmKey][brainrotKey];
-        saveGenerationsData();
-        res.json({ success: true });
-    } else {
-        res.status(404).json({ error: 'Generation not found' });
+    try {
+        const { db } = await connectToDatabase();
+        const generationsCollection = db.collection('generations');
+        
+        const result = await generationsCollection.deleteOne({ farmKey, brainrotName: brainrotKey });
+        
+        if (result.deletedCount > 0) {
+            res.json({ success: true });
+        } else {
+            res.status(404).json({ error: 'Generation not found' });
+        }
+    } catch (err) {
+        console.error('Error deleting generation:', err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 

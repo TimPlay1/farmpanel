@@ -8790,7 +8790,7 @@ function renderOffers() {
             <div class="offer-card-bottom">
                 <div class="offer-current-price-row">
                     <div class="offer-price-label">${t('current_price')}</div>
-                    <div class="offer-price-value current">$${(offer.currentPrice || 0).toFixed(2)}</div>
+                    <div class="offer-price-value current">$${(parseFloat(offer.currentPrice) || 0).toFixed(2)}</div>
                     <div class="offer-diff-badge ${diffClass}">${diffText}</div>
                 </div>
                 ${cleanMutationText(offer.mutation) ? `
@@ -8853,12 +8853,12 @@ function renderOffers() {
                                 ? ` <span class="parsing-source-badge ai-next-range" title="${t('ai_validated')}"><i class="fas fa-brain"></i><i class="fas fa-level-up-alt next-range-arrow"></i></span>` 
                                 : ` <span class="next-range-badge" title="${t('price_next_range')}"><i class="fas fa-level-up-alt"></i></span>`) 
                             : ''}</div>
-                        <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + offer.recommendedPrice.toFixed(2) : 'N/A'}</div>
+                        <div class="offer-price-value recommended ${isSpike ? 'spike-value' : ''} ${!hasRecommendedPrice ? 'no-price' : ''}">${hasRecommendedPrice ? '$' + (parseFloat(offer.recommendedPrice) || 0).toFixed(2) : 'N/A'}</div>
                     </div>
                     ${(offer.medianPrice || offer.nextCompetitorPrice) ? `
                     <div class="offer-additional-prices-inline">
-                        ${offer.medianPrice ? `<span class="offer-alt-inline median" title="${t('median')}"><i class="fas fa-chart-bar"></i>$${offer.medianPrice.toFixed(2)}</span>` : ''}
-                        ${offer.nextCompetitorPrice ? `<span class="offer-alt-inline next" title="${t('next_competitor')}"><i class="fas fa-arrow-up"></i>$${offer.nextCompetitorPrice.toFixed(2)}</span>` : ''}
+                        ${offer.medianPrice ? `<span class="offer-alt-inline median" title="${t('median')}"><i class="fas fa-chart-bar"></i>$${(parseFloat(offer.medianPrice) || 0).toFixed(2)}</span>` : ''}
+                        ${offer.nextCompetitorPrice ? `<span class="offer-alt-inline next" title="${t('next_competitor')}"><i class="fas fa-arrow-up"></i>$${(parseFloat(offer.nextCompetitorPrice) || 0).toFixed(2)}</span>` : ''}
                     </div>
                     ` : ''}
                 </div>
@@ -9210,7 +9210,7 @@ function openOfferPriceModal(offerId) {
             <div class="offer-preview-info">
                 <h4>${offer.brainrotName || 'Unknown'}</h4>
                 ${hasMutation ? `<span class="offer-preview-mutation" style="background: ${getMutationStyles(offer.mutation).background}; color: ${getMutationStyles(offer.mutation).textColor};">${cleanMutationText(offer.mutation)}</span>` : ''}
-                <p>${offer.incomeRaw || formatIncomeSec(offer.income)} • Current: $${(offer.currentPrice || 0).toFixed(2)}</p>
+                <p>${offer.incomeRaw || formatIncomeSec(offer.income)} • Current: $${(parseFloat(offer.currentPrice) || 0).toFixed(2)}</p>
             </div>
         `;
     }
@@ -9220,7 +9220,7 @@ function openOfferPriceModal(offerId) {
         updateOfferModalPrices(offer, 'default');
     } else {
         if (recommendedValueEl) {
-            recommendedValueEl.textContent = `$${(offer.recommendedPrice || 0).toFixed(2)}`;
+            recommendedValueEl.textContent = `$${(parseFloat(offer.recommendedPrice) || 0).toFixed(2)}`;
         }
         
         // Populate median price
@@ -9261,7 +9261,7 @@ function openOfferPriceModal(offerId) {
     // v9.11.4: Show current price hint
     const currentPriceHintEl = document.getElementById('currentPriceHintValue');
     if (currentPriceHintEl) {
-        currentPriceHintEl.textContent = `$${(offer.currentPrice || 0).toFixed(2)}`;
+        currentPriceHintEl.textContent = `$${(parseFloat(offer.currentPrice) || 0).toFixed(2)}`;
     }
     
     // Reset radio to recommended
@@ -9348,7 +9348,7 @@ function openBulkPriceModal() {
                 <div class="bulk-offer-prices">
                     <div class="bulk-price-cell current">
                         <span class="price-label">Current</span>
-                        <span class="price-value">$${(offer.currentPrice || 0).toFixed(2)}</span>
+                        <span class="price-value">$${(parseFloat(offer.currentPrice) || 0).toFixed(2)}</span>
                     </div>
                     <div class="bulk-price-cell recommended ${recPrice > 0 ? 'available' : 'na'}">
                         <span class="price-label"><i class="fas fa-tag"></i> Rec</span>
