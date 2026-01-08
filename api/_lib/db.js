@@ -257,10 +257,13 @@ class MySQLCollection {
     }
     
     async aggregate(pipeline) {
-        // Basic aggregation support
+        // Basic aggregation support - return cursor-like object with toArray()
         // For complex aggregations, implement specific handlers
         console.warn(`Aggregation on ${this.tableName} - may need custom implementation`);
-        return [];
+        // Return cursor-like object for MongoDB compatibility
+        return {
+            toArray: async () => []
+        };
     }
     
     // MySQL doesn't need dynamic index creation - indexes are defined in schema.sql

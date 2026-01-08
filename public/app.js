@@ -1,5 +1,5 @@
-// FarmerPanel App v9.12.82 - Fix price type casting (string to number) for balance calculation
-// - Always calculate totalValue from brainrot prices on frontend
+// FarmerPanel App v9.12.83 - Fix aggregate toArray compatibility for MySQL adapter
+// - v9.12.82: Fix price type casting (string to number)
 // - Don't use outdated totalValue from MySQL database
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
