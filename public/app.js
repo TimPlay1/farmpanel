@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.72 - Fix MySQL adapter for generations, queue, bulkWrite
-// - Added bulkWrite method to MySQL adapter for MongoDB compatibility
-// - Fixed generations.js to use full JSON replacement (MySQL compatible)
-// - Fixed queue.js to use correct column name (queueData -> queue_data)
+// FarmerPanel App v9.12.73 - Fix status endpoint for MySQL
+// - Remove MongoDB projection from status.js (not supported in MySQL adapter)
+// - Calculate totalIncome from brainrots in status endpoint
+// - Fix queue.js to use correct column name (queueData -> queue_data)
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 

@@ -44,24 +44,8 @@ module.exports = async (req, res) => {
 
         // Quick database lookup - only get what we need
         const { db } = await connectToDatabase();
-        const farmer = await db.collection('farmers').findOne(
-            { farmKey: key },
-            { 
-                projection: { 
-                    'accounts.playerName': 1,
-                    'accounts.userId': 1,
-                    'accounts.isOnline': 1,
-                    'accounts.lastUpdate': 1,
-                    'accounts.status': 1,
-                    'accounts.action': 1,
-                    'accounts.totalIncome': 1,
-                    'accounts.totalIncomeFormatted': 1,
-                    'accounts.totalBrainrots': 1,
-                    'accounts.maxSlots': 1,
-                    'accounts.brainrots': 1  // ADDED: Include brainrots for real-time updates
-                } 
-            }
-        );
+        // MySQL doesn't support MongoDB-style projections, so just get full document
+        const farmer = await db.collection('farmers').findOne({ farmKey: key });
 
         if (!farmer) {
             return res.status(404).json({ error: 'Farm not found' });
@@ -80,6 +64,33 @@ module.exports = async (req, res) => {
                     isOnline = (now - lastUpdateTime) <= ONLINE_THRESHOLD;
                 } catch (e) {}
             }
+            
+            // Calculate totalIncome from brainrots
+            const brainrots = acc.brainrots || [];
+            let totalIncome = 0;
+            for (const br of brainrots) {
+                if (typeof br.income === 'number') {
+                    totalIncome += br.income;
+                } else if (typeof br.income === 'string') {
+                    const num = parseFloat(br.income.replace(/[^\d.]/g, ''));
+                    if (!isNaN(num)) totalIncome += num;
+                }
+            }
+            
+            // Format income
+            let totalIncomeFormatted = '0/s';
+            if (totalIncome > 0) {
+                if (totalIncome >= 1e9) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e9).toFixed(1)}B/s`;
+                } else if (totalIncome >= 1e6) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e6).toFixed(1)}M/s`;
+                } else if (totalIncome >= 1e3) {
+                    totalIncomeFormatted = `$${(totalIncome / 1e3).toFixed(1)}K/s`;
+                } else {
+                    totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
+                }
+            }
+            
             return {
                 playerName: acc.playerName,
                 userId: acc.userId,
@@ -89,11 +100,11 @@ module.exports = async (req, res) => {
                 // НЕ "offline" - online/offline определяется по isOnline
                 status: acc.status || 'idle',
                 action: acc.action || '',
-                totalIncome: acc.totalIncome || 0,
-                totalIncomeFormatted: acc.totalIncomeFormatted || '0/s',
-                totalBrainrots: acc.totalBrainrots || 0,
+                totalIncome: totalIncome,
+                totalIncomeFormatted: totalIncomeFormatted,
+                totalBrainrots: brainrots.length,
                 maxSlots: acc.maxSlots || 10,
-                brainrots: acc.brainrots || []  // ADDED: Include brainrots for real-time UI updates
+                brainrots: brainrots
             };
         });
 
