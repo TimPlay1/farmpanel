@@ -5227,11 +5227,15 @@ function truncate(str, len) {
 }
 
 function formatIncome(value) {
+    // v9.12.42: Всегда добавляем суффикс M/s для значений > 0
+    // Это нужно чтобы regex в cron-price-scanner мог парсить income из title
     if (value >= 1e12) return `$${(value / 1e12).toFixed(1)}T/s`;
     if (value >= 1e9) return `$${(value / 1e9).toFixed(1)}B/s`;
     if (value >= 1e6) return `$${(value / 1e6).toFixed(1)}M/s`;
     if (value >= 1e3) return `$${(value / 1e3).toFixed(1)}K/s`;
-    return `$${value}/s`;
+    // Для значений < 1000 считаем что это уже M/s
+    if (value > 0) return `$${value.toFixed(1)}M/s`;
+    return `$0/s`;
 }
 
 function getDefaultAvatar(name) {
@@ -7295,11 +7299,17 @@ function getGroupKey(nameOrGroup, incomeArg, mutationArg) {
 /**
  * Check if brainrot has an active offer
  * v9.12.13: Now considers mutation - different mutations are different offers
+ * v9.12.40: Fixed - if offer has no mutation data (null), match by name+income only
+ *           This handles cases where Eldorado API doesn't return mutation info
+ * v9.12.41: Fixed income comparison - must verify both incomes are valid numbers
  */
 function hasActiveOffer(brainrotName, income, mutation = null) {
     if (!offersState.offers || offersState.offers.length === 0) return false;
     const normalizedIncome = normalizeIncomeForApi(income, null);
     const roundedIncome = Math.floor(normalizedIncome / 10) * 10;
+    
+    // Validate that we have a valid income to compare
+    if (isNaN(roundedIncome) || roundedIncome <= 0) return false;
     
     // Normalize mutation for comparison
     const cleanMut = mutation ? cleanMutationText(mutation)?.toLowerCase() : null;
@@ -7308,6 +7318,9 @@ function hasActiveOffer(brainrotName, income, mutation = null) {
         if (!offer.brainrotName) return false;
         const offerIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
         const offerRoundedIncome = Math.floor(offerIncome / 10) * 10;
+        
+        // v9.12.41: Skip offers with invalid/missing income - can't match without income
+        if (isNaN(offerRoundedIncome) || offerRoundedIncome <= 0) return false;
         
         // Check name and income match
         const nameMatch = offer.brainrotName.toLowerCase() === brainrotName.toLowerCase();
@@ -7318,7 +7331,14 @@ function hasActiveOffer(brainrotName, income, mutation = null) {
         // Check mutation match
         const offerMut = offer.mutation ? cleanMutationText(offer.mutation)?.toLowerCase() : null;
         
-        // Both null = default, both same mutation = match
+        // v9.12.40: If offer has no mutation data (null), match by name+income only
+        // This handles cases where Eldorado API doesn't return mutation attribute
+        if (offerMut === null) {
+            return true; // Name and income match, offer has no mutation data - assume match
+        }
+        
+        // Both have mutations - they must match
+        // Or both null = default = match
         return cleanMut === offerMut;
     });
 }
@@ -7815,9 +7835,11 @@ async function doStartMassGeneration() {
             const offerId = generateOfferId();
             // v9.11.1: Pass mutation only if using mutation variant
             const effectiveMutation = isUsingMutationPrice ? (group.mutation || '') : '';
+            // v9.12.42: Pass both numeric income and text for display
             eldoradoQueue.push({
                 name: group.name,
-                income: group.incomeText || formatIncome(group.income),
+                income: group.income, // Числовое значение в M/s
+                incomeText: group.incomeText || formatIncome(group.income), // Текст для отображения
                 imageUrl: result.resultUrl,
                 price: price || 0,
                 quantity: group.quantity || 1,

@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.15';  // Fix 'cached is not defined' error
+const VERSION = '3.0.18';  // Scan offers by shopName instead of all offers
 const https = require('https');
 const { connectToDatabase } = require('./_lib/db');
 
@@ -35,7 +35,9 @@ const SCAN_BATCH_SIZE = 200;         // Увеличено с 100 (больше 
 const SCAN_DELAY_MS = 30;            // Уменьшено с 50ms (быстрее сканирование)
 
 // v3.0.0: Параметры сканирования офферов
-const OFFER_SCAN_PAGES = 10;         // Страниц офферов за один запуск (1000 офферов)
+// v3.0.17: Eldorado ограничил pageSize до 50, увеличили количество страниц
+const OFFER_SCAN_PAGES = 20;         // Страниц офферов за один запуск (20*50=1000 офферов)
+const OFFER_SCAN_PAGE_SIZE = 50;     // v3.0.17: Eldorado лимит - максимум 50
 const OFFER_SCAN_DELAY_MS = 150;     // Уменьшено с 300ms - Eldorado API держит
 
 // v3.0.8: Увеличен лимит direct search для pending офферов
@@ -202,6 +204,29 @@ function cleanMutation(mutation) {
         return 'yinyang';
     }
     return clean.toLowerCase() || null;
+}
+
+/**
+ * v3.0.16: Парсит income из title оффера
+ * Поддерживает форматы: "$310.0M/s", "310M/s", "$1.5B/s", "1500M/s"
+ */
+function parseIncomeFromTitle(title) {
+    if (!title) return null;
+    
+    // Паттерн: число (с опциональной точкой), опциональный пробел, M или B, /s
+    const match = title.match(/\$?(\d+(?:\.\d+)?)\s*([KMBT])\/s/i);
+    if (!match) return null;
+    
+    let income = parseFloat(match[1]);
+    const suffix = match[2].toUpperCase();
+    
+    // Конвертируем в M/s
+    if (suffix === 'K') income *= 0.001;
+    else if (suffix === 'B') income *= 1000;
+    else if (suffix === 'T') income *= 1000000;
+    // M = уже в M/s
+    
+    return income > 0 ? income : null;
 }
 
 /**
@@ -408,11 +433,12 @@ async function cleanupQueue(db) {
 /**
  * Получает офферы с Eldorado API
  * v3.0.7: searchQuery вместо offerTitle для поиска по коду
+ * v3.0.17: Eldorado убрал offerSortingCriterion, ограничил pageSize до 50
  */
-function fetchEldoradoOffers(pageIndex = 1, pageSize = 100, searchText = null) {
+function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
     return new Promise((resolve) => {
-        // v3.0.6: Добавляем поиск по тексту для поиска конкретных кодов
-        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}&offerSortingCriterion=CreationDate&isAscending=false`;
+        // v3.0.17: Убран offerSortingCriterion - Eldorado возвращает 400
+        let queryPath = `/api/flexibleOffers?gameId=${ELDORADO_GAME_ID}&category=CustomItem&te_v0=Brainrot&pageSize=${pageSize}&pageIndex=${pageIndex}`;
         
         // v3.0.7: Используем searchQuery (как в scan-glitched) - ищет в title И description
         if (searchText) {
@@ -498,366 +524,168 @@ function buildImageUrl(imageName) {
 
 /**
  * v3.0.0: Сканирует офферы на Eldorado и обновляет БД
+ * v3.0.18: ПОЛНОСТЬЮ ПЕРЕРАБОТАНО - сканируем по shopName каждого фермера
+ *          Это намного эффективнее чем сканировать все 56000+ офферов
  * Запускается ПОСЛЕ сканирования цен
  */
 async function scanOffers(db) {
-    console.log(`\n📦 Starting offer scan (${OFFER_SCAN_PAGES} pages)...`);
+    console.log(`\n📦 Starting offer scan v3.0.18 (by shopName)...`);
     const startTime = Date.now();
     
     const codesCollection = db.collection('offer_codes');
     const offersCollection = db.collection('offers');
+    const farmersCollection = db.collection('farmers');
     const now = new Date();
     
-    // v3.0.4: Загружаем коды из ДВУХ источников:
-    // 1. offer_codes - зарегистрированные коды
-    // 2. offers - существующие офферы (offerId = код)
-    const codeToOwner = new Map();
+    // v3.0.18: Загружаем всех фермеров с shopName
+    const farmers = await farmersCollection.find(
+        { shopName: { $exists: true, $ne: null, $ne: '' } },
+        { projection: { farmKey: 1, shopName: 1 } }
+    ).toArray();
     
-    // Из offer_codes
-    const registeredCodes = await codesCollection.find({}).toArray();
-    for (const doc of registeredCodes) {
-        codeToOwner.set(doc.code.toUpperCase(), {
-            farmKey: doc.farmKey,
-            brainrotName: doc.brainrotName,
-            source: 'offer_codes'
-        });
-    }
+    console.log(`👥 Found ${farmers.length} farmers with shopName`);
     
-    // Из offers (offerId = код в тайтле)
+    // Загружаем все существующие офферы для быстрого поиска
     const existingOffers = await offersCollection.find({}).toArray();
+    const offersByCode = new Map();
     for (const offer of existingOffers) {
-        if (offer.offerId && !codeToOwner.has(offer.offerId.toUpperCase())) {
-            codeToOwner.set(offer.offerId.toUpperCase(), {
-                farmKey: offer.farmKey,
-                brainrotName: offer.brainrotName,
-                source: 'offers'
-            });
+        if (offer.offerId) {
+            offersByCode.set(offer.offerId.toUpperCase(), offer);
         }
     }
-    
-    console.log(`📋 Loaded ${codeToOwner.size} codes (${registeredCodes.length} from offer_codes, ${existingOffers.length} from offers)`);
+    console.log(`📋 Loaded ${offersByCode.size} existing offers from DB`);
     
     let totalScanned = 0;
     let matchedCount = 0;
     let updatedCount = 0;
     let createdCount = 0;
-    const foundCodes = new Set(); // Отслеживаем найденные коды
+    const foundCodes = new Set();
+    const scannedFarmKeys = new Set();
     
-    // Последовательно сканируем страницы
-    for (let page = 1; page <= OFFER_SCAN_PAGES; page++) {
-        const response = await fetchEldoradoOffers(page, 100);
-        
-        if (response.error) {
-            console.warn(`⚠️ Page ${page} error: ${response.error}`);
-            break;
-        }
-        if (!response.results?.length) break;
-        
-        totalScanned += response.results.length;
-        
-        // Обрабатываем офферы на странице
-        for (const item of response.results) {
-            const offer = item.offer || item;
-            const title = offer.offerTitle || '';
-            const codes = extractAllCodes(title);
-            
-            if (codes.length === 0) continue;
-            
-            // Проверяем каждый код
-            for (const code of codes) {
-                const owner = codeToOwner.get(code);
-                if (!owner) continue;
-                
-                foundCodes.add(code); // Помечаем как найденный
-                matchedCount++;
-                
-                // Данные оффера
-                const price = offer.pricePerUnitInUSD?.amount || 0;
-                const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
-                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
-                
-                // v3.0.2: Debug логирование для отладки мутаций
-                if (title.toLowerCase().includes('money money')) {
-                    console.log(`🔍 DEBUG ${code}: title="${title.substring(0, 60)}...", mutation=${mutation || 'null'}`);
-                    console.log(`   offerAttributeIdValues:`, JSON.stringify(offer.offerAttributeIdValues || []));
-                    console.log(`   attributes (object):`, JSON.stringify(offer.attributes || []));
-                    console.log(`   Full offer keys:`, Object.keys(offer || {}).join(', '));
-                }
-                
-                // Парсим income из title
-                const incomeMatch = title.match(/(\d+(?:\.\d+)?)\s*([MB])\/s/i);
-                let income = null;
-                if (incomeMatch) {
-                    income = parseFloat(incomeMatch[1]);
-                    if (incomeMatch[2].toUpperCase() === 'B') income *= 1000;
-                }
-                
-                // Обновляем offer_codes
-                await codesCollection.updateOne(
-                    { code: code },
-                    { $set: {
-                        status: 'active',
-                        eldoradoOfferId: offer.id,
-                        currentPrice: price,
-                        mutation: mutation,
-                        lastSeenAt: now,
-                        updatedAt: now
-                    }}
-                );
-                
-                // Проверяем существует ли оффер
-                const existingOffer = await offersCollection.findOne({ 
-                    farmKey: owner.farmKey, 
-                    offerId: code 
-                });
-                
-                if (existingOffer) {
-                    // Обновляем существующий
-                    await offersCollection.updateOne(
-                        { _id: existingOffer._id },
-                        { $set: {
-                            status: 'active',
-                            eldoradoOfferId: offer.id,
-                            currentPrice: price,
-                            mutation: mutation,
-                            income: income || existingOffer.income,
-                            brainrotName: owner.brainrotName || existingOffer.brainrotName,
-                            imageUrl: buildImageUrl(imageName) || existingOffer.imageUrl,
-                            eldoradoTitle: title,
-                            sellerName: item.user?.username || null,
-                            lastScannedAt: now,
-                            updatedAt: now
-                        }}
-                    );
-                    updatedCount++;
-                } else {
-                    // Создаём новый оффер
-                    await offersCollection.insertOne({
-                        farmKey: owner.farmKey,
-                        offerId: code,
-                        brainrotName: owner.brainrotName,
-                        income: income,
-                        currentPrice: price,
-                        status: 'active',
-                        mutation: mutation,
-                        imageUrl: buildImageUrl(imageName),
-                        eldoradoOfferId: offer.id,
-                        eldoradoTitle: title,
-                        sellerName: item.user?.username || null,
-                        lastScannedAt: now,
-                        createdAt: now,
-                        updatedAt: now
-                    });
-                    createdCount++;
-                }
-            }
+    // Для каждого фермера - сканируем его офферы по shopName
+    for (const farmer of farmers) {
+        const shopName = farmer.shopName;
+        // Очищаем shopName от эмодзи для поиска
+        const cleanShopName = shopName.replace(/[^\w\s]/g, '').trim();
+        if (!cleanShopName || cleanShopName.length < 3) {
+            console.log(`⏭️ Skipping "${shopName}" - too short after cleaning`);
+            continue;
         }
         
-        // Задержка между страницами (Cloudflare)
-        if (page < OFFER_SCAN_PAGES) {
-            await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
-        }
-    }
-    
-    // v3.0.6: Дополнительное сканирование - ищем конкретные коды пользователей которые НЕ были найдены
-    // Это нужно потому что офферы могут быть на страницах дальше чем первые 10
-    const notFoundCodes = [];
-    for (const [code, owner] of codeToOwner.entries()) {
-        if (!foundCodes.has(code)) {
-            notFoundCodes.push({ code, owner });
-        }
-    }
-    
-    // v3.0.8: Приоритизируем pending офферы - сканируем их первыми
-    // Это важно чтобы новые офферы быстрее получали статус active
-    const pendingOffers = await offersCollection.find({ 
-        status: 'pending',
-        offerId: { $exists: true, $ne: null }
-    }).toArray();
-    const pendingCodes = new Set(pendingOffers.map(o => o.offerId?.toUpperCase()).filter(Boolean));
-    
-    // Сортируем: pending первые, потом остальные
-    notFoundCodes.sort((a, b) => {
-        const aIsPending = pendingCodes.has(a.code);
-        const bIsPending = pendingCodes.has(b.code);
-        if (aIsPending && !bIsPending) return -1;
-        if (!aIsPending && bIsPending) return 1;
-        return 0;
-    });
-    
-    console.log(`📊 Priority sort: ${pendingCodes.size} pending codes will be scanned first`);
-    
-    if (notFoundCodes.length > 0) {
-        console.log(`🔍 Searching for ${notFoundCodes.length} not-found codes by direct search...`);
+        console.log(`\n🔍 Scanning offers for "${shopName}" (farmKey: ${farmer.farmKey})...`);
+        scannedFarmKeys.add(farmer.farmKey);
         
-        // v3.0.9: Курсор для direct search - сканируем разные офферы в каждом запуске
-        // Получаем текущую позицию курсора из БД
-        const scanStateCollection = db.collection('scan_state');
-        const offerCursorDoc = await scanStateCollection.findOne({ _id: 'offer_direct_cursor' });
-        let cursorPosition = offerCursorDoc?.position || 0;
-        
-        // Если курсор вышел за пределы - сбрасываем
-        if (cursorPosition >= notFoundCodes.length) {
-            cursorPosition = 0;
-        }
-        
-        // Берём офферы начиная с позиции курсора
-        const codesToSearch = notFoundCodes.slice(cursorPosition, cursorPosition + MAX_DIRECT_SEARCHES);
-        const nextCursorPosition = cursorPosition + codesToSearch.length;
-        
-        // Сохраняем новую позицию курсора
-        await scanStateCollection.updateOne(
-            { _id: 'offer_direct_cursor' },
-            { $set: { position: nextCursorPosition, updatedAt: now, totalCodes: notFoundCodes.length } },
-            { upsert: true }
-        );
-        
-        console.log(`📍 Direct search cursor: ${cursorPosition} → ${nextCursorPosition} of ${notFoundCodes.length}`);
-        
-        for (const { code, owner } of codesToSearch) {
-            // Задержка между запросами
+        // Сканируем до 5 страниц для каждого магазина (250 офферов макс)
+        for (let page = 1; page <= 5; page++) {
             await new Promise(r => setTimeout(r, OFFER_SCAN_DELAY_MS));
             
-            // v3.0.7: Ищем по #CODE (как в scan-glitched) - searchQuery ищет в title И description
-            const response = await fetchEldoradoOffers(1, 10, `#${code}`);
+            const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, cleanShopName);
             
             if (response.error) {
-                console.warn(`⚠️ Search for #${code} failed: ${response.error}`);
-                continue;
+                console.warn(`   ⚠️ Page ${page} error: ${response.error}`);
+                break;
             }
-            
             if (!response.results?.length) {
-                console.log(`   ❌ #${code} - not found on Eldorado`);
-                continue;
+                if (page === 1) console.log(`   ℹ️ No offers found for "${cleanShopName}"`);
+                break;
             }
             
-            // Ищем оффер с нашим кодом в результатах
+            totalScanned += response.results.length;
+            
+            // Обрабатываем офферы
             for (const item of response.results) {
                 const offer = item.offer || item;
                 const title = offer.offerTitle || '';
                 const codes = extractAllCodes(title);
                 
-                if (!codes.includes(code)) continue;
+                if (codes.length === 0) continue;
                 
-                // Нашли! Обновляем
-                foundCodes.add(code);
-                matchedCount++;
-                
-                const price = offer.pricePerUnitInUSD?.amount || 0;
-                const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
-                const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
-                
-                // Парсим income из title
-                const incomeMatch = title.match(/(\d+(?:\.\d+)?)\s*([MB])\/s/i);
-                let income = null;
-                if (incomeMatch) {
-                    income = parseFloat(incomeMatch[1]);
-                    if (incomeMatch[2].toUpperCase() === 'B') income *= 1000;
+                for (const code of codes) {
+                    const existingOffer = offersByCode.get(code);
+                    
+                    // Если оффер существует и принадлежит этому фермеру
+                    if (existingOffer && existingOffer.farmKey === farmer.farmKey) {
+                        foundCodes.add(code);
+                        matchedCount++;
+                        
+                        const price = offer.pricePerUnitInUSD?.amount || 0;
+                        const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
+                        const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                        let income = parseIncomeFromTitle(title);
+                        
+                        // Fallback: из атрибутов Eldorado (M/s range)
+                        if (!income && offer.offerAttributeIdValues) {
+                            const msAttr = offer.offerAttributeIdValues.find(a => a.name === 'M/s');
+                            if (msAttr?.value) {
+                                const rangeMatch = msAttr.value.match(/(\d+)-(\d+)/);
+                                if (rangeMatch) {
+                                    const min = parseInt(rangeMatch[1]);
+                                    const max = parseInt(rangeMatch[2]);
+                                    income = Math.floor((min + max) / 2 / 10) * 10;
+                                }
+                            }
+                        }
+                        
+                        const finalIncome = (income && income > 0) ? income : (existingOffer.income || 0);
+                        const oldStatus = existingOffer.status;
+                        
+                        await offersCollection.updateOne(
+                            { _id: existingOffer._id },
+                            { $set: {
+                                status: 'active',
+                                eldoradoOfferId: offer.id,
+                                currentPrice: price,
+                                mutation: mutation,
+                                income: finalIncome,
+                                imageUrl: buildImageUrl(imageName) || existingOffer.imageUrl,
+                                eldoradoTitle: title,
+                                sellerName: item.user?.username || null,
+                                lastScannedAt: now,
+                                updatedAt: now
+                            }}
+                        );
+                        
+                        if (oldStatus !== 'active') {
+                            console.log(`   ✅ ${code}: ${oldStatus} → active (${existingOffer.brainrotName})`);
+                        }
+                        updatedCount++;
+                        
+                        // Обновляем offer_codes если есть
+                        await codesCollection.updateOne(
+                            { code: code },
+                            { $set: { status: 'active', lastSeenAt: now, updatedAt: now } }
+                        );
+                    }
                 }
-                
-                // Обновляем offer_codes
-                await codesCollection.updateOne(
-                    { code: code },
-                    { $set: {
-                        status: 'active',
-                        eldoradoOfferId: offer.id,
-                        currentPrice: price,
-                        mutation: mutation,
-                        lastSeenAt: now,
-                        updatedAt: now
-                    }},
-                    { upsert: true }
-                );
-                
-                // Обновляем или создаём оффер
-                const existingOffer = await offersCollection.findOne({ 
-                    farmKey: owner.farmKey, 
-                    offerId: code 
-                });
-                
-                if (existingOffer) {
-                    await offersCollection.updateOne(
-                        { _id: existingOffer._id },
-                        { $set: {
-                            status: 'active',
-                            eldoradoOfferId: offer.id,
-                            currentPrice: price,
-                            mutation: mutation,
-                            income: income || existingOffer.income,
-                            brainrotName: owner.brainrotName || existingOffer.brainrotName,
-                            imageUrl: buildImageUrl(imageName) || existingOffer.imageUrl,
-                            eldoradoTitle: title,
-                            sellerName: item.user?.username || null,
-                            lastScannedAt: now,
-                            updatedAt: now
-                        }}
-                    );
-                    updatedCount++;
-                } else {
-                    await offersCollection.insertOne({
-                        farmKey: owner.farmKey,
-                        offerId: code,
-                        brainrotName: owner.brainrotName,
-                        income: income,
-                        currentPrice: price,
-                        status: 'active',
-                        mutation: mutation,
-                        imageUrl: buildImageUrl(imageName),
-                        eldoradoOfferId: offer.id,
-                        eldoradoTitle: title,
-                        sellerName: item.user?.username || null,
-                        lastScannedAt: now,
-                        createdAt: now,
-                        updatedAt: now
-                    });
-                    createdCount++;
-                }
-                
-                console.log(`   ✅ ${code} - FOUND via direct search! price=$${price}`);
-                foundCodes.add(code); // Добавляем в found после direct search
-                break; // Нашли, выходим из цикла
             }
-        }
-        
-        if (notFoundCodes.length > codesToSearch.length) {
-            const remaining = notFoundCodes.length - nextCursorPosition;
-            console.log(`   ⏭️ ${remaining} codes remaining for next scan cycle`);
+            
+            // Если офферов меньше 50 - это последняя страница
+            if (response.results.length < OFFER_SCAN_PAGE_SIZE) break;
         }
     }
     
-    // v9.12.1 FIX: Помечаем НЕ найденные офферы как paused
-    // Важно: помечаем только те коды которые были проверены через direct search
-    // Коды которые не попали в direct search (из-за лимита) - НЕ трогаем
+    // v3.0.18: Помечаем офферы которые НЕ были найдены как paused
+    // Но только если они были в списке для сканирования и не нашлись
     let pausedCount = 0;
-    
-    // v3.0.9: Используем codesToSearch которые реально были просканированы
-    // codesToSearch определена внутри if блока, поэтому проверяем существование
-    const searchedCodes = (typeof codesToSearch !== 'undefined' ? codesToSearch : []).map(c => c.code);
-    const stillNotFound = searchedCodes.filter(code => !foundCodes.has(code));
-    
-    if (stillNotFound.length > 0) {
-        console.log(`🔍 Marking ${stillNotFound.length} offers as paused (not found after direct search)...`);
-        
-        for (const code of stillNotFound) {
-            const owner = codeToOwner.get(code);
-            if (!owner) continue;
-            
-            // Обновляем offer_codes
-            await codesCollection.updateOne(
-                { code: code },
-                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-            );
-            
-            // Обновляем offers
-            const result = await offersCollection.updateMany(
-                { farmKey: owner.farmKey, offerId: code, status: { $ne: 'paused' } },
-                { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-            );
-            
-            if (result.modifiedCount > 0) {
-                pausedCount++;
-                console.log(`   ⏸️ Marked paused: ${code}`);
+    const allTrackedCodes = [];
+    for (const farmer of farmers) {
+        const farmerOffers = await offersCollection.find({ farmKey: farmer.farmKey, offerId: { $exists: true, $ne: null } }).toArray();
+        for (const offer of farmerOffers) {
+            if (offer.offerId && !foundCodes.has(offer.offerId.toUpperCase())) {
+                allTrackedCodes.push({ code: offer.offerId.toUpperCase(), farmKey: farmer.farmKey });
             }
+        }
+    }
+    
+    // Помечаем не найденные как paused
+    for (const { code, farmKey } of allTrackedCodes) {
+        const result = await offersCollection.updateMany(
+            { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') }, status: { $ne: 'paused' } },
+            { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+        );
+        if (result.modifiedCount > 0) {
+            pausedCount++;
+            console.log(`   ⏸️ Marked paused: ${code}`);
         }
     }
     

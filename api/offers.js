@@ -2,6 +2,33 @@ const { connectToDatabase } = require('./_lib/db');
 const https = require('https');
 
 /**
+ * Парсит income из различных форматов:
+ * - Число: 310 → 310
+ * - Строка без $: "310.0 M/s" → 310
+ * - Строка с $: "$310.0M/s" → 310
+ * - Строка с B: "1.5B/s" → 1500
+ */
+function parseIncomeValue(income) {
+    if (typeof income === 'number') return income;
+    if (!income) return 0;
+    
+    const str = String(income).replace(/[$,]/g, '').trim();
+    const match = str.match(/([\d.]+)\s*([KMBT])?\/?s?/i);
+    if (!match) return parseFloat(str) || 0;
+    
+    let value = parseFloat(match[1]);
+    const suffix = (match[2] || '').toUpperCase();
+    
+    // Конвертируем в M/s
+    if (suffix === 'K') value *= 0.001;
+    else if (suffix === 'B') value *= 1000;
+    else if (suffix === 'T') value *= 1000000;
+    // M или пусто = уже в M/s
+    
+    return value || 0;
+}
+
+/**
  * API для отслеживания офферов на Eldorado
  * 
  * УНИВЕРСАЛЬНАЯ СИСТЕМА v2.1:
@@ -233,7 +260,7 @@ module.exports = async (req, res) => {
                 farmKey,
                 offerId,
                 brainrotName,
-                income: typeof income === 'number' ? income : parseFloat(income) || 0,
+                income: parseIncomeValue(income),
                 incomeRaw: incomeRaw || income, // сохраняем оригинальную строку
                 currentPrice: parseFloat(currentPrice) || 0,
                 recommendedPrice: parseFloat(recommendedPrice) || 0,
