@@ -46,6 +46,8 @@ module.exports = async (req, res) => {
         const { db } = await connectToDatabase();
         // MySQL doesn't support MongoDB-style projections, so just get full document
         const farmer = await db.collection('farmers').findOne({ farmKey: key });
+        
+        console.log(`[status] farmKey=${key}, farmer found=${!!farmer}, accounts=${farmer?.accounts?.length || 0}`);
 
         if (!farmer) {
             return res.status(404).json({ error: 'Farm not found' });
