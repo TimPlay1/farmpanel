@@ -341,8 +341,20 @@ const scanOffersHandler = require('./api/scan-offers');
 const offersHandler = require('./api/offers');
 const eldoradoPriceHandler = require('./api/eldorado-price');
 const aiPriceHandler = require('./api/ai-price');
+const syncFastHandler = require('./api/sync-fast');
+const syncHandler = require('./api/sync');
 
 // API Routes
+
+// Sync-fast endpoint - fast cached sync for frontend polling
+app.get('/api/sync-fast', async (req, res) => {
+    await syncFastHandler(req, res);
+});
+
+// Sync POST endpoint - receives data from panel_sync.lua
+app.post('/api/sync', async (req, res) => {
+    await syncHandler(req, res);
+});
 
 // Eldorado price endpoint - get optimal price for brainrot
 app.get('/api/eldorado-price', async (req, res) => {
