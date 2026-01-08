@@ -2590,10 +2590,12 @@ async function fetchBulkEldoradoPrices(brainrots) {
 
 /**
  * Форматировать цену для отображения
+ * v9.12.66: Parse price as float to handle string values from MySQL
  */
 function formatPrice(price) {
-    if (!price || price <= 0) return '—';
-    return '$' + price.toFixed(2);
+    const num = parseFloat(price);
+    if (!num || isNaN(num) || num <= 0) return '—';
+    return '$' + num.toFixed(2);
 }
 
 /**
