@@ -16,5 +16,7 @@
 			"path": "../../../AppData/Local/Wave/scripts/brainrot"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"powershell.cwd": "farmerpanel"
+	}
 }

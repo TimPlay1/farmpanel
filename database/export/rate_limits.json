@@ -1,0 +1,128 @@
+[
+  {
+    "_id": "695f58e6c2a526ab2314f7ce",
+    "timestamp": 1767856358860,
+    "tokens": 1222,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:12:38.860Z"
+  },
+  {
+    "_id": "695f58eec2a526ab2314f7cf",
+    "timestamp": 1767856366530,
+    "tokens": 1957,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:12:46.530Z"
+  },
+  {
+    "_id": "695f58fac2a526ab2314f7d0",
+    "timestamp": 1767856378320,
+    "tokens": 1262,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:12:58.320Z"
+  },
+  {
+    "_id": "695f58fbc2a526ab2314f7d1",
+    "timestamp": 1767856379359,
+    "tokens": 1999,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:12:59.359Z"
+  },
+  {
+    "_id": "695f58fcc2a526ab2314f7d2",
+    "timestamp": 1767856380166,
+    "tokens": 1211,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:00.166Z"
+  },
+  {
+    "_id": "695f5903c2a526ab2314f7d3",
+    "timestamp": 1767856387217,
+    "tokens": 1233,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:07.217Z"
+  },
+  {
+    "_id": "695f5905c2a526ab2314f7d4",
+    "timestamp": 1767856389161,
+    "tokens": 1297,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:09.161Z"
+  },
+  {
+    "_id": "695f5907c2a526ab2314f7d5",
+    "timestamp": 1767856391014,
+    "tokens": 1208,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:11.014Z"
+  },
+  {
+    "_id": "695f5928962fb78271c9cc33",
+    "timestamp": 1767856424627,
+    "tokens": 1239,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:44.627Z"
+  },
+  {
+    "_id": "695f5928c2a526ab2314f7d6",
+    "timestamp": 1767856424990,
+    "tokens": 1240,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:13:44.990Z"
+  },
+  {
+    "_id": "695f593d962fb78271c9cc34",
+    "timestamp": 1767856445380,
+    "tokens": 1983,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:05.380Z"
+  },
+  {
+    "_id": "695f593dc2a526ab2314f7d7",
+    "timestamp": 1767856445398,
+    "tokens": 1998,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:05.398Z"
+  },
+  {
+    "_id": "695f5941962fb78271c9cc35",
+    "timestamp": 1767856449705,
+    "tokens": 1777,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:09.705Z"
+  },
+  {
+    "_id": "695f5944962fb78271c9cc36",
+    "timestamp": 1767856452652,
+    "tokens": 1431,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:12.652Z"
+  },
+  {
+    "_id": "695f5946c2a526ab2314f7d8",
+    "timestamp": 1767856454775,
+    "tokens": 1569,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:14.775Z"
+  },
+  {
+    "_id": "695f5949962fb78271c9cc37",
+    "timestamp": 1767856457366,
+    "tokens": 1317,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:17.366Z"
+  },
+  {
+    "_id": "695f594a800547f78170eaca",
+    "timestamp": 1767856458356,
+    "tokens": 1225,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:18.356Z"
+  },
+  {
+    "_id": "695f5958800547f78170eacb",
+    "timestamp": 1767856472152,
+    "tokens": 1986,
+    "source": "hybridParse",
+    "createdAt": "2026-01-08T07:14:32.152Z"
+  }
+]

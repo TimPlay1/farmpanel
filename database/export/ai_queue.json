@@ -1,0 +1,2646 @@
+[
+  {
+    "_id": "donkeyturbo express_7500000",
+    "addedAt": "2026-01-04T23:27:22.346Z",
+    "income": 7500000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "mieteteira bicicleteira_156000000",
+    "addedAt": "2026-01-04T19:55:53.771Z",
+    "income": 156000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_9375000",
+    "addedAt": "2026-01-04T22:01:40.752Z",
+    "income": 9375000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_255000000",
+    "addedAt": "2026-01-04T16:31:27.766Z",
+    "income": 255000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_150000000",
+    "addedAt": "2026-01-04T02:46:24.209Z",
+    "income": 150000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 11.82,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_85000000",
+    "addedAt": "2026-01-04T21:05:50.978Z",
+    "income": 85000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_119000000",
+    "addedAt": "2026-01-04T21:21:51.837Z",
+    "income": 119000000,
+    "name": "Chimnino",
+    "regexPrice": 249,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_165000000",
+    "addedAt": "2026-01-04T19:20:52.018Z",
+    "income": 165000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_110000000",
+    "addedAt": "2026-01-04T21:05:53.348Z",
+    "income": 110000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_93750000",
+    "addedAt": "2026-01-04T21:51:24.415Z",
+    "income": 93750000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_98000000",
+    "addedAt": "2026-01-04T23:25:42.102Z",
+    "income": 98000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "mieteteira bicicleteira_195000000",
+    "addedAt": "2026-01-04T19:55:59.886Z",
+    "income": 195000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_150000000",
+    "addedAt": "2026-01-04T18:05:51.913Z",
+    "income": 150000000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swag soda_110500000",
+    "addedAt": "2026-01-04T02:46:32.824Z",
+    "income": 110500000,
+    "name": "Swag Soda",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_210000000",
+    "addedAt": "2026-01-04T22:52:33.700Z",
+    "income": 210000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_140000000",
+    "addedAt": "2026-01-04T20:41:29.691Z",
+    "income": 140000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "spaghetti tualetti_510000000",
+    "addedAt": "2026-01-04T22:41:49.648Z",
+    "income": 510000000,
+    "name": "Spaghetti Tualetti",
+    "regexPrice": 71.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_220000000",
+    "addedAt": "2026-01-04T22:02:37.590Z",
+    "income": 220000000,
+    "name": "Los Mobilis",
+    "regexPrice": 244,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_160000000",
+    "addedAt": "2026-01-04T21:06:10.248Z",
+    "income": 160000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_43750000",
+    "addedAt": "2026-01-04T22:41:51.912Z",
+    "income": 43750000,
+    "name": "Ketupat Kepat",
+    "regexPrice": 49.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_127500000",
+    "addedAt": "2026-01-04T22:16:48.860Z",
+    "income": 127500000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_157500000",
+    "addedAt": "2026-01-04T22:22:00.196Z",
+    "income": 157500000,
+    "name": "Los 67",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_45000000",
+    "addedAt": "2026-01-04T02:47:05.438Z",
+    "income": 45000000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_154000000",
+    "addedAt": "2026-01-04T23:03:10.339Z",
+    "income": 154000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "tictac sahur_37500000",
+    "addedAt": "2026-01-04T20:06:31.078Z",
+    "income": 37500000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_170000000",
+    "addedAt": "2026-01-04T22:53:25.275Z",
+    "income": 170000000,
+    "name": "Los 25",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_134000000",
+    "addedAt": "2026-01-04T02:47:09.215Z",
+    "income": 134000000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_266000000",
+    "addedAt": "2026-01-04T20:36:42.507Z",
+    "income": 266000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_182000000",
+    "addedAt": "2026-01-04T19:56:25.141Z",
+    "income": 182000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_120000000",
+    "addedAt": "2026-01-04T13:21:52.634Z",
+    "income": 120000000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_75000000",
+    "addedAt": "2026-01-04T02:47:23.685Z",
+    "income": 75000000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_129500000",
+    "addedAt": "2026-01-04T23:18:08.640Z",
+    "income": 129500000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "los combinasionas_127500000",
+    "addedAt": "2026-01-04T23:22:11.347Z",
+    "income": 127500000,
+    "name": "Los Combinasionas",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "tictac sahur_243750000",
+    "addedAt": "2026-01-04T20:06:48.190Z",
+    "income": 243750000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_112000000",
+    "addedAt": "2026-01-04T21:42:38.486Z",
+    "income": 112000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_195000000",
+    "addedAt": "2026-01-04T19:21:29.216Z",
+    "income": 195000000,
+    "name": "Los Combinasionas",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_189000000",
+    "addedAt": "2026-01-04T21:38:29.304Z",
+    "income": 189000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la secret combinasion_750000000",
+    "addedAt": "2026-01-04T22:57:33.268Z",
+    "income": 750000000,
+    "name": "La Secret Combinasion",
+    "regexPrice": 309.98,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_182000000",
+    "addedAt": "2026-01-04T23:27:22.553Z",
+    "income": 182000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "chimnino_84000000",
+    "addedAt": "2026-01-04T20:07:06.671Z",
+    "income": 84000000,
+    "name": "Chimnino",
+    "regexPrice": 25.6,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_46875000",
+    "addedAt": "2026-01-04T20:07:17.001Z",
+    "income": 46875000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_202500000",
+    "addedAt": "2026-01-04T17:33:04.086Z",
+    "income": 202500000,
+    "name": "Los 67",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_195500000",
+    "addedAt": "2026-01-04T13:31:36.322Z",
+    "income": 195500000,
+    "name": "Los Candies",
+    "regexPrice": 179,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_325000000",
+    "addedAt": "2026-01-04T19:56:40.136Z",
+    "income": 325000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_300000000",
+    "addedAt": "2026-01-04T02:47:38.466Z",
+    "income": 300000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 11.82,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_185500000",
+    "addedAt": "2026-01-04T22:04:07.127Z",
+    "income": 185500000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "jolly jolly sahur_45000000",
+    "addedAt": "2026-01-04T22:17:25.316Z",
+    "income": 45000000,
+    "name": "Jolly Jolly Sahur",
+    "regexPrice": 98.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_42500000",
+    "addedAt": "2026-01-04T22:16:50.012Z",
+    "income": 42500000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tuff toucan_26000000",
+    "addedAt": "2026-01-04T12:41:08.460Z",
+    "income": 26000000,
+    "name": "Tuff Toucan",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_333500000",
+    "addedAt": "2026-01-04T05:53:39.571Z",
+    "income": 333500000,
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "lavadorito spinito_56250000",
+    "addedAt": "2026-01-04T22:42:45.557Z",
+    "income": 56250000,
+    "name": "Lavadorito Spinito",
+    "regexPrice": 64.02,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_202500000",
+    "addedAt": "2026-01-04T18:06:27.030Z",
+    "income": 202500000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_161000000",
+    "addedAt": "2026-01-04T18:56:53.997Z",
+    "income": 161000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_225000000",
+    "addedAt": "2026-01-04T17:32:27.985Z",
+    "income": 225000000,
+    "name": "Los 67",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_11250000",
+    "addedAt": "2026-01-04T15:12:25.068Z",
+    "income": 11250000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 75.46,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_217500000",
+    "addedAt": "2026-01-04T18:06:39.974Z",
+    "income": 217500000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los bros_144000000",
+    "addedAt": "2026-01-04T21:07:17.960Z",
+    "income": 144000000,
+    "name": "Los Bros",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_108875000",
+    "addedAt": "2026-01-04T22:04:52.833Z",
+    "income": 108875000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "nuclearo dinossauro_15000000",
+    "addedAt": "2026-01-04T18:06:41.768Z",
+    "income": 15000000,
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 47.27,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_138000000",
+    "addedAt": "2026-01-04T02:48:01.059Z",
+    "income": 138000000,
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_477375000",
+    "addedAt": "2026-01-04T02:48:01.791Z",
+    "income": 477375000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_390000000",
+    "addedAt": "2026-01-04T15:42:07.075Z",
+    "income": 390000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 11.82,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_218750000",
+    "addedAt": "2026-01-04T22:43:01.006Z",
+    "income": 218750000,
+    "name": "Ketupat Kepat",
+    "regexPrice": 49.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_1012500000",
+    "addedAt": "2026-01-04T10:51:41.589Z",
+    "income": 1012500000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_451000000",
+    "addedAt": "2026-01-04T19:22:02.610Z",
+    "income": 451000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_150875000",
+    "addedAt": "2026-01-04T21:07:23.915Z",
+    "income": 150875000,
+    "name": "Los Burritos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_120000000",
+    "addedAt": "2026-01-04T20:48:15.272Z",
+    "income": 120000000,
+    "name": "Los Combinasionas",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_80000000",
+    "addedAt": "2026-01-04T21:48:33.767Z",
+    "income": 80000000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los planitos_240500000",
+    "addedAt": "2026-01-04T21:07:25.690Z",
+    "income": 240500000,
+    "name": "Los Planitos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_105000000",
+    "addedAt": "2026-01-04T02:48:08.780Z",
+    "income": 105000000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 241.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_104000000",
+    "addedAt": "2026-01-04T19:57:53.163Z",
+    "income": 104000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_101500000",
+    "addedAt": "2026-01-04T02:48:11.059Z",
+    "income": 101500000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_90000000",
+    "addedAt": "2026-01-04T21:07:28.680Z",
+    "income": 90000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_552750000",
+    "addedAt": "2026-01-04T23:20:02.859Z",
+    "income": 552750000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "ketupat kepat_210000000",
+    "addedAt": "2026-01-04T22:43:45.531Z",
+    "income": 210000000,
+    "name": "Ketupat Kepat",
+    "regexPrice": 49.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_184000000",
+    "addedAt": "2026-01-04T02:48:22.768Z",
+    "income": 184000000,
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los nooo my hotspotsitos_96250000",
+    "addedAt": "2026-01-04T19:22:18.092Z",
+    "income": 96250000,
+    "name": "Los Nooo My Hotspotsitos",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_72250000",
+    "addedAt": "2026-01-04T21:03:10.507Z",
+    "income": 72250000,
+    "name": "Los Burritos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_992250000",
+    "addedAt": "2026-01-04T23:05:10.269Z",
+    "income": 992250000,
+    "name": "Eviledon",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "mieteteira bicicleteira_494000000",
+    "addedAt": "2026-01-04T19:52:24.366Z",
+    "income": 494000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_236250000",
+    "addedAt": "2026-01-04T23:22:11.348Z",
+    "income": 236250000,
+    "name": "Los 67",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "los planitos_166500000",
+    "addedAt": "2026-01-04T23:05:34.603Z",
+    "income": 166500000,
+    "name": "Los Planitos",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "la grande combinasion_130000000",
+    "addedAt": "2026-01-04T02:48:32.185Z",
+    "income": 130000000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 241.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_595000000",
+    "addedAt": "2026-01-04T22:18:03.083Z",
+    "income": 595000000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los bros_408000000",
+    "addedAt": "2026-01-04T23:25:53.321Z",
+    "income": 408000000,
+    "name": "Los Bros",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "esok sekolah_330000000",
+    "addedAt": "2026-01-04T10:12:18.823Z",
+    "income": 330000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la casa boo_125000000",
+    "addedAt": "2026-01-04T03:13:37.031Z",
+    "income": 125000000,
+    "name": "La Casa Boo",
+    "regexPrice": 173.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "bunito bunito spinito_3000000",
+    "addedAt": "2026-01-04T21:03:39.470Z",
+    "income": 3000000,
+    "name": "Bunito Bunito Spinito",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_609375000",
+    "addedAt": "2026-01-04T20:08:31.955Z",
+    "income": 609375000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_551250000",
+    "addedAt": "2026-01-04T23:09:16.467Z",
+    "income": 551250000,
+    "name": "Eviledon",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "los 25_122500000",
+    "addedAt": "2026-01-04T21:03:56.745Z",
+    "income": 122500000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los nooo my hotspotsitos_110000000",
+    "addedAt": "2026-01-04T19:38:27.099Z",
+    "income": 110000000,
+    "name": "Los Nooo My Hotspotsitos",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "las sis_56875000",
+    "addedAt": "2026-01-04T02:49:02.952Z",
+    "income": 56875000,
+    "name": "Las Sis",
+    "regexPrice": 59.09,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_243750000",
+    "addedAt": "2026-01-04T19:17:58.878Z",
+    "income": 243750000,
+    "name": "Los Combinasionas",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swaggy bros_200000000",
+    "addedAt": "2026-01-04T19:43:35.013Z",
+    "income": 200000000,
+    "name": "Swaggy Bros",
+    "regexPrice": 45.31,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la spooky grande_183750000",
+    "addedAt": "2026-01-04T14:42:52.214Z",
+    "income": 183750000,
+    "name": "La Spooky Grande",
+    "regexPrice": 148.9,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_275000000",
+    "addedAt": "2026-01-04T19:18:00.863Z",
+    "income": 275000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_180000000",
+    "addedAt": "2026-01-04T18:04:18.916Z",
+    "income": 180000000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_168000000",
+    "addedAt": "2026-01-04T12:32:21.797Z",
+    "income": 168000000,
+    "name": "Chimnino",
+    "regexPrice": 46.34,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la secret combinasion_125000000",
+    "addedAt": "2026-01-04T22:54:52.905Z",
+    "income": 125000000,
+    "name": "La Secret Combinasion",
+    "regexPrice": 309.98,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_105000000",
+    "addedAt": "2026-01-04T02:49:21.755Z",
+    "income": 105000000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "money money puggy_378000000",
+    "addedAt": "2026-01-04T19:18:15.955Z",
+    "income": 378000000,
+    "name": "Money Money Puggy",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_308000000",
+    "addedAt": "2026-01-04T23:14:35.893Z",
+    "income": 308000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "los combinasionas_247500000",
+    "addedAt": "2026-01-04T22:49:01.312Z",
+    "income": 247500000,
+    "name": "Los Combinasionas",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_203000000",
+    "addedAt": "2026-01-04T02:49:26.242Z",
+    "income": 203000000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_162500000",
+    "addedAt": "2026-01-04T22:55:22.435Z",
+    "income": 162500000,
+    "name": "Garama and Madundung",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_135000000",
+    "addedAt": "2026-01-04T21:04:12.353Z",
+    "income": 135000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_87500000",
+    "addedAt": "2026-01-04T15:14:11.874Z",
+    "income": 87500000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_262500000",
+    "addedAt": "2026-01-04T18:06:12.492Z",
+    "income": 262500000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los spooky combinasionas_250000000",
+    "addedAt": "2026-01-04T19:18:21.259Z",
+    "income": 250000000,
+    "name": "Los Spooky Combinasionas",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_247500000",
+    "addedAt": "2026-01-04T17:34:33.624Z",
+    "income": 247500000,
+    "name": "Los 67",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_209000000",
+    "addedAt": "2026-01-04T19:18:22.627Z",
+    "income": 209000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los chicleteiras_140000000",
+    "addedAt": "2026-01-04T21:04:14.628Z",
+    "income": 140000000,
+    "name": "Los Chicleteiras",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_41875000",
+    "addedAt": "2026-01-04T02:49:34.040Z",
+    "income": 41875000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "bunito bunito spinito_18000000",
+    "addedAt": "2026-01-04T21:04:30.534Z",
+    "income": 18000000,
+    "name": "Bunito Bunito Spinito",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_225500000",
+    "addedAt": "2026-01-04T19:18:27.205Z",
+    "income": 225500000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_208000000",
+    "addedAt": "2026-01-04T19:53:17.487Z",
+    "income": 208000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los spooky combinasionas_120000000",
+    "addedAt": "2026-01-04T04:43:38.191Z",
+    "income": 120000000,
+    "name": "Los Spooky Combinasionas",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_225000000",
+    "addedAt": "2026-01-04T04:54:24.724Z",
+    "income": 225000000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 89,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_189000000",
+    "addedAt": "2026-01-04T17:22:45.760Z",
+    "income": 189000000,
+    "name": "Eviledon",
+    "regexPrice": 84,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_135000000",
+    "addedAt": "2026-01-04T21:13:46.499Z",
+    "income": 135000000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_35000000",
+    "addedAt": "2026-01-04T22:42:40.717Z",
+    "income": 35000000,
+    "name": "Ketupat Kepat",
+    "regexPrice": 49.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_297000000",
+    "addedAt": "2026-01-04T14:23:06.613Z",
+    "income": 297000000,
+    "name": "Los Mobilis",
+    "regexPrice": 59.09,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_213500000",
+    "addedAt": "2026-01-04T20:49:33.109Z",
+    "income": 213500000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_130000000",
+    "addedAt": "2026-01-04T21:04:37.181Z",
+    "income": 130000000,
+    "name": "Los 25",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los nooo my hotspotsitos_104500000",
+    "addedAt": "2026-01-04T19:18:33.107Z",
+    "income": 104500000,
+    "name": "Los Nooo My Hotspotsitos",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "money money puggy_320250000",
+    "addedAt": "2026-01-04T20:29:58.281Z",
+    "income": 320250000,
+    "name": "Money Money Puggy",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_142500000",
+    "addedAt": "2026-01-04T16:13:27.549Z",
+    "income": 142500000,
+    "name": "Los Combinasionas",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_104125000",
+    "addedAt": "2026-01-04T21:04:39.030Z",
+    "income": 104125000,
+    "name": "Los Burritos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_385000000",
+    "addedAt": "2026-01-04T21:29:54.366Z",
+    "income": 385000000,
+    "name": "Los Mobilis",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_265625000",
+    "addedAt": "2026-01-04T22:18:51.024Z",
+    "income": 265625000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_213750000",
+    "addedAt": "2026-01-04T17:35:02.282Z",
+    "income": 213750000,
+    "name": "Los 67",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mariachi corazoni_81250000",
+    "addedAt": "2026-01-04T19:18:36.903Z",
+    "income": 81250000,
+    "name": "Mariachi Corazoni",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_450000000",
+    "addedAt": "2026-01-04T20:18:57.345Z",
+    "income": 450000000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 234,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "reinito sleighito_840000000",
+    "addedAt": "2026-01-04T19:13:56.486Z",
+    "income": 840000000,
+    "name": "Reinito Sleighito",
+    "regexPrice": 298.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_245000000",
+    "addedAt": "2026-01-04T02:52:55.948Z",
+    "income": 245000000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_209375000",
+    "addedAt": "2026-01-04T02:52:56.669Z",
+    "income": 209375000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "nuclearo dinossauro_127500000",
+    "addedAt": "2026-01-04T19:18:43.866Z",
+    "income": 127500000,
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_107500000",
+    "addedAt": "2026-01-04T18:13:51.630Z",
+    "income": 107500000,
+    "name": "La Grande Combinasion",
+    "regexPrice": 47.27,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los bros_24000000",
+    "addedAt": "2026-01-04T12:22:15.405Z",
+    "income": 24000000,
+    "name": "Los Bros",
+    "regexPrice": 234,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_993750000",
+    "addedAt": "2026-01-04T17:13:26.941Z",
+    "income": 993750000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 49.25,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_435500000",
+    "addedAt": "2026-01-04T02:53:00.545Z",
+    "income": 435500000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_429000000",
+    "addedAt": "2026-01-04T20:19:26.958Z",
+    "income": 429000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_217000000",
+    "addedAt": "2026-01-04T22:25:02.114Z",
+    "income": 217000000,
+    "name": "Chimnino",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "orcaledon_160000000",
+    "addedAt": "2026-01-04T22:50:09.324Z",
+    "income": 160000000,
+    "name": "Orcaledon",
+    "regexPrice": 139,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_105000000",
+    "addedAt": "2026-01-04T18:05:24.073Z",
+    "income": 105000000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los primos_31000000",
+    "addedAt": "2026-01-04T17:44:10.956Z",
+    "income": 31000000,
+    "name": "Los Primos",
+    "regexPrice": 83.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_950000000",
+    "addedAt": "2026-01-04T23:00:03.688Z",
+    "income": 950000000,
+    "name": "Garama and Madundung",
+    "regexPrice": 109,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_715000000",
+    "addedAt": "2026-01-04T19:53:45.703Z",
+    "income": 715000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "las sis_350000000",
+    "addedAt": "2026-01-04T19:18:50.774Z",
+    "income": 350000000,
+    "name": "Las Sis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tuff toucan_364000000",
+    "addedAt": "2026-01-04T12:42:35.595Z",
+    "income": 364000000,
+    "name": "Tuff Toucan",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_341000000",
+    "addedAt": "2026-01-04T19:18:51.590Z",
+    "income": 341000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "spaghetti tualetti_255000000",
+    "addedAt": "2026-01-04T22:50:33.634Z",
+    "income": 255000000,
+    "name": "Spaghetti Tualetti",
+    "regexPrice": 71.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_227500000",
+    "addedAt": "2026-01-04T22:50:34.363Z",
+    "income": 227500000,
+    "name": "Ketupat Kepat",
+    "regexPrice": 49.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "reinito sleighito_140000000",
+    "addedAt": "2026-01-04T16:34:13.608Z",
+    "income": 140000000,
+    "name": "Reinito Sleighito",
+    "regexPrice": 348.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_468750000",
+    "addedAt": "2026-01-04T20:14:02.924Z",
+    "income": 468750000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 49.24,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los puggies_277500000",
+    "addedAt": "2026-01-04T21:30:36.584Z",
+    "income": 277500000,
+    "name": "Los Puggies",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_224000000",
+    "addedAt": "2026-01-04T02:53:14.102Z",
+    "income": 224000000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swag soda_214500000",
+    "addedAt": "2026-01-04T02:53:25.186Z",
+    "income": 214500000,
+    "name": "Swag Soda",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_157250000",
+    "addedAt": "2026-01-04T21:05:05.694Z",
+    "income": 157250000,
+    "name": "Los Burritos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_396000000",
+    "addedAt": "2026-01-04T19:18:56.720Z",
+    "income": 396000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "spaghetti tualetti_300000000",
+    "addedAt": "2026-01-04T22:50:39.633Z",
+    "income": 300000000,
+    "name": "Spaghetti Tualetti",
+    "regexPrice": 71.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los spooky combinasionas_210000000",
+    "addedAt": "2026-01-04T19:18:57.991Z",
+    "income": 210000000,
+    "name": "Los Spooky Combinasionas",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_150000000",
+    "addedAt": "2026-01-04T20:04:32.527Z",
+    "income": 150000000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los nooo my hotspotsitos_77000000",
+    "addedAt": "2026-01-04T19:18:59.295Z",
+    "income": 77000000,
+    "name": "Los Nooo My Hotspotsitos",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_308000000",
+    "addedAt": "2026-01-04T19:19:00.146Z",
+    "income": 308000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_117250000",
+    "addedAt": "2026-01-04T11:12:56.698Z",
+    "income": 117250000,
+    "name": "Tang Tang Keletang",
+    "regexPrice": 124,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "lavadorito spinito_45000000",
+    "addedAt": "2026-01-04T23:00:20.718Z",
+    "income": 45000000,
+    "name": "Lavadorito Spinito",
+    "regexPrice": 64.02,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_630000000",
+    "addedAt": "2026-01-04T17:23:25.206Z",
+    "income": 630000000,
+    "name": "Eviledon",
+    "regexPrice": 84,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_230000000",
+    "addedAt": "2026-01-04T02:53:33.715Z",
+    "income": 230000000,
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swag soda_172250000",
+    "addedAt": "2026-01-04T02:53:34.403Z",
+    "income": 172250000,
+    "name": "Swag Soda",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "nuclearo dinossauro_45000000",
+    "addedAt": "2026-01-04T19:19:04.441Z",
+    "income": 45000000,
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_425000000",
+    "addedAt": "2026-01-04T22:19:41.035Z",
+    "income": 425000000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_375000000",
+    "addedAt": "2026-01-04T20:04:48.532Z",
+    "income": 375000000,
+    "name": "Tictac Sahur",
+    "regexPrice": 38.41,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_301000000",
+    "addedAt": "2026-01-04T13:33:30.744Z",
+    "income": 301000000,
+    "name": "Chimnino",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_255000000",
+    "addedAt": "2026-01-04T22:19:48.276Z",
+    "income": 255000000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_196000000",
+    "addedAt": "2026-01-04T18:09:56.441Z",
+    "income": 196000000,
+    "name": "Chimnino",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los spaghettis_70000000",
+    "addedAt": "2026-01-04T18:14:33.415Z",
+    "income": 70000000,
+    "name": "Los Spaghettis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_550000000",
+    "addedAt": "2026-01-04T15:43:33.347Z",
+    "income": 550000000,
+    "name": "Garama and Madundung",
+    "regexPrice": 169,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_337500000",
+    "addedAt": "2026-01-04T05:35:16.778Z",
+    "income": 337500000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 89,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los jolly combinasionas_300000000",
+    "addedAt": "2026-01-04T21:09:33.020Z",
+    "income": 300000000,
+    "name": "Los Jolly Combinasionas",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chillin chili_275000000",
+    "addedAt": "2026-01-04T02:53:56.623Z",
+    "income": 275000000,
+    "name": "Chillin Chili",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_220500000",
+    "addedAt": "2026-01-04T17:23:35.522Z",
+    "income": 220500000,
+    "name": "Eviledon",
+    "regexPrice": 84,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "burguro and fryuro_150000000",
+    "addedAt": "2026-01-04T19:04:06.210Z",
+    "income": 150000000,
+    "name": "Burguro And Fryuro",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_67500000",
+    "addedAt": "2026-01-04T10:23:14.904Z",
+    "income": 67500000,
+    "name": "Donkeyturbo Express",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "spaghetti tualetti_315000000",
+    "addedAt": "2026-01-04T22:09:47.792Z",
+    "income": 315000000,
+    "name": "Spaghetti Tualetti",
+    "regexPrice": 150.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "orcaledon_40000000",
+    "addedAt": "2026-01-04T22:09:48.501Z",
+    "income": 40000000,
+    "name": "Orcaledon",
+    "regexPrice": 64.02,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "67_153750000",
+    "addedAt": "2026-01-04T19:19:26.051Z",
+    "income": 153750000,
+    "name": "67",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_135000000",
+    "addedAt": "2026-01-04T02:54:13.660Z",
+    "income": 135000000,
+    "name": "Esok Sekolah",
+    "regexPrice": 11.82,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "money money reindeer_612500000",
+    "addedAt": "2026-01-04T21:58:55.712Z",
+    "income": 612500000,
+    "name": "Money Money Reindeer",
+    "regexPrice": 5.39,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swaggy bros_460000000",
+    "addedAt": "2026-01-04T17:13:59.815Z",
+    "income": 460000000,
+    "name": "Swaggy Bros",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_300000000",
+    "addedAt": "2026-01-04T21:58:57.573Z",
+    "income": 300000000,
+    "name": "Garama and Madundung",
+    "regexPrice": 169,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_187500000",
+    "addedAt": "2026-01-04T18:14:44.941Z",
+    "income": 187500000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "nuclearo dinossauro_165000000",
+    "addedAt": "2026-01-04T19:19:30.109Z",
+    "income": 165000000,
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_360000000",
+    "addedAt": "2026-01-04T18:14:46.544Z",
+    "income": 360000000,
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_350000000",
+    "addedAt": "2026-01-04T09:43:17.809Z",
+    "income": 350000000,
+    "name": "Chimnino",
+    "regexPrice": 1788,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la taco combinasion_822500000",
+    "addedAt": "2026-01-04T10:53:40.008Z",
+    "income": 822500000,
+    "name": "La Taco Combinasion",
+    "regexPrice": 79.9,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_286000000",
+    "addedAt": "2026-01-04T19:19:33.418Z",
+    "income": 286000000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_148750000",
+    "addedAt": "2026-01-04T14:44:32.618Z",
+    "income": 148750000,
+    "name": "Los Burritos",
+    "regexPrice": 234,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_31500000",
+    "addedAt": "2026-01-04T17:23:48.217Z",
+    "income": 31500000,
+    "name": "Eviledon",
+    "regexPrice": 84,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "dragon cannelloni_1500000000",
+    "addedAt": "2026-01-04T22:08:34.445Z",
+    "income": 1500000000,
+    "name": "Dragon Cannelloni",
+    "regexPrice": 1339.5,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_379500000",
+    "addedAt": "2026-01-04T21:03:55.222Z",
+    "income": 379500000,
+    "name": "Los Candies",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_273000000",
+    "addedAt": "2026-01-04T19:53:15.692Z",
+    "income": 273000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "money money puggy_210000000",
+    "addedAt": "2026-01-04T19:17:56.842Z",
+    "income": 210000000,
+    "name": "Money Money Puggy",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tootini shrimpini_1560000",
+    "addedAt": "2026-01-04T16:45:06.809Z",
+    "income": 1560000,
+    "name": "Tootini Shrimpini",
+    "regexPrice": 2499,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_600000000",
+    "addedAt": "2026-01-04T17:14:08.129Z",
+    "income": 600000000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 89,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "dragon cannelloni_312500000",
+    "addedAt": "2026-01-04T17:14:18.967Z",
+    "income": 312500000,
+    "name": "Dragon Cannelloni",
+    "regexPrice": 159,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_236250000",
+    "addedAt": "2026-01-04T23:15:26.909Z",
+    "income": 236250000,
+    "name": "Eviledon",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending",
+    "mutation": null
+  },
+  {
+    "_id": "nuclearo dinossauro_78750000",
+    "addedAt": "2026-01-04T20:54:54.539Z",
+    "income": 78750000,
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 29.54,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "money money reindeer_250000000",
+    "addedAt": "2026-01-04T19:19:38.626Z",
+    "income": 250000000,
+    "name": "Money Money Reindeer",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tacorita bicicleta_198000000",
+    "addedAt": "2026-01-04T18:29:30.129Z",
+    "income": 198000000,
+    "name": "Tacorita Bicicleta",
+    "regexPrice": 47.27,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_62500000",
+    "addedAt": "2026-01-04T18:34:46.767Z",
+    "income": 62500000,
+    "name": "Garama and Madundung",
+    "regexPrice": 169,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_115500000",
+    "addedAt": "2026-01-04T19:22:24.006Z",
+    "income": 115500000,
+    "name": "Los Mobilis",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_75000000",
+    "addedAt": "2026-01-04T18:57:28.778Z",
+    "income": 75000000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 89,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "reinito sleighito_1400000000",
+    "addedAt": "2026-01-04T21:54:33.589Z",
+    "income": 1400000000,
+    "name": "Reinito Sleighito",
+    "regexPrice": 198.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_1350000000",
+    "addedAt": "2026-01-04T21:49:44.838Z",
+    "income": 1350000000,
+    "name": "La Ginger Sekolah",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_63750000",
+    "addedAt": "2026-01-04T22:20:02.061Z",
+    "income": 63750000,
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 78.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_93500000",
+    "addedAt": "2026-01-04T20:57:04.144Z",
+    "income": 93500000,
+    "name": "Los Burritos",
+    "regexPrice": 234,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_169000000",
+    "addedAt": "2026-01-04T21:03:12.662Z",
+    "income": 169000000,
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "guest 666_6666660",
+    "addedAt": "2026-01-04T22:09:12.094Z",
+    "income": 6666660,
+    "name": "Guest 666",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_9375000_gold",
+    "addedAt": "2026-01-04T23:01:52.735Z",
+    "income": 9375000,
+    "mutation": "Gold",
+    "name": "Donkeyturbo Express",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_119000000_radioactive",
+    "addedAt": "2026-01-04T23:01:55.645Z",
+    "income": 119000000,
+    "mutation": "Radioactive",
+    "name": "Chimnino",
+    "regexPrice": 61.07,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_85000000_radioactive",
+    "addedAt": "2026-01-04T23:01:56.394Z",
+    "income": 85000000,
+    "mutation": "Radioactive",
+    "name": "Los 25",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_165000000_yinyang",
+    "addedAt": "2026-01-04T23:01:57.789Z",
+    "income": 165000000,
+    "mutation": "YinYang",
+    "name": "Los Mobilis",
+    "regexPrice": 2998.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_93750000_gold",
+    "addedAt": "2026-01-04T23:02:09.551Z",
+    "income": 93750000,
+    "mutation": "Gold",
+    "name": "La Ginger Sekolah",
+    "regexPrice": 89,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "mieteteira bicicleteira_195000000_yinyang",
+    "addedAt": "2026-01-04T23:02:20.861Z",
+    "income": 195000000,
+    "mutation": "YinYang",
+    "name": "Mieteteira Bicicleteira",
+    "regexPrice": 60.08,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "swag soda_110500000_radioactive",
+    "addedAt": "2026-01-04T23:02:22.740Z",
+    "income": 110500000,
+    "mutation": "Radioactive",
+    "name": "Swag Soda",
+    "regexPrice": 61.07,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_43750000_gold",
+    "addedAt": "2026-01-04T23:02:55.421Z",
+    "income": 43750000,
+    "mutation": "Gold",
+    "name": "Ketupat Kepat",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_195500000_radioactive",
+    "addedAt": "2026-01-04T23:02:59.520Z",
+    "income": 195500000,
+    "mutation": "Radioactive",
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_255000000_radioactive",
+    "addedAt": "2026-01-04T23:03:24.255Z",
+    "income": 255000000,
+    "mutation": "Radioactive",
+    "name": "Esok Sekolah",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_75000000_rainbow",
+    "addedAt": "2026-01-04T23:03:36.398Z",
+    "income": 75000000,
+    "mutation": "Rainbow",
+    "name": "Donkeyturbo Express",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_129500000_gold",
+    "addedAt": "2026-01-04T23:03:38.766Z",
+    "income": 129500000,
+    "mutation": "Gold",
+    "name": "Chimnino",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_127500000_radioactive",
+    "addedAt": "2026-01-04T23:03:40.091Z",
+    "income": 127500000,
+    "mutation": "Radioactive",
+    "name": "Los Combinasionas",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_243750000_diamond",
+    "addedAt": "2026-01-04T23:03:41.432Z",
+    "income": 243750000,
+    "mutation": "Diamond",
+    "name": "Tictac Sahur",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "spaghetti tualetti_510000000_radioactive",
+    "addedAt": "2026-01-04T23:28:07.893Z",
+    "income": 510000000,
+    "mutation": "Radioactive",
+    "name": "Spaghetti Tualetti",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_220000000_rainbow",
+    "addedAt": "2026-01-04T23:03:57.040Z",
+    "income": 220000000,
+    "mutation": "Rainbow",
+    "name": "Los Mobilis",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_210000000_rainbow",
+    "addedAt": "2026-01-04T23:03:58.085Z",
+    "income": 210000000,
+    "mutation": "Rainbow",
+    "name": "Chimnino",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_87500000_gold",
+    "addedAt": "2026-01-04T23:04:04.512Z",
+    "income": 87500000,
+    "mutation": "Gold",
+    "name": "Chimnino",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_46875000_gold",
+    "addedAt": "2026-01-04T23:04:10.212Z",
+    "income": 46875000,
+    "mutation": "Gold",
+    "name": "Tictac Sahur",
+    "regexPrice": 39.39,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_185500000_gold",
+    "addedAt": "2026-01-04T23:04:24.330Z",
+    "income": 185500000,
+    "mutation": "Gold",
+    "name": "Chimnino",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "lavadorito spinito_56250000_gold",
+    "addedAt": "2026-01-04T23:04:26.457Z",
+    "income": 56250000,
+    "mutation": "Gold",
+    "name": "Lavadorito Spinito",
+    "regexPrice": 45.3,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_202500000_radioactive",
+    "addedAt": "2026-01-04T23:04:27.755Z",
+    "income": 202500000,
+    "mutation": "Radioactive",
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "donkeyturbo express_11250000_diamond",
+    "addedAt": "2026-01-04T23:04:31.110Z",
+    "income": 11250000,
+    "mutation": "Diamond",
+    "name": "Donkeyturbo Express",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_108875000_gold",
+    "addedAt": "2026-01-04T23:04:33.502Z",
+    "income": 108875000,
+    "mutation": "Gold",
+    "name": "Tang Tang Keletang",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_477375000_gold",
+    "addedAt": "2026-01-04T23:04:34.783Z",
+    "income": 477375000,
+    "mutation": "Gold",
+    "name": "Tang Tang Keletang",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "esok sekolah_390000000_rainbow",
+    "addedAt": "2026-01-04T23:04:35.982Z",
+    "income": 390000000,
+    "mutation": "Rainbow",
+    "name": "Esok Sekolah",
+    "regexPrice": 11.82,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketupat kepat_218750000_gold",
+    "addedAt": "2026-01-04T23:04:37.301Z",
+    "income": 218750000,
+    "mutation": "Gold",
+    "name": "Ketupat Kepat",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la ginger sekolah_1012500000_radioactive",
+    "addedAt": "2026-01-04T23:19:08.985Z",
+    "income": 1012500000,
+    "mutation": "Radioactive",
+    "name": "La Ginger Sekolah",
+    "regexPrice": 49.25,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_210000000_lava",
+    "addedAt": "2026-01-04T23:04:40.133Z",
+    "income": 210000000,
+    "mutation": "Lava",
+    "name": "Chimnino",
+    "regexPrice": 2698.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_150875000_radioactive",
+    "addedAt": "2026-01-04T23:04:41.575Z",
+    "income": 150875000,
+    "mutation": "Radioactive",
+    "name": "Los Burritos",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_80000000_lava",
+    "addedAt": "2026-01-04T23:04:53.265Z",
+    "income": 80000000,
+    "mutation": "Lava",
+    "name": "La Grande Combinasion",
+    "regexPrice": 2698.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_105000000_radioactive",
+    "addedAt": "2026-01-04T23:04:55.103Z",
+    "income": 105000000,
+    "mutation": "Radioactive",
+    "name": "La Grande Combinasion",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_101500000_gold",
+    "addedAt": "2026-01-04T23:05:04.731Z",
+    "income": 101500000,
+    "mutation": "Gold",
+    "name": "Chimnino",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_552750000_radioactive",
+    "addedAt": "2026-01-04T23:05:06.640Z",
+    "income": 552750000,
+    "mutation": "Radioactive",
+    "name": "Tang Tang Keletang",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_72250000_radioactive",
+    "addedAt": "2026-01-04T23:05:09.524Z",
+    "income": 72250000,
+    "mutation": "Radioactive",
+    "name": "Los Burritos",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_236250000_yinyang",
+    "addedAt": "2026-01-04T23:05:12.706Z",
+    "income": 236250000,
+    "mutation": "YinYang",
+    "name": "Los 67",
+    "regexPrice": 2998.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la grande combinasion_130000000_candy",
+    "addedAt": "2026-01-04T23:05:37.285Z",
+    "income": 130000000,
+    "mutation": "Candy",
+    "name": "La Grande Combinasion",
+    "regexPrice": 49.25,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_110000000_lava",
+    "addedAt": "2026-01-04T23:05:38.312Z",
+    "income": 110000000,
+    "mutation": "Lava",
+    "name": "Los 25",
+    "regexPrice": 2698.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los burritos_93500000_cursed",
+    "addedAt": "2026-01-04T23:05:39.189Z",
+    "income": 93500000,
+    "mutation": "Cursed",
+    "name": "Los Burritos",
+    "regexPrice": 46.78,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "ketchuru and musturu_595000000_rainbow",
+    "addedAt": "2026-01-04T23:25:42.094Z",
+    "income": 595000000,
+    "mutation": "Rainbow",
+    "name": "Ketchuru and Musturu",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la casa boo_125000000_gold",
+    "addedAt": "2026-01-04T23:05:42.690Z",
+    "income": 125000000,
+    "mutation": "Gold",
+    "name": "La Casa Boo",
+    "regexPrice": 62.05,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_115500000_gold",
+    "addedAt": "2026-01-04T23:09:12.597Z",
+    "income": 115500000,
+    "mutation": "Gold",
+    "name": "Los Mobilis",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tictac sahur_609375000_gold",
+    "addedAt": "2026-01-04T23:09:15.709Z",
+    "income": 609375000,
+    "mutation": "Gold",
+    "name": "Tictac Sahur",
+    "regexPrice": 39.39,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los candies_379500000_radioactive",
+    "addedAt": "2026-01-04T23:09:17.763Z",
+    "income": 379500000,
+    "mutation": "Radioactive",
+    "name": "Los Candies",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_262500000_yinyang",
+    "addedAt": "2026-01-04T23:09:18.600Z",
+    "income": 262500000,
+    "mutation": "YinYang",
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 2998.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_122500000_gold",
+    "addedAt": "2026-01-04T23:09:53.955Z",
+    "income": 122500000,
+    "mutation": "Gold",
+    "name": "Los 25",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los nooo my hotspotsitos_110000000_lava",
+    "addedAt": "2026-01-04T23:09:56.280Z",
+    "income": 110000000,
+    "mutation": "Lava",
+    "name": "Los Nooo My Hotspotsitos",
+    "regexPrice": 2698.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "dragon cannelloni_1500000000_lava",
+    "addedAt": "2026-01-04T23:10:08.160Z",
+    "income": 1500000000,
+    "mutation": "Lava",
+    "name": "Dragon Cannelloni",
+    "regexPrice": 598.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_243750000_gold",
+    "addedAt": "2026-01-04T23:10:10.871Z",
+    "income": 243750000,
+    "mutation": "Gold",
+    "name": "Los Combinasionas",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_189000000_diamond",
+    "addedAt": "2026-01-04T23:10:24.279Z",
+    "income": 189000000,
+    "mutation": "Diamond",
+    "name": "Chimnino",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "la spooky grande_183750000_yinyang",
+    "addedAt": "2026-01-04T23:10:25.531Z",
+    "income": 183750000,
+    "mutation": "YinYang",
+    "name": "La Spooky Grande",
+    "regexPrice": 88.95,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_275000000_yinyang",
+    "addedAt": "2026-01-04T23:10:27.277Z",
+    "income": 275000000,
+    "mutation": "YinYang",
+    "name": "Los Mobilis",
+    "regexPrice": 2998.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_168000000_rainbow",
+    "addedAt": "2026-01-04T23:10:30.298Z",
+    "income": 168000000,
+    "mutation": "Rainbow",
+    "name": "Chimnino",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_105000000_diamond",
+    "addedAt": "2026-01-04T23:10:34.053Z",
+    "income": 105000000,
+    "mutation": "Diamond",
+    "name": "Chimnino",
+    "regexPrice": 50.23,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chimnino_308000000_rainbow",
+    "addedAt": "2026-01-04T23:10:36.955Z",
+    "income": 308000000,
+    "mutation": "Rainbow",
+    "name": "Chimnino",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los combinasionas_247500000_radioactive",
+    "addedAt": "2026-01-04T23:10:38.245Z",
+    "income": 247500000,
+    "mutation": "Radioactive",
+    "name": "Los Combinasionas",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "garama and madundung_162500000_gold",
+    "addedAt": "2026-01-04T23:10:40.854Z",
+    "income": 162500000,
+    "mutation": "Gold",
+    "name": "Garama and Madundung",
+    "regexPrice": 123.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 25_135000000_diamond",
+    "addedAt": "2026-01-04T23:10:42.206Z",
+    "income": 135000000,
+    "mutation": "Diamond",
+    "name": "Los 25",
+    "regexPrice": 1.4,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "chicleteira noelteira_262500000_radioactive",
+    "addedAt": "2026-01-04T23:10:42.993Z",
+    "income": 262500000,
+    "mutation": "Radioactive",
+    "name": "Chicleteira Noelteira",
+    "regexPrice": 48.26,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los spooky combinasionas_250000000_yinyang",
+    "addedAt": "2026-01-04T23:15:10.603Z",
+    "income": 250000000,
+    "mutation": "YinYang",
+    "name": "Los Spooky Combinasionas",
+    "regexPrice": 2998.99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los 67_247500000_cursed",
+    "addedAt": "2026-01-04T23:15:11.836Z",
+    "income": 247500000,
+    "mutation": "Cursed",
+    "name": "Los 67",
+    "regexPrice": 44.32,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "tang tang keletang_41875000_gold",
+    "addedAt": "2026-01-04T23:15:14.654Z",
+    "income": 41875000,
+    "mutation": "Gold",
+    "name": "Tang Tang Keletang",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "eviledon_236250000_yinyang",
+    "addedAt": "2026-01-04T23:21:15.034Z",
+    "income": 236250000,
+    "mutation": "YinYang",
+    "name": "Eviledon",
+    "regexPrice": 99,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "los mobilis_225500000_gold",
+    "addedAt": "2026-01-04T23:21:16.396Z",
+    "income": 225500000,
+    "mutation": "Gold",
+    "name": "Los Mobilis",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  },
+  {
+    "_id": "nuclearo dinossauro_78750000_gold",
+    "addedAt": "2026-01-04T23:21:18.258Z",
+    "income": 78750000,
+    "mutation": "Gold",
+    "name": "Nuclearo Dinossauro",
+    "regexPrice": 1189,
+    "retries": 0,
+    "status": "pending"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "_id": "price_scanner",
+    "cycleId": 505,
+    "lastScanAt": "2026-01-08T07:15:24.501Z",
+    "totalScanned": 332730
+  },
+  {
+    "_id": "offer_direct_cursor",
+    "position": 273,
+    "totalCodes": 273,
+    "updatedAt": "2026-01-08T06:41:45.528Z"
+  }
+]

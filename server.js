@@ -6,6 +6,9 @@ const WebSocket = require('ws');
 const chokidar = require('chokidar');
 const http = require('http');
 
+// Import MySQL database connection
+const { connectToDatabase } = require('./api/_lib/db');
+
 // Обработка необработанных ошибок
 process.on('uncaughtException', (err) => {
     console.error('❌ [CRITICAL] Uncaught Exception:', err.message);
@@ -392,9 +395,26 @@ app.get('/api/panel-data', (req, res) => {
     }
 });
 
-app.get('/api/farmers', (req, res) => {
-    const farmers = readAllFarmerData();
-    res.json(farmers);
+app.get('/api/farmers', async (req, res) => {
+    try {
+        const { db } = await connectToDatabase();
+        const farmersCollection = db.collection('farmers');
+        const farmers = await farmersCollection.find({}).toArray();
+        
+        // Enrich brainrots with images
+        farmers.forEach(farmer => {
+            if (farmer.brainrots) {
+                farmer.brainrots.forEach(brainrot => {
+                    brainrot.imageUrl = getBrainrotImage(brainrot.name);
+                });
+            }
+        });
+        
+        res.json(farmers);
+    } catch (err) {
+        console.error('Error reading farmers from MySQL:', err);
+        res.json([]);
+    }
 });
 
 app.get('/api/avatar/:userId', async (req, res) => {
@@ -674,8 +694,8 @@ app.get('/api/status', (req, res) => {
     });
 });
 
-// Sync endpoint - returns current panel data (merged from all files)
-app.get('/api/sync', (req, res) => {
+// Sync endpoint - returns current panel data from MySQL
+app.get('/api/sync', async (req, res) => {
     // Disable caching - always return fresh data
     res.set({
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
@@ -686,99 +706,91 @@ app.get('/api/sync', (req, res) => {
     
     const { key } = req.query;
     
-    // Read the key from file
-    let storedKey = null;
-    const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
-    try {
-        if (fs.existsSync(keyFilePath)) {
-            storedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
-        }
-    } catch (err) {
-        console.error('Error reading key file:', err);
+    if (!key) {
+        return res.status(401).json({ error: 'Key required' });
     }
     
-    const panelData = readPanelData();
-    const panelKey = panelData?.farmKey;
-    
-    // Validate key
-    if (key && (key === storedKey || key === panelKey)) {
-        // Merge data from all brainrots_*.json files
-        const accounts = mergeAllAccountsData();
-        const totalGlobalIncome = accounts.reduce((sum, acc) => sum + (acc.totalIncome || 0), 0);
+    try {
+        // Check MySQL database for the farmKey
+        const { db } = await connectToDatabase();
+        const farmersCollection = db.collection('farmers');
+        const farmer = await farmersCollection.findOne({ farmKey: key });
         
-        res.json({
-            username: panelData?.username || 'Farmer',
-            avatar: panelData?.avatar || { icon: 'fa-seedling', color: '#4ade80' },
-            accounts: accounts,
-            totalGlobalIncome: totalGlobalIncome
-        });
-    } else {
-        res.status(401).json({ error: 'Invalid key' });
+        if (farmer) {
+            const accounts = farmer.accounts || [];
+            const totalGlobalIncome = accounts.reduce((sum, acc) => sum + (acc.totalIncome || 0), 0);
+            
+            res.json({
+                username: farmer.username || 'Farmer',
+                avatar: farmer.avatar || { icon: 'fa-seedling', color: '#4ade80' },
+                accounts: accounts,
+                totalGlobalIncome: totalGlobalIncome
+            });
+        } else {
+            res.status(401).json({ error: 'Invalid key' });
+        }
+    } catch (err) {
+        console.error('Error in /api/sync:', err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
 // Validate farm key (for client compatibility)
-app.post('/api/validate', (req, res) => {
+app.post('/api/validate', async (req, res) => {
     const { farmKey } = req.body;
     
     if (!farmKey) {
         return res.status(400).json({ error: 'Farm key is required' });
     }
     
-    // First read the key from file
-    let storedKey = null;
-    const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
     try {
-        if (fs.existsSync(keyFilePath)) {
-            storedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
+        // Check MySQL database for the farmKey
+        const { db } = await connectToDatabase();
+        const farmersCollection = db.collection('farmers');
+        const farmer = await farmersCollection.findOne({ farmKey: farmKey });
+        
+        if (farmer) {
+            res.json({ 
+                valid: true, 
+                username: farmer.username || 'Farmer',
+                avatar: farmer.avatar || { icon: 'fa-seedling', color: '#4ade80' }
+            });
+        } else {
+            res.status(401).json({ error: 'Invalid Farm Key. Key not found in database.' });
         }
     } catch (err) {
-        console.error('Error reading key file:', err);
-    }
-    
-    // Check if key matches stored key OR panel_data key
-    const data = readPanelData();
-    const panelKey = data?.farmKey;
-    
-    if (farmKey === storedKey || farmKey === panelKey) {
-        res.json({ 
-            valid: true, 
-            username: data?.username || 'Farmer',
-            avatar: data?.avatar || { icon: 'fa-seedling', color: '#4ade80' }
-        });
-    } else {
-        res.status(401).json({ error: 'Invalid Farm Key. Check your farm/key.txt file.' });
+        console.error('Error validating farm key:', err);
+        res.status(500).json({ error: 'Database error' });
     }
 });
 
 // Validate farm key (legacy endpoint)
-app.post('/api/validate-key', (req, res) => {
+app.post('/api/validate-key', async (req, res) => {
     const { key } = req.body;
     
-    // First read the key from file
-    let storedKey = null;
-    const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
-    try {
-        if (fs.existsSync(keyFilePath)) {
-            storedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
-        }
-    } catch (err) {
-        console.error('Error reading key file:', err);
+    if (!key) {
+        return res.json({ valid: false, message: 'Farm key required' });
     }
     
-    // Check if key matches stored key OR panel_data key
-    const data = readPanelData();
-    const panelKey = data?.farmKey;
-    
-    if (key && (key === storedKey || key === panelKey)) {
-        res.json({ valid: true, data });
-    } else {
-        res.json({ valid: false, message: 'Invalid Farm Key. Check your farm/key.txt file.' });
+    try {
+        // Check MySQL database for the farmKey
+        const { db } = await connectToDatabase();
+        const farmersCollection = db.collection('farmers');
+        const farmer = await farmersCollection.findOne({ farmKey: key });
+        
+        if (farmer) {
+            res.json({ valid: true, data: farmer });
+        } else {
+            res.json({ valid: false, message: 'Invalid Farm Key. Key not found in database.' });
+        }
+    } catch (err) {
+        console.error('Error validating farm key:', err);
+        res.json({ valid: false, message: 'Database error' });
     }
 });
 
-// Delete farmer endpoint - removes farmer data file and all their brainrots
-app.delete('/api/farmer/:playerName', (req, res) => {
+// Delete farmer endpoint - removes farmer account from MySQL
+app.delete('/api/farmer/:playerName', async (req, res) => {
     const { playerName } = req.params;
     const { key } = req.query;
     
@@ -786,62 +798,35 @@ app.delete('/api/farmer/:playerName', (req, res) => {
         return res.status(400).json({ error: 'Farm key required' });
     }
     
-    // Validate key
-    let storedKey = null;
-    const keyFilePath = path.join(FARM_DATA_PATH, 'key.txt');
-    try {
-        if (fs.existsSync(keyFilePath)) {
-            storedKey = fs.readFileSync(keyFilePath, 'utf8').trim();
-        }
-    } catch (err) {}
-    
-    const panelData = readPanelData();
-    const panelKey = panelData?.farmKey;
-    
-    if (key !== storedKey && key !== panelKey) {
-        return res.status(401).json({ error: 'Invalid key' });
-    }
-    
     if (!playerName) {
         return res.status(400).json({ error: 'Player name required' });
     }
     
     try {
-        // Find and delete the brainrots file for this player
-        const files = fs.readdirSync(FARM_DATA_PATH);
-        let deleted = false;
+        // Check MySQL database for the farmKey
+        const { db } = await connectToDatabase();
+        const farmersCollection = db.collection('farmers');
+        const farmer = await farmersCollection.findOne({ farmKey: key });
         
-        for (const file of files) {
-            if (file.startsWith('brainrots_') && file.endsWith('.json')) {
-                const filePath = path.join(FARM_DATA_PATH, file);
-                try {
-                    const data = safeReadJSON(filePath);
-                    if (data && data.playerName === playerName) {
-                        fs.unlinkSync(filePath);
-                        console.log(`Deleted farmer data: ${file}`);
-                        deleted = true;
-                        break;
-                    }
-                } catch (err) {
-                    console.error(`Error reading ${file}:`, err);
-                }
-            }
+        if (!farmer) {
+            return res.status(401).json({ error: 'Invalid key' });
         }
         
-        if (deleted) {
-            // Invalidate cache
-            invalidateCache();
-            
-            // Broadcast update to all clients
-            const updatedData = readPanelData();
-            if (updatedData) {
-                broadcastUpdate(updatedData);
-            }
-            
-            res.json({ success: true, message: `Farmer ${playerName} deleted successfully` });
-        } else {
-            res.status(404).json({ error: `Farmer ${playerName} not found` });
+        // Remove account from farmer's accounts array
+        const updatedAccounts = (farmer.accounts || []).filter(acc => acc.playerName !== playerName);
+        
+        if (updatedAccounts.length === (farmer.accounts || []).length) {
+            return res.status(404).json({ error: `Farmer ${playerName} not found` });
         }
+        
+        // Update farmer in database
+        await farmersCollection.updateOne(
+            { farmKey: key },
+            { $set: { accounts: updatedAccounts, lastUpdate: new Date() } }
+        );
+        
+        console.log(`Deleted farmer account: ${playerName}`);
+        res.json({ success: true, message: `Farmer ${playerName} deleted successfully` });
     } catch (err) {
         console.error('Error deleting farmer:', err);
         res.status(500).json({ error: 'Failed to delete farmer' });

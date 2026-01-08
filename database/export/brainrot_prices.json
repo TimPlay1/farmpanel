@@ -1,0 +1,919 @@
+[
+  {
+    "_id": "693ff41f4461fb23ced9b29d",
+    "farmKey": "FARM-KFRV-UPE4-U2WJ-JOE6",
+    "prices": {
+      "esok sekolah_250": {
+        "suggestedPrice": 4.49,
+        "competitorPrice": 4.99,
+        "competitorIncome": 255,
+        "priceSource": "upper 255M/s @ $4.99, no lower offer → -$0.50",
+        "_timestamp": 1765802647163
+      },
+      "los mobilis_250": {
+        "suggestedPrice": 3.5,
+        "competitorPrice": 4,
+        "competitorIncome": 286,
+        "priceSource": "upper 286M/s @ $4.00, no lower offer → -$0.50",
+        "_timestamp": 1765802646359
+      },
+      "la ginger sekolah_610": {
+        "suggestedPrice": 37.48,
+        "competitorPrice": 38.48,
+        "competitorIncome": 675,
+        "priceSource": "upper 675M/s @ $38.48, lower 600M/s @ $34.00, diff $4.48 >= $1 → -$1",
+        "_timestamp": 1765802625765
+      },
+      "mieteteira bicicleteira_420": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 429,
+        "priceSource": "upper 429M/s @ $9.00, lower 377M/s @ $8.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802625762
+      },
+      "esok sekolah_640": {
+        "suggestedPrice": 17,
+        "competitorPrice": 18,
+        "competitorIncome": 645,
+        "priceSource": "upper 645M/s @ $18.00, lower 550M/s @ $15.00, diff $3.00 >= $1 → -$1",
+        "_timestamp": 1765802625761
+      },
+      "la secret combinasion_400": {
+        "suggestedPrice": 13.49,
+        "competitorPrice": 13.99,
+        "competitorIncome": 406.2,
+        "priceSource": "upper 406.2M/s @ $13.99, lower 406M/s @ $13.50, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765802626763
+      },
+      "tictac sahur_370": {
+        "suggestedPrice": 17.99,
+        "competitorPrice": 18.99,
+        "competitorIncome": 375,
+        "priceSource": "upper 375M/s @ $18.99, lower 318.7M/s @ $16.99, diff $2.00 >= $1 → -$1",
+        "_timestamp": 1765802629191
+      },
+      "mieteteira bicicleteira_390": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 403,
+        "priceSource": "upper 403M/s @ $9.00, lower 377M/s @ $8.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802626807
+      },
+      "los 67_330": {
+        "suggestedPrice": 10.5,
+        "competitorPrice": 11,
+        "competitorIncome": 337.5,
+        "priceSource": "upper 337.5M/s @ $11.00, lower 337M/s @ $10.97, diff $0.03 < $1 → -$0.50",
+        "_timestamp": 1765802634351
+      },
+      "mieteteira bicicleteira_350": {
+        "suggestedPrice": 7.5,
+        "competitorPrice": 8,
+        "competitorIncome": 364,
+        "priceSource": "upper 364M/s @ $8.00, lower 338M/s @ $7.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802633024
+      },
+      "los mobilis_360": {
+        "suggestedPrice": 4.99,
+        "competitorPrice": 5.99,
+        "competitorIncome": 374,
+        "priceSource": "upper 374M/s @ $5.99, lower 286M/s @ $4.00, diff $1.99 >= $1 → -$1",
+        "_timestamp": 1765802633233
+      },
+      "los 67_280": {
+        "suggestedPrice": 5.97,
+        "competitorPrice": 6.97,
+        "competitorIncome": 281.2,
+        "priceSource": "upper 281.2M/s @ $6.97, lower 33.7M/s @ $3.90, diff $3.07 >= $1 → -$1",
+        "_timestamp": 1765802638782
+      },
+      "esok sekolah_310": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 374,
+        "priceSource": "upper 374M/s @ $5.99, lower 255M/s @ $5.94, diff $0.05 < $1 → -$0.50",
+        "_timestamp": 1765802635391
+      },
+      "eviledon_280": {
+        "suggestedPrice": 9.49,
+        "competitorPrice": 9.99,
+        "competitorIncome": 393.7,
+        "priceSource": "upper 393.7M/s @ $9.99, lower 283M/s @ $9.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802637933
+      },
+      "chimnino_260": {
+        "suggestedPrice": 6.99,
+        "competitorPrice": 7.49,
+        "competitorIncome": 280,
+        "priceSource": "upper 280M/s @ $7.49, lower 252M/s @ $7.00, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765802640125
+      },
+      "las sis_280": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 288.7,
+        "priceSource": "upper 288.7M/s @ $9.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802639559
+      },
+      "mieteteira bicicleteira_260": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 260,
+        "priceSource": "upper 260M/s @ $5.99, no lower offer → -$0.50",
+        "_timestamp": 1765802642213
+      },
+      "los planitos_240": {
+        "suggestedPrice": 12.5,
+        "competitorPrice": 13.5,
+        "competitorIncome": 240.5,
+        "priceSource": "upper 240.5M/s @ $13.50, lower 194.2M/s @ $10.00, diff $3.50 >= $1 → -$1",
+        "_timestamp": 1765802648692
+      },
+      "la jolly grande_240": {
+        "suggestedPrice": 6.79,
+        "competitorPrice": 7.29,
+        "competitorIncome": 247.5,
+        "priceSource": "upper 247.5M/s @ $7.29, lower 150M/s @ $6.50, diff $0.79 < $1 → -$0.50",
+        "_timestamp": 1765802648387
+      },
+      "los 67_220": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 225,
+        "priceSource": "upper 225M/s @ $5.99, lower 191.2M/s @ $5.00, diff $0.99 < $1 → -$0.50",
+        "_timestamp": 1765802650310
+      },
+      "esok sekolah_220": {
+        "suggestedPrice": 3.98,
+        "competitorPrice": 4.48,
+        "competitorIncome": 247,
+        "priceSource": "upper 247M/s @ $4.48, lower 180M/s @ $4.30, diff $0.18 < $1 → -$0.50",
+        "_timestamp": 1765802651391
+      },
+      "la taco combinasion_210": {
+        "suggestedPrice": 9.9,
+        "competitorPrice": 10.9,
+        "competitorIncome": 218.7,
+        "priceSource": "upper 218.7M/s @ $10.90, lower 210M/s @ $8.55, diff $2.35 >= $1 → -$1",
+        "_timestamp": 1765802653520
+      },
+      "ketupat kepat_210": {
+        "suggestedPrice": 11.5,
+        "competitorPrice": 12.5,
+        "competitorIncome": 227,
+        "priceSource": "upper 227M/s @ $12.50, lower 210M/s @ $10.00, diff $2.50 >= $1 → -$1",
+        "_timestamp": 1765802654831
+      },
+      "esok sekolah_210": {
+        "suggestedPrice": 3.98,
+        "competitorPrice": 4.48,
+        "competitorIncome": 247,
+        "priceSource": "upper 247M/s @ $4.48, lower 180M/s @ $4.30, diff $0.18 < $1 → -$0.50",
+        "_timestamp": 1765802657907
+      },
+      "chicleteira noelteira_200": {
+        "suggestedPrice": 4.49,
+        "competitorPrice": 4.99,
+        "competitorIncome": 210,
+        "priceSource": "upper 210M/s @ $4.99, lower 195M/s @ $4.50, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765802659049
+      },
+      "los mobilis_190": {
+        "suggestedPrice": 3.49,
+        "competitorPrice": 3.99,
+        "competitorIncome": 500,
+        "priceSource": "upper 500M/s @ $3.99, lower 165M/s @ $3.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802659809
+      },
+      "la secret combinasion_180": {
+        "suggestedPrice": 10.48,
+        "competitorPrice": 10.98,
+        "competitorIncome": 187.5,
+        "priceSource": "upper 187.5M/s @ $10.98, lower 174M/s @ $10.69, diff $0.29 < $1 → -$0.50",
+        "_timestamp": 1765802660414
+      },
+      "chimnino_160": {
+        "suggestedPrice": 3.99,
+        "competitorPrice": 4.99,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $4.99, lower 140M/s @ $3.00, diff $1.99 >= $1 → -$1",
+        "_timestamp": 1765802660669
+      },
+      "los 67_190": {
+        "suggestedPrice": 4.35,
+        "competitorPrice": 4.85,
+        "competitorIncome": 191.2,
+        "priceSource": "upper 191.2M/s @ $4.85, lower 157.5M/s @ $4.50, diff $0.35 < $1 → -$0.50",
+        "_timestamp": 1765802661952
+      },
+      "los burritos_150": {
+        "suggestedPrice": 3.05,
+        "competitorPrice": 3.55,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $3.55, lower 123M/s @ $3.00, diff $0.55 < $1 → -$0.50",
+        "_timestamp": 1765802663690
+      },
+      "los mobilis_140": {
+        "suggestedPrice": 2,
+        "competitorPrice": 2.5,
+        "competitorIncome": 154,
+        "priceSource": "upper 154M/s @ $2.50, lower 132M/s @ $2.49, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802663346
+      },
+      "chimnino_140": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 140,
+        "priceSource": "upper 140M/s @ $3.00, lower 126M/s @ $2.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802686153
+      },
+      "mieteteira bicicleteira_130": {
+        "suggestedPrice": 2.4,
+        "competitorPrice": 2.9,
+        "competitorIncome": 130,
+        "priceSource": "upper 130M/s @ $2.90, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802689358
+      },
+      "los 67_130": {
+        "suggestedPrice": 3,
+        "competitorPrice": 3.5,
+        "competitorIncome": 157,
+        "priceSource": "upper 157M/s @ $3.50, lower 123.7M/s @ $3.49, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802687193
+      },
+      "chimnino_120": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 140,
+        "priceSource": "upper 140M/s @ $3.00, lower 126M/s @ $2.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802688393
+      },
+      "los combinasionas_120": {
+        "suggestedPrice": 1.5,
+        "competitorPrice": 2,
+        "competitorIncome": 180,
+        "priceSource": "upper 180M/s @ $2.00, lower 90M/s @ $1.30, diff $0.70 < $1 → -$0.50",
+        "_timestamp": 1765802690437
+      },
+      "chimnino_110": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 126,
+        "priceSource": "upper 126M/s @ $2.99, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802694813
+      },
+      "w or l_120": {
+        "suggestedPrice": 6.5,
+        "competitorPrice": 7,
+        "competitorIncome": 180,
+        "priceSource": "upper 180M/s @ $7.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802692282
+      },
+      "la grande combinasion_120": {
+        "suggestedPrice": 2.86,
+        "competitorPrice": 3.86,
+        "competitorIncome": 145,
+        "priceSource": "upper 145M/s @ $3.86, lower 100M/s @ $2.50, diff $1.36 >= $1 → -$1",
+        "_timestamp": 1765802693613
+      },
+      "la grande combinasion_100": {
+        "suggestedPrice": 2.86,
+        "competitorPrice": 3.86,
+        "competitorIncome": 145,
+        "priceSource": "upper 145M/s @ $3.86, lower 100M/s @ $2.50, diff $1.36 >= $1 → -$1",
+        "_timestamp": 1765802696624
+      },
+      "mieteteira bicicleteira_100": {
+        "suggestedPrice": 2.4,
+        "competitorPrice": 2.9,
+        "competitorIncome": 130,
+        "priceSource": "upper 130M/s @ $2.90, no lower offer → -$0.50",
+        "_timestamp": 1765802698282
+      },
+      "la ginger sekolah_90": {
+        "suggestedPrice": 8.19,
+        "competitorPrice": 8.69,
+        "competitorIncome": 99,
+        "priceSource": "upper 99M/s @ $8.69, lower 74M/s @ $8.00, diff $0.69 < $1 → -$0.50",
+        "_timestamp": 1765802699496
+      },
+      "los nooo my hotspotsitos_90": {
+        "suggestedPrice": 2.28,
+        "competitorPrice": 2.78,
+        "competitorIncome": 96.2,
+        "priceSource": "upper 96.2M/s @ $2.78, lower 77M/s @ $2.00, diff $0.78 < $1 → -$0.50",
+        "_timestamp": 1765802698747
+      },
+      "chimnino_100": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 126,
+        "priceSource": "upper 126M/s @ $2.99, no lower offer → -$0.50",
+        "_timestamp": 1765802697491
+      },
+      "los 25_90": {
+        "suggestedPrice": 3.48,
+        "competitorPrice": 3.98,
+        "competitorIncome": 90,
+        "priceSource": "upper 90M/s @ $3.98, lower 74M/s @ $2.99, diff $0.99 < $1 → -$0.50",
+        "_timestamp": 1765802699383
+      },
+      "los burritos_70": {
+        "suggestedPrice": 1,
+        "competitorPrice": 1.5,
+        "competitorIncome": 85,
+        "priceSource": "upper 85M/s @ $1.50, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802701716
+      },
+      "la grande combinasion_80": {
+        "suggestedPrice": 1.49,
+        "competitorPrice": 1.99,
+        "competitorIncome": 85,
+        "priceSource": "upper 85M/s @ $1.99, lower 62.5M/s @ $1.57, diff $0.42 < $1 → -$0.50",
+        "_timestamp": 1765802700272
+      },
+      "los combinasionas_60": {
+        "suggestedPrice": 1.39,
+        "competitorPrice": 1.89,
+        "competitorIncome": 75,
+        "priceSource": "upper 75M/s @ $1.89, no lower offer → -$0.50",
+        "_timestamp": 1765802702535
+      }
+    },
+    "updatedAt": "2025-12-15T12:44:37.682Z"
+  },
+  {
+    "_id": "693ff4c34461fb23ced9b2a6",
+    "farmKey": "FARM-7VZV-EY4Y-1OOX-IOQJ",
+    "prices": {
+      "esok sekolah_250": {
+        "suggestedPrice": 3.89,
+        "competitorPrice": 4.39,
+        "competitorIncome": 255,
+        "priceSource": "upper 255M/s @ $4.39, no lower offer → -$0.50",
+        "_timestamp": 1765801976584
+      },
+      "los mobilis_250": {
+        "suggestedPrice": 3.5,
+        "competitorPrice": 4,
+        "competitorIncome": 286,
+        "priceSource": "upper 286M/s @ $4.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765801980590
+      },
+      "la ginger sekolah_610": {
+        "suggestedPrice": 37.48,
+        "competitorPrice": 38.48,
+        "competitorIncome": 675,
+        "priceSource": "upper 675M/s @ $38.48, lower 600M/s @ $34.00, diff $4.48 >= $1 → -$1",
+        "_timestamp": 1765801983285
+      },
+      "mieteteira bicicleteira_420": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 429,
+        "priceSource": "upper 429M/s @ $9.00, lower 377M/s @ $8.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765801983289
+      },
+      "esok sekolah_640": {
+        "suggestedPrice": 17,
+        "competitorPrice": 18,
+        "competitorIncome": 645,
+        "priceSource": "upper 645M/s @ $18.00, lower 550M/s @ $15.00, diff $3.00 >= $1 → -$1",
+        "_timestamp": 1765801983290
+      },
+      "la secret combinasion_400": {
+        "suggestedPrice": 13.49,
+        "competitorPrice": 13.99,
+        "competitorIncome": 406.2,
+        "priceSource": "upper 406.2M/s @ $13.99, lower 406M/s @ $13.50, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765801983637
+      },
+      "tictac sahur_370": {
+        "suggestedPrice": 16.99,
+        "competitorPrice": 17.99,
+        "competitorIncome": 375,
+        "priceSource": "upper 375M/s @ $17.99, lower 318.7M/s @ $16.99, diff $1.00 >= $1 → -$1",
+        "_timestamp": 1765801983640
+      },
+      "mieteteira bicicleteira_390": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 403,
+        "priceSource": "upper 403M/s @ $9.00, lower 377M/s @ $8.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765801983641
+      },
+      "los 67_330": {
+        "suggestedPrice": 10.5,
+        "competitorPrice": 11,
+        "competitorIncome": 337.5,
+        "priceSource": "upper 337.5M/s @ $11.00, lower 337M/s @ $10.97, diff $0.03 < $1 → -$0.50",
+        "_timestamp": 1765801983995
+      },
+      "mieteteira bicicleteira_350": {
+        "suggestedPrice": 7.5,
+        "competitorPrice": 8,
+        "competitorIncome": 364,
+        "priceSource": "upper 364M/s @ $8.00, lower 338M/s @ $7.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765801986650
+      },
+      "los mobilis_360": {
+        "suggestedPrice": 4.99,
+        "competitorPrice": 5.99,
+        "competitorIncome": 374,
+        "priceSource": "upper 374M/s @ $5.99, lower 286M/s @ $4.00, diff $1.99 >= $1 → -$1",
+        "_timestamp": 1765801986935
+      },
+      "los 67_280": {
+        "suggestedPrice": 5.97,
+        "competitorPrice": 6.97,
+        "competitorIncome": 281.2,
+        "priceSource": "upper 281.2M/s @ $6.97, lower 33.7M/s @ $3.90, diff $3.07 >= $1 → -$1",
+        "_timestamp": 1765801987278
+      },
+      "esok sekolah_310": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 374,
+        "priceSource": "upper 374M/s @ $5.99, lower 255M/s @ $5.94, diff $0.05 < $1 → -$0.50",
+        "_timestamp": 1765801987294
+      },
+      "eviledon_280": {
+        "suggestedPrice": 9.49,
+        "competitorPrice": 9.99,
+        "competitorIncome": 393.7,
+        "priceSource": "upper 393.7M/s @ $9.99, lower 283M/s @ $9.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765801989731
+      },
+      "chimnino_260": {
+        "suggestedPrice": 6.99,
+        "competitorPrice": 7.49,
+        "competitorIncome": 280,
+        "priceSource": "upper 280M/s @ $7.49, lower 252M/s @ $7.00, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765801990093
+      },
+      "las sis_280": {
+        "suggestedPrice": 8.5,
+        "competitorPrice": 9,
+        "competitorIncome": 288.7,
+        "priceSource": "upper 288.7M/s @ $9.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765801991644
+      },
+      "mieteteira bicicleteira_260": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 260,
+        "priceSource": "upper 260M/s @ $5.99, no lower offer → -$0.50",
+        "_timestamp": 1765801992267
+      },
+      "los planitos_240": {
+        "suggestedPrice": 12.5,
+        "competitorPrice": 13.5,
+        "competitorIncome": 240.5,
+        "priceSource": "upper 240.5M/s @ $13.50, lower 194.2M/s @ $10.00, diff $3.50 >= $1 → -$1",
+        "_timestamp": 1765801992943
+      },
+      "la jolly grande_240": {
+        "suggestedPrice": 6.79,
+        "competitorPrice": 7.29,
+        "competitorIncome": 247.5,
+        "priceSource": "upper 247.5M/s @ $7.29, lower 150M/s @ $6.50, diff $0.79 < $1 → -$0.50",
+        "_timestamp": 1765801993094
+      },
+      "los 67_220": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 225,
+        "priceSource": "upper 225M/s @ $5.99, lower 191.2M/s @ $5.00, diff $0.99 < $1 → -$0.50",
+        "_timestamp": 1765802625747
+      },
+      "esok sekolah_220": {
+        "suggestedPrice": 3.98,
+        "competitorPrice": 4.48,
+        "competitorIncome": 247,
+        "priceSource": "upper 247M/s @ $4.48, lower 180M/s @ $4.30, diff $0.18 < $1 → -$0.50",
+        "_timestamp": 1765801996810
+      },
+      "la taco combinasion_210": {
+        "suggestedPrice": 9.9,
+        "competitorPrice": 10.9,
+        "competitorIncome": 218.7,
+        "priceSource": "upper 218.7M/s @ $10.90, lower 210M/s @ $8.55, diff $2.35 >= $1 → -$1",
+        "_timestamp": 1765801996838
+      },
+      "ketupat kepat_210": {
+        "suggestedPrice": 11.5,
+        "competitorPrice": 12.5,
+        "competitorIncome": 227,
+        "priceSource": "upper 227M/s @ $12.50, lower 210M/s @ $10.00, diff $2.50 >= $1 → -$1",
+        "_timestamp": 1765801997896
+      },
+      "esok sekolah_210": {
+        "suggestedPrice": 3.98,
+        "competitorPrice": 4.48,
+        "competitorIncome": 247,
+        "priceSource": "upper 247M/s @ $4.48, lower 180M/s @ $4.30, diff $0.18 < $1 → -$0.50",
+        "_timestamp": 1765802000392
+      },
+      "chicleteira noelteira_200": {
+        "suggestedPrice": 4.49,
+        "competitorPrice": 4.99,
+        "competitorIncome": 210,
+        "priceSource": "upper 210M/s @ $4.99, lower 195M/s @ $4.50, diff $0.49 < $1 → -$0.50",
+        "_timestamp": 1765802001432
+      },
+      "los mobilis_190": {
+        "suggestedPrice": 3.49,
+        "competitorPrice": 3.99,
+        "competitorIncome": 500,
+        "priceSource": "upper 500M/s @ $3.99, lower 165M/s @ $3.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802002042
+      },
+      "la secret combinasion_180": {
+        "suggestedPrice": 9.5,
+        "competitorPrice": 10,
+        "competitorIncome": 187.5,
+        "priceSource": "upper 187.5M/s @ $10.00, lower 174M/s @ $9.50, diff $0.50 < $1 → -$0.50",
+        "_timestamp": 1765802002392
+      },
+      "chimnino_160": {
+        "suggestedPrice": 3.99,
+        "competitorPrice": 4.99,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $4.99, lower 140M/s @ $3.00, diff $1.99 >= $1 → -$1",
+        "_timestamp": 1765802002400
+      },
+      "los 67_190": {
+        "suggestedPrice": 4.35,
+        "competitorPrice": 4.85,
+        "competitorIncome": 191.2,
+        "priceSource": "upper 191.2M/s @ $4.85, lower 157.5M/s @ $4.50, diff $0.35 < $1 → -$0.50",
+        "_timestamp": 1765802003623
+      },
+      "los burritos_150": {
+        "suggestedPrice": 3.05,
+        "competitorPrice": 3.55,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $3.55, lower 123M/s @ $3.00, diff $0.55 < $1 → -$0.50",
+        "_timestamp": 1765802003972
+      },
+      "los mobilis_140": {
+        "suggestedPrice": 2,
+        "competitorPrice": 2.5,
+        "competitorIncome": 154,
+        "priceSource": "upper 154M/s @ $2.50, lower 132M/s @ $2.49, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802003974
+      },
+      "chimnino_140": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 140,
+        "priceSource": "upper 140M/s @ $3.00, lower 126M/s @ $2.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802625770
+      },
+      "mieteteira bicicleteira_130": {
+        "suggestedPrice": 2.4,
+        "competitorPrice": 2.9,
+        "competitorIncome": 130,
+        "priceSource": "upper 130M/s @ $2.90, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802005238
+      },
+      "los 67_130": {
+        "suggestedPrice": 3,
+        "competitorPrice": 3.5,
+        "competitorIncome": 157,
+        "priceSource": "upper 157M/s @ $3.50, lower 123.7M/s @ $3.49, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802625791
+      },
+      "chimnino_120": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 140,
+        "priceSource": "upper 140M/s @ $3.00, lower 126M/s @ $2.99, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802626812
+      },
+      "los combinasionas_120": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 135,
+        "priceSource": "upper 135M/s @ $2.99, lower 120M/s @ $2.98, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802008178
+      },
+      "chimnino_110": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 126,
+        "priceSource": "upper 126M/s @ $2.99, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802626811
+      },
+      "w or l_120": {
+        "suggestedPrice": 6.5,
+        "competitorPrice": 7,
+        "competitorIncome": 180,
+        "priceSource": "upper 180M/s @ $7.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802009507
+      },
+      "la grande combinasion_120": {
+        "suggestedPrice": 2.86,
+        "competitorPrice": 3.86,
+        "competitorIncome": 145,
+        "priceSource": "upper 145M/s @ $3.86, lower 100M/s @ $2.50, diff $1.36 >= $1 → -$1",
+        "_timestamp": 1765802010667
+      },
+      "la grande combinasion_100": {
+        "suggestedPrice": 2.86,
+        "competitorPrice": 3.86,
+        "competitorIncome": 145,
+        "priceSource": "upper 145M/s @ $3.86, lower 100M/s @ $2.50, diff $1.36 >= $1 → -$1",
+        "_timestamp": 1765802011023
+      },
+      "mieteteira bicicleteira_100": {
+        "suggestedPrice": 2.4,
+        "competitorPrice": 2.9,
+        "competitorIncome": 130,
+        "priceSource": "upper 130M/s @ $2.90, no lower offer → -$0.50",
+        "_timestamp": 1765802011097
+      },
+      "la ginger sekolah_90": {
+        "suggestedPrice": 8.19,
+        "competitorPrice": 8.69,
+        "competitorIncome": 99,
+        "priceSource": "upper 99M/s @ $8.69, lower 74M/s @ $8.58, diff $0.11 < $1 → -$0.50",
+        "_timestamp": 1765802011449
+      },
+      "los nooo my hotspotsitos_90": {
+        "suggestedPrice": 2.28,
+        "competitorPrice": 2.78,
+        "competitorIncome": 96.2,
+        "priceSource": "upper 96.2M/s @ $2.78, lower 77M/s @ $2.00, diff $0.78 < $1 → -$0.50",
+        "_timestamp": 1765802011451
+      },
+      "chimnino_100": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 126,
+        "priceSource": "upper 126M/s @ $2.99, no lower offer → -$0.50",
+        "_timestamp": 1765802627777
+      },
+      "los 25_90": {
+        "suggestedPrice": 3.48,
+        "competitorPrice": 3.98,
+        "competitorIncome": 90,
+        "priceSource": "upper 90M/s @ $3.98, lower 74M/s @ $2.99, diff $0.99 < $1 → -$0.50",
+        "_timestamp": 1765802011864
+      },
+      "los burritos_70": {
+        "suggestedPrice": 1,
+        "competitorPrice": 1.5,
+        "competitorIncome": 85,
+        "priceSource": "upper 85M/s @ $1.50, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802012145
+      },
+      "la grande combinasion_80": {
+        "suggestedPrice": 1.49,
+        "competitorPrice": 1.99,
+        "competitorIncome": 85,
+        "priceSource": "upper 85M/s @ $1.99, lower 62.5M/s @ $1.57, diff $0.42 < $1 → -$0.50",
+        "_timestamp": 1765802628325
+      },
+      "los combinasionas_60": {
+        "suggestedPrice": 1.39,
+        "competitorPrice": 1.89,
+        "competitorIncome": 75,
+        "priceSource": "upper 75M/s @ $1.89, no lower offer → -$0.50",
+        "_timestamp": 1765802014369
+      },
+      "las sis_350": {
+        "suggestedPrice": 9.5,
+        "competitorPrice": 10,
+        "competitorIncome": 437.5,
+        "priceSource": "upper 437.5M/s @ $10.00, lower 297.5M/s @ $9.25, diff $0.75 < $1 → -$0.50",
+        "_timestamp": 1765802747460
+      },
+      "los spooky combinasionas_250": {
+        "suggestedPrice": 5.5,
+        "competitorPrice": 6,
+        "competitorIncome": 270,
+        "priceSource": "upper 270M/s @ $6.00, no lower offer → -$0.50",
+        "_timestamp": 1765802748627
+      },
+      "la grande combinasion_260": {
+        "suggestedPrice": 13.5,
+        "competitorPrice": 14,
+        "competitorIncome": 260,
+        "priceSource": "upper 260M/s @ $14.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802755801
+      },
+      "los combinasionas_240": {
+        "suggestedPrice": 5.49,
+        "competitorPrice": 5.99,
+        "competitorIncome": 243.7,
+        "priceSource": "upper 243.7M/s @ $5.99, lower 225M/s @ $5.39, diff $0.60 < $1 → -$0.50",
+        "_timestamp": 1765802761414
+      },
+      "los mobilis_220": {
+        "suggestedPrice": 3.49,
+        "competitorPrice": 3.99,
+        "competitorIncome": 500,
+        "priceSource": "upper 500M/s @ $3.99, lower 165M/s @ $3.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802756406
+      },
+      "mieteteira bicicleteira_230": {
+        "suggestedPrice": 4.99,
+        "competitorPrice": 5.99,
+        "competitorIncome": 234,
+        "priceSource": "upper 234M/s @ $5.99, lower 208M/s @ $4.99, diff $1.00 >= $1 → -$1",
+        "_timestamp": 1765802758315
+      },
+      "la spooky grande_200": {
+        "suggestedPrice": 6,
+        "competitorPrice": 6.5,
+        "competitorIncome": 214,
+        "priceSource": "upper 214M/s @ $6.50, lower 196M/s @ $6.00, diff $0.50 < $1 → -$0.50",
+        "_timestamp": 1765802763882
+      },
+      "chimnino_210": {
+        "suggestedPrice": 5.17,
+        "competitorPrice": 5.67,
+        "competitorIncome": 210,
+        "priceSource": "upper 210M/s @ $5.67, lower 174M/s @ $4.99, diff $0.68 < $1 → -$0.50",
+        "_timestamp": 1765802762683
+      },
+      "los mobilis_200": {
+        "suggestedPrice": 3.49,
+        "competitorPrice": 3.99,
+        "competitorIncome": 500,
+        "priceSource": "upper 500M/s @ $3.99, lower 165M/s @ $3.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802763804
+      },
+      "los combinasionas_190": {
+        "suggestedPrice": 4.45,
+        "competitorPrice": 4.95,
+        "competitorIncome": 202.5,
+        "priceSource": "upper 202.5M/s @ $4.95, lower 180M/s @ $4.56, diff $0.39 < $1 → -$0.50",
+        "_timestamp": 1765802764240
+      },
+      "spaghetti tualetti_180": {
+        "suggestedPrice": 4.5,
+        "competitorPrice": 5,
+        "competitorIncome": 180,
+        "priceSource": "upper 180M/s @ $5.00, no lower offer → -$0.50",
+        "_timestamp": 1765802765566
+      },
+      "los combinasionas_160": {
+        "suggestedPrice": 1.5,
+        "competitorPrice": 2,
+        "competitorIncome": 180,
+        "priceSource": "upper 180M/s @ $2.00, lower 90M/s @ $1.30, diff $0.70 < $1 → -$0.50",
+        "_timestamp": 1765802766195
+      },
+      "los 67_150": {
+        "suggestedPrice": 3.95,
+        "competitorPrice": 4.45,
+        "competitorIncome": 157.5,
+        "priceSource": "upper 157.5M/s @ $4.45, lower 157M/s @ $3.99, diff $0.46 < $1 → -$0.50",
+        "_timestamp": 1765802767992
+      },
+      "gobblino uniciclino_160": {
+        "suggestedPrice": 9.44,
+        "competitorPrice": 9.94,
+        "competitorIncome": 165,
+        "priceSource": "upper 165M/s @ $9.94, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802767113
+      },
+      "mieteteira bicicleteira_150": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 156,
+        "priceSource": "upper 156M/s @ $2.99, lower 130M/s @ $2.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802770279
+      },
+      "los 25_150": {
+        "suggestedPrice": 3,
+        "competitorPrice": 3.5,
+        "competitorIncome": 157,
+        "priceSource": "upper 157M/s @ $3.50, lower 123.7M/s @ $3.49, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802769629
+      },
+      "los burritos_140": {
+        "suggestedPrice": 3.05,
+        "competitorPrice": 3.55,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $3.55, lower 123M/s @ $3.00, diff $0.55 < $1 → -$0.50",
+        "_timestamp": 1765802771345
+      },
+      "chicleteira noelteira_150": {
+        "suggestedPrice": 3.2,
+        "competitorPrice": 3.7,
+        "competitorIncome": 174,
+        "priceSource": "upper 174M/s @ $3.70, lower 127.5M/s @ $3.69, diff $0.01 < $1 → -$0.50",
+        "_timestamp": 1765802771122
+      },
+      "los mobilis_130": {
+        "suggestedPrice": 1.8,
+        "competitorPrice": 2.3,
+        "competitorIncome": 132,
+        "priceSource": "upper 132M/s @ $2.30, lower 110M/s @ $2.00, diff $0.30 < $1 → -$0.50",
+        "_timestamp": 1765802772908
+      },
+      "chicleteira noelteira_120": {
+        "suggestedPrice": 2.99,
+        "competitorPrice": 3.49,
+        "competitorIncome": 127.5,
+        "priceSource": "upper 127.5M/s @ $3.49, lower 105M/s @ $3.19, diff $0.30 < $1 → -$0.50",
+        "_timestamp": 1765802773146
+      },
+      "swag soda_110": {
+        "suggestedPrice": 2.83,
+        "competitorPrice": 3.33,
+        "competitorIncome": 110.5,
+        "priceSource": "upper 110.5M/s @ $3.33, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802777813
+      },
+      "nuclearo dinossauro_120": {
+        "suggestedPrice": 8.49,
+        "competitorPrice": 9.49,
+        "competitorIncome": 161.2,
+        "priceSource": "upper 161.2M/s @ $9.49, lower 105M/s @ $8.00, diff $1.49 >= $1 → -$1",
+        "_timestamp": 1765802777114
+      },
+      "esok sekolah_100": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 120,
+        "priceSource": "upper 120M/s @ $3.00, no lower offer → -$0.50",
+        "_timestamp": 1765802778497
+      },
+      "chicleteira noelteira_100": {
+        "suggestedPrice": 2.69,
+        "competitorPrice": 3.19,
+        "competitorIncome": 105,
+        "priceSource": "upper 105M/s @ $3.19, no lower offer → -$0.50",
+        "_timestamp": 1765802778140
+      },
+      "chimnino_90": {
+        "suggestedPrice": 2.99,
+        "competitorPrice": 3.99,
+        "competitorIncome": 98,
+        "priceSource": "upper 98M/s @ $3.99, lower 91M/s @ $2.00, diff $1.99 >= $1 → -$1",
+        "_timestamp": 1765802782661
+      },
+      "los 25_100": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 112.5,
+        "priceSource": "upper 112.5M/s @ $3.00, no lower offer → -$0.50",
+        "_timestamp": 1765802780050
+      },
+      "67_100": {
+        "suggestedPrice": 2.5,
+        "competitorPrice": 3,
+        "competitorIncome": 105,
+        "priceSource": "upper 105M/s @ $3.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802782235
+      },
+      "los burritos_90": {
+        "suggestedPrice": 2.48,
+        "competitorPrice": 2.98,
+        "competitorIncome": 95.6,
+        "priceSource": "upper 95.6M/s @ $2.98, lower 85M/s @ $2.89, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802784762
+      },
+      "67_90": {
+        "suggestedPrice": 1.7,
+        "competitorPrice": 2.2,
+        "competitorIncome": 97.5,
+        "priceSource": "upper 97.5M/s @ $2.20, lower 75M/s @ $2.00, diff $0.20 < $1 → -$0.50",
+        "_timestamp": 1765802784111
+      },
+      "chicleteira noelteira_90": {
+        "suggestedPrice": 2.49,
+        "competitorPrice": 2.99,
+        "competitorIncome": 90,
+        "priceSource": "upper 90M/s @ $2.99, lower 75M/s @ $2.90, diff $0.09 < $1 → -$0.50",
+        "_timestamp": 1765802785314
+      },
+      "los burritos_80": {
+        "suggestedPrice": 1,
+        "competitorPrice": 1.5,
+        "competitorIncome": 85,
+        "priceSource": "upper 85M/s @ $1.50, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802787445
+      },
+      "los combinasionas_90": {
+        "suggestedPrice": 1.49,
+        "competitorPrice": 1.99,
+        "competitorIncome": 90,
+        "priceSource": "upper 90M/s @ $1.99, lower 75M/s @ $1.89, diff $0.10 < $1 → -$0.50",
+        "_timestamp": 1765802786804
+      },
+      "chimnino_80": {
+        "suggestedPrice": 1.5,
+        "competitorPrice": 2,
+        "competitorIncome": 91,
+        "priceSource": "upper 91M/s @ $2.00, no valid lower (all lower >= upper price) → -$0.50",
+        "_timestamp": 1765802787306
+      }
+    },
+    "updatedAt": "2025-12-15T12:46:02.696Z"
+  }
+]

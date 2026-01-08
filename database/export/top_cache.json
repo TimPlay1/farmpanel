@@ -1,0 +1,152 @@
+[
+  {
+    "_id": "69418d1cdc0e0558424e832b",
+    "type": "income",
+    "data": [
+      {
+        "farmKey": "FARM-7VZV-EY4Y-1OOX-IOQJ",
+        "username": "egr",
+        "avatar": {
+          "icon": "fa-bolt",
+          "color": "#4ECDC4"
+        },
+        "brainrot": {
+          "name": "Dragon Cannelloni",
+          "income": 1500000000,
+          "image": null
+        },
+        "value": 1500000000,
+        "accountsCount": 37
+      },
+      {
+        "farmKey": "FARM-KFRV-UPE4-U2WJ-JOE6",
+        "username": "hyesos",
+        "avatar": {
+          "icon": "fa-gem",
+          "color": "#FF6B6B"
+        },
+        "brainrot": {
+          "name": "La Ginger Sekolah",
+          "income": 1012500000,
+          "image": null
+        },
+        "value": 1012500000,
+        "accountsCount": 5
+      },
+      {
+        "farmKey": "FARM-TAES-479W-XJJ8-4M0J",
+        "username": "MakarGuzevich",
+        "avatar": {
+          "icon": "fa-star",
+          "color": "#96CEB4"
+        },
+        "brainrot": {
+          "name": "Los Primos",
+          "income": 496000000,
+          "image": null
+        },
+        "value": 496000000,
+        "accountsCount": 9
+      }
+    ],
+    "updatedAt": "2026-01-08T06:44:32.779Z"
+  },
+  {
+    "_id": "69418d21dc0e0558424e832c",
+    "type": "value",
+    "data": [
+      {
+        "farmKey": "FARM-7VZV-EY4Y-1OOX-IOQJ",
+        "username": "egr",
+        "avatar": {
+          "icon": "fa-bolt",
+          "color": "#4ECDC4"
+        },
+        "brainrot": {
+          "name": "Eviledon",
+          "income": 992,
+          "image": null,
+          "priceFound": true
+        },
+        "value": 49.89,
+        "accountsCount": 37
+      },
+      {
+        "farmKey": "FARM-KFRV-UPE4-U2WJ-JOE6",
+        "username": "hyesos",
+        "avatar": {
+          "icon": "fa-gem",
+          "color": "#FF6B6B"
+        },
+        "brainrot": {
+          "name": "La Ginger Sekolah",
+          "income": 1013,
+          "image": null,
+          "priceFound": true
+        },
+        "value": 21.68,
+        "accountsCount": 5
+      },
+      {
+        "farmKey": "FARM-TAES-479W-XJJ8-4M0J",
+        "username": "MakarGuzevich",
+        "avatar": {
+          "icon": "fa-star",
+          "color": "#96CEB4"
+        },
+        "brainrot": {
+          "name": "La Ginger Sekolah",
+          "income": 94,
+          "image": null,
+          "priceFound": true
+        },
+        "value": 14.89,
+        "accountsCount": 9
+      }
+    ],
+    "updatedAt": "2026-01-08T06:45:41.727Z"
+  },
+  {
+    "_id": "69418d23dc0e0558424e832d",
+    "type": "total",
+    "data": [
+      {
+        "farmKey": "FARM-7VZV-EY4Y-1OOX-IOQJ",
+        "username": "egr",
+        "avatar": {
+          "icon": "fa-bolt",
+          "color": "#4ECDC4"
+        },
+        "brainrot": null,
+        "value": 70541041666,
+        "accountsCount": 37,
+        "brainrotsCount": 315
+      },
+      {
+        "farmKey": "FARM-TAES-479W-XJJ8-4M0J",
+        "username": "MakarGuzevich",
+        "avatar": {
+          "icon": "fa-star",
+          "color": "#96CEB4"
+        },
+        "brainrot": null,
+        "value": 9826048750,
+        "accountsCount": 9,
+        "brainrotsCount": 85
+      },
+      {
+        "farmKey": "FARM-KFRV-UPE4-U2WJ-JOE6",
+        "username": "hyesos",
+        "avatar": {
+          "icon": "fa-gem",
+          "color": "#FF6B6B"
+        },
+        "brainrot": null,
+        "value": 7650375000,
+        "accountsCount": 5,
+        "brainrotsCount": 39
+      }
+    ],
+    "updatedAt": "2026-01-08T06:44:32.802Z"
+  }
+]

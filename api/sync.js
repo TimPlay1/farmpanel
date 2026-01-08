@@ -168,9 +168,9 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Check if MONGODB_URI is set
-        if (!process.env.MONGODB_URI) {
-            console.error('MONGODB_URI not configured');
+        // Check if MYSQL_URI is set
+        if (!process.env.MYSQL_URI) {
+            console.error('MYSQL_URI not configured');
             return res.status(500).json({ error: 'Database not configured' });
         }
 

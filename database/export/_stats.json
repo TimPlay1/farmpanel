@@ -1,0 +1,212 @@
+[
+  {
+    "name": "ai_queue",
+    "count": 285,
+    "sampleFields": [
+      "_id",
+      "addedAt",
+      "income",
+      "name",
+      "regexPrice",
+      "retries",
+      "status",
+      "mutation"
+    ]
+  },
+  {
+    "name": "rate_limits",
+    "count": 18,
+    "sampleFields": [
+      "_id",
+      "timestamp",
+      "tokens",
+      "source",
+      "createdAt"
+    ]
+  },
+  {
+    "name": "ai_price_cache",
+    "count": 582,
+    "sampleFields": [
+      "_id",
+      "data",
+      "timestamp",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "offer_codes",
+    "count": 0,
+    "sampleFields": []
+  },
+  {
+    "name": "adjustment_queue",
+    "count": 0,
+    "sampleFields": []
+  },
+  {
+    "name": "balance_history",
+    "count": 16450,
+    "sampleFields": [
+      "_id",
+      "farmKey",
+      "value",
+      "timestamp",
+      "createdAt"
+    ]
+  },
+  {
+    "name": "brainrot_prices",
+    "count": 2,
+    "sampleFields": [
+      "_id",
+      "farmKey",
+      "prices",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "price_cache",
+    "count": 1009,
+    "sampleFields": [
+      "_id",
+      "competitorIncome",
+      "competitorPrice",
+      "cycleId",
+      "income",
+      "isInEldoradoList",
+      "lowerIncome",
+      "lowerPrice",
+      "medianData",
+      "medianPrice",
+      "mutation",
+      "name",
+      "nextCompetitorData",
+      "nextCompetitorPrice",
+      "nextRangeChecked",
+      "priceSource",
+      "source",
+      "suggestedPrice",
+      "targetMsRange",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "vercel_logs",
+    "count": 0,
+    "sampleFields": []
+  },
+  {
+    "name": "global_brainrot_prices",
+    "count": 1150,
+    "sampleFields": [
+      "_id",
+      "cacheKey",
+      "competitorIncome",
+      "competitorPrice",
+      "priceSource",
+      "suggestedPrice",
+      "updatedAt",
+      "isSpike",
+      "pendingPrice",
+      "previousPrice",
+      "spikeDetectedAt"
+    ]
+  },
+  {
+    "name": "generations",
+    "count": 3,
+    "sampleFields": [
+      "_id",
+      "farmKey",
+      "generations",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "scan_state",
+    "count": 2,
+    "sampleFields": [
+      "_id",
+      "cycleId",
+      "lastScanAt",
+      "totalScanned"
+    ]
+  },
+  {
+    "name": "accountAvatars",
+    "count": 59,
+    "sampleFields": [
+      "_id",
+      "userId",
+      "base64",
+      "fetchedAt",
+      "updatedAt",
+      "playerName"
+    ]
+  },
+  {
+    "name": "top_cache",
+    "count": 3,
+    "sampleFields": [
+      "_id",
+      "type",
+      "data",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "farmers",
+    "count": 4,
+    "sampleFields": [
+      "_id",
+      "farmKey",
+      "accounts",
+      "avatar",
+      "createdAt",
+      "lastTimestamp",
+      "lastUpdate",
+      "username",
+      "updatedAt",
+      "totalValue",
+      "valueUpdatedAt",
+      "accountAvatars",
+      "playerUserIdMap",
+      "shopName",
+      "shopNameUpdatedAt"
+    ]
+  },
+  {
+    "name": "user_colors",
+    "count": 3,
+    "sampleFields": [
+      "_id",
+      "color",
+      "createdAt",
+      "updatedAt"
+    ]
+  },
+  {
+    "name": "offers",
+    "count": 273,
+    "sampleFields": [
+      "_id",
+      "farmKey",
+      "offerId",
+      "accountId",
+      "brainrotName",
+      "createdAt",
+      "currentPrice",
+      "eldoradoOfferId",
+      "imageUrl",
+      "income",
+      "incomeRaw",
+      "recommendedPrice",
+      "status",
+      "updatedAt",
+      "lastScannedAt",
+      "notFoundCount",
+      "pausedAt"
+    ]
+  }
+]
