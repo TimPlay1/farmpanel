@@ -149,7 +149,13 @@ class MySQLCollection {
     async insertOne(doc) {
         const columns = Object.keys(doc).map(k => this.toSnakeCase(k));
         const placeholders = columns.map(() => '?');
-        const values = Object.values(doc);
+        // v9.12.93: Serialize objects/arrays to JSON for storage
+        const values = Object.values(doc).map(v => {
+            if (v && typeof v === 'object' && !(v instanceof Date)) {
+                return JSON.stringify(v);
+            }
+            return v;
+        });
         
         const sql = `INSERT INTO ${this.tableName} (${columns.join(', ')}) VALUES (${placeholders.join(', ')})`;
         const [result] = await this.pool.query(sql, values);
@@ -343,7 +349,16 @@ class QueryCursor {
         const result = {};
         for (const [key, value] of Object.entries(obj)) {
             const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-            result[camelKey] = value;
+            // v9.12.93: Parse JSON strings back to objects
+            if (typeof value === 'string' && (value.startsWith('{') || value.startsWith('['))) {
+                try {
+                    result[camelKey] = JSON.parse(value);
+                } catch (e) {
+                    result[camelKey] = value;
+                }
+            } else {
+                result[camelKey] = value;
+            }
         }
         // Add _id alias for compatibility
         if (result.id !== undefined) {

@@ -9811,34 +9811,65 @@ async function ensureShopNameLoaded() {
 }
 
 // Parse shop name into components (best effort)
+// v9.12.93: Improved emoji regex to cover more Unicode ranges including geometric shapes
 function parseShopName(fullName) {
     if (!fullName) return;
     
     // Try to extract emojis and text
-    // Emoji regex pattern
-    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu;
-    const emojis = fullName.match(emojiRegex) || [];
+    // Comprehensive emoji regex pattern covering most common emojis
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2B50}-\u{2B55}]|[\u{23E9}-\u{23F3}]|[\u{23F8}-\u{23FA}]|[\u{25AA}-\u{25FE}]|[\u{2934}-\u{2935}]|[\u{2B05}-\u{2B07}]|[\u{2B1B}-\u{2B1C}]|[\u{3030}]|[\u{303D}]|[\u{3297}]|[\u{3299}]|[\u{1FA70}-\u{1FAFF}]|[\u{FE00}-\u{FE0F}]|[\u{200D}]/gu;
+    
+    // Use Intl.Segmenter for proper grapheme segmentation (handles compound emojis)
+    let emojis = [];
+    try {
+        if (typeof Intl !== 'undefined' && Intl.Segmenter) {
+            const segmenter = new Intl.Segmenter('en', { granularity: 'grapheme' });
+            const segments = [...segmenter.segment(fullName)];
+            // Filter segments that look like emojis (non-ASCII start or special chars)
+            emojis = segments
+                .map(s => s.segment)
+                .filter(s => s.charCodeAt(0) > 255 || emojiRegex.test(s));
+        } else {
+            // Fallback to regex
+            emojis = fullName.match(emojiRegex) || [];
+        }
+    } catch (e) {
+        // Fallback to regex
+        emojis = fullName.match(emojiRegex) || [];
+    }
     
     if (emojis.length >= 2) {
         shopNameState.leftEmoji = emojis[0];
         shopNameState.rightEmoji = emojis[emojis.length - 1];
-        // Extract text between emojis
-        const text = fullName.replace(emojiRegex, '').trim();
+        // Extract text by removing first and last emoji
+        let text = fullName;
+        const firstIdx = fullName.indexOf(emojis[0]);
+        const lastIdx = fullName.lastIndexOf(emojis[emojis.length - 1]);
+        if (firstIdx !== -1 && lastIdx !== -1 && lastIdx > firstIdx) {
+            text = fullName.substring(firstIdx + emojis[0].length, lastIdx).trim();
+        } else {
+            text = fullName.replace(emojiRegex, '').trim();
+        }
         shopNameState.text = text;
     } else if (emojis.length === 1) {
         shopNameState.leftEmoji = emojis[0];
         shopNameState.rightEmoji = emojis[0];
-        shopNameState.text = fullName.replace(emojiRegex, '').trim();
+        shopNameState.text = fullName.replace(emojis[0], '').replace(emojis[0], '').trim();
     } else {
         shopNameState.text = fullName;
     }
 }
 
 // Save shop name to server
+// v9.12.93: Added better error handling and logging
 async function saveShopName(fullName) {
-    if (!state.currentKey) return false;
+    if (!state.currentKey) {
+        console.error('saveShopName: No farm key');
+        return false;
+    }
     
     try {
+        console.log('[Shop Name] Saving:', fullName, 'for key:', state.currentKey);
         const response = await fetch(`${API_BASE}/shop-name`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -9848,12 +9879,17 @@ async function saveShopName(fullName) {
             })
         });
         
-        if (response.ok) {
+        const data = await response.json();
+        console.log('[Shop Name] Response:', data);
+        
+        if (response.ok && data.success) {
             shopNameState.fullName = fullName;
             shopNameState.isConfigured = true;
             localStorage.setItem('glitched_shop_name', fullName);
             updateShopNameDisplay();
             return true;
+        } else {
+            console.error('[Shop Name] Save failed:', data.error || 'Unknown error');
         }
     } catch (e) {
         console.error('Failed to save shop name:', e);
