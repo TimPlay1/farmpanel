@@ -127,7 +127,7 @@ class MySQLDatabase {
             'accountAvatars': 'account_avatars',
             'offers': 'offers',
             'offer_codes': 'offer_codes',
-            'price_cache': 'price_cache',
+            'price_cache': 'price_cache',  // Uses price_cache table (509 records with full data)
             'global_brainrot_prices': 'global_brainrot_prices',
             'balance_history': 'balance_history',
             'scan_state': 'scan_state',
