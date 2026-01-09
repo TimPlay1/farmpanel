@@ -740,6 +740,9 @@ class FarmersCollection extends MySQLCollection {
             let accountId;
             if (existingAcc.length > 0) {
                 accountId = existingAcc[0].id;
+                // v10.3.20: Use account.lastUpdate instead of always new Date()
+                // This preserves the original lastUpdate from panel_sync.lua
+                const lastUpdateValue = account.lastUpdate ? new Date(account.lastUpdate) : new Date();
                 await this.pool.execute(
                     `UPDATE farmer_accounts SET 
                         user_id = ?, balance = ?, status = ?, action = ?, is_online = ?, last_update = ?
@@ -750,11 +753,12 @@ class FarmersCollection extends MySQLCollection {
                         account.status || 'idle',
                         account.action || null,
                         account.isOnline || false,
-                        new Date(),
+                        lastUpdateValue,
                         accountId
                     ]
                 );
             } else {
+                const lastUpdateValue = account.lastUpdate ? new Date(account.lastUpdate) : new Date();
                 const [insertResult] = await this.pool.execute(
                     `INSERT INTO farmer_accounts (farmer_id, player_name, user_id, balance, status, action, is_online, last_update)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -766,7 +770,7 @@ class FarmersCollection extends MySQLCollection {
                         account.status || 'idle',
                         account.action || null,
                         account.isOnline || false,
-                        new Date()
+                        lastUpdateValue
                     ]
                 );
                 accountId = insertResult.insertId;
