@@ -850,6 +850,23 @@ const MUTATION_ATTR_IDS = {
 };
 
 /**
+ * v10.3.33: Паттерны для валидации мутаций в title
+ */
+const MUTATION_PATTERNS = {
+    'gold': /\bgold\b/i,
+    'diamond': /\bdiamond\b/i,
+    'bloodrot': /\bbloodrot\b/i,
+    'candy': /\bcandy\b/i,
+    'lava': /\blava\b/i,
+    'galaxy': /\bgalaxy\b/i,
+    'yin-yang': /y[io]n[g]?[-\s]?y[ao]ng|☯|yy\b/i,
+    'yinyang': /y[io]n[g]?[-\s]?y[ao]ng|☯|yy\b/i,
+    'radioactive': /\bradioactive\b/i,
+    'rainbow': /\brainbow\b/i,
+    'cursed': /\bcursed\b/i
+};
+
+/**
  * v9.11.0: Возвращает attr_id для мутации (для фильтрации на Eldorado)
  * @param {string} mutation - название мутации (Gold, Diamond, etc.)
  * @returns {string|null} - ID атрибута или null если не найден
@@ -1394,6 +1411,74 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             console.log(`🤖 AI parsed ${aiParsedCount} additional offers`);
         } catch (aiError) {
             console.warn('AI parsing failed:', aiError.message);
+        }
+    }
+    
+    // v10.3.33: Если nextCompetitor не найден в текущем диапазоне - ищем в следующем
+    // Это важно когда наш income близок к верхней границе диапазона (например 494M/s в 250-499)
+    if (upperOffer && !nextCompetitor && targetMsRange) {
+        const nextRange = getNextMsRange(targetMsRange);
+        if (nextRange) {
+            const nextRangeAttrId = getMsRangeAttrId(nextRange);
+            if (nextRangeAttrId) {
+                console.log(`🔍 Searching nextCompetitor in NEXT RANGE: ${nextRange} (${nextRangeAttrId})...`);
+                try {
+                    // Используем fetchEldorado с новым диапазоном M/s
+                    const nextResponse = await fetchEldorado(1, nextRangeAttrId, eldoradoName, null, mutationAttrId);
+                    
+                    if (nextResponse.results && nextResponse.results.length > 0) {
+                        const nextRangeOffers = [];
+                        for (const item of nextResponse.results) {
+                            // Используем ту же структуру что и в основном цикле
+                            const offer = item.offer || item;
+                            const offerTitle = offer.offerTitle || '';
+                            const price = offer.pricePerUnitInUSD?.amount || 0;
+                            
+                            // Валидация мутации (если требуется) - API уже фильтрует но проверяем на всякий случай
+                            if (mutation && mutation !== 'None' && mutation !== 'Default') {
+                                const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation' || a.name === 'Mutations');
+                                if (!mutationAttr) continue;
+                                const offerMutation = mutationAttr.value;
+                                const pattern = MUTATION_PATTERNS[mutation.toLowerCase()] || new RegExp(mutation.replace(/-/g, '[-\\s]?'), 'i');
+                                if (!pattern.test(offerMutation)) continue;
+                            }
+                            
+                            // Парсим income из title
+                            let income = 0;
+                            const incomeMatch = offerTitle.match(/(\d+(?:[.,]\d+)?)\s*([MmBb])(?:\/[Ss])?/i);
+                            if (incomeMatch) {
+                                income = parseFloat(incomeMatch[1].replace(',', '.'));
+                                if (incomeMatch[2].toLowerCase() === 'b') income *= 1000;
+                            }
+                            
+                            if (income > 0 && price > 0) {
+                                nextRangeOffers.push({
+                                    id: offer.id,
+                                    title: offerTitle,
+                                    income,
+                                    price: price,
+                                    seller: offer.seller?.shop?.name || 'Unknown',
+                                    displayPage: 1,
+                                    page: 0,
+                                    range: nextRange
+                                });
+                            }
+                        }
+                        
+                        // Ищем ближайший конкурент выше нашего income
+                        const nextRangeCompetitors = nextRangeOffers
+                            .filter(o => o.income > targetIncome)
+                            .sort((a, b) => a.income - b.income || a.price - b.price);
+                        
+                        if (nextRangeCompetitors.length > 0) {
+                            nextCompetitor = nextRangeCompetitors[0];
+                            console.log(`✅ Found nextCompetitor in ${nextRange}: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}`);
+                        }
+                    }
+                } catch (nextRangeError) {
+                    console.warn('Next range search failed:', nextRangeError.message);
+                }
+            }
         }
     }
     

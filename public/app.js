@@ -1,4 +1,6 @@
-// FarmerPanel App v10.3.32 - Mutation attribute fix
+// FarmerPanel App v10.3.33 - Next range search for NextCompetitor
+// - v10.3.33: Search for NextCompetitor in NEXT M/s range when not found in current range
+// - v10.3.33: Added global MUTATION_PATTERNS constant for mutation validation
 // - v10.3.32: Fix mutation attribute lookup: API returns 'Mutations' not 'Mutation'
 // - v10.3.32: Fix yin-yang pattern to match all variants (yinyang, ying-yang, YY, ☯)
 // - v10.3.31: Use tradeEnvironmentValue2 for accurate brainrot filtering (fixes wrong results)
