@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.102 - Fix cron scanner: scan all stale brainrots
+// FarmerPanel App v9.12.103 - Fix checkForPriceUpdates -> loadUpdatedPricesFromServer
+// - v9.12.102: Fix cron scanner: scan all stale brainrots
 // - v9.12.101: Fix: return all prices on Refresh (no time filter)
 // - v9.12.100: Cron uses time-based freshness (5min threshold)
-// - v9.12.99: Incremental sync after Refresh Prices, p95 age in notification
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -6603,7 +6603,7 @@ async function clearPriceCache() {
             // (сервер мог обновить некоторые цены после нашего запроса)
             setTimeout(async () => {
                 try {
-                    await checkForPriceUpdates();
+                    await loadUpdatedPricesFromServer();
                     console.log('📊 Incremental sync after Refresh Prices completed');
                 } catch (e) {
                     console.warn('Incremental sync after refresh failed:', e);
