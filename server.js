@@ -341,6 +341,7 @@ function readAllFarmerData() {
 // Import scan-offers and offers API functions
 const scanOffersHandler = require('./api/scan-offers');
 const offersHandler = require('./api/offers');
+const offersFastHandler = require('./api/offers-fast');  // v10.3.25: Add missing import
 const eldoradoPriceHandler = require('./api/eldorado-price');
 const aiPriceHandler = require('./api/ai-price');
 const syncFastHandler = require('./api/sync-fast');
@@ -506,6 +507,11 @@ app.get('/api/ai-price', async (req, res) => {
 app.get('/api/scan-offers', async (req, res) => {
     req.method = 'GET';
     await scanOffersHandler(req, res);
+});
+
+// v10.3.25: Add offers-fast endpoint - returns pre-scanned offers from DB (INSTANT)
+app.get('/api/offers-fast', async (req, res) => {
+    await offersFastHandler(req, res);
 });
 
 // Offers endpoint - CRUD for user offers

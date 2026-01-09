@@ -1,4 +1,5 @@
-// FarmerPanel App v9.12.104 - Fix price age logging (show newest/oldest, not random)
+// FarmerPanel App v10.3.25 - Fix offers-fast API route (Scan All button)
+// - v9.12.104: Fix price age logging (show newest/oldest, not random)
 // - v9.12.103: Fix checkForPriceUpdates -> loadUpdatedPricesFromServer
 // - v9.12.102: Fix cron scanner: scan all stale brainrots
 // - v9.12.101: Fix: return all prices on Refresh (no time filter)
