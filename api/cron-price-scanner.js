@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.26';  // Fix proxy: enable on first error, don't disable on success
+const VERSION = '3.0.27';  // Remove cycleId skip check, use _scannedThisRun flag
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -1041,13 +1041,12 @@ async function runPriceScan() {
             // v3.0.15: Get cached data first (needed for oldPrice comparison later)
             const cached = cachedPrices.get(cacheKey);
             
-            // v3.0.11: При новом цикле - сканируем всех, не пропускаем
-            // В обычном режиме - пропускаем если уже сканировали в этом цикле
-            if (!isNewCycle) {
-                if (cached && cached.cycleId >= currentCycleId) {
-                    skipped++;
-                    continue;
-                }
+            // v3.0.26: Убрана проверка cycleId - теперь используется time-based логика
+            // Brainrots уже отфильтрованы в toScan как stale (>5min)
+            // Дополнительная проверка на случай обновления в этом же запуске
+            if (cached && cached._scannedThisRun) {
+                skipped++;
+                continue;
             }
             
             // Получаем новую цену через regex
@@ -1086,8 +1085,8 @@ async function runPriceScan() {
                 lowerIncome: regexResult.lowerIncome || null
             }, brainrot.mutation, currentCycleId);
             
-            // Обновляем локальный кэш чтобы не сканировать повторно в этом запуске
-            cachedPrices.set(cacheKey, { cycleId: currentCycleId, updatedAt: new Date() });
+            // v3.0.26: Обновляем локальный кэш с флагом _scannedThisRun
+            cachedPrices.set(cacheKey, { cycleId: currentCycleId, updatedAt: new Date(), _scannedThisRun: true });
             
             // Статистика
             if (oldPrice === null || oldPrice === undefined) {
