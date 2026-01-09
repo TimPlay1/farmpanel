@@ -1125,9 +1125,12 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 }
                 
                 // ШАГ 3: В title нет ни нашего брейнрота, ни других известных
-                // Это может быть валидный оффер с опечаткой или кастомным описанием
-                // РАЗРЕШАЕМ - AI парсер сможет перепроверить при необходимости
-                return true;
+                // v10.3.7: Это ФЕЙК оффер - продавец использует тег брейнрота но в заголовке его нет
+                // Примеры: "GET YOU CANDY BASE" при поиске "Dragon Cannelloni"
+                //          "50B Get 1B/s | CHEAPP" при поиске "Dragon Cannelloni"
+                // Такие офферы НЕ должны учитываться при расчёте цены!
+                console.log(`⚠️ Skipping fake offer (no brainrot name in title): "${offerTitle.substring(0, 60)}..." (expected: ${brainrotName})`);
+                return false;
             };
             
             if (!checkBrainrotMatch()) continue;

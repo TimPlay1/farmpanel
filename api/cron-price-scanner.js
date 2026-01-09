@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.28';  // v10.3.6: Add orphan price cleanup (remove prices for brainrots not in farmers)
+const VERSION = '3.0.29';  // v10.3.7: Add time limit (50s max) to prevent 30min cron cycles
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -177,6 +177,7 @@ function getCurrentDelay(baseDelay) {
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
+const MAX_SCAN_TIME_MS = 50 * 1000;  // v10.3.7: Max 50 seconds per cron cycle (must be < 1 minute)
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
@@ -719,7 +720,7 @@ function buildImageUrl(imageName) {
  *          Это намного эффективнее чем сканировать все 56000+ офферов
  * Запускается ПОСЛЕ сканирования цен
  */
-async function scanOffers(db) {
+async function scanOffers(db, globalStartTime = null) {
     console.log(`\n📦 Starting offer scan v3.0.18 (by shopName)...`);
     
     // v3.0.20: Check backup mode
@@ -761,9 +762,20 @@ async function scanOffers(db) {
     let createdCount = 0;
     const foundCodes = new Set();
     const scannedFarmKeys = new Set();
+    let offerTimeoutBreak = false;  // v10.3.7: Track if we hit time limit
     
     // Для каждого фермера - сканируем его офферы по shopName
     for (const farmer of farmers) {
+        // v10.3.7: Check global time limit
+        if (globalStartTime) {
+            const globalElapsed = Date.now() - globalStartTime;
+            if (globalElapsed >= MAX_SCAN_TIME_MS) {
+                console.log(`⏰ Offer scan stopped - global time limit reached (${(globalElapsed/1000).toFixed(1)}s)`);
+                offerTimeoutBreak = true;
+                break;
+            }
+        }
+        
         const shopName = farmer.shopName;
         // Очищаем shopName от эмодзи для поиска
         const cleanShopName = shopName.replace(/[^\w\s]/g, '').trim();
@@ -897,7 +909,7 @@ async function scanOffers(db) {
     }
     
     const duration = Math.round((Date.now() - startTime) / 1000);
-    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)`);
+    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)${offerTimeoutBreak ? ' [TIME LIMIT]' : ''}`);
     
     return { 
         totalScanned, 
@@ -906,7 +918,8 @@ async function scanOffers(db) {
         createdCount,
         pausedCount,
         foundCodes: foundCodes.size,
-        duration 
+        duration,
+        timeoutBreak: offerTimeoutBreak // v10.3.7
     };
 }
 
@@ -1033,8 +1046,17 @@ async function runPriceScan() {
     let newPrices = 0;
     let errors = 0;
     let skipped = 0;
+    let timeoutBreak = false;  // v10.3.7: Track if we hit time limit
     
     for (const brainrot of toScan) {
+        // v10.3.7: Check time limit - stop before 1 minute
+        const elapsedMs = Date.now() - startTime;
+        if (elapsedMs >= MAX_SCAN_TIME_MS) {
+            console.log(`⏰ Time limit reached (${(elapsedMs/1000).toFixed(1)}s >= ${MAX_SCAN_TIME_MS/1000}s) - stopping scan`);
+            timeoutBreak = true;
+            break;
+        }
+        
         try {
             const cacheKey = brainrot._cacheKey;
             
@@ -1110,12 +1132,19 @@ async function runPriceScan() {
     await saveScanState(db, currentCycleId, regexScanned, false); // isNewCycle=false т.к. cycleId уже правильный
     
     // 7. v3.0.0: Сканируем офферы
+    // v10.3.7: Skip offers if already hit time limit
     let offerScanResult = null;
-    try {
-        offerScanResult = await scanOffers(db);
-    } catch (e) {
-        console.warn('Offer scan error:', e.message);
-        offerScanResult = { error: e.message };
+    const elapsedBeforeOffers = Date.now() - startTime;
+    if (elapsedBeforeOffers >= MAX_SCAN_TIME_MS) {
+        console.log(`⏰ Skipping offer scan - already at time limit (${(elapsedBeforeOffers/1000).toFixed(1)}s)`);
+        offerScanResult = { skipped: true, reason: 'time_limit' };
+    } else {
+        try {
+            offerScanResult = await scanOffers(db, startTime);
+        } catch (e) {
+            console.warn('Offer scan error:', e.message);
+            offerScanResult = { error: e.message };
+        }
     }
     
     // 8. v10.3.6: Очистка orphan цен (брейнротов которых нет у фермеров)
@@ -1182,6 +1211,7 @@ async function runPriceScan() {
         success: true,
         version: VERSION,
         duration: `${duration}s`,
+        timeoutBreak, // v10.3.7: True if scan was stopped due to time limit
         totalBrainrots: brainrots.length,
         scanned: regexScanned,
         newPrices,
