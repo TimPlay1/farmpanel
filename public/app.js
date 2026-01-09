@@ -3104,16 +3104,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         // v9.12.17: Цены грузим в фоне, НЕ блокируем показ UI
         // Цены из localStorage уже загружены (loadPriceCacheFromStorage выше)
         const hasCachedPrices = Object.keys(state.brainrotPrices).length > 0;
-        if (!hasCachedPrices) {
-            // Грузим цены в фоне (не await!)
-            loadPricesFromServer().then(() => {
-                console.log('✅ Loaded prices from server (background)');
-                // Обновляем UI когда цены загрузятся
-                if (collectionState.allBrainrots.length > 0) {
-                    renderCollection();
-                }
-            }).catch(e => console.warn('Failed to load prices:', e.message));
-        }
+        // v10.3.14: ВСЕГДА грузим свежие цены с сервера в фоне для актуальных _serverUpdatedAt
+        // Иначе time badges показывают неправильное время (из старого localStorage)
+        loadPricesFromServer().then(() => {
+            console.log('✅ Loaded prices from server (background)', hasCachedPrices ? '(updated from cache)' : '');
+            // Обновляем UI когда цены загрузятся
+            if (collectionState.allBrainrots.length > 0) {
+                renderCollection();
+            }
+        }).catch(e => console.warn('Failed to load prices:', e.message));
         
         // v9.12.5: Если есть кэш для текущего ключа - показываем UI СРАЗУ
         if (hasCachedData) {
