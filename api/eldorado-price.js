@@ -639,7 +639,7 @@ function parseIncomeFromMsRange(msRange) {
  * @param {string} mutationAttrId - v9.11.0: ID атрибута мутации (например "1-1" для Gold)
  */
 async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null, searchQuery = null, mutationAttrId = null) {
-    // v10.3.8: Updated to new Eldorado API parameter names (te_v0, te_v2, attr_ids)
+    // v10.3.9: Use searchQuery for brainrot name filtering (te_v2 no longer works)
     const params = new URLSearchParams({
         gameId: ELDORADO_GAME_ID,
         category: 'CustomItem',
@@ -659,16 +659,17 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
         params.set('attr_ids', attrIds.join(','));
     }
     
-    // Добавляем фильтр по имени брейнрота
-    // Если brainrotName = "Other" - это специальный фильтр для неизвестных брейнротов
-    if (brainrotName) {
-        params.set('te_v2', brainrotName);
-    }
-    
-    // Добавляем текстовый поиск (для брейнротов не в списке Eldorado)
-    if (searchQuery) {
+    // v10.3.9: Используем searchQuery для фильтрации по имени брейнрота
+    // te_v2 больше не работает на Eldorado API
+    // searchQuery ищет в title и description - это единственный работающий способ
+    if (brainrotName && brainrotName !== 'Other') {
+        // Для конкретного брейнрота - используем searchQuery
+        params.set('searchQuery', brainrotName);
+    } else if (searchQuery) {
+        // Для явно переданного searchQuery
         params.set('searchQuery', searchQuery);
     }
+    // "Other" фильтр больше не поддерживается - просто не добавляем фильтр
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
@@ -914,54 +915,25 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
-    let filterMode = 'name'; // 'name' | 'other' | 'search' | 'none'
+    let filterMode = 'search'; // v10.3.9: Always use searchQuery (te_v2 no longer works)
     let currentFilter = eldoradoName; // Имя для фильтра
-    let useSearchQuery = null; // searchQuery для текстового поиска
     
     for (let page = 1; page <= maxPages; page++) {
-        // Определяем какой фильтр использовать
-        let filterName = null;
-        if (filterMode === 'name') {
-            filterName = eldoradoName;
-        } else if (filterMode === 'other' || filterMode === 'search') {
-            filterName = 'Other';  // Специальный фильтр для неизвестных брейнротов
-        }
-        // filterMode === 'none' → filterName = null
-        
-        // v9.11.0: Передаём mutationAttrId для фильтрации по мутации
-        let response = await fetchEldorado(page, msRangeAttrId, filterName, useSearchQuery, mutationAttrId);
+        // v10.3.9: Всегда используем searchQuery с именем брейнрота
+        // te_v2 и "Other" фильтры больше не работают на Eldorado API
+        let response = await fetchEldorado(page, msRangeAttrId, eldoradoName, null, mutationAttrId);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Filter:', filterName, useSearchQuery ? '| Search: ' + useSearchQuery : '', mutationAttrId ? '| Mutation filter: ' + mutationAttrId : '');
+            console.log('Total pages in range:', totalPages, '| Filter mode:', filterMode, '| Search:', eldoradoName, mutationAttrId ? '| Mutation filter: ' + mutationAttrId : '');
             
-            // Если с фильтром по имени 0 результатов - пробуем "Other" + searchQuery
-            if (totalPages === 0 && filterMode === 'name') {
-                console.log('No results with name filter "' + eldoradoName + '", trying "Other" + searchQuery...');
-                filterMode = 'search';
-                useSearchQuery = brainrotName; // Используем оригинальное имя для поиска
-                response = await fetchEldorado(page, msRangeAttrId, 'Other', useSearchQuery, mutationAttrId);
+            // v10.3.9: Если 0 результатов с именем - пробуем без фильтра (только attr_ids)
+            if (totalPages === 0) {
+                console.log('No results for "' + eldoradoName + '", trying without name filter...');
+                filterMode = 'none';
+                response = await fetchEldorado(page, msRangeAttrId, null, null, mutationAttrId);
                 totalPages = response.totalPages || 0;
-                console.log('With "Other" + searchQuery - total pages:', totalPages);
-                
-                // Если searchQuery не дал результатов - пробуем просто "Other" без searchQuery
-                if (totalPages === 0) {
-                    console.log('No results with searchQuery, trying just "Other" category...');
-                    filterMode = 'other';
-                    useSearchQuery = null;
-                    response = await fetchEldorado(page, msRangeAttrId, 'Other', null, mutationAttrId);
-                    totalPages = response.totalPages || 0;
-                    console.log('With "Other" filter only - total pages:', totalPages);
-                }
-                
-                // Если и "Other" не дал результатов - пробуем без фильтра
-                if (totalPages === 0) {
-                    console.log('No results in "Other" category, trying without name filter...');
-                    filterMode = 'none';
-                    response = await fetchEldorado(page, msRangeAttrId, null, null, mutationAttrId);
-                    totalPages = response.totalPages || 0;
-                    console.log('Without name filter - total pages:', totalPages);
-                }
+                console.log('Without name filter - total pages:', totalPages);
             }
         }
         
