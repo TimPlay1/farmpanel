@@ -2,19 +2,21 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// v10.3.28: SOCKS5 proxy ENABLED - DataImpulse Datacenter (Rotating, interval 5)
-// Host: gw.dataimpulse.com:824
-// Protocol: SOCKS5
+// v10.3.29: SOCKS5 proxy DISABLED by default - Datacenter proxies blocked by Cloudflare
+// Only enable via SOCKS5_PROXY_URL env var if you have residential proxies
+// Host: gw.dataimpulse.com:824 (Datacenter - NOT working with Cloudflare)
 let SocksProxyAgent = null;
 let proxyAgent = null;
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null; // DISABLED - datacenter blocked
 
-// Proxy initialization
+// Proxy initialization - only if explicitly configured
 try {
     SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
     if (SOCKS5_PROXY_URL) {
         proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
-        console.log('✅ SOCKS5 proxy ENABLED (DataImpulse) - rotating datacenter');
+        console.log('✅ SOCKS5 proxy ENABLED from env:', SOCKS5_PROXY_URL.replace(/:[^:@]+@/, ':***@'));
+    } else {
+        console.log('⚠️ SOCKS5 proxy DISABLED - direct connection (datacenter proxies blocked by Cloudflare)');
     }
 } catch (e) {
     console.warn('⚠️ SOCKS5 proxy not available:', e.message);

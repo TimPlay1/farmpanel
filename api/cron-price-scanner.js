@@ -54,8 +54,8 @@ const USER_AGENTS = [
 // v3.0.22: SOCKS5 Proxy configuration
 // Set SOCKS5_PROXY_URL environment variable:
 // socks5://username:password@host:port
-// v10.3.28: Default to DataImpulse datacenter proxy (Rotating, interval 5)
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
+// v10.3.29: No default - datacenter proxies blocked by Cloudflare
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null;
 
 // v3.0.22: Create proxy agent if configured
 let proxyAgent = null;
