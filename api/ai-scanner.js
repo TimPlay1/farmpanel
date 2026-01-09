@@ -461,7 +461,15 @@ function parseIncomeRegex(title) {
     // Сначала удаляем эмодзи для чистого парсинга
     const cleanTitle = stripEmojis(title);
     
-    const normalized = cleanTitle
+    // v10.3.16: Убираем паттерны количества товаров "x2 mutations", "x3", "2x" и т.д.
+    // Продавцы пишут это чтобы показать количество на продажу, а не количество мутаций
+    // "740M - x2 mutations" -> "740M"
+    let preprocessed = cleanTitle
+        .replace(/\s*[-–—]\s*x\d+\s*(mutation|mutations|mut)?\s*/gi, ' ')
+        .replace(/\s*x\d+\s*(mutation|mutations|mut)\s*/gi, ' ')
+        .replace(/\s*\d+x\s*(mutation|mutations|mut)\s*/gi, ' ');
+    
+    const normalized = preprocessed
         .replace(/,/g, '.')
         .replace(/\s+/g, ' ')
         .replace(/\s*\.\s*/g, '.')

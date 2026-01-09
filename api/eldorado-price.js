@@ -479,6 +479,13 @@ function parseIncomeFromTitle(title, msRangeAttr = null) {
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*M/gi, '$1M');
     cleanTitle = cleanTitle.replace(/\$(\d+[.,]?\d*)\s*B/gi, '$1B');
     
+    // v10.3.16: Убираем паттерны количества товаров "x2 mutations", "x3", "2x" и т.д.
+    // Продавцы пишут это чтобы показать количество на продажу, а не количество мутаций
+    // "740M - x2 mutations" -> "740M" (убираем " - x2 mutations")
+    cleanTitle = cleanTitle.replace(/\s*[-–—]\s*x\d+\s*(mutation|mutations|mut)?\s*/gi, ' ');
+    cleanTitle = cleanTitle.replace(/\s*x\d+\s*(mutation|mutations|mut)\s*/gi, ' ');
+    cleanTitle = cleanTitle.replace(/\s*\d+x\s*(mutation|mutations|mut)\s*/gi, ' ');
+    
     // ПРОВЕРКА НА ДИАПАЗОНЫ: "150m - 500m/s", "100-500M/s", "250m~500m/s", "88M to 220M/s"
     // Такие офферы - это "spin the wheel" или рандомные, их income ненадёжен
     // Паттерны:
@@ -1157,22 +1164,18 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 // Check if offer has target mutation in title
                 const hasTargetMutationInTitle = targetPattern ? targetPattern.test(offerTitle) : false;
                 
-                // v9.12.88: Check for multi-mutation offers ("x2 mutations", "double mutation", "2x mutation")
-                // These offers have MULTIPLE mutations and may include our target - don't skip them
-                const isMultiMutationOffer = /\b(x2|2x|double|multi|dual)\s*mutation/i.test(offerTitle) ||
-                                             /\bmutation(s)?\s*(x2|2x)/i.test(offerTitle);
+                // v10.3.16: "x2 mutations" означает количество товаров, а НЕ количество мутаций
+                // Убираем проверку isMultiMutationOffer - она была неправильной
                 
                 // v9.12.86: REQUIRE target mutation - offer must have it either in attr or title
-                // v9.12.88: EXCEPT for multi-mutation offers which we can't determine from title alone
-                if (!hasTargetMutationAttr && !hasTargetMutationInTitle && !isMultiMutationOffer) {
+                if (!hasTargetMutationAttr && !hasTargetMutationInTitle) {
                     // Offer doesn't have the target mutation at all - skip it
                     // This catches default/none mutation offers like "$1111 Swaggy Bros 700M/S"
                     skipDueToMutation = true;
                 }
                 
                 // Also check for explicit WRONG mutations (extra safety)
-                // v9.12.88: Skip this check for multi-mutation offers
-                if (!skipDueToMutation && !isMultiMutationOffer) {
+                if (!skipDueToMutation) {
                     for (const [mutName, pattern] of Object.entries(mutationPatterns)) {
                         // Skip if this is the target mutation
                         if (mutName === targetMutation || mutName === targetPatternKey) continue;
