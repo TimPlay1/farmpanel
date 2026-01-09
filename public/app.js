@@ -1093,78 +1093,88 @@ const PERIODS = {
 
 // v10.3.22: Memory management constants
 const MEMORY_CLEANUP_INTERVAL = 5 * 60 * 1000; // Every 5 minutes
-const MAX_PRICE_CACHE_SIZE = 500; // Max brainrot prices to keep
-const MAX_ELDORADO_CACHE_SIZE = 500; // Max eldorado prices to keep
-const MAX_PREVIOUS_PRICES_SIZE = 200; // Max previous prices to keep
-const PRICE_CACHE_MAX_AGE = 60 * 60 * 1000; // 1 hour max age for prices
+const UNUSED_PRICE_MAX_AGE = 30 * 60 * 1000; // 30 min for unused prices (not in collection)
 const OFFER_IMAGES_MAX_SIZE = 100; // Max offer images to cache
 
 /**
+ * v10.3.22: Get all cache keys for brainrots in current collection
+ * These prices should NEVER be deleted
+ */
+function getActivePriceCacheKeys() {
+    const activeKeys = new Set();
+    const data = state.farmersData[state.currentKey];
+    
+    if (!data || !data.accounts) return activeKeys;
+    
+    for (const account of data.accounts) {
+        if (!account.brainrots) continue;
+        for (const b of account.brainrots) {
+            // Add cache key for this brainrot (same format as getPriceCacheKey)
+            const income = normalizeIncomeForApi(b.income, b.incomeText);
+            const cacheKey = `${b.name.toLowerCase().trim()}_${income}`;
+            activeKeys.add(cacheKey);
+        }
+    }
+    
+    return activeKeys;
+}
+
+/**
  * v10.3.22: Periodic memory cleanup to prevent memory leaks
- * Removes old/stale data from caches and limits cache sizes
+ * Only removes UNUSED data - never touches prices for current brainrots
  */
 function performMemoryCleanup() {
     const now = Date.now();
     let cleaned = 0;
     
-    // 1. Clean old prices from brainrotPrices
-    const brainrotPriceKeys = Object.keys(state.brainrotPrices);
-    if (brainrotPriceKeys.length > MAX_PRICE_CACHE_SIZE) {
-        // Sort by timestamp, keep newest
-        const sorted = brainrotPriceKeys
-            .map(key => ({ key, ts: state.brainrotPrices[key]?._timestamp || 0 }))
-            .sort((a, b) => b.ts - a.ts);
-        
-        // Remove oldest entries
-        const toRemove = sorted.slice(MAX_PRICE_CACHE_SIZE);
-        toRemove.forEach(({ key }) => {
-            delete state.brainrotPrices[key];
-            cleaned++;
-        });
-    }
+    // Get all active brainrot cache keys (these should NOT be deleted)
+    const activeKeys = getActivePriceCacheKeys();
     
-    // Also remove very old entries (older than 1 hour)
+    // 1. Clean ONLY unused prices from brainrotPrices (not in current collection AND older than 30min)
     for (const key of Object.keys(state.brainrotPrices)) {
+        if (activeKeys.has(key)) continue; // Never delete prices for current brainrots
+        
         const data = state.brainrotPrices[key];
-        if (data?._timestamp && (now - data._timestamp) > PRICE_CACHE_MAX_AGE) {
+        const age = data?._timestamp ? (now - data._timestamp) : Infinity;
+        
+        // Only delete if NOT in collection AND older than 30 minutes
+        if (age > UNUSED_PRICE_MAX_AGE) {
             delete state.brainrotPrices[key];
             cleaned++;
         }
     }
     
-    // 2. Clean eldoradoPrices similarly
-    const eldoradoKeys = Object.keys(state.eldoradoPrices);
-    if (eldoradoKeys.length > MAX_ELDORADO_CACHE_SIZE) {
-        const sorted = eldoradoKeys
-            .map(key => ({ key, ts: state.eldoradoPrices[key]?.timestamp || 0 }))
-            .sort((a, b) => b.ts - a.ts);
+    // 2. Clean unused eldoradoPrices similarly
+    for (const key of Object.keys(state.eldoradoPrices)) {
+        if (activeKeys.has(key)) continue;
         
-        const toRemove = sorted.slice(MAX_ELDORADO_CACHE_SIZE);
-        toRemove.forEach(({ key }) => {
+        const data = state.eldoradoPrices[key];
+        const age = data?.timestamp ? (now - data.timestamp) : Infinity;
+        
+        if (age > UNUSED_PRICE_MAX_AGE) {
             delete state.eldoradoPrices[key];
             cleaned++;
-        });
+        }
     }
     
-    // 3. Clean previousPrices
-    const prevKeys = Object.keys(state.previousPrices);
-    if (prevKeys.length > MAX_PREVIOUS_PRICES_SIZE) {
-        const sorted = prevKeys
-            .map(key => ({ key, ts: state.previousPrices[key]?.timestamp || 0 }))
-            .sort((a, b) => b.ts - a.ts);
+    // 3. Clean unused previousPrices (older than 30 min and not in collection)
+    for (const key of Object.keys(state.previousPrices)) {
+        if (activeKeys.has(key)) continue;
         
-        const toRemove = sorted.slice(MAX_PREVIOUS_PRICES_SIZE);
-        toRemove.forEach(({ key }) => {
+        const data = state.previousPrices[key];
+        const age = data?.timestamp ? (now - data.timestamp) : Infinity;
+        
+        if (age > UNUSED_PRICE_MAX_AGE) {
             delete state.previousPrices[key];
             cleaned++;
-        });
+        }
     }
     
-    // 4. Clean offerImagesCache (global var)
+    // 4. Clean offerImagesCache (limit to 100 newest)
     if (typeof offerImagesCache !== 'undefined') {
         const imgKeys = Object.keys(offerImagesCache);
         if (imgKeys.length > OFFER_IMAGES_MAX_SIZE) {
-            // Remove random old ones (no timestamp available)
+            // Remove excess entries
             const toRemove = imgKeys.slice(0, imgKeys.length - OFFER_IMAGES_MAX_SIZE);
             toRemove.forEach(key => {
                 delete offerImagesCache[key];
@@ -1173,23 +1183,23 @@ function performMemoryCleanup() {
         }
     }
     
-    // 5. Clean balance history for non-current keys (keep only last 500 entries)
+    // 5. Clean balance history for non-current keys (keep only last 1000 entries)
     for (const farmKey of Object.keys(state.balanceHistory)) {
         if (farmKey !== state.currentKey) {
             const history = state.balanceHistory[farmKey];
-            if (history && history.length > 500) {
-                state.balanceHistory[farmKey] = history.slice(-500);
-                cleaned += history.length - 500;
+            if (history && history.length > 1000) {
+                state.balanceHistory[farmKey] = history.slice(-1000);
+                cleaned += history.length - 1000;
             }
         }
     }
     
-    // 6. Clean farmersData for non-current keys older than 5 minutes
+    // 6. Clean farmersData for non-current keys (keep max 10 keys)
     const dataKeys = Object.keys(state.farmersData);
-    if (dataKeys.length > 5) {
+    if (dataKeys.length > 10) {
+        // Remove oldest non-current keys
         for (const key of dataKeys) {
-            if (key !== state.currentKey) {
-                // If we have more than 5 cached keys, remove oldest non-current ones
+            if (key !== state.currentKey && dataKeys.length > 10) {
                 delete state.farmersData[key];
                 cleaned++;
             }
@@ -1197,7 +1207,7 @@ function performMemoryCleanup() {
     }
     
     if (cleaned > 0) {
-        console.log(`🧹 Memory cleanup: removed ${cleaned} stale cache entries`);
+        console.log(`🧹 Memory cleanup: removed ${cleaned} stale cache entries (kept ${activeKeys.size} active prices)`);
     }
 }
 
