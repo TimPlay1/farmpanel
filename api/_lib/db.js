@@ -851,6 +851,12 @@ async function checkGlobalRateLimit(estimatedTokens = 1500) {
         const windowResetTime = oldestTimestamp + GLOBAL_RATE_LIMIT.WINDOW_MS;
         const waitMs = Math.max(0, windowResetTime - Date.now());
         
+        // v10.3.4: Debug - why is allowed=false when tokens < limit?
+        const sum = currentTokens + estimatedTokens;
+        const limit = GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE;
+        const exceeds = sum > limit;
+        console.log(`[RATELIMIT-CALC] currentTokens=${currentTokens}, estimated=${estimatedTokens}, sum=${sum}, limit=${limit}, exceeds=${exceeds}`);
+        
         if (currentTokens + estimatedTokens > GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE) {
             return { 
                 allowed: false, 
