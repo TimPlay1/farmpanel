@@ -1,7 +1,7 @@
-// FarmerPanel App v10.3.36 - Page visibility optimization
+// FarmerPanel App v10.3.37 - Never overwrite good price with null
+// - v10.3.37: Don't cache null API responses - keep existing valid prices
+// - v10.3.37: Only log AI price when actually found (no $null spam in console)
 // - v10.3.36: Skip expensive UI operations when tab is hidden (Page Visibility API)
-// - v10.3.36: Throttle updateOffersRecommendedPrices (2s minimum between calls)
-// - v10.3.36: Debounce savePricesToServer (5s delay, prevents spam)
 // - v10.3.36: Fixes requestAnimationFrame violations when tab in background
 // - v10.3.35: When brainrot not in Eldorado dropdown, use te_v2=Other + searchQuery fallback
 // - v10.3.35: Tested: Los Spooky Combinasionas now works (20/20 brainrots pass, 100% accuracy)
@@ -2694,7 +2694,10 @@ async function fetchEldoradoPrice(brainrotName, income, mutation = null) {
             const aiResponse = await fetch(`${API_BASE}/ai-price?${params}`);
             if (aiResponse.ok) {
                 data = await aiResponse.json();
-                console.log(`🤖 AI price for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${data.suggestedPrice} (source: ${data.source})`);
+                // v10.3.37: Only log when price actually found (not null)
+                if (data.suggestedPrice != null && data.suggestedPrice !== 'null' && data.suggestedPrice !== null) {
+                    console.log(`🤖 AI price for ${brainrotName}${mutation ? ' (' + mutation + ')' : ''}: $${data.suggestedPrice} (source: ${data.source})`);
+                }
             }
         } catch (aiError) {
             console.warn('AI price endpoint failed, falling back to regex:', aiError.message);
@@ -2710,11 +2713,22 @@ async function fetchEldoradoPrice(brainrotName, income, mutation = null) {
             data.source = data.source || 'regex';
         }
         
-        // Сохраняем в кэш
-        state.eldoradoPrices[cacheKey] = {
-            data: data,
-            timestamp: Date.now()
-        };
+        // v10.3.37: Only cache if we got a valid price
+        // Don't overwrite existing good price with null result
+        if (data && data.suggestedPrice != null) {
+            state.eldoradoPrices[cacheKey] = {
+                data: data,
+                timestamp: Date.now()
+            };
+        } else {
+            // If we got null, check if we have existing cached data
+            const existing = state.eldoradoPrices[cacheKey];
+            if (existing && existing.data && existing.data.suggestedPrice != null) {
+                // Keep existing valid price, just return the old data
+                console.log(`⚠️ API returned null for ${brainrotName}, keeping cached price $${existing.data.suggestedPrice}`);
+                return existing.data;
+            }
+        }
         
         return data;
     } catch (error) {
