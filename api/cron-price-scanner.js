@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.27';  // Remove cycleId skip check, use _scannedThisRun flag
+const VERSION = '3.0.28';  // v10.3.6: Add orphan price cleanup (remove prices for brainrots not in farmers)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -1118,6 +1118,58 @@ async function runPriceScan() {
         offerScanResult = { error: e.message };
     }
     
+    // 8. v10.3.6: Очистка orphan цен (брейнротов которых нет у фермеров)
+    // Удаляем цены старше 2 часов если брейнрот не в списке актуальных
+    let orphansCleaned = 0;
+    try {
+        const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+        
+        // Создаём Set всех актуальных ключей
+        const activeCacheKeys = new Set();
+        for (const b of brainrots) {
+            const cleanMut = cleanMutation(b.mutation);
+            let cacheKey = `${b.name.toLowerCase()}_${b.income}`;
+            activeCacheKeys.add(cacheKey);
+            if (cleanMut) {
+                activeCacheKeys.add(`${cacheKey}_${cleanMut}`);
+            }
+        }
+        
+        // Получаем все старые цены
+        const collection = db.collection('price_cache');
+        const allPrices = await collection.find({}).toArray();
+        
+        // Находим orphan цены (старше 2 часов и не в активных)
+        const orphanKeys = [];
+        for (const p of allPrices) {
+            const key = p._id || p.cacheKey;
+            if (!key) continue;
+            
+            const updatedAt = p.updatedAt ? new Date(p.updatedAt) : null;
+            
+            // Если цена старше 2 часов И её нет в активных - это orphan
+            if (updatedAt && updatedAt < twoHoursAgo && !activeCacheKeys.has(key)) {
+                orphanKeys.push(key);
+            }
+        }
+        
+        // Удаляем orphan цены
+        if (orphanKeys.length > 0) {
+            for (const key of orphanKeys) {
+                await collection.deleteOne({ _id: key });
+            }
+            orphansCleaned = orphanKeys.length;
+            console.log(`🧹 Cleaned ${orphansCleaned} orphan prices (older than 2h, not in farmers)`);
+            if (orphanKeys.length <= 20) {
+                console.log(`   Removed: ${orphanKeys.join(', ')}`);
+            } else {
+                console.log(`   Sample: ${orphanKeys.slice(0, 10).join(', ')}...`);
+            }
+        }
+    } catch (e) {
+        console.warn('Orphan cleanup error:', e.message);
+    }
+
     const duration = Math.round((Date.now() - startTime) / 1000);
     
     // Считаем прогресс цикла
@@ -1136,6 +1188,7 @@ async function runPriceScan() {
         priceChanges,
         skipped: skipped + actualFreshCount,
         errors,
+        orphansCleaned, // v10.3.6: Count of cleaned orphan prices
         cycle: {
             id: currentCycleId,
             isNew: isNewCycle,
