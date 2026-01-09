@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.94 - Fix outlier prices causing inflated limits (use p95 instead of max)
+// FarmerPanel App v9.12.95 - Instant balance display from cache on page load
+// - v9.12.94: Fix outlier prices using p95 instead of max for limit calculation
 // - v9.12.93: Shop Name emoji parsing with Intl.Segmenter, MySQL JSON serialization
-// - v9.12.84: Add mutation validation for offers (fixes wrong mutation in price scan)
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
@@ -1076,6 +1076,7 @@ const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
 const BALANCE_HISTORY_CACHE_TTL = 5 * 60 * 1000; // 5 минут кэш для истории баланса
 const CHART_PERIOD_KEY = 'chartPeriodCache';
+const LAST_BALANCE_KEY = 'lastBalanceCache'; // v9.12.95: Quick balance display on load
 
 // v9.12.24: Время последней загрузки цен для инкрементального обновления
 let lastPricesLoadTime = 0;
@@ -1174,6 +1175,40 @@ function getCachedAvatar(userId) {
         }
     }
     return null;
+}
+
+/**
+ * v9.12.95: Сохранить последний баланс для мгновенного отображения
+ */
+function saveLastBalance(farmKey, balance) {
+    if (!farmKey || !balance || balance <= 0) return;
+    try {
+        const stored = JSON.parse(localStorage.getItem(LAST_BALANCE_KEY) || '{}');
+        stored[farmKey] = { balance, timestamp: Date.now() };
+        // Ограничиваем до 10 записей
+        const keys = Object.keys(stored);
+        if (keys.length > 10) {
+            const sorted = keys.sort((a, b) => (stored[a].timestamp || 0) - (stored[b].timestamp || 0));
+            delete stored[sorted[0]];
+        }
+        localStorage.setItem(LAST_BALANCE_KEY, JSON.stringify(stored));
+    } catch (e) {}
+}
+
+/**
+ * v9.12.95: Загрузить последний известный баланс
+ */
+function loadLastBalance(farmKey) {
+    if (!farmKey) return 0;
+    try {
+        const stored = JSON.parse(localStorage.getItem(LAST_BALANCE_KEY) || '{}');
+        const entry = stored[farmKey];
+        // Баланс действителен 24 часа
+        if (entry && entry.balance > 0 && Date.now() - entry.timestamp < 24 * 60 * 60 * 1000) {
+            return entry.balance;
+        }
+    } catch (e) {}
+    return 0;
 }
 
 /**
@@ -3033,6 +3068,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (chartCacheLoaded) {
             console.log('📊 Chart cache loaded at startup');
         }
+        // v9.12.95: Загружаем последний известный баланс для мгновенного отображения
+        const cachedBalance = loadLastBalance(state.currentKey);
+        if (cachedBalance > 0) {
+            state.currentTotalValue = cachedBalance;
+            console.log(`💰 Loaded cached balance: $${cachedBalance.toFixed(2)}`);
+        }
     }
     
     setupEventListeners();
@@ -4397,6 +4438,10 @@ function updateUI() {
     // Сохраняем в state для синхронизации везде (но не перезаписываем на 0 при рефреше)
     if (!state.isManualPriceRefresh || totalValue > 0) {
         state.currentTotalValue = totalValue;
+        // v9.12.95: Сохраняем баланс для мгновенного отображения при следующей загрузке
+        if (totalValue > 0 && state.currentKey) {
+            saveLastBalance(state.currentKey, totalValue);
+        }
     }
     state.currentBalanceChange = getBalanceChange(state.currentKey, PERIODS.hour);
     
@@ -4412,7 +4457,11 @@ function updateUI() {
     
     // Update total value with change indicator
     if (statsEls.totalValue) {
-        const displayValue = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
+        let displayValue = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
+        // v9.12.95: Если баланс = 0 и цены не загружены, используем кэш
+        if (displayValue <= 0 && Object.keys(state.brainrotPrices).length === 0 && state.currentKey) {
+            displayValue = loadLastBalance(state.currentKey);
+        }
         const displayNum = parseFloat(displayValue) || 0;
         statsEls.totalValue.textContent = displayNum > 0 ? `$${displayNum.toFixed(2)}` : '$0.00';
         
@@ -4471,7 +4520,15 @@ function updateCurrentFarmer() {
     // При рефреше используем frozen balance
     const balanceEl = document.getElementById('farmerBalance');
     const countEl = document.getElementById('farmerAccountsCount');
-    const displayBalance = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
+    let displayBalance = state.isManualPriceRefresh && state.frozenBalance !== null ? state.frozenBalance : totalValue;
+    
+    // v9.12.95: Если баланс = 0 и цены ещё не загружены, используем кэш
+    if (displayBalance <= 0 && Object.keys(state.brainrotPrices).length === 0) {
+        const cachedBalance = loadLastBalance(state.currentKey);
+        if (cachedBalance > 0) {
+            displayBalance = cachedBalance;
+        }
+    }
     
     if (balanceEl) {
         let changeHtml = '';
