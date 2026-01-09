@@ -843,19 +843,14 @@ async function checkGlobalRateLimit(estimatedTokens = 1500) {
             [windowStart]
         );
         
-        const currentTokens = rows[0]?.totalTokens || 0;
-        const currentRequests = rows[0]?.totalRequests || 0;
-        const oldestTimestamp = rows[0]?.oldestTimestamp || Date.now();
+        // v10.3.5: FIX - Convert to numbers! MySQL SUM() returns string in MariaDB
+        const currentTokens = parseInt(rows[0]?.totalTokens, 10) || 0;
+        const currentRequests = parseInt(rows[0]?.totalRequests, 10) || 0;
+        const oldestTimestamp = parseInt(rows[0]?.oldestTimestamp, 10) || Date.now();
         
         // Calculate wait time until window resets
         const windowResetTime = oldestTimestamp + GLOBAL_RATE_LIMIT.WINDOW_MS;
         const waitMs = Math.max(0, windowResetTime - Date.now());
-        
-        // v10.3.4: Debug - why is allowed=false when tokens < limit?
-        const sum = currentTokens + estimatedTokens;
-        const limit = GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE;
-        const exceeds = sum > limit;
-        console.log(`[RATELIMIT-CALC] currentTokens=${currentTokens}, estimated=${estimatedTokens}, sum=${sum}, limit=${limit}, exceeds=${exceeds}`);
         
         if (currentTokens + estimatedTokens > GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE) {
             return { 
