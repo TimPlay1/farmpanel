@@ -1,4 +1,5 @@
-// FarmerPanel App v9.12.103 - Fix checkForPriceUpdates -> loadUpdatedPricesFromServer
+// FarmerPanel App v9.12.104 - Fix price age logging (show newest/oldest, not random)
+// - v9.12.103: Fix checkForPriceUpdates -> loadUpdatedPricesFromServer
 // - v9.12.102: Fix cron scanner: scan all stale brainrots
 // - v9.12.101: Fix: return all prices on Refresh (no time filter)
 // - v9.12.100: Cron uses time-based freshness (5min threshold)
@@ -1785,11 +1786,14 @@ async function loadPricesFromServer() {
                 // (updatedAt - время обновления на сервере cron'ом, может быть давно)
                 const loadTime = Date.now();
                 let hasUpdatedAt = 0;
-                let sampleUpdatedAt = null;
+                let newestUpdatedAt = null;
+                let oldestUpdatedAt = null;
                 for (const [key, priceData] of Object.entries(data.prices)) {
                     if (priceData.updatedAt) {
                         hasUpdatedAt++;
-                        if (!sampleUpdatedAt) sampleUpdatedAt = priceData.updatedAt;
+                        const t = new Date(priceData.updatedAt).getTime();
+                        if (!newestUpdatedAt || t > newestUpdatedAt) newestUpdatedAt = t;
+                        if (!oldestUpdatedAt || t < oldestUpdatedAt) oldestUpdatedAt = t;
                     }
                     // v9.12.61: Track price changes before overwriting
                     const oldData = state.brainrotPrices[key];
@@ -1803,11 +1807,11 @@ async function loadPricesFromServer() {
                     };
                 }
                 console.log(`📊 Prices with updatedAt: ${hasUpdatedAt}/${Object.keys(data.prices).length}`);
-                // Debug: show sample updatedAt value and age
-                if (sampleUpdatedAt) {
-                    const sampleTime = new Date(sampleUpdatedAt).getTime();
-                    const ageMs = Date.now() - sampleTime;
-                    console.log(`📊 Sample updatedAt: "${sampleUpdatedAt}" -> ${Math.round(ageMs/1000)}s ago`);
+                // Debug: show newest and oldest updatedAt
+                if (newestUpdatedAt) {
+                    const newestAge = Math.round((loadTime - newestUpdatedAt) / 1000);
+                    const oldestAge = Math.round((loadTime - oldestUpdatedAt) / 1000);
+                    console.log(`📊 Prices age: newest ${newestAge}s ago, oldest ${oldestAge}s ago`);
                 }
                 
                 // ВАЖНО: Сохраняем в localStorage для мгновенной загрузки при следующем визите
