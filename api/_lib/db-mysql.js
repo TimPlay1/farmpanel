@@ -358,10 +358,14 @@ class MySQLCollection {
         const sets = [];
         const params = [];
         
+        // v10.3.18: Fields to skip (virtual/computed fields that don't exist in tables)
+        const skipFields = ['playerUserIdMap', 'accountAvatars', 'accounts', 'brainrots', '_id', 'id'];
+        
         // Handle $set
         const fields = update.$set || (update.$inc || update.$unset ? {} : update);
         for (const [key, value] of Object.entries(fields)) {
             if (key.startsWith('$')) continue;
+            if (skipFields.includes(key)) continue; // Skip virtual fields
             sets.push(`${this._toColumn(key)} = ?`);
             params.push(this._toValue(value));
         }
@@ -487,8 +491,12 @@ class MySQLCollection {
     
     _docToRow(doc) {
         const row = {};
+        // v10.3.18: Fields to skip (virtual/computed fields that don't exist in tables)
+        const skipFields = ['playerUserIdMap', 'accountAvatars', 'accounts', 'brainrots', '_id', 'id'];
+        
         for (const [key, value] of Object.entries(doc)) {
             if (key === '_id') continue;
+            if (skipFields.includes(key)) continue; // Skip virtual fields
             row[this._toColumn(key)] = this._toValue(value);
         }
         return row;
