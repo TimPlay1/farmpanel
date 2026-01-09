@@ -1309,8 +1309,14 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     
     // AI RE-PARSING: для офферов где regex не справился - пробуем AI
     // НО! Если disableAI=true (вызов из cron) - пропускаем AI чтобы не тратить квоту
+    // v10.3.1: Add debug log for disableAI value
     const unparsedOffers = allPageOffers.filter(o => !o.incomeFromTitle || o.income === 0);
     let aiParsedCount = 0;
+    
+    // v10.3.1: DEBUG - log disableAI value
+    if (unparsedOffers.length > 0) {
+        console.log(`[AI-DEBUG] disableAI=${disableAI}, unparsed=${unparsedOffers.length}, aiScanner=${!!aiScanner}, GEMINI_KEY=${!!process.env.GEMINI_API_KEY}`);
+    }
     
     if (!disableAI && unparsedOffers.length > 0 && aiScanner && process.env.GEMINI_API_KEY) {
         console.log(`🤖 AI re-parsing ${unparsedOffers.length} unparsed offers for "${brainrotName}"...`);
