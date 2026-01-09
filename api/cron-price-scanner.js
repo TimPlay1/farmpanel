@@ -54,8 +54,8 @@ const USER_AGENTS = [
 // v3.0.22: SOCKS5 Proxy configuration
 // Set SOCKS5_PROXY_URL environment variable:
 // socks5://username:password@host:port
-// v10.3.29: No default - datacenter proxies blocked by Cloudflare
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null;
+// v10.3.30: DataImpulse proxy - activates ONLY on Cloudflare 1015
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
 
 // v3.0.22: Create proxy agent if configured
 let proxyAgent = null;
@@ -63,7 +63,7 @@ function getProxyAgent() {
     if (!proxyAgent && SOCKS5_PROXY_URL && SocksProxyAgent) {
         try {
             proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
-            console.log('✅ SOCKS5 proxy agent created');
+            console.log('✅ SOCKS5 proxy agent READY (activates on 1015)');
         } catch (e) {
             console.error('❌ Failed to create proxy agent:', e.message);
         }

@@ -2,24 +2,42 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// v10.3.29: SOCKS5 proxy DISABLED by default - Datacenter proxies blocked by Cloudflare
-// Only enable via SOCKS5_PROXY_URL env var if you have residential proxies
-// Host: gw.dataimpulse.com:824 (Datacenter - NOT working with Cloudflare)
+// v10.3.30: SOCKS5 proxy - activated ONLY on Cloudflare 1015 errors
+// DataImpulse Datacenter proxy (Rotating, interval 5)
 let SocksProxyAgent = null;
 let proxyAgent = null;
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null; // DISABLED - datacenter blocked
+let useProxyForRequests = false;  // v10.3.30: Flag to enable proxy after 1015
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
 
-// Proxy initialization - only if explicitly configured
+// Proxy initialization - prepare agent but don't use until 1015
 try {
     SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
     if (SOCKS5_PROXY_URL) {
         proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
-        console.log('✅ SOCKS5 proxy ENABLED from env:', SOCKS5_PROXY_URL.replace(/:[^:@]+@/, ':***@'));
-    } else {
-        console.log('⚠️ SOCKS5 proxy DISABLED - direct connection (datacenter proxies blocked by Cloudflare)');
+        console.log('✅ SOCKS5 proxy READY (will activate on 1015):', SOCKS5_PROXY_URL.replace(/:[^:@]+@/, ':***@'));
     }
 } catch (e) {
     console.warn('⚠️ SOCKS5 proxy not available:', e.message);
+}
+
+// v10.3.30: Enable proxy mode (called when 1015 detected)
+function enableProxyMode() {
+    if (proxyAgent && !useProxyForRequests) {
+        useProxyForRequests = true;
+        console.log('🔀 PROXY MODE ENABLED - switching to SOCKS5 proxy');
+    }
+}
+
+// v10.3.30: Disable proxy mode (called after successful requests)
+let successfulRequestsCount = 0;
+function handleSuccessfulRequest() {
+    successfulRequestsCount++;
+    // After 50 successful requests, disable proxy
+    if (useProxyForRequests && successfulRequestsCount >= 50) {
+        useProxyForRequests = false;
+        successfulRequestsCount = 0;
+        console.log('🔀 PROXY MODE DISABLED - 50 successful requests');
+    }
 }
 
 // v3.0.21: User-Agent Rotation Pool (shared with cron-price-scanner)
@@ -703,8 +721,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
             }
         };
         
-        // Add proxy agent if configured
-        if (proxyAgent) {
+        // v10.3.30: Add proxy agent ONLY if proxy mode is enabled (after 1015)
+        if (useProxyForRequests && proxyAgent) {
             options.agent = proxyAgent;
         }
         
@@ -716,6 +734,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
                 if (res.statusCode === 403 || res.statusCode === 429) {
                     if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
                         console.log('🚫 Cloudflare 1015 detected in eldorado-price!');
+                        // v10.3.30: Enable proxy mode for next requests
+                        enableProxyMode();
                         resolve({ error: 'cloudflare_1015', rateLimited: true, results: [] });
                         return;
                     }
@@ -727,6 +747,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
                         resolve({ error: parsed.messages, results: [] });
                         return;
                     }
+                    // v10.3.30: Track successful request
+                    handleSuccessfulRequest();
                     resolve({
                         results: parsed.results || parsed.flexibleOffers || [],
                         totalCount: parsed.recordCount || parsed.totalCount || 0,
@@ -736,6 +758,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
                     // v3.0.20: Parse error might be Cloudflare HTML
                     if (data.includes('1015') || data.includes('Cloudflare')) {
                         console.log('🚫 Cloudflare block detected in eldorado-price!');
+                        // v10.3.30: Enable proxy mode for next requests
+                        enableProxyMode();
                         resolve({ error: 'cloudflare_block', rateLimited: true, results: [] });
                         return;
                     }

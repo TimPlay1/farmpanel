@@ -1,7 +1,7 @@
-// FarmerPanel App v10.3.29 - Disable datacenter proxy (blocked by Cloudflare)
+// FarmerPanel App v10.3.30 - Proxy activates ONLY on Cloudflare 1015
+// - v10.3.30: SOCKS5 proxy disabled by default, enables on 1015 error
+// - v10.3.30: DataImpulse proxy ready, activates automatically on rate limit
 // - v10.3.29: Datacenter proxies don't work with Cloudflare - disabled
-// - v10.3.28: New SOCKS5 proxy: DataImpulse datacenter (rotating)
-// - v10.3.27: Never overwrite working price with error state
 // - v10.3.25: Fix offers-fast API route (Scan All button)
 // - v9.12.104: Fix price age logging (show newest/oldest, not random)
 // - v9.12.102: Fix cron scanner: scan all stale brainrots
