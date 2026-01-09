@@ -1,4 +1,6 @@
-// FarmerPanel App v10.3.30 - Proxy activates ONLY on Cloudflare 1015
+// FarmerPanel App v10.3.31 - tradeEnvironmentValue2 + pageSize optimization
+// - v10.3.31: Use tradeEnvironmentValue2 for accurate brainrot filtering (fixes wrong results)
+// - v10.3.31: Scan with pageSize=50 (max), calculate display pages for buyers (pageSize=24)
 // - v10.3.30: SOCKS5 proxy disabled by default, enables on 1015 error
 // - v10.3.30: DataImpulse proxy ready, activates automatically on rate limit
 // - v10.3.29: Datacenter proxies don't work with Cloudflare - disabled

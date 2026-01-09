@@ -78,6 +78,13 @@ try {
 
 // Серверный кэш для цен (хранится в памяти)
 const priceCache = new Map();
+
+// v10.3.31: Page size constants
+// SCAN_PAGE_SIZE = 50 - maximum allowed by API, for efficient scanning (less requests)
+// DISPLAY_PAGE_SIZE = 24 - what buyers see on Eldorado website (default)
+// When calculating position/page for buyers, we use DISPLAY_PAGE_SIZE
+const SCAN_PAGE_SIZE = 50;
+const DISPLAY_PAGE_SIZE = 24;
 const CACHE_TTL = 2 * 60 * 1000; // 2 минуты - чтобы не долбить Eldorado API
 
 // v9.11.4: Кэш для searchBrainrotOffers (краткосрочный - 30 сек)
@@ -689,17 +696,17 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
         params.set('offerAttributeIdsCsv', attrIds.join(','));
     }
     
-    // v10.3.11: Используем searchQuery для фильтрации по имени брейнрота
-    // tradeEnvironmentValue2 больше НЕ РАБОТАЕТ на Eldorado API (возвращает 0 результатов)
-    // searchQuery ищет в title и description - это единственный работающий способ
+    // v10.3.31: Используем tradeEnvironmentValue2 для точной фильтрации по брейнроту
+    // searchQuery ищет везде и возвращает нерелевантные результаты (Lucky Blocks и т.д.)
+    // tradeEnvironmentValue2 фильтрует ТОЛЬКО по атрибуту Brainrot - это правильный способ
     if (brainrotName && brainrotName !== 'Other') {
-        // Для конкретного брейнрота - используем searchQuery
-        params.set('searchQuery', brainrotName);
+        // Для конкретного брейнрота - используем tradeEnvironmentValue2
+        params.set('tradeEnvironmentValue2', brainrotName);
     } else if (searchQuery) {
-        // Для явно переданного searchQuery
+        // Для явно переданного searchQuery (fallback)
         params.set('searchQuery', searchQuery);
     }
-    // "Other" фильтр больше не поддерживается - просто не добавляем фильтр
+    // "Other" фильтр - просто не добавляем фильтр
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
@@ -947,21 +954,21 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     let lowerOffer = null;
     let nextCompetitor = null; // v9.9.0: Следующий компетитор после upper
     let upperPage = 0;
+    let upperDisplayPage = 0; // v10.3.31: Display page for buyers (pageSize=24)
     const offersByPage = new Map(); // v9.9.0: Офферы по страницам для расчёта медианы
     const allPageOffers = []; // Все офферы со страницы где найден upper
     const seenIds = new Set();
     let totalPages = 0;
-    // v10.3.11: Упрощённая логика - всегда используем searchQuery (te_v2 больше не работает)
-    let filterMode = 'search'; // Всегда searchQuery
+    // v10.3.31: Используем tradeEnvironmentValue2 для точной фильтрации
+    let filterMode = 'te_v2'; // tradeEnvironmentValue2
     
     for (let page = 1; page <= maxPages; page++) {
-        // v10.3.11: fetchEldorado теперь сам использует searchQuery когда передан brainrotName
-        // Передаём eldoradoName как brainrotName - он автоматически станет searchQuery
+        // v10.3.31: fetchEldorado использует tradeEnvironmentValue2 когда передан brainrotName
         let response = await fetchEldorado(page, msRangeAttrId, eldoradoName, null, mutationAttrId);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Filter: searchQuery=' + eldoradoName, mutationAttrId ? '| Mutation filter: ' + mutationAttrId : '');
+            console.log('Total pages in range:', totalPages, '| Filter: te_v2=' + eldoradoName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
             
             // Если 0 результатов с именем - пробуем без фильтра по имени (только attr_ids)
             if (totalPages === 0) {
@@ -1241,6 +1248,12 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             
             if (price <= 0) continue;
             
+            // v10.3.31: Calculate display page (what buyers see with pageSize=24)
+            // allPageOffers.length is the 0-based index before adding this offer
+            // Display page is 1-based, so: Math.ceil((index + 1) / 24)
+            const offerIndex = allPageOffers.length; // 0-based index in price-sorted list
+            const displayPage = Math.ceil((offerIndex + 1) / DISPLAY_PAGE_SIZE);
+            
             const offerData = {
                 id: offerId, // v9.12.89: Store offerId for nextCompetitor comparison
                 title: offerTitle,
@@ -1248,7 +1261,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 price: price,
                 msRange: offerMsRange,
                 incomeFromTitle: !!parsedIncome,
-                page: page
+                page: page, // API page (pageSize=50)
+                displayPage: displayPage // v10.3.31: Buyer's page (pageSize=24)
             };
             
             pageOffers.push(offerData);
@@ -1261,14 +1275,15 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             if (!upperOffer && parsedIncome && parsedIncome >= targetIncome) {
                 upperOffer = offerData;
                 upperPage = page;
-                console.log('Found UPPER at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
+                upperDisplayPage = displayPage; // v10.3.31: Save display page
+                console.log('Found UPPER at page', displayPage, '(API page', page + '):', parsedIncome, 'M/s @', price.toFixed(2));
             }
             // v9.12.89: Ищем nextCompetitor (после upper с income >= target И цена >= upper.price, но ДРУГОЙ оффер)
             // Изменено: price >= upperOffer.price (было >) чтобы учитывать офферы с той же ценой от других продавцов
             else if (upperOffer && !nextCompetitor && parsedIncome && parsedIncome >= targetIncome && 
                      price >= upperOffer.price && offerId !== upperOffer.id) {
                 nextCompetitor = offerData;
-                console.log('Found NEXT COMPETITOR at page', page, ':', parsedIncome, 'M/s @', price.toFixed(2));
+                console.log('Found NEXT COMPETITOR at page', displayPage, '(API page', page + '):', parsedIncome, 'M/s @', price.toFixed(2));
             }
         }
         
@@ -1291,7 +1306,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 // Сортируем по INCOME DESC - берём с максимальным income (ближе к нашему)
                 lowerCandidates.sort((a, b) => b.income - a.income);
                 lowerOffer = lowerCandidates[0];
-                console.log('Found LOWER:', lowerOffer.income, 'M/s @', lowerOffer.price.toFixed(2), '(page', lowerOffer.page + ')');
+                console.log('Found LOWER:', lowerOffer.income, 'M/s @', lowerOffer.price.toFixed(2), '(page', lowerOffer.displayPage, ', API page', lowerOffer.page + ')');
             }
             
             // v9.9.0: Продолжаем ещё 1 страницу для поиска nextCompetitor
@@ -1385,7 +1400,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
         upperOffer,
         lowerOffer,
         nextCompetitor,      // v9.9.0: Следующий компетитор после upper
-        upperPage,           // v9.9.0: Страница где найден upper (для медианы)
+        upperPage,           // v9.9.0: API page где найден upper
+        upperDisplayPage,    // v10.3.31: Display page for buyers (pageSize=24)
         offersByPage,        // v9.9.0: Офферы по страницам (Map)
         allPageOffers,
         targetMsRange,
@@ -1444,7 +1460,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
         // v9.11.0: Передаём mutation для фильтрации по мутации
         const searchResult = await searchBrainrotOffers(brainrotName, numericIncome, 50, { disableAI, mutation });
         const { 
-            upperOffer, lowerOffer, nextCompetitor, upperPage, offersByPage,
+            upperOffer, lowerOffer, nextCompetitor, upperPage, upperDisplayPage, offersByPage,
             allPageOffers, targetMsRange: msRange, isInEldoradoList, searchWasReliable, aiParsedCount 
         } = searchResult;
         
@@ -1496,14 +1512,15 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                     const medianReduction = calculateReduction(median, Math.min(...validPrices));
                     medianPrice = Math.round((median - medianReduction) * 100) / 100;
                     medianData = {
-                        pageNumber: upperPage,
+                        pageNumber: upperDisplayPage, // v10.3.31: Use display page for buyers
+                        apiPageNumber: upperPage, // v10.3.31: Keep API page for debugging
                         offersUsed: validPrices.length,
                         offersOnPage: pageOffers.length,
                         medianValue: median,
                         minPrice: Math.min(...validPrices),
                         maxPrice: Math.max(...validPrices)
                     };
-                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                    console.log(`📊 Median: $${median.toFixed(2)} (page ${upperDisplayPage}, API page ${upperPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
                 }
             }
             
@@ -1524,7 +1541,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                     lowerIncome: nextCompLower.income,
                     priceDiff: nextCompetitor.price - nextCompLower.price,
                     title: nextCompetitor.title?.substring(0, 50),
-                    page: nextCompetitor.page
+                    page: nextCompetitor.displayPage, // v10.3.31: Use displayPage for buyers
+                    apiPage: nextCompetitor.page // v10.3.31: Keep API page for debugging
                 };
                 console.log(`📈 Next competitor: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}, lower: $${nextCompLower.price.toFixed(2)}, diff: $${(nextCompetitor.price - nextCompLower.price).toFixed(2)} → -$${nextReduction.toFixed(2)} → $${nextCompetitorPrice.toFixed(2)}`);
             }
@@ -1568,8 +1586,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
             // v9.9.8: Рассчитываем медиану даже когда нет upper (above market case)
             // Берём первую страницу если есть офферы
             if (!medianData && offersByPage && offersByPage.size > 0) {
-                const firstPage = Math.min(...offersByPage.keys());
-                const pageOffers = offersByPage.get(firstPage) || [];
+                const firstApiPage = Math.min(...offersByPage.keys());
+                const pageOffers = offersByPage.get(firstApiPage) || [];
                 const first24Offers = pageOffers.slice(0, 24);
                 const validPrices = first24Offers.filter(o => o.price > 0).map(o => o.price);
                 
@@ -1577,15 +1595,18 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                     const median = calculateMedian(validPrices);
                     const medianReduction = calculateReduction(median, Math.min(...validPrices));
                     medianPrice = Math.round((median - medianReduction) * 100) / 100;
+                    // v10.3.31: firstApiPage = 1 corresponds to displayPage = 1 for above market case
+                    const firstDisplayPage = 1; // Above market = top of listings
                     medianData = {
-                        pageNumber: firstPage,
+                        pageNumber: firstDisplayPage, // v10.3.31: Display page for buyers
+                        apiPageNumber: firstApiPage, // v10.3.31: API page for debugging
                         offersUsed: validPrices.length,
                         offersOnPage: pageOffers.length,
                         medianValue: median,
                         minPrice: Math.min(...validPrices),
                         maxPrice: Math.max(...validPrices)
                     };
-                    console.log(`📊 Median (no upper): $${median.toFixed(2)} (page ${firstPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
+                    console.log(`📊 Median (no upper): $${median.toFixed(2)} (page ${firstDisplayPage}, API page ${firstApiPage}, ${validPrices.length}/24 offers) → -$${medianReduction.toFixed(2)} → $${medianPrice.toFixed(2)}`);
                 }
             }
         } else {
@@ -1674,8 +1695,10 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                             // v9.9.9: Если в текущем диапазоне НЕ БЫЛ найден upper (above market case),
                             // то пересчитываем медиану из следующего диапазона
                             if (!hadUpperInCurrentRange && nextRangeResult.offersByPage && nextRangeResult.offersByPage.size > 0) {
-                                const nextRangeUpperPage = nextRangeResult.upperPage || 1;
-                                const nextRangePageOffers = nextRangeResult.offersByPage.get(nextRangeUpperPage) || 
+                                const nextRangeApiPage = nextRangeResult.upperPage || 1;
+                                // v10.3.31: Calculate display page for next range
+                                const nextRangeDisplayPage = nextRangeResult.upperDisplayPage || 1;
+                                const nextRangePageOffers = nextRangeResult.offersByPage.get(nextRangeApiPage) || 
                                                            nextRangeResult.offersByPage.get(1) || [];
                                 const first24NextRange = nextRangePageOffers.slice(0, 24);
                                 const nextRangePrices = first24NextRange.filter(o => o.price > 0).map(o => o.price);
@@ -1685,7 +1708,8 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
                                     const nextMedianReduction = calculateReduction(nextMedian, Math.min(...nextRangePrices));
                                     medianPrice = Math.round((nextMedian - nextMedianReduction) * 100) / 100;
                                     medianData = {
-                                        pageNumber: nextRangeUpperPage,
+                                        pageNumber: nextRangeDisplayPage, // v10.3.31: Display page for buyers
+                                        apiPageNumber: nextRangeApiPage, // v10.3.31: API page for debugging
                                         offersUsed: nextRangePrices.length,
                                         offersOnPage: nextRangePageOffers.length,
                                         medianValue: nextMedian,
