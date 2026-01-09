@@ -83,8 +83,12 @@ async function getAIPrice(brainrotName, ourIncome, mutation = null) {
     // 3. Пробуем вызвать AI сразу (если rate limit позволяет)
     // Это лучше чем очередь которая теряется в serverless
     // v9.11.5: Добавлена логика ожидания вместо пропуска AI
+    // v10.3.3: Added debug logging for rate limit check
     try {
         let rateCheck = await checkGlobalRateLimit(1500);
+        
+        // v10.3.3: Debug - log rateCheck result
+        console.log(`[RATE-DEBUG] ${brainrotName}: allowed=${rateCheck.allowed}, reason=${rateCheck.reason}, tokens=${rateCheck.currentTokens}/${rateCheck.limit}, requests=${rateCheck.currentRequests}, waitMs=${rateCheck.waitMs}`);
         
         // v9.11.5: Если rate limit достигнут, но ждать нужно <= 8 сек - подождём
         if (!rateCheck.allowed && rateCheck.waitMs && rateCheck.waitMs <= 8000) {
