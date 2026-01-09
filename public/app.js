@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.101 - Fix: return all prices on Refresh (no time filter)
+// FarmerPanel App v9.12.102 - Fix cron scanner: scan all stale brainrots
+// - v9.12.101: Fix: return all prices on Refresh (no time filter)
 // - v9.12.100: Cron uses time-based freshness (5min threshold)
 // - v9.12.99: Incremental sync after Refresh Prices, p95 age in notification
-// - v9.12.98: Filter prices >15min, fixed cycleId bug
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
