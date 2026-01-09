@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.29';  // v10.3.7: Add time limit (50s max) to prevent 30min cron cycles
+const VERSION = '3.0.30';  // v10.3.24: Group related prices (default+mutation) to scan together
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -1026,8 +1026,63 @@ async function runPriceScan() {
     // 4. Формируем список для сканирования: сначала новые, потом устаревшие (sorted by oldest)
     const toScanAll = [...newBrainrots, ...staleBrainrots];
     
+    // v10.3.24: Группируем связанные цены - когда сканируем mutation, добавляем и default
+    // Это нужно чтобы на UI обе цены обновлялись одновременно
+    const toScanWithRelated = [];
+    const addedKeys = new Set();
+    
+    for (const b of toScanAll) {
+        if (addedKeys.has(b._cacheKey)) continue;
+        
+        toScanWithRelated.push(b);
+        addedKeys.add(b._cacheKey);
+        
+        // Если это mutation - найти и добавить связанный default
+        if (b.mutation) {
+            const defaultKey = `${b.name.toLowerCase()}_${b.income}`;
+            if (!addedKeys.has(defaultKey)) {
+                // Ищем default версию в brainrots
+                const defaultVersion = brainrots.find(br => 
+                    br._cacheKey === defaultKey && !br.mutation
+                );
+                if (defaultVersion) {
+                    // Проверяем что default не свежий
+                    const cached = cachedPrices.get(defaultKey);
+                    const age = cached?.updatedAt ? (now - new Date(cached.updatedAt).getTime()) : Infinity;
+                    
+                    if (age >= FRESH_THRESHOLD_MS) {
+                        toScanWithRelated.push(defaultVersion);
+                        addedKeys.add(defaultKey);
+                    }
+                }
+            }
+        }
+        
+        // Если это default - найти и добавить связанные mutations
+        if (!b.mutation) {
+            const defaultKey = b._cacheKey;
+            // Ищем все mutations для этого брейнрота
+            for (const br of brainrots) {
+                if (br.mutation && br.name.toLowerCase() === b.name.toLowerCase() && br.income === b.income) {
+                    if (!addedKeys.has(br._cacheKey)) {
+                        // Проверяем что mutation не свежий
+                        const cached = cachedPrices.get(br._cacheKey);
+                        const age = cached?.updatedAt ? (now - new Date(cached.updatedAt).getTime()) : Infinity;
+                        
+                        if (age >= FRESH_THRESHOLD_MS) {
+                            toScanWithRelated.push(br);
+                            addedKeys.add(br._cacheKey);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    console.log(`📋 After grouping: ${toScanWithRelated.length} (was ${toScanAll.length})`);
+    
     // Ограничиваем batch
-    let toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
+    let toScan = toScanWithRelated.slice(0, SCAN_BATCH_SIZE);
     
     // v9.12.100: Убрана логика cycleId - теперь всё основано на времени
     let currentCycleId = scanState.cycleId;
