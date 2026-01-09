@@ -54,7 +54,11 @@ module.exports = async (req, res) => {
                 updatedAt: 1
             };
             
-            const prices = await collection.find({}, { projection }).toArray();
+            // v9.12.98: Фильтруем цены старше 1 часа (мусор от старых сканирований)
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+            const filter = { updatedAt: { $gt: oneHourAgo } };
+            
+            const prices = await collection.find(filter, { projection }).toArray();
             
             // Преобразуем в объект для быстрого доступа
             const pricesMap = {};

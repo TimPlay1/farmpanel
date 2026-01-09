@@ -6568,20 +6568,23 @@ async function clearPriceCache() {
         if (loaded) {
             console.log(`✅ Prices loaded from server cache in ${duration}ms`);
             
-            // v9.12.97: Показываем информацию о свежести цен
+            // v9.12.98: Показываем информацию о свежести цен (p95 вместо oldest)
             const priceCount = Object.keys(state.brainrotPrices).length;
-            let oldestAge = 0;
-            let newestAge = Infinity;
+            const ages = [];
             const now = Date.now();
             
             for (const [key, priceData] of Object.entries(state.brainrotPrices)) {
                 if (priceData._serverUpdatedAt) {
                     const updatedTime = new Date(priceData._serverUpdatedAt).getTime();
                     const ageMs = now - updatedTime;
-                    if (ageMs > oldestAge) oldestAge = ageMs;
-                    if (ageMs < newestAge) newestAge = ageMs;
+                    ages.push(ageMs);
                 }
             }
+            
+            // Сортируем и берём p5 (newest) и p95 (oldest без аномалий)
+            ages.sort((a, b) => a - b);
+            const newestAge = ages.length > 0 ? ages[Math.floor(ages.length * 0.05)] : 0;
+            const p95Age = ages.length > 0 ? ages[Math.floor(ages.length * 0.95)] : 0;
             
             // Форматируем возраст
             const formatAge = (ms) => {
@@ -6590,8 +6593,8 @@ async function clearPriceCache() {
                 return `${Math.round(ms/3600000)}h`;
             };
             
-            const ageInfo = oldestAge > 0 
-                ? `(${formatAge(newestAge)} - ${formatAge(oldestAge)} ago)`
+            const ageInfo = p95Age > 0 
+                ? `(${formatAge(newestAge)} - ${formatAge(p95Age)} ago)`
                 : '';
             
             showNotification(`✅ ${priceCount} prices loaded ${ageInfo}`, 'success');
