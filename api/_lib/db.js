@@ -839,25 +839,44 @@ async function checkGlobalRateLimit(estimatedTokens = 1500) {
         const windowStart = Date.now() - GLOBAL_RATE_LIMIT.WINDOW_MS;
         
         const [rows] = await p.execute(
-            'SELECT SUM(tokens) as totalTokens, COUNT(*) as totalRequests FROM rate_limits WHERE timestamp >= ?',
+            'SELECT SUM(tokens) as totalTokens, COUNT(*) as totalRequests, MIN(timestamp) as oldestTimestamp FROM rate_limits WHERE timestamp >= ?',
             [windowStart]
         );
         
         const currentTokens = rows[0]?.totalTokens || 0;
         const currentRequests = rows[0]?.totalRequests || 0;
+        const oldestTimestamp = rows[0]?.oldestTimestamp || Date.now();
+        
+        // Calculate wait time until window resets
+        const windowResetTime = oldestTimestamp + GLOBAL_RATE_LIMIT.WINDOW_MS;
+        const waitMs = Math.max(0, windowResetTime - Date.now());
         
         if (currentTokens + estimatedTokens > GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE) {
-            return { allowed: false, reason: 'tokens', currentTokens, currentRequests };
+            return { 
+                allowed: false, 
+                reason: 'tokens', 
+                currentTokens, 
+                currentRequests, 
+                limit: GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE,
+                waitMs 
+            };
         }
         
         if (currentRequests >= GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE) {
-            return { allowed: false, reason: 'requests', currentTokens, currentRequests };
+            return { 
+                allowed: false, 
+                reason: 'requests', 
+                currentTokens, 
+                currentRequests,
+                limit: GLOBAL_RATE_LIMIT.MAX_REQUESTS_PER_MINUTE,
+                waitMs 
+            };
         }
         
-        return { allowed: true, currentTokens, currentRequests };
+        return { allowed: true, currentTokens, currentRequests, limit: GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE };
     } catch (e) {
         console.error('Rate limit check error:', e.message);
-        return { allowed: true, error: e.message };
+        return { allowed: true, error: e.message, waitMs: 0, limit: GLOBAL_RATE_LIMIT.MAX_TOKENS_PER_MINUTE };
     }
 }
 
