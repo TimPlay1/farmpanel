@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.24';  // Reduced rate limiting: 1s delay, 10min backup mode
+const VERSION = '3.0.25';  // Time-based freshness instead of cycleId logic (5min threshold)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -952,8 +952,12 @@ async function runPriceScan() {
     
     // 3. Генерируем ключи и классифицируем брейнроты по приоритету
     const newBrainrots = [];      // Нет в кэше - высший приоритет
-    const staleBrainrots = [];    // Есть в кэше, но не в текущем цикле
-    const freshBrainrots = [];    // Уже сканировались в текущем цикле - пропускаем
+    const staleBrainrots = [];    // Есть в кэше, но устаревшие (>5 мин)
+    const freshBrainrots = [];    // Недавно сканировались (<5 мин) - пропускаем
+    
+    // v9.12.100: Используем время вместо cycleId для определения свежести
+    const FRESH_THRESHOLD_MS = 5 * 60 * 1000; // 5 минут
+    const now = Date.now();
     
     for (const b of brainrots) {
         const cleanMut = cleanMutation(b.mutation);
@@ -967,13 +971,18 @@ async function runPriceScan() {
         if (!cached) {
             // Новый - нет в кэше вообще
             newBrainrots.push(b);
-        } else if (cached.cycleId < scanState.cycleId) {
-            // Есть в кэше, но сканировался в прошлом цикле
-            b._cachedUpdatedAt = cached.updatedAt; // v3.0.14: Сохраняем для сортировки
-            staleBrainrots.push(b);
         } else {
-            // Уже сканировался в текущем цикле - пропускаем
-            freshBrainrots.push(b);
+            const updatedAt = cached.updatedAt ? new Date(cached.updatedAt).getTime() : 0;
+            const age = now - updatedAt;
+            
+            if (age < FRESH_THRESHOLD_MS) {
+                // Свежий - сканировался меньше 5 минут назад
+                freshBrainrots.push(b);
+            } else {
+                // Устаревший - нужно пересканировать
+                b._cachedUpdatedAt = cached.updatedAt;
+                staleBrainrots.push(b);
+            }
         }
     }
     
@@ -985,7 +994,7 @@ async function runPriceScan() {
         return aTime - bTime; // Ascending: oldest first
     });
     
-    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale (sorted by oldest), ${freshBrainrots.length} fresh (skipped)`);
+    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale (>5min), ${freshBrainrots.length} fresh (<5min, skipped)`);
     
     // 4. Формируем список для сканирования: сначала новые, потом устаревшие (sorted by oldest)
     const toScanAll = [...newBrainrots, ...staleBrainrots];
@@ -993,30 +1002,13 @@ async function runPriceScan() {
     // Ограничиваем batch
     let toScan = toScanAll.slice(0, SCAN_BATCH_SIZE);
     
-    // v3.0.13: Проверяем завершился ли цикл
-    // Цикл завершён если > 95% брейнротов fresh (позволяет 1-2 ошибки)
-    const freshRatio = freshBrainrots.length / brainrots.length;
-    let isNewCycle = freshRatio > 0.95 && brainrots.length > 0;
+    // v9.12.100: Убрана логика cycleId - теперь всё основано на времени
     let currentCycleId = scanState.cycleId;
+    let isNewCycle = false;
     
-    if (isNewCycle) {
-        // Начинаем новый цикл - все брейнроты считаются stale для нового cycleId
-        currentCycleId = scanState.cycleId + 1;
-        console.log(`🔄 Cycle complete! Starting cycle #${currentCycleId} (${Math.round(freshRatio*100)}% was fresh)`);
-        
-        // v3.0.14: При новом цикле сортируем ВСЕ брейнроты по давности обновления
-        // Добавляем updatedAt ко всем брейнротам для сортировки
-        for (const b of brainrots) {
-            const cached = cachedPrices.get(b._cacheKey);
-            b._cachedUpdatedAt = cached?.updatedAt || null;
-        }
-        brainrots.sort((a, b) => {
-            const aTime = a._cachedUpdatedAt ? new Date(a._cachedUpdatedAt).getTime() : 0;
-            const bTime = b._cachedUpdatedAt ? new Date(b._cachedUpdatedAt).getTime() : 0;
-            return aTime - bTime; // Ascending: oldest first
-        });
-        
-        toScan = brainrots.slice(0, SCAN_BATCH_SIZE);
+    // Если все brainrots fresh и нечего сканировать - просто ждём
+    if (toScan.length === 0) {
+        console.log('✅ All brainrots are fresh (<5min), nothing to scan');
     }
     
     console.log(`📋 Scanning ${toScan.length} brainrots (${newBrainrots.length} new priority)`);

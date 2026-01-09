@@ -1,7 +1,7 @@
-// FarmerPanel App v9.12.97 - Show price freshness info on Refresh Prices
-// - v9.12.96: Fix Refresh Prices loading stale cached data
-// - v9.12.95: Instant balance display from cache on page load
-// - Balance history now records calculated values only
+// FarmerPanel App v9.12.100 - Cron uses time-based freshness (5min threshold)
+// - v9.12.99: Incremental sync after Refresh Prices, p95 age in notification
+// - v9.12.98: Filter prices >15min, fixed cycleId bug
+// - v9.12.97: Show price freshness info on Refresh Prices
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
