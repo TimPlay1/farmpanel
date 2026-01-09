@@ -6728,27 +6728,32 @@ async function refreshAllPricesGradually() {
                 const cacheKey = getPriceCacheKey(brainrot.name, brainrot.income);
                 
                 // Проверяем возраст кэша
-                const cached = state.eldoradoPrices[cacheKey];
-                const cacheAge = cached?.timestamp ? Date.now() - cached.timestamp : Infinity;
+                const cached = state.brainrotPrices[cacheKey];
+                const cacheAge = cached?._timestamp ? Date.now() - cached._timestamp : Infinity;
                 
                 // Обновляем только если кэш старше 10 минут
                 if (cacheAge > PRICE_CACHE_TTL) {
-                    // Удаляем из кэша чтобы принудить новый запрос
-                    delete state.eldoradoPrices[cacheKey];
-                    delete state.brainrotPrices[cacheKey];
+                    // v10.3.21: НЕ удаляем старую цену до получения новой
+                    // Это предотвращает исчезновение цен при ошибках загрузки
                     
                     // Запрашиваем новую цену
                     const priceData = await fetchEldoradoPrice(brainrot.name, brainrot.income);
                     
                     if (priceData && priceData.suggestedPrice) {
-                        // Сохраняем в brainrotPrices для отображения
+                        // Сохраняем в brainrotPrices для отображения (перезаписываем старую)
                         state.brainrotPrices[cacheKey] = {
+                            ...priceData,
+                            _timestamp: Date.now()
+                        };
+                        // Также обновляем eldoradoPrices
+                        state.eldoradoPrices[cacheKey] = {
                             ...priceData,
                             timestamp: Date.now()
                         };
                         refreshed++;
                         console.log(`   ${brainrot.name} (${brainrot.income}M/s): $${priceData.suggestedPrice} [${priceData.source || 'regex'}]`);
                     }
+                    // Если ошибка - старая цена остаётся
                     
                     // Задержка между запросами чтобы не перегружать API
                     await new Promise(resolve => setTimeout(resolve, 500));
