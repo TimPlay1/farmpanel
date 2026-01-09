@@ -673,7 +673,13 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
+    // v10.3.10: Debug log URL on first page only
+    if (pageIndex === 1) {
+        console.log('🔗 Eldorado API URL:', url);
+    }
+    
     // v9.12.101: Use https.request with socks-proxy-agent for SOCKS5 support
+    // v10.3.10: TEMPORARILY DISABLE PROXY - suspected cause of 0 results
     return new Promise((resolve) => {
         const urlObj = new URL(url);
         const userAgent = getRotatingUserAgent();
@@ -691,10 +697,11 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
             }
         };
         
+        // v10.3.10: DISABLE proxy - suspected cause of 0 results (proxy timeouts)
         // Add proxy agent if configured
-        if (proxyAgent) {
-            options.agent = proxyAgent;
-        }
+        // if (proxyAgent) {
+        //     options.agent = proxyAgent;
+        // }
         
         const req = https.request(options, (res) => {
             let data = '';
