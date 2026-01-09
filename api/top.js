@@ -205,7 +205,8 @@ function calculateTopValue(farmers, allPrices) {
             if (!pricesByName[name]) {
                 pricesByName[name] = [];
             }
-            pricesByName[name].push({ income, price });
+            // v10.3.23: Ensure price is a number
+            pricesByName[name].push({ income, price: parseFloat(price) || 0 });
         }
     }
     
@@ -219,6 +220,7 @@ function calculateTopValue(farmers, allPrices) {
         
         let bestBrainrot = null;
         let bestValue = 0;
+        let bestPriceFromCache = false; // v10.3.23: Track if price is from real cache
         
         for (const account of farmer.accounts) {
             if (!account.brainrots || !Array.isArray(account.brainrots)) continue;
@@ -235,6 +237,7 @@ function calculateTopValue(farmers, allPrices) {
                 const nameLower = name.toLowerCase();
                 
                 let price = 0;
+                let priceFromCache = false;
                 
                 // Ищем ближайшую цену по income для данного брейнрота
                 const pricesForName = pricesByName[nameLower];
@@ -254,21 +257,45 @@ function calculateTopValue(farmers, allPrices) {
                     // Принимаем цену если разница в income не более 50%
                     if (minDiff <= incomeInMs * 0.5 || minDiff <= 50) {
                         price = closestPrice.price;
+                        priceFromCache = true;
                     }
                 }
                 
-                // Если нет в кэше цен, используем value из данных если есть
-                if (!price) {
-                    price = parseFloat(br.value || br.price || 0);
+                // v10.3.23: Для топа используем ТОЛЬКО реальные цены из кэша Eldorado
+                // Не используем fallback br.value - это может быть устаревшая/неправильная цена
+                // Приоритет: цены из кэша > цены из брейнрота только если они выглядят реалистично
+                if (!price && pricesForName && pricesForName.length > 0) {
+                    // Есть цены для этого брейнрота, но не для этого income
+                    // Берём максимальную цену как ориентир (брейнрот с высоким income стоит дороже)
+                    const maxPrice = Math.max(...pricesForName.map(p => p.price));
+                    // Экстраполируем цену пропорционально income
+                    const maxIncome = Math.max(...pricesForName.map(p => p.income));
+                    if (maxIncome > 0 && maxPrice > 0 && incomeInMs > maxIncome) {
+                        // Линейная экстраполяция (грубая оценка)
+                        price = maxPrice * (incomeInMs / maxIncome);
+                        priceFromCache = true;
+                    }
                 }
                 
-                if (price > bestValue) {
+                // v10.3.23: Prefer cache prices over fallback
+                // Only use brainrot data if we have nothing from cache AND it looks reasonable
+                if (!priceFromCache) {
+                    const fallbackPrice = parseFloat(br.value || br.price || 0);
+                    // Проверяем что fallback цена выглядит реалистично (> $1 и < $10000)
+                    if (fallbackPrice > 1 && fallbackPrice < 10000) {
+                        price = fallbackPrice;
+                    }
+                }
+                
+                // v10.3.23: При равной цене предпочитаем тот что из кэша
+                if (price > bestValue || (price === bestValue && priceFromCache && !bestPriceFromCache)) {
                     bestValue = price;
+                    bestPriceFromCache = priceFromCache;
                     bestBrainrot = {
                         name: br.name || 'Unknown',
                         income: incomeInMs,
                         image: br.image || null,
-                        priceFound: price > 0
+                        priceFound: priceFromCache
                     };
                 }
             }
