@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.84 - Add mutation validation for offers (fixes wrong mutation in price scan)
-// - v9.12.83: Fix aggregate toArray compatibility for MySQL adapter
-// - v9.12.82: Fix price type casting (string to number)
+// FarmerPanel App v9.12.94 - Fix outlier prices causing inflated limits (use p95 instead of max)
+// - v9.12.93: Shop Name emoji parsing with Intl.Segmenter, MySQL JSON serialization
+// - v9.12.84: Add mutation validation for offers (fixes wrong mutation in price scan)
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 

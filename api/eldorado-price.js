@@ -1737,12 +1737,19 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
             const avgPrice = first10.reduce((sum, o) => sum + o.price, 0) / first10.length;
             const limitFromAvg = Math.round(avgPrice * 2.5 * 100) / 100;
             
-            // Метод 2: максимальная цена среди офферов × 1.5
+            // Метод 2: 95-й перцентиль цены × 1.5 (вместо максимума, чтобы избежать outliers)
             const offersWithIncome = offersForLimit.filter(o => o.income > 0);
             let limitFromMax = limitFromAvg; // fallback
             if (offersWithIncome.length > 0) {
-                const maxPriceWithIncome = Math.max(...offersWithIncome.map(o => o.price));
-                limitFromMax = Math.round(maxPriceWithIncome * 1.5 * 100) / 100;
+                // Сортируем по цене и берём 95-й перцентиль вместо максимума
+                const sortedPrices = offersWithIncome.map(o => o.price).sort((a, b) => a - b);
+                const p95Index = Math.min(Math.floor(sortedPrices.length * 0.95), sortedPrices.length - 1);
+                const p95Price = sortedPrices[p95Index];
+                // Дополнительная защита: цена не должна быть больше медианы × 5
+                const medianIndex = Math.floor(sortedPrices.length / 2);
+                const medianPrice = sortedPrices[medianIndex];
+                const cappedP95 = Math.min(p95Price, medianPrice * 5);
+                limitFromMax = Math.round(cappedP95 * 1.5 * 100) / 100;
             }
             
             // Берём БОЛЬШИЙ из двух лимитов (менее строгий) - чтобы не блокировать легитимные высокие цены
@@ -1751,7 +1758,7 @@ async function calculateOptimalPrice(brainrotName, ourIncome, options = {}) {
             // Минимальный лимит $5 (чтобы не заблокировать дешёвые офферы)
             dynamicMaxPrice = Math.max(dynamicMaxPrice, 5);
             
-            dynamicLimitSource = `dynamic (${usingSimilar ? 'similar income' : 'all offers'}): avg×2.5=$${limitFromAvg.toFixed(2)}, max×1.5=$${limitFromMax.toFixed(2)} → limit=$${dynamicMaxPrice.toFixed(2)}`;
+            dynamicLimitSource = `dynamic (${usingSimilar ? 'similar income' : 'all offers'}): avg×2.5=$${limitFromAvg.toFixed(2)}, p95×1.5=$${limitFromMax.toFixed(2)} → limit=$${dynamicMaxPrice.toFixed(2)}`;
             console.log(`📊 ${brainrotName} @ ${msRange}: ${dynamicLimitSource}`);
         }
         
