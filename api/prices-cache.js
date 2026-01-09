@@ -196,23 +196,28 @@ module.exports = async (req, res) => {
             });
         }
         
-        // Статистика кэша
-        const stats = await collection.aggregate([
-            {
-                $group: {
-                    _id: '$source',
-                    count: { $sum: 1 },
-                    avgPrice: { $avg: '$suggestedPrice' }
-                }
-            }
-        ]).toArray();
-        
+        // Статистика кэша (упрощённая - без aggregate для MySQL совместимости)
         const totalCount = await collection.countDocuments();
+        
+        // Получаем примерную статистику через простой запрос
+        const recentPrices = await collection.find({}).limit(100).toArray();
+        const sources = {};
+        for (const p of recentPrices) {
+            const src = p.source || 'unknown';
+            if (!sources[src]) sources[src] = { count: 0, total: 0 };
+            sources[src].count++;
+            sources[src].total += parseFloat(p.suggestedPrice) || 0;
+        }
+        const bySource = Object.entries(sources).map(([_id, data]) => ({
+            _id,
+            count: data.count,
+            avgPrice: data.count > 0 ? (data.total / data.count).toFixed(2) : 0
+        }));
         
         return res.status(200).json({
             success: true,
             totalPrices: totalCount,
-            bySource: stats,
+            bySource: bySource,
             usage: 'GET /api/prices-cache?all=true or ?keys=name1_income1,name2_income2 or ?since=timestamp'
         });
         
