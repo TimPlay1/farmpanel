@@ -645,6 +645,11 @@ class FarmersCollection extends MySQLCollection {
         const accounts = updateData.accounts;
         delete updateData.accounts;
         
+        // v10.3.17: Remove computed/virtual fields that don't exist in MySQL table
+        // playerUserIdMap is computed from accounts, accountAvatars is fetched separately
+        delete updateData.playerUserIdMap;
+        delete updateData.accountAvatars;
+        
         // Handle avatar object
         if (updateData.avatar) {
             updateData.avatarIcon = updateData.avatar.icon;
