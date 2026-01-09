@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.25';  // Time-based freshness instead of cycleId logic (5min threshold)
+const VERSION = '3.0.26';  // Fix proxy: enable on first error, don't disable on success
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -88,6 +88,7 @@ const adaptiveRateLimit = {
     cooldownPeriod: 5 * 60 * 1000,  // 5 минут без ошибок - сбрасываем множитель
     currentUserAgentIndex: 0,       // v3.0.21: Текущий индекс User-Agent
     useProxy: false,                // v3.0.21: Использовать прокси (активируется при ошибках)
+    successStreak: 0,               // v3.0.26: Успешные запросы подряд
 };
 
 // v3.0.21: Get current User-Agent (rotates on errors)
@@ -117,6 +118,7 @@ function isInBackupMode() {
 function handleRateLimitError() {
     adaptiveRateLimit.consecutiveErrors++;
     adaptiveRateLimit.lastErrorTime = Date.now();
+    adaptiveRateLimit.successStreak = 0; // v3.0.26: Reset success streak
     adaptiveRateLimit.backoffMultiplier = Math.min(
         adaptiveRateLimit.backoffMultiplier * 2,
         adaptiveRateLimit.maxBackoffMultiplier
@@ -127,10 +129,10 @@ function handleRateLimitError() {
     
     console.log(`⚠️ Rate limit error #${adaptiveRateLimit.consecutiveErrors}, backoff: ${adaptiveRateLimit.backoffMultiplier}x`);
     
-    // v3.0.21: После 3 ошибок - включаем прокси если настроен
-    if (adaptiveRateLimit.consecutiveErrors >= 3 && isProxyConfigured() && !adaptiveRateLimit.useProxy) {
+    // v3.0.26: Включаем прокси СРАЗУ при первой ошибке если настроен
+    if (isProxyConfigured() && !adaptiveRateLimit.useProxy) {
         adaptiveRateLimit.useProxy = true;
-        console.log(`🔀 Proxy mode ENABLED (${PROXY_CONFIG.host}:${PROXY_CONFIG.port})`);
+        console.log(`🔀 Proxy mode ENABLED (SOCKS5)`);
     }
     
     // После threshold ошибок - включаем backup mode
@@ -143,11 +145,23 @@ function handleRateLimitError() {
 
 // Успешный запрос - уменьшаем backoff
 function handleSuccessfulRequest() {
-    if (adaptiveRateLimit.consecutiveErrors > 0) {
-        adaptiveRateLimit.consecutiveErrors = 0;
+    // v3.0.26: Считаем успешные запросы подряд
+    adaptiveRateLimit.successStreak = (adaptiveRateLimit.successStreak || 0) + 1;
+    
+    // v3.0.26: Только после 20 успешных запросов подряд начинаем уменьшать счётчики
+    if (adaptiveRateLimit.successStreak >= 20) {
+        if (adaptiveRateLimit.consecutiveErrors > 0) {
+            adaptiveRateLimit.consecutiveErrors = Math.max(0, adaptiveRateLimit.consecutiveErrors - 1);
+        }
         // Постепенно уменьшаем backoff
         if (adaptiveRateLimit.backoffMultiplier > 1) {
             adaptiveRateLimit.backoffMultiplier = Math.max(1, adaptiveRateLimit.backoffMultiplier / 2);
+        }
+        // v3.0.26: Выключаем прокси только после 50 успешных запросов подряд
+        if (adaptiveRateLimit.successStreak >= 50 && adaptiveRateLimit.useProxy) {
+            // НЕ выключаем прокси - он работает, пусть работает
+            // adaptiveRateLimit.useProxy = false;
+            // console.log('🔀 Proxy mode DISABLED (50 successful requests)');
         }
     }
 }
