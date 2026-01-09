@@ -2,14 +2,23 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// v10.3.11: SOCKS5 proxy DISABLED - IPRoyal balance expired (402 Payment Required)
-// TODO: Re-enable when proxy is refilled
+// v10.3.28: SOCKS5 proxy ENABLED - DataImpulse Datacenter (Rotating, interval 5)
+// Host: gw.dataimpulse.com:824
+// Protocol: SOCKS5
 let SocksProxyAgent = null;
-let proxyAgent = null; // DISABLED - proxy not working
-const SOCKS5_PROXY_URL = null; // process.env.SOCKS5_PROXY_URL - disabled
+let proxyAgent = null;
+const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
 
-// Proxy initialization disabled
-console.log('⚠️ SOCKS5 proxy DISABLED - direct connection to Eldorado API');
+// Proxy initialization
+try {
+    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
+    if (SOCKS5_PROXY_URL) {
+        proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
+        console.log('✅ SOCKS5 proxy ENABLED (DataImpulse) - rotating datacenter');
+    }
+} catch (e) {
+    console.warn('⚠️ SOCKS5 proxy not available:', e.message);
+}
 
 // v3.0.21: User-Agent Rotation Pool (shared with cron-price-scanner)
 const USER_AGENTS = [

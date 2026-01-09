@@ -1,7 +1,7 @@
-// FarmerPanel App v10.3.27 - Fix prices disappearing (No data) after errors
+// FarmerPanel App v10.3.28 - SOCKS5 proxy DataImpulse enabled
+// - v10.3.28: New SOCKS5 proxy: DataImpulse datacenter (rotating)
 // - v10.3.27: Never overwrite working price with error state
 // - v10.3.27: Keep old price if new fetch fails (instead of showing No data)
-// - v10.3.27: Reduced fallback refresh to 30min (cron does main work)
 // - v10.3.25: Fix offers-fast API route (Scan All button)
 // - v9.12.104: Fix price age logging (show newest/oldest, not random)
 // - v9.12.102: Fix cron scanner: scan all stale brainrots
