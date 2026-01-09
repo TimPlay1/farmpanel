@@ -146,13 +146,12 @@ module.exports = async (req, res) => {
                 });
             }
             
-            // Обновляем shop name
+            // Обновляем shop name (v10.3.26: removed shopNameUpdatedAt - column doesn't exist in MySQL)
             await farmersCollection.updateOne(
                 { farmKey },
                 { 
                     $set: { 
-                        shopName: shopName,
-                        shopNameUpdatedAt: new Date()
+                        shopName: shopName
                     } 
                 }
             );
