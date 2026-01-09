@@ -1,4 +1,6 @@
-// FarmerPanel App v10.3.33 - Next range search for NextCompetitor
+// FarmerPanel App v10.3.34 - Search upper in next range when not found
+// - v10.3.34: Search for UPPER in next M/s range when not found in current range
+// - v10.3.34: Improved condition: search next range if upper OR nextCompetitor missing
 // - v10.3.33: Search for NextCompetitor in NEXT M/s range when not found in current range
 // - v10.3.33: Added global MUTATION_PATTERNS constant for mutation validation
 // - v10.3.32: Fix mutation attribute lookup: API returns 'Mutations' not 'Mutation'

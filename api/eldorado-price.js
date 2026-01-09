@@ -1416,7 +1416,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     
     // v10.3.33: Если nextCompetitor не найден в текущем диапазоне - ищем в следующем
     // Это важно когда наш income близок к верхней границе диапазона (например 494M/s в 250-499)
-    if (upperOffer && !nextCompetitor && targetMsRange) {
+    // v10.3.34: Также ищем если upper не найден - конкуренты могут быть только в следующем диапазоне
+    if ((!upperOffer || !nextCompetitor) && targetMsRange) {
         const nextRange = getNextMsRange(targetMsRange);
         if (nextRange) {
             const nextRangeAttrId = getMsRangeAttrId(nextRange);
@@ -1465,14 +1466,29 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                             }
                         }
                         
-                        // Ищем ближайший конкурент выше нашего income
-                        const nextRangeCompetitors = nextRangeOffers
-                            .filter(o => o.income > targetIncome)
-                            .sort((a, b) => a.income - b.income || a.price - b.price);
+                        // v10.3.34: Если upper не найден в текущем диапазоне - ищем в следующем
+                        if (!upperOffer && nextRangeOffers.length > 0) {
+                            // Ищем ближайший >= нашего income (или любой если все выше)
+                            const upperCandidates = nextRangeOffers
+                                .filter(o => o.income >= targetIncome)
+                                .sort((a, b) => a.price - b.price || a.income - b.income);
+                            
+                            if (upperCandidates.length > 0) {
+                                upperOffer = upperCandidates[0];
+                                console.log(`✅ Found UPPER in ${nextRange}: ${upperOffer.income}M/s @ $${upperOffer.price.toFixed(2)}`);
+                            }
+                        }
                         
-                        if (nextRangeCompetitors.length > 0) {
-                            nextCompetitor = nextRangeCompetitors[0];
-                            console.log(`✅ Found nextCompetitor in ${nextRange}: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}`);
+                        // Ищем ближайший конкурент выше нашего income (и выше upper если найден)
+                        if (!nextCompetitor) {
+                            const nextRangeCompetitors = nextRangeOffers
+                                .filter(o => o.income > targetIncome && (!upperOffer || o.price >= upperOffer.price) && o.id !== upperOffer?.id)
+                                .sort((a, b) => a.income - b.income || a.price - b.price);
+                            
+                            if (nextRangeCompetitors.length > 0) {
+                                nextCompetitor = nextRangeCompetitors[0];
+                                console.log(`✅ Found nextCompetitor in ${nextRange}: ${nextCompetitor.income}M/s @ $${nextCompetitor.price.toFixed(2)}`);
+                            }
                         }
                     }
                 } catch (nextRangeError) {
