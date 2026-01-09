@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.96 - Fix Refresh Prices loading stale cached data
+// FarmerPanel App v9.12.97 - Show price freshness info on Refresh Prices
+// - v9.12.96: Fix Refresh Prices loading stale cached data
 // - v9.12.95: Instant balance display from cache on page load
-// - v9.12.94: Fix outlier prices using p95 instead of max for limit calculation
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
@@ -6567,6 +6567,35 @@ async function clearPriceCache() {
         
         if (loaded) {
             console.log(`✅ Prices loaded from server cache in ${duration}ms`);
+            
+            // v9.12.97: Показываем информацию о свежести цен
+            const priceCount = Object.keys(state.brainrotPrices).length;
+            let oldestAge = 0;
+            let newestAge = Infinity;
+            const now = Date.now();
+            
+            for (const [key, priceData] of Object.entries(state.brainrotPrices)) {
+                if (priceData._serverUpdatedAt) {
+                    const updatedTime = new Date(priceData._serverUpdatedAt).getTime();
+                    const ageMs = now - updatedTime;
+                    if (ageMs > oldestAge) oldestAge = ageMs;
+                    if (ageMs < newestAge) newestAge = ageMs;
+                }
+            }
+            
+            // Форматируем возраст
+            const formatAge = (ms) => {
+                if (ms < 60000) return `${Math.round(ms/1000)}s`;
+                if (ms < 3600000) return `${Math.round(ms/60000)}m`;
+                return `${Math.round(ms/3600000)}h`;
+            };
+            
+            const ageInfo = oldestAge > 0 
+                ? `(${formatAge(newestAge)} - ${formatAge(oldestAge)} ago)`
+                : '';
+            
+            showNotification(`✅ ${priceCount} prices loaded ${ageInfo}`, 'success');
+            
             // Обновляем UI с новыми ценами (включая карточки)
             updateUI();
             // Ререндерим коллекцию для обновления цен на карточках
