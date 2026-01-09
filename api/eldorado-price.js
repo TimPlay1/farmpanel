@@ -1053,10 +1053,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     return true;
                 }
                 
-                // Получаем Eldorado имя из алиаса (если есть)
-                // Например: nameLower="chimnino" → eldoradoNameLower="chimino"
-                const eldoradoAlias = BRAINROT_NAME_ALIASES[nameLower];
-                const eldoradoNameLower = eldoradoAlias ? eldoradoAlias.toLowerCase() : nameLower;
+                // Используем уже объявленный eldoradoNameLower из containsOurBrainrot scope
+                // eldoradoAlias и eldoradoNameLower уже определены выше (строка 980-981)
                 
                 // Проверяем только брейнроты достаточной длины для надёжного матчинга
                 for (const otherBrainrot of dynamicBrainrotsCache) {
@@ -1065,9 +1063,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     
                     // Пропускаем если это наш брейнрот или его часть (учитываем алиас)
                     if (nameLower === otherBrainrot) continue;
-                    if (eldoradoNameLower === otherBrainrot) continue; // Алиас совпадает с otherBrainrot
+                    if (eldoradoNameLower && eldoradoNameLower === otherBrainrot) continue; // Алиас совпадает с otherBrainrot
                     if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
-                    if (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower)) continue;
+                    if (eldoradoNameLower && (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower))) continue;
                     
                     // Специальная обработка для паттерна "Los XX"
                     // "Los 25" не должен конфликтовать с "Los 67", "Los Mobilis" и т.д.
