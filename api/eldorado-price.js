@@ -2,19 +2,19 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// v9.12.91: SOCKS5 proxy support via undici ProxyAgent
-let ProxyAgent = null;
-let proxyDispatcher = null;
+// v9.12.101: SOCKS5 proxy support via socks-proxy-agent (undici doesn't support SOCKS5)
+let SocksProxyAgent = null;
+let proxyAgent = null;
 const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || null;
 
 try {
-    ProxyAgent = require('undici').ProxyAgent;
+    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
     if (SOCKS5_PROXY_URL) {
-        proxyDispatcher = new ProxyAgent(SOCKS5_PROXY_URL);
-        console.log('✅ SOCKS5 proxy loaded for eldorado-price via undici');
+        proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
+        console.log('✅ SOCKS5 proxy loaded for eldorado-price via socks-proxy-agent');
     }
 } catch (e) {
-    console.warn('⚠️ undici ProxyAgent not available:', e.message);
+    console.warn('⚠️ socks-proxy-agent not available:', e.message);
 }
 
 // v3.0.21: User-Agent Rotation Pool (shared with cron-price-scanner)
@@ -672,64 +672,76 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
-    // v9.12.91: Use fetch with undici ProxyAgent for SOCKS5 proxy support
-    const fetchOptions = {
-        method: 'GET',
-        headers: {
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Cache-Control': 'no-cache',
-            'User-Agent': getRotatingUserAgent()
-        }
-    };
-    
-    // Add proxy dispatcher if configured
-    if (proxyDispatcher) {
-        fetchOptions.dispatcher = proxyDispatcher;
-    }
-
-    try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        fetchOptions.signal = controller.signal;
+    // v9.12.101: Use https.request with socks-proxy-agent for SOCKS5 support
+    return new Promise((resolve) => {
+        const urlObj = new URL(url);
+        const userAgent = getRotatingUserAgent();
         
-        const response = await fetch(url, fetchOptions);
-        clearTimeout(timeoutId);
-        
-        const data = await response.text();
-        
-        // v3.0.20: Detect Cloudflare rate limit (1015)
-        if (response.status === 403 || response.status === 429) {
-            if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
-                console.log('🚫 Cloudflare 1015 detected in eldorado-price!');
-                return { error: 'cloudflare_1015', rateLimited: true, results: [] };
+        const options = {
+            hostname: urlObj.hostname,
+            port: 443,
+            path: urlObj.pathname + urlObj.search,
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Cache-Control': 'no-cache',
+                'User-Agent': userAgent
             }
+        };
+        
+        // Add proxy agent if configured
+        if (proxyAgent) {
+            options.agent = proxyAgent;
         }
         
-        try {
-            const parsed = JSON.parse(data);
-            if (parsed.code && parsed.code !== 200) {
-                return { error: parsed.messages, results: [] };
-            }
-            return {
-                results: parsed.results || parsed.flexibleOffers || [],
-                totalCount: parsed.recordCount || parsed.totalCount || 0,
-                totalPages: parsed.totalPages || 0
-            };
-        } catch (e) {
-            // v3.0.20: Parse error might be Cloudflare HTML
-            if (data.includes('1015') || data.includes('Cloudflare')) {
-                console.log('🚫 Cloudflare block detected in eldorado-price!');
-                return { error: 'cloudflare_block', rateLimited: true, results: [] };
-            }
-            return { error: e.message, results: [] };
-        }
-    } catch (e) {
-        if (e.name === 'AbortError') {
-            return { error: 'timeout', results: [] };
-        }
-        return { error: e.message, results: [] };
-    }
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                // v3.0.20: Detect Cloudflare rate limit (1015)
+                if (res.statusCode === 403 || res.statusCode === 429) {
+                    if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
+                        console.log('🚫 Cloudflare 1015 detected in eldorado-price!');
+                        resolve({ error: 'cloudflare_1015', rateLimited: true, results: [] });
+                        return;
+                    }
+                }
+                
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.code && parsed.code !== 200) {
+                        resolve({ error: parsed.messages, results: [] });
+                        return;
+                    }
+                    resolve({
+                        results: parsed.results || parsed.flexibleOffers || [],
+                        totalCount: parsed.recordCount || parsed.totalCount || 0,
+                        totalPages: parsed.totalPages || 0
+                    });
+                } catch (e) {
+                    // v3.0.20: Parse error might be Cloudflare HTML
+                    if (data.includes('1015') || data.includes('Cloudflare')) {
+                        console.log('🚫 Cloudflare block detected in eldorado-price!');
+                        resolve({ error: 'cloudflare_block', rateLimited: true, results: [] });
+                        return;
+                    }
+                    resolve({ error: e.message, results: [] });
+                }
+            });
+        });
+        
+        req.on('error', (e) => {
+            resolve({ error: e.message, results: [] });
+        });
+        
+        req.setTimeout(10000, () => {
+            req.destroy();
+            resolve({ error: 'timeout', results: [] });
+        });
+        
+        req.end();
+    });
 }
 
 /**
