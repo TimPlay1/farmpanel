@@ -90,8 +90,11 @@ module.exports = async (req, res) => {
             
             // Кэшируем на 2 минуты (цены обновляются централизованно)
             // v9.12.96: Не кэшируем если есть cache-buster параметр
+            // v10.3.6: More aggressive no-cache headers
             if (noCache) {
-                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+                res.setHeader('Pragma', 'no-cache');
+                res.setHeader('Expires', '0');
             } else {
                 res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
             }
