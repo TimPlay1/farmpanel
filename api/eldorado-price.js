@@ -639,11 +639,11 @@ function parseIncomeFromMsRange(msRange) {
  * @param {string} mutationAttrId - v9.11.0: ID атрибута мутации (например "1-1" для Gold)
  */
 async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName = null, searchQuery = null, mutationAttrId = null) {
-    // Используем официальные параметры из swagger
+    // v10.3.8: Updated to new Eldorado API parameter names (te_v0, te_v2, attr_ids)
     const params = new URLSearchParams({
         gameId: ELDORADO_GAME_ID,
         category: 'CustomItem',
-        tradeEnvironmentValue0: 'Brainrot',
+        te_v0: 'Brainrot',
         pageSize: '50',
         pageIndex: String(pageIndex),
         offerSortingCriterion: 'Price',
@@ -656,13 +656,13 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
     if (mutationAttrId) attrIds.push(mutationAttrId);
     
     if (attrIds.length > 0) {
-        params.set('offerAttributeIdsCsv', attrIds.join(','));
+        params.set('attr_ids', attrIds.join(','));
     }
     
     // Добавляем фильтр по имени брейнрота
     // Если brainrotName = "Other" - это специальный фильтр для неизвестных брейнротов
     if (brainrotName) {
-        params.set('tradeEnvironmentValue2', brainrotName);
+        params.set('te_v2', brainrotName);
     }
     
     // Добавляем текстовый поиск (для брейнротов не в списке Eldorado)
