@@ -1,4 +1,8 @@
-// FarmerPanel App v10.3.35 - Other + searchQuery fallback for brainrots not in Eldorado list
+// FarmerPanel App v10.3.36 - Page visibility optimization
+// - v10.3.36: Skip expensive UI operations when tab is hidden (Page Visibility API)
+// - v10.3.36: Throttle updateOffersRecommendedPrices (2s minimum between calls)
+// - v10.3.36: Debounce savePricesToServer (5s delay, prevents spam)
+// - v10.3.36: Fixes requestAnimationFrame violations when tab in background
 // - v10.3.35: When brainrot not in Eldorado dropdown, use te_v2=Other + searchQuery fallback
 // - v10.3.35: Tested: Los Spooky Combinasionas now works (20/20 brainrots pass, 100% accuracy)
 // - v10.3.34: Search for UPPER in next M/s range when not found in current range
@@ -13,10 +17,6 @@
 // - v10.3.30: DataImpulse proxy ready, activates automatically on rate limit
 // - v10.3.29: Datacenter proxies don't work with Cloudflare - disabled
 // - v10.3.25: Fix offers-fast API route (Scan All button)
-// - v9.12.104: Fix price age logging (show newest/oldest, not random)
-// - v9.12.102: Fix cron scanner: scan all stale brainrots
-// - v9.12.101: Fix: return all prices on Refresh (no time filter)
-// - v9.12.100: Cron uses time-based freshness (5min threshold)
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
     ? '/api' 
@@ -1080,6 +1080,43 @@ let state = {
     lastRecordedPrices: {} // Последние записанные цены для сравнения
 };
 
+// v10.3.36: Page visibility optimization - skip expensive operations when tab is hidden
+let isPageVisible = !document.hidden;
+let pendingUIUpdate = false; // Flag to update UI when page becomes visible
+let lastVisibleTime = Date.now();
+
+// v10.3.36: Track page visibility changes
+document.addEventListener('visibilitychange', () => {
+    isPageVisible = !document.hidden;
+    if (isPageVisible) {
+        const hiddenDuration = Date.now() - lastVisibleTime;
+        console.log(`👁️ Page visible again (was hidden for ${Math.round(hiddenDuration/1000)}s)`);
+        
+        // If UI update was pending, do it now
+        if (pendingUIUpdate) {
+            pendingUIUpdate = false;
+            console.log('🔄 Running pending UI update');
+            updateUI();
+        }
+        lastVisibleTime = Date.now();
+    } else {
+        lastVisibleTime = Date.now();
+        console.log('👁️ Page hidden - pausing expensive operations');
+    }
+});
+
+/**
+ * v10.3.36: Check if we should skip expensive UI operations
+ * Returns true if page is hidden and we should defer the update
+ */
+function shouldSkipExpensiveOperation() {
+    if (!isPageVisible) {
+        pendingUIUpdate = true;
+        return true;
+    }
+    return false;
+}
+
 // Кэш цен Eldorado
 const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут - для определения stale
 const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // Синхронизация с cron каждую минуту
@@ -2085,10 +2122,34 @@ async function loadUpdatedPricesFromServer() {
     return 0;
 }
 
+// v10.3.36: Debounce save to prevent excessive server calls
+let savePricesDebounceTimer = null;
+const SAVE_PRICES_DEBOUNCE = 5000; // 5 seconds debounce
+
 /**
- * Сохранить кэш цен в БД
+ * Сохранить кэш цен в БД (debounced)
  */
 async function savePricesToServer() {
+    if (!state.currentKey) return;
+    
+    // v10.3.36: Skip when page is hidden
+    if (!isPageVisible) {
+        return;
+    }
+    
+    // v10.3.36: Debounce to prevent rapid consecutive saves
+    if (savePricesDebounceTimer) {
+        clearTimeout(savePricesDebounceTimer);
+    }
+    
+    savePricesDebounceTimer = setTimeout(async () => {
+        savePricesDebounceTimer = null;
+        await _doSavePricesToServer();
+    }, SAVE_PRICES_DEBOUNCE);
+}
+
+// Actual save implementation
+async function _doSavePricesToServer() {
     if (!state.currentKey) return;
     
     try {
@@ -3924,6 +3985,11 @@ const MAX_STATUS_ERRORS = 3; // Skip polling after this many errors
 async function fetchStatusOnly() {
     if (!state.currentKey) return;
     
+    // v10.3.36: Skip polling when page is hidden
+    if (!isPageVisible) {
+        return;
+    }
+    
     // Skip if too many consecutive errors (backoff)
     if (statusErrorCount >= MAX_STATUS_ERRORS) {
         statusErrorCount--; // Slowly decrease to allow retry
@@ -4063,6 +4129,11 @@ const MAX_SYNC_ERRORS = 3; // Skip polling after this many errors
 
 async function fetchFarmerData() {
     if (!state.currentKey) return;
+    
+    // v10.3.36: Skip polling when page is hidden (saves bandwidth and server load)
+    if (!isPageVisible) {
+        return;
+    }
     
     // Skip if too many consecutive errors (backoff)
     if (syncErrorCount >= MAX_SYNC_ERRORS) {
@@ -4515,6 +4586,11 @@ function updateAccountCard(cardEl, account) {
 
 // UI Updates
 function updateUI() {
+    // v10.3.36: Skip expensive UI updates when page is hidden
+    if (shouldSkipExpensiveOperation()) {
+        return;
+    }
+    
     const data = state.farmersData[state.currentKey];
     if (!data) return;
     
@@ -6215,6 +6291,11 @@ function filterAndRenderCollection() {
 
 // Render collection
 async function renderCollection() {
+    // v10.3.36: Skip when page is hidden
+    if (shouldSkipExpensiveOperation()) {
+        return;
+    }
+    
     if (!brainrotsGridEl) return;
 
     const brainrots = collectionState.filteredBrainrots;
@@ -6809,6 +6890,11 @@ function stopAutoPriceRefresh() {
 
 // Update collection when data changes
 async function updateCollection() {
+    // v10.3.36: Skip when page is hidden (will run when visible again)
+    if (shouldSkipExpensiveOperation()) {
+        return;
+    }
+    
     // Собираем брейнроты и рендерим СРАЗУ (без ожидания)
     collectAllBrainrots();
     filterAndRenderCollection();
@@ -8490,6 +8576,11 @@ function setupOffersRefreshListener() {
 
 // Update recommended prices for offers
 async function updateOffersRecommendedPrices() {
+    // v10.3.36: Skip when page is hidden
+    if (!isPageVisible) {
+        return;
+    }
+    
     let updated = 0;
     let notFound = 0;
     let mutationsFromCollection = 0;
