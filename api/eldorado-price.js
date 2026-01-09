@@ -1174,11 +1174,13 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             // Otherwise default/none offers slip through (like $1111 Swaggy Bros without radioactive)
             let skipDueToMutation = false;
             if (mutation && mutation !== 'None' && mutation !== 'Default') {
-                const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation');
+                // v10.3.32: API returns "Mutations" (with s), not "Mutation"
+                const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation' || a.name === 'Mutations');
                 const offerMutation = mutationAttr?.value?.toLowerCase() || '';
                 const targetMutation = mutation.toLowerCase();
                 
                 // All known mutations (for checking title)
+                // v10.3.32: Fixed yin-yang pattern to also match "Ying Yang", "YINGYANG", "YY", "☯", etc.
                 const mutationPatterns = {
                     'gold': /\bgold\b/i,
                     'diamond': /\bdiamond\b/i,
@@ -1186,8 +1188,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     'candy': /\bcandy\b/i,
                     'lava': /\blava\b/i,
                     'galaxy': /\bgalaxy\b/i,
-                    'yin-yang': /\byin[-\s]?yang\b/i,
-                    'yinyang': /\byin[-\s]?yang\b/i,
+                    'yin-yang': /y[io]n[g]?[-\s]?y[ao]ng|☯|yy\b/i, // matches: yin-yang, yin yang, yinyang, ying yang, yingyang, YY, ☯
+                    'yinyang': /y[io]n[g]?[-\s]?y[ao]ng|☯|yy\b/i,
                     'radioactive': /\bradioactive\b/i,
                     'rainbow': /\brainbow\b/i,
                     'cursed': /\bcursed\b/i

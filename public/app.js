@@ -1,4 +1,6 @@
-// FarmerPanel App v10.3.31 - tradeEnvironmentValue2 + pageSize optimization
+// FarmerPanel App v10.3.32 - Mutation attribute fix
+// - v10.3.32: Fix mutation attribute lookup: API returns 'Mutations' not 'Mutation'
+// - v10.3.32: Fix yin-yang pattern to match all variants (yinyang, ying-yang, YY, ☯)
 // - v10.3.31: Use tradeEnvironmentValue2 for accurate brainrot filtering (fixes wrong results)
 // - v10.3.31: Scan with pageSize=50 (max), calculate display pages for buyers (pageSize=24)
 // - v10.3.30: SOCKS5 proxy disabled by default, enables on 1015 error
