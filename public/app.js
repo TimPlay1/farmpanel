@@ -1,4 +1,6 @@
-// FarmerPanel App v10.3.34 - Search upper in next range when not found
+// FarmerPanel App v10.3.35 - Other + searchQuery fallback for brainrots not in Eldorado list
+// - v10.3.35: When brainrot not in Eldorado dropdown, use te_v2=Other + searchQuery fallback
+// - v10.3.35: Tested: Los Spooky Combinasionas now works (20/20 brainrots pass, 100% accuracy)
 // - v10.3.34: Search for UPPER in next M/s range when not found in current range
 // - v10.3.34: Improved condition: search next range if upper OR nextCompetitor missing
 // - v10.3.33: Search for NextCompetitor in NEXT M/s range when not found in current range

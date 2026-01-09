@@ -699,14 +699,19 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
     // v10.3.31: Используем tradeEnvironmentValue2 для точной фильтрации по брейнроту
     // searchQuery ищет везде и возвращает нерелевантные результаты (Lucky Blocks и т.д.)
     // tradeEnvironmentValue2 фильтрует ТОЛЬКО по атрибуту Brainrot - это правильный способ
-    if (brainrotName && brainrotName !== 'Other') {
-        // Для конкретного брейнрота - используем tradeEnvironmentValue2
+    // v10.3.35: Для брейнротов НЕ в списке Eldorado - используем te_v2=Other + searchQuery
+    if (brainrotName === 'Other' && searchQuery) {
+        // v10.3.35: Fallback для брейнротов не в списке - Other + searchQuery
+        params.set('tradeEnvironmentValue2', 'Other');
+        params.set('searchQuery', searchQuery);
+    } else if (brainrotName && brainrotName !== 'Other') {
+        // Для конкретного брейнрота в списке - используем tradeEnvironmentValue2
         params.set('tradeEnvironmentValue2', brainrotName);
     } else if (searchQuery) {
-        // Для явно переданного searchQuery (fallback)
+        // Для явно переданного searchQuery без Other (legacy fallback)
         params.set('searchQuery', searchQuery);
     }
-    // "Other" фильтр - просто не добавляем фильтр
+    // Без фильтров - просто не добавляем ничего
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
@@ -979,21 +984,37 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     // v10.3.31: Используем tradeEnvironmentValue2 для точной фильтрации
     let filterMode = 'te_v2'; // tradeEnvironmentValue2
     
+    // v10.3.35: Определяем режим поиска - если брейнрот не в списке, используем Other + searchQuery
+    const useOtherFallback = !isInEldoradoList;
+    let searchName = useOtherFallback ? 'Other' : eldoradoName;
+    let searchQueryParam = useOtherFallback ? brainrotName : null;
+    
+    if (useOtherFallback) {
+        console.log('📋 Brainrot not in Eldorado list, using Other + searchQuery fallback');
+        filterMode = 'other+search';
+    }
+    
     for (let page = 1; page <= maxPages; page++) {
-        // v10.3.31: fetchEldorado использует tradeEnvironmentValue2 когда передан brainrotName
-        let response = await fetchEldorado(page, msRangeAttrId, eldoradoName, null, mutationAttrId);
+        // v10.3.35: Используем Other + searchQuery для брейнротов не в списке
+        let response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, mutationAttrId);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
-            console.log('Total pages in range:', totalPages, '| Filter: te_v2=' + eldoradoName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
+            if (filterMode === 'other+search') {
+                console.log('Total pages in range:', totalPages, '| Filter: te_v2=Other + searchQuery=' + brainrotName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
+            } else {
+                console.log('Total pages in range:', totalPages, '| Filter: te_v2=' + eldoradoName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
+            }
             
-            // Если 0 результатов с именем - пробуем без фильтра по имени (только attr_ids)
-            if (totalPages === 0) {
-                console.log('No results for "' + eldoradoName + '", trying without name filter...');
-                filterMode = 'none';
-                response = await fetchEldorado(page, msRangeAttrId, null, null, mutationAttrId);
+            // v10.3.35: Если 0 результатов с именем И не используем Other fallback - пробуем Other + searchQuery
+            if (totalPages === 0 && filterMode !== 'other+search') {
+                console.log('No results for "' + eldoradoName + '", trying Other + searchQuery fallback...');
+                filterMode = 'other+search';
+                searchName = 'Other';
+                searchQueryParam = brainrotName;
+                response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, mutationAttrId);
                 totalPages = response.totalPages || 0;
-                console.log('Without name filter - total pages:', totalPages);
+                console.log('With Other + searchQuery - total pages:', totalPages);
             }
         }
         
@@ -1424,8 +1445,8 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             if (nextRangeAttrId) {
                 console.log(`🔍 Searching nextCompetitor in NEXT RANGE: ${nextRange} (${nextRangeAttrId})...`);
                 try {
-                    // Используем fetchEldorado с новым диапазоном M/s
-                    const nextResponse = await fetchEldorado(1, nextRangeAttrId, eldoradoName, null, mutationAttrId);
+                    // v10.3.35: Используем тот же режим поиска (Other + searchQuery если fallback)
+                    const nextResponse = await fetchEldorado(1, nextRangeAttrId, searchName, searchQueryParam, mutationAttrId);
                     
                     if (nextResponse.results && nextResponse.results.length > 0) {
                         const nextRangeOffers = [];
