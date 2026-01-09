@@ -976,13 +976,22 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             // 3. Офферы с похожими названиями (опечатки) передаются на AI перепроверку
             //    вместо жёсткого отклонения
             const checkBrainrotMatch = () => {
+                // v10.3.13: Учитываем алиас (например chimnino -> chimino)
+                const eldoradoAlias = BRAINROT_NAME_ALIASES[nameLower];
+                const eldoradoNameLower = eldoradoAlias ? eldoradoAlias.toLowerCase() : null;
+                
                 // === ШАГИ 1: Проверяем содержит ли title наш брейнрот ===
                 const containsOurBrainrot = () => {
                     // 1a. Точное совпадение полного имени
                     if (titleLower.includes(nameLower)) return true;
                     
+                    // 1a2. v10.3.13: Проверяем алиас (Eldorado имя)
+                    if (eldoradoNameLower && titleLower.includes(eldoradoNameLower)) return true;
+                    
                     // 1b. Проверяем tradeEnvironmentValue (брейнрот из атрибутов Eldorado)
                     if (envValue && (envValue.includes(nameLower) || nameLower.includes(envValue))) return true;
+                    // 1b2. v10.3.13: Проверяем алиас в envValue
+                    if (eldoradoNameLower && envValue && (envValue.includes(eldoradoNameLower) || eldoradoNameLower.includes(envValue))) return true;
                     
                     // 1c. Для комбинированных имён проверяем ключевые слова
                     // "Garama and Madundung" → ["garama", "madundung"]
@@ -1008,13 +1017,23 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         .split(/\s+/)
                         .filter(w => w.length >= 4 && !['los', 'las', 'la'].includes(w));
                     
-                    if (nameWords.length >= 2) {
+                    // v10.3.13: Также добавляем слова из алиаса
+                    const aliasWords = eldoradoNameLower 
+                        ? eldoradoNameLower.replace(/\s+(and|the|of)\s+/gi, ' ').split(/\s+/).filter(w => w.length >= 4 && !['los', 'las', 'la'].includes(w))
+                        : [];
+                    const allNameWords = [...new Set([...nameWords, ...aliasWords])];
+                    
+                    if (allNameWords.length >= 2) {
                         // Требуем минимум 2 совпадения из значимых слов
-                        const matchCount = nameWords.filter(w => titleLower.includes(w)).length;
+                        const matchCount = allNameWords.filter(w => titleLower.includes(w)).length;
                         if (matchCount >= 2) return true;
-                    } else if (nameWords.length === 1 && nameWords[0].length >= 5) {
+                    } else if (allNameWords.length === 1 && allNameWords[0].length >= 5) {
                         // Для коротких имён требуем точное слово (минимум 5 символов)
-                        if (titleLower.includes(nameWords[0])) return true;
+                        if (titleLower.includes(allNameWords[0])) return true;
+                    }
+                    // v10.3.13: Для однословных имён проверяем алиас отдельно
+                    if (allNameWords.length === 1 && eldoradoNameLower && eldoradoNameLower.length >= 5) {
+                        if (titleLower.includes(eldoradoNameLower)) return true;
                     }
                     
                     return false;
