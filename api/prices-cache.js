@@ -28,7 +28,10 @@ module.exports = async (req, res) => {
         const { db } = await connectToDatabase();
         const collection = db.collection('price_cache');
         
-        const { keys, all, since } = req.query;
+        const { keys, all, since, _ } = req.query;
+        
+        // v9.12.96: Если есть cache-buster параметр, не кэшируем
+        const noCache = !!_;
         
         // Получить все цены (для начальной загрузки)
         // Используем проекцию для получения только нужных полей (быстрее)
@@ -77,7 +80,12 @@ module.exports = async (req, res) => {
             }
             
             // Кэшируем на 2 минуты (цены обновляются централизованно)
-            res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+            // v9.12.96: Не кэшируем если есть cache-buster параметр
+            if (noCache) {
+                res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+            } else {
+                res.setHeader('Cache-Control', 'public, max-age=120, stale-while-revalidate=60');
+            }
             
             return res.status(200).json({
                 success: true,

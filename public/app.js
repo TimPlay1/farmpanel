@@ -1,6 +1,6 @@
-// FarmerPanel App v9.12.95 - Instant balance display from cache on page load
+// FarmerPanel App v9.12.96 - Fix Refresh Prices loading stale cached data
+// - v9.12.95: Instant balance display from cache on page load
 // - v9.12.94: Fix outlier prices using p95 instead of max for limit calculation
-// - v9.12.93: Shop Name emoji parsing with Intl.Segmenter, MySQL JSON serialization
 // - Balance history now records calculated values only
 // API Base URL - auto-detect for local dev or production
 const API_BASE = window.location.hostname === 'localhost' 
@@ -1767,7 +1767,10 @@ async function loadPricesFromServer() {
     
     // Пробуем новый централизованный кэш
     try {
-        const response = await fetch(`${API_BASE}/prices-cache?all=true`);
+        // v9.12.96: Добавляем cache-busting и no-store для актуальных данных
+        const response = await fetch(`${API_BASE}/prices-cache?all=true&_=${Date.now()}`, {
+            cache: 'no-store'
+        });
         if (response.ok) {
             const data = await response.json();
             if (data.success && data.prices && Object.keys(data.prices).length > 0) {
@@ -1826,7 +1829,7 @@ async function loadPricesFromServer() {
     
     // Fallback на старый API (если cron не работает)
     try {
-        const response = await fetch(`${API_BASE}/prices`);
+        const response = await fetch(`${API_BASE}/prices?_=${Date.now()}`, { cache: 'no-store' });
         if (response.ok) {
             const data = await response.json();
             if (data.prices && Object.keys(data.prices).length > 0) {
