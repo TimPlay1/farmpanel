@@ -54,11 +54,15 @@ module.exports = async (req, res) => {
                 updatedAt: 1
             };
             
-            // v9.12.98: Фильтруем цены старше 1 часа (мусор от старых сканирований)
-            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-            const filter = { updatedAt: { $gt: oneHourAgo } };
+            // v9.12.99: Фильтруем цены старше 15 минут для более свежих данных
+            const fifteenMinAgo = new Date(Date.now() - 15 * 60 * 1000);
+            const filter = { updatedAt: { $gt: fifteenMinAgo } };
+            
+            console.log(`[prices-cache] all=true filter: updatedAt > ${fifteenMinAgo.toISOString()}`);
             
             const prices = await collection.find(filter, { projection }).toArray();
+            
+            console.log(`[prices-cache] Returned ${prices.length} prices (filtered >15min ago)`);
             
             // Преобразуем в объект для быстрого доступа
             const pricesMap = {};

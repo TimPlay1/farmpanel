@@ -6599,6 +6599,17 @@ async function clearPriceCache() {
             
             showNotification(`✅ ${priceCount} prices loaded ${ageInfo}`, 'success');
             
+            // v9.12.99: Сразу запускаем incremental sync чтобы получить самые свежие цены
+            // (сервер мог обновить некоторые цены после нашего запроса)
+            setTimeout(async () => {
+                try {
+                    await checkForPriceUpdates();
+                    console.log('📊 Incremental sync after Refresh Prices completed');
+                } catch (e) {
+                    console.warn('Incremental sync after refresh failed:', e);
+                }
+            }, 500);
+            
             // Обновляем UI с новыми ценами (включая карточки)
             updateUI();
             // Ререндерим коллекцию для обновления цен на карточках
