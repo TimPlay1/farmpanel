@@ -4905,9 +4905,18 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         const isDashboard = window.location.pathname.includes('/dashboard/offers');
         const isCreatePage = window.location.pathname.includes('/sell/create') || window.location.pathname.includes('/sell/offer');
         
+        console.log('[Glitched] Init debug:', {
+            pathname: window.location.pathname,
+            isDashboard,
+            isCreatePage,
+            hasGlitchedData: window.location.search.includes('glitched_data'),
+            fullUrl: window.location.href.substring(0, 200)
+        });
+        
         // v9.9.3: Get farmKey from URL first (for create page)
         if (isCreatePage) {
             const urlOfferData = getOfferDataFromURL();
+            console.log('[Glitched] URL offer data:', urlOfferData);
             if (urlOfferData?.farmKey) {
                 CONFIG.farmKey = urlOfferData.farmKey;
                 GM_setValue('farmKey', urlOfferData.farmKey);
@@ -5021,6 +5030,7 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         if (isCreatePage) {
             // Режим создания оффера
             offerData = getOfferDataFromURL();
+            console.log('[Glitched] Create page - offerData from URL:', offerData);
             
             // Если есть данные с fullQueue - синхронизируем localStorage (cross-domain) - legacy support
             if (offerData?.fullQueue && Array.isArray(offerData.fullQueue)) {
@@ -5057,6 +5067,13 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
             }
             
             if (offerData) {
+                console.log('[Glitched] Starting autofill with offerData:', {
+                    name: offerData.name,
+                    income: offerData.income,
+                    mutation: offerData.mutation,
+                    hasGeneratedImageUrl: !!offerData.generatedImageUrl,
+                    fromQueue: offerData.fromQueue
+                });
                 log('Offer creation mode' + (offerData.fromQueue ? ` (queue ${offerData.queueIndex + 1}/${offerData.queueTotal})` : ''));
                 if (offerData.farmKey) localStorage.setItem('glitched_farm_key', offerData.farmKey);
                 if (offerData.fromQueue) queueState.currentIndex = offerData.queueIndex || 0;
@@ -5071,6 +5088,8 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
                 await new Promise(r => setTimeout(r, 1000));
                 await fillOfferForm();
                 return; // Не показываем обычную панель
+            } else {
+                console.log('[Glitched] No offerData on create page, showing normal panel');
             }
         }
         
