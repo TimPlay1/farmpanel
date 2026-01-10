@@ -6047,12 +6047,12 @@ function getMutationAttrId(mutation) {
 async function loadEldoradoBrainrotsList() {
     // Check if we already have a valid cache
     const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
-    if (state.eldoradoBrainrotsList && Date.now() - state.eldoradoBrainrotsListTime < CACHE_TTL) {
+    if (state.eldoradoBrainrotsList && state.eldoradoBrainrotsList.size > 0 && Date.now() - state.eldoradoBrainrotsListTime < CACHE_TTL) {
         return state.eldoradoBrainrotsList;
     }
     
     try {
-        const response = await fetch(`${API_BASE_URL}/api/eldorado-list`);
+        const response = await fetch(`${API_BASE}/api/eldorado-list`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
