@@ -6048,15 +6048,21 @@ async function loadEldoradoBrainrotsList() {
     // Check if we already have a valid cache
     const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
     if (state.eldoradoBrainrotsList && state.eldoradoBrainrotsList.size > 0 && Date.now() - state.eldoradoBrainrotsListTime < CACHE_TTL) {
+        console.log('📋 Using cached Eldorado list:', state.eldoradoBrainrotsList.size, 'items');
         return state.eldoradoBrainrotsList;
     }
     
+    const url = `${API_BASE}/api/eldorado-list`;
+    console.log('📋 Fetching Eldorado list from:', url);
+    
     try {
-        const response = await fetch(`${API_BASE}/api/eldorado-list`);
+        const response = await fetch(url);
+        console.log('📋 Response status:', response.status);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
         const data = await response.json();
+        console.log('📋 Response data:', data ? `${data.count} brainrots` : 'null');
         
         // Convert array to Set for fast lookup
         state.eldoradoBrainrotsList = new Set(data.brainrots || []);
@@ -6065,7 +6071,7 @@ async function loadEldoradoBrainrotsList() {
         
         return state.eldoradoBrainrotsList;
     } catch (e) {
-        console.warn('Failed to load Eldorado brainrots list:', e.message);
+        console.error('❌ Failed to load Eldorado brainrots list:', e);
         // Return empty set if failed, will fallback to API
         if (!state.eldoradoBrainrotsList) {
             state.eldoradoBrainrotsList = new Set();
