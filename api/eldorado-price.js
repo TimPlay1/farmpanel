@@ -1371,6 +1371,41 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         }
                     }
                     
+                    // v10.3.52: Check if title contains FIRST WORD of a multi-word brainrot
+                    // This catches typos like "REINITO SLEGITO" - "reinito" is unique to "Reinito Sleighito"
+                    // The second word might be misspelled but first word is enough to identify
+                    // Skip common/generic first words that appear in many contexts
+                    const genericFirstWords = new Set([
+                        'brainrot', 'secret', 'lucky', 'block', 'golden', 'candy', 'money',
+                        'christmas', 'festive', 'santa', 'holiday', 'winter',
+                        'blackhole', 'black', 'cooki', 'cookie'  // Common but not unique identifiers
+                    ]);
+                    
+                    for (const otherBrainrot of dynamicBrainrotsCache) {
+                        // Only check multi-word brainrots (space in name)
+                        if (!otherBrainrot.includes(' ')) continue;
+                        
+                        const firstWord = otherBrainrot.split(' ')[0];
+                        if (firstWord.length < 6) continue; // Skip short first words like "La", "Los", "Pot"
+                        
+                        // Skip generic first words that cause false positives
+                        if (genericFirstWords.has(firstWord)) continue;
+                        
+                        // Skip if it's our brainrot's first word
+                        const ourFirstWord = nameLower.split(' ')[0];
+                        if (firstWord === ourFirstWord) continue;
+                        if (eldoradoNameLower && firstWord === eldoradoNameLower.split(' ')[0]) continue;
+                        
+                        // Check if this first word appears in title as a separate word
+                        // Use word boundary regex to avoid partial matches
+                        const wordRegex = new RegExp(`\\b${firstWord}\\b`, 'i');
+                        if (wordRegex.test(titleLower)) {
+                            // Found first word of another brainrot - this is wrong tag
+                            console.log(`⚠️ Skipping offer with wrong brainrot (first word match): "${offerTitle.substring(0, 50)}..." (found: "${firstWord}" from "${otherBrainrot}", expected: ${brainrotName})`);
+                            return true;
+                        }
+                    }
+                    
                     // Also check full brainrot names directly in title
                     for (const otherBrainrot of dynamicBrainrotsCache) {
                         if (otherBrainrot.length < 5) continue;
