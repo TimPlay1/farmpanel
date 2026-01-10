@@ -6083,8 +6083,11 @@ async function findEldoradoName(brainrotName) {
     const list = await loadEldoradoBrainrotsList();
     const nameLower = brainrotName.toLowerCase();
     
+    console.log('🔍 findEldoradoName:', brainrotName, '→', nameLower, '| list size:', list.size);
+    
     // Direct match
     if (list.has(nameLower)) {
+        console.log('✅ Direct match found:', nameLower);
         return brainrotName; // Return original casing
     }
     
@@ -6095,6 +6098,7 @@ async function findEldoradoName(brainrotName) {
         // All words of the Eldorado name must be in our brainrot name
         if (keyWords.length > 0 && keyWords.every(w => nameLower.includes(w))) {
             // Return properly capitalized Eldorado name
+            console.log('✅ Partial match found:', key, '→', nameLower);
             return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
     }
@@ -6104,10 +6108,12 @@ async function findEldoradoName(brainrotName) {
     const words = nameLower.split(/\s+/).filter(w => w.length > 2);
     for (const key of list) {
         if (words.every(w => key.includes(w))) {
+            console.log('✅ Reverse match found:', nameLower, '→', key);
             return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
     }
     
+    console.log('❌ No match found for:', nameLower);
     return null;
 }
 
