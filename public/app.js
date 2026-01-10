@@ -6052,7 +6052,7 @@ async function loadEldoradoBrainrotsList() {
         return state.eldoradoBrainrotsList;
     }
     
-    const url = `${API_BASE}/api/eldorado-list`;
+    const url = `${API_BASE}/eldorado-list`;
     console.log('📋 Fetching Eldorado list from:', url);
     
     try {
