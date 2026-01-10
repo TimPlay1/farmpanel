@@ -545,10 +545,32 @@ class MySQLCollection {
         // v10.3.18: Fields to skip (virtual/computed fields that don't exist in tables)
         const skipFields = ['playerUserIdMap', 'accountAvatars', 'accounts', 'brainrots', '_id', 'id'];
         
+        // v10.3.48: Tables that use cache_key instead of id as primary key
+        const cacheKeyTables = ['price_cache', 'ai_price_cache', 'ai_queue', 'global_brainrot_prices'];
+        
+        // v10.3.48: Tables that have different primary key names
+        const pkMap = {
+            'scan_state': 'id',      // scan_state uses id VARCHAR as PK
+            'rate_limits': 'id',     // rate_limits uses id VARCHAR as PK  
+            'top_cache': 'type',     // top_cache uses type VARCHAR as PK
+            'user_colors': 'farm_key',
+            'queues': 'farm_key',
+            'delete_queues': 'farm_key'
+        };
+        
         for (const [key, value] of Object.entries(doc)) {
-            // Map _id to id column for tables that use custom IDs
+            // Map _id to the correct primary key column for the table
             if (key === '_id') {
-                row['id'] = this._toValue(value);
+                // Check for special primary key mappings first
+                if (pkMap[this.tableName]) {
+                    row[pkMap[this.tableName]] = this._toValue(value);
+                }
+                // For cache tables, _id maps to cache_key
+                else if (cacheKeyTables.includes(this.tableName)) {
+                    row['cache_key'] = this._toValue(value);
+                } else {
+                    row['id'] = this._toValue(value);
+                }
                 continue;
             }
             if (skipFields.includes(key)) continue; // Skip virtual fields
