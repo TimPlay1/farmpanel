@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.30';  // v10.3.24: Group related prices (default+mutation) to scan together
+const VERSION = '3.0.31';  // v10.3.47: Sync proxy state with eldorado-price module
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -57,18 +57,17 @@ const USER_AGENTS = [
 // v10.3.30: DataImpulse proxy - activates ONLY on Cloudflare 1015
 const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
 
-// v3.0.22: Create proxy agent if configured
-let proxyAgent = null;
-function getProxyAgent() {
-    if (!proxyAgent && SOCKS5_PROXY_URL && SocksProxyAgent) {
-        try {
-            proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
-            console.log('✅ SOCKS5 proxy agent READY (activates on 1015)');
-        } catch (e) {
-            console.error('❌ Failed to create proxy agent:', e.message);
-        }
+// v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues on Vercel)
+function createProxyAgent() {
+    if (!SOCKS5_PROXY_URL || !SocksProxyAgent) return null;
+    try {
+        return new SocksProxyAgent(SOCKS5_PROXY_URL, {
+            timeout: 15000  // 15 second timeout for proxy connection
+        });
+    } catch (e) {
+        console.error('❌ Failed to create proxy agent:', e.message);
+        return null;
     }
-    return proxyAgent;
 }
 
 // v3.0.22: Check if SOCKS5 proxy is configured
@@ -134,6 +133,12 @@ function handleRateLimitError() {
     if (isProxyConfigured() && !adaptiveRateLimit.useProxy) {
         adaptiveRateLimit.useProxy = true;
         console.log(`🔀 Proxy mode ENABLED (SOCKS5)`);
+    }
+    
+    // v10.3.47: Sync proxy state to eldorado-price module
+    if (eldoradoPrice && eldoradoPrice.enableProxyMode) {
+        eldoradoPrice.enableProxyMode();
+        console.log(`🔀 Synced proxy state to eldorado-price module`);
     }
     
     // После threshold ошибок - включаем backup mode
@@ -621,8 +626,9 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
         };
 
         // v3.0.22: Add SOCKS5 proxy support if enabled
+        // v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues)
         if (adaptiveRateLimit.useProxy && isProxyConfigured()) {
-            const agent = getProxyAgent();
+            const agent = createProxyAgent();
             if (agent) {
                 options.agent = agent;
                 console.log('🔀 Using SOCKS5 proxy for this request');
@@ -930,6 +936,7 @@ async function scanOffers(db, globalStartTime = null) {
  * Главная функция сканирования
  * v2.8.0: Приоритизация - новые брейнроты первые, дубликаты пропускаются
  * v3.0.0: Добавлено сканирование офферов после цен
+ * v10.3.47: Sync proxy state with eldorado-price module
  * 
  * Приоритеты:
  * 1. Новые (нет в кэше) - сканируем ПЕРВЫМИ
@@ -939,6 +946,12 @@ async function scanOffers(db, globalStartTime = null) {
 async function runPriceScan() {
     console.log(`🚀 Starting centralized price scan v${VERSION}`);
     console.log(`⚠️ AI DISABLED: CRON_USE_AI=${CRON_USE_AI} - using regex only`);
+    
+    // v10.3.47: Sync proxy state to eldorado-price at scan start
+    if (adaptiveRateLimit.useProxy && eldoradoPrice && eldoradoPrice.enableProxyMode) {
+        eldoradoPrice.enableProxyMode();
+        console.log(`🔀 Synced proxy state to eldorado-price module at scan start`);
+    }
     
     // v3.0.20: Check backup mode FIRST
     if (isInBackupMode()) {

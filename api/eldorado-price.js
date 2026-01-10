@@ -1,10 +1,11 @@
 /**
  * Eldorado Price API
- * v10.3.44 - Fix mutation validation for Other fallback (skip mutation check for brainrots not in Eldorado list)
+ * v10.3.47 - Export proxy control functions for cron-scanner sync
  * 
  * Problem: Sellers tag offers with wrong brainrot (e.g. "REINITO SLEGITO" tagged as "Dragon Cannelloni")
  * Solution: Check title for OTHER known brainrots FIRST before trusting envValue tag
  * 
+ * v10.3.47: Export enableProxyMode, isProxyEnabled, disableProxyMode for cron-scanner sync
  * v10.3.44: Skip mutation validation entirely for Other fallback
  * v10.3.43: Add Meowl trait exception
  * v10.3.42: Disable mutation attr_id for Other fallback
@@ -15,29 +16,60 @@ const fs = require('fs');
 const path = require('path');
 
 // v10.3.30: SOCKS5 proxy - activated ONLY on Cloudflare 1015 errors
+// v10.3.47: Create fresh agent per request to avoid socket reuse issues on Vercel
 // DataImpulse Datacenter proxy (Rotating, interval 5)
 let SocksProxyAgent = null;
-let proxyAgent = null;
 let useProxyForRequests = false;  // v10.3.30: Flag to enable proxy after 1015
 const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
 
-// Proxy initialization - prepare agent but don't use until 1015
+// Proxy initialization - check if socks-proxy-agent is available
+let proxyAvailable = false;
 try {
     SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
     if (SOCKS5_PROXY_URL) {
-        proxyAgent = new SocksProxyAgent(SOCKS5_PROXY_URL);
+        proxyAvailable = true;
         console.log('✅ SOCKS5 proxy READY (will activate on 1015):', SOCKS5_PROXY_URL.replace(/:[^:@]+@/, ':***@'));
     }
 } catch (e) {
     console.warn('⚠️ SOCKS5 proxy not available:', e.message);
 }
 
+// v10.3.47: Create a fresh proxy agent for each request (avoids socket reuse issues)
+function createProxyAgent() {
+    if (!SocksProxyAgent || !SOCKS5_PROXY_URL) return null;
+    try {
+        return new SocksProxyAgent(SOCKS5_PROXY_URL, {
+            timeout: 15000  // 15 second timeout for proxy connection
+        });
+    } catch (e) {
+        console.warn('⚠️ Failed to create proxy agent:', e.message);
+        return null;
+    }
+}
+
 // v10.3.30: Enable proxy mode (called when 1015 detected)
+// v10.3.47: Made exportable so cron-price-scanner can sync proxy state
 function enableProxyMode() {
-    if (proxyAgent && !useProxyForRequests) {
+    if (proxyAvailable && !useProxyForRequests) {
         useProxyForRequests = true;
         console.log('🔀 PROXY MODE ENABLED - switching to SOCKS5 proxy');
     }
+    return useProxyForRequests;
+}
+
+// v10.3.47: Check if proxy is enabled
+function isProxyEnabled() {
+    return useProxyForRequests;
+}
+
+// v10.3.47: Force disable proxy mode (for testing/recovery)
+function disableProxyMode() {
+    if (useProxyForRequests) {
+        useProxyForRequests = false;
+        successfulRequestsCount = 0;
+        console.log('🔀 PROXY MODE DISABLED - manual disable');
+    }
+    return useProxyForRequests;
 }
 
 // v10.3.30: Disable proxy mode (called after successful requests)
@@ -886,8 +918,12 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
         };
         
         // v10.3.30: Add proxy agent ONLY if proxy mode is enabled (after 1015)
-        if (useProxyForRequests && proxyAgent) {
-            options.agent = proxyAgent;
+        // v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues)
+        if (useProxyForRequests && proxyAvailable) {
+            const freshProxyAgent = createProxyAgent();
+            if (freshProxyAgent) {
+                options.agent = freshProxyAgent;
+            }
         }
         
         const req = https.request(options, (res) => {
@@ -2324,3 +2360,7 @@ module.exports.searchBrainrotOffers = searchBrainrotOffers;
 module.exports.findEldoradoBrainrot = findEldoradoBrainrot;
 module.exports.parseIncomeFromTitle = parseIncomeFromTitle;
 module.exports.clearPriceCache = clearPriceCache;
+// v10.3.47: Export proxy control functions for cron-scanner sync
+module.exports.enableProxyMode = enableProxyMode;
+module.exports.isProxyEnabled = isProxyEnabled;
+module.exports.disableProxyMode = disableProxyMode;
