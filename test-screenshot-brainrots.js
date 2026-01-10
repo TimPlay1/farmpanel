@@ -1,12 +1,81 @@
 /**
- * Test brainrots from screenshots - v10.3.39 fuzzy matching test
+ * Test brainrots from screenshots - v10.3.41 fuzzy matching test
  */
 
 const ep = require('./api/eldorado-price.js');
 
 const testCases = [
-    // === NEW SCREENSHOT - High income brainrots ===
-    // These test fuzzy matching (SLEGITO -> Sleighito) and high-value offers
+    // === SCREENSHOT 1 - High income (400-460 M/s) ===
+    { name: 'Swaggy Bros', income: 460, mutation: 'Yin-Yang' },
+    { name: 'Garama and Madundung', income: 450, mutation: null },
+    { name: 'La Ginger Sekolah', income: 450, mutation: 'Lava' },
+    { name: 'Tang Tang Keletang', income: 435.5, mutation: 'Rainbow' },
+    { name: 'Mieteteira Bicicleteira', income: 429, mutation: null },
+    { name: 'Mieteteira Bicicleteira', income: 429, mutation: 'Yin-Yang' },
+    { name: 'La Spooky Grande', income: 422.6, mutation: 'Gold' },
+    { name: 'Los Puggies', income: 405, mutation: 'Radioactive' },
+    { name: 'Tang Tang Keletang', income: 402, mutation: null },
+    { name: 'Los Mobilis', income: 396, mutation: null },
+    { name: 'Eviledon', income: 393.8, mutation: 'Yin-Yang' },
+    { name: 'Mieteteira Bicicleteira', income: 390, mutation: 'Rainbow' },
+    
+    // === SCREENSHOT 2 - Medium income (276-300 M/s) ===
+    { name: 'Spaghetti Tualetti', income: 300, mutation: null },
+    { name: 'Los Jolly Combinasionas', income: 300, mutation: 'Rainbow' },
+    { name: 'Esok Sekolah', income: 300, mutation: 'Rainbow' },
+    { name: 'Mieteteira Bicicleteira', income: 299, mutation: 'Yin-Yang' },
+    { name: 'Los Mobilis', income: 286, mutation: null },
+    { name: 'Mieteteira Bicicleteira', income: 286, mutation: 'Galaxy' },
+    { name: 'La Jolly Grande', income: 285, mutation: 'Diamond' },
+    { name: 'Esok Sekolah', income: 285, mutation: 'Diamond' },
+    { name: 'Money Money Puggy', income: 278.2, mutation: 'Gold' },
+    { name: 'Los Puggies', income: 277.5, mutation: 'Gold' },
+    { name: 'W or L', income: 277.5, mutation: 'Gold' },
+    { name: 'Los Candies', income: 276, mutation: null },
+    
+    // === SCREENSHOT 3 - Lower income (250-265 M/s) ===
+    { name: 'Los Mobilis', income: 264, mutation: 'Rainbow' },
+    { name: 'Chicleteira Noelteira', income: 262.5, mutation: 'Yin-Yang' },
+    { name: 'Chicleteira Noelteira', income: 262.5, mutation: 'Radioactive' },
+    { name: 'Money Money Puggy', income: 262.5, mutation: 'Diamond' },
+    { name: 'Mieteteira Bicicleteira', income: 260, mutation: null },
+    { name: 'Spaghetti Tualetti', income: 255, mutation: 'Gold' },
+    { name: 'Ketchuru and Musturu', income: 255, mutation: 'Lava' },
+    { name: 'Los 67', income: 253.1, mutation: 'Gold' },
+    { name: 'Los Spooky Combinasionas', income: 250, mutation: 'Yin-Yang' },
+    { name: 'Los 25', income: 250, mutation: 'Cursed' },
+    { name: 'Money Money Reindeer', income: 250, mutation: 'Rainbow' },
+    { name: 'Garama and Madundung', income: 250, mutation: null },
+    
+    // === From search dropdowns - Similar name groups ===
+    // "Los" family
+    { name: 'Los Tungtungtungcitos', income: 10, mutation: null },
+    { name: 'Los Orcalitos', income: 10, mutation: null },
+    { name: 'Los Bombinitos', income: 10, mutation: null },
+    { name: 'Los Crocodillitos', income: 10, mutation: null },
+    { name: 'Los Matteos', income: 10, mutation: null },
+    { name: 'Los Chicleteiras', income: 10, mutation: null },
+    
+    // "Bomb" family
+    { name: 'Bombardiro Crocodilo', income: 10, mutation: null },
+    { name: 'Bombombini Gusini', income: 10, mutation: null },
+    { name: 'Bombardini Tortini', income: 10, mutation: null },
+    
+    // "67" family
+    { name: '67', income: 160, mutation: null },
+    { name: 'Los 67', income: 160, mutation: null },
+    { name: 'Festive 67', income: 160, mutation: null },
+    
+    // "Hotspot" family
+    { name: 'Pot Hotspot', income: 100, mutation: null },
+    { name: 'Los Hotspotsitos', income: 100, mutation: null },
+    { name: 'Nooo My Hotspot', income: 100, mutation: null },
+    { name: 'Santa Hotspot', income: 100, mutation: null },
+    
+    // "Noo/Nooo" family
+    { name: 'Noo my Present', income: 10, mutation: null },
+    
+    // === HIGH VALUE brainrots (from previous screenshots) ===
     { name: 'Dragon Cannelloni', income: 1500, mutation: 'Lava' },
     { name: 'Reinito Sleighito', income: 1400, mutation: null },
     { name: 'Fragrama and Chocrama', income: 1400, mutation: null },
@@ -16,45 +85,6 @@ const testCases = [
     { name: 'La Taco Combinasion', income: 822.5, mutation: 'Yin-Yang' },
     { name: 'Swaggy Bros', income: 780, mutation: null },
     { name: 'La Secret Combinasion', income: 750, mutation: null },
-    { name: 'Fragrama and Chocrama', income: 750, mutation: null },
-    { name: 'Mieteteira Bicicleteira', income: 715, mutation: null },
-    { name: 'Swaggy Bros', income: 700, mutation: 'Radioactive' },
-    
-    // === NEW SCREENSHOT - Medium income ===
-    { name: 'Lavadorito Spinito', income: 270, mutation: null },
-    { name: 'Los Puggies', income: 270, mutation: null },
-    { name: 'Esok Sekolah', income: 270, mutation: 'Candy' },
-    { name: 'Chimnino', income: 266, mutation: null },
-    { name: 'Los Mobilis', income: 264, mutation: 'Rainbow' },
-    { name: 'Chicleteira Noelteira', income: 262.5, mutation: 'Yin-Yang' },
-    { name: 'Money Money Puggy', income: 262.5, mutation: 'Diamond' },
-    { name: 'Spaghetti Tualetti', income: 255, mutation: 'Gold' },
-    { name: 'Ketchuru and Musturu', income: 255, mutation: 'Lava' },
-    { name: 'Los 67', income: 253.1, mutation: 'Gold' },
-    
-    // === ORIGINAL Screenshot 1 ===
-    { name: 'Los Candies', income: 333.5, mutation: 'Galaxy' },
-    { name: 'Spaghetti Tualetti', income: 330, mutation: 'Diamond' },
-    { name: 'Mieteteira Bicicleteira', income: 325, mutation: 'Yin-Yang' },
-    { name: 'Money Money Puggy', income: 320.2, mutation: 'Gold' },
-    { name: 'Tuff Toucan', income: 318.5, mutation: 'Gold' },
-    { name: 'Spaghetti Tualetti', income: 315, mutation: 'Gold' },
-    { name: 'Chimnino', income: 308, mutation: 'Rainbow' },
-    { name: 'Los Mobilis', income: 308, mutation: 'Galaxy' },
-    { name: 'Los Spooky Combinasionas', income: 305, mutation: null },
-    { name: 'Chimnino', income: 301, mutation: 'Radioactive' },
-    
-    // === ORIGINAL Screenshot 2 ===
-    { name: 'Los Mobilis', income: 385, mutation: 'Yin-Yang' },
-    { name: 'Los Candies', income: 379.5, mutation: 'Radioactive' },
-    { name: 'Money Money Puggy', income: 378, mutation: 'Rainbow' },
-    { name: 'Money Money Puggy', income: 378, mutation: 'Cursed' },
-    { name: 'Tictac Sahur', income: 375, mutation: 'Rainbow' },
-    { name: 'Ketchuru and Musturu', income: 350.6, mutation: 'Gold' },
-    { name: 'Chimnino', income: 350, mutation: 'Galaxy' },
-    { name: 'Los Mobilis', income: 341, mutation: 'Yin-Yang' },
-    { name: 'Swaggy Bros', income: 340, mutation: 'Diamond' },
-    { name: 'La Ginger Sekolah', income: 337.5, mutation: 'Default' },
 ];
 
 async function runTests() {
@@ -74,6 +104,19 @@ async function runTests() {
                 mutation: tc.mutation === 'Default' ? null : tc.mutation
             });
             
+            // Log ALL offers with full titles
+            if (result.allPageOffers && result.allPageOffers.length > 0) {
+                console.log(`\n📋 ALL OFFERS (${result.allPageOffers.length}):`);
+                result.allPageOffers.forEach((o, i) => {
+                    const incomeStr = String(o.income || '?').padStart(6);
+                    const priceStr = ('$' + (o.price || 0).toFixed(2)).padStart(8);
+                    const title = (o.title || 'NO TITLE').substring(0, 70);
+                    console.log(`   ${(i+1).toString().padStart(2)}. ${incomeStr}M/s ${priceStr} | ${title}`);
+                });
+            } else {
+                console.log(`\n📋 NO OFFERS FOUND`);
+            }
+            
             const upperInfo = result.upperOffer 
                 ? `${result.upperOffer.income}M/s @ $${result.upperOffer.price.toFixed(2)} (${result.upperOffer.range || 'current'})`
                 : '❌ NONE';
@@ -84,7 +127,6 @@ async function runTests() {
             console.log(`\n📊 RESULTS:`);
             console.log(`   Upper:    ${upperInfo}`);
             console.log(`   NextComp: ${nextInfo}`);
-            console.log(`   Total offers: ${result.allPageOffers?.length || 0}`);
             
             results.push({
                 ...tc,

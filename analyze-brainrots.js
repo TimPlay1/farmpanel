@@ -112,15 +112,23 @@ function stringSimilarity(s1, s2) {
     return Math.min(1, jaccard + prefixBonus);
 }
 
-console.log('\nHigh similarity matches (>= 0.75):');
+console.log('\nHigh similarity matches (>= 0.88):');
 const issues = [];
 testWords.forEach(word => {
     brainrotsLower.forEach(brainrot => {
         const sim = stringSimilarity(word, brainrot);
-        if (sim >= 0.75) {
+        if (sim >= 0.88) {
             // Check if word is actually PART of the brainrot name
             const isPartOf = brainrot.includes(word) || brainrot.split(/\s+/).some(w => w === word);
-            const status = isPartOf ? '✓ OK (part of name)' : '⚠️ FALSE POSITIVE';
+            const isRealBrainrot = brainrotsLower.includes(word);
+            let status;
+            if (isRealBrainrot) {
+                status = '✓ OK (is a brainrot)';
+            } else if (isPartOf) {
+                status = '✓ OK (part of name)';
+            } else {
+                status = '⚠️ FALSE POSITIVE - ADD TO skipWords';
+            }
             issues.push({ word, brainrot, sim, status });
         }
     });
