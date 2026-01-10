@@ -1127,7 +1127,7 @@ function shouldSkipExpensiveOperation() {
 const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут - для определения stale
 const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // Синхронизация с cron каждую минуту
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
-const PRICE_CACHE_VERSION = 8; // v9.12.63: Force cache clear to fix time badge sync
+const PRICE_CACHE_VERSION = 9; // v10.3.46: Force cache clear, fix isInEldoradoList for links
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
@@ -6598,21 +6598,29 @@ async function loadBrainrotPrices(brainrots) {
                         // v9.11.0: Обновляем DOM - для мутаций обновится весь блок вариантов
                         updatePriceInDOM(b.name, income, priceData, mutation);
                         loadedCount++;
-                    } else if (!cached || cached.error) {
-                        // Устанавливаем error только если НЕТ старой рабочей цены
+                    } else if (!cached || !cached.suggestedPrice) {
+                        // v10.3.46: Устанавливаем error только если НЕТ старой РАБОЧЕЙ цены
+                        // Проверяем suggestedPrice, а не просто cached.error
                         state.brainrotPrices[cacheKey] = { error: true, _timestamp: Date.now() };
                         updatePriceInDOM(b.name, income, null, mutation);
+                    } else {
+                        // v10.3.46: Есть старая рабочая цена - оставляем её, только обновляем timestamp
+                        console.log(`💾 Keeping cached price for ${b.name} ${mutation || 'default'}: $${cached.suggestedPrice}`);
+                        cached._timestamp = Date.now(); // Продлеваем жизнь кэша
                     }
-                    // Если есть старая цена и новая не загрузилась - оставляем старую
                     
                 } catch (err) {
                     console.warn('Error loading price for', b.name, income, mutation || 'default', err);
-                    // v10.3.27: НЕ перезаписываем старую рабочую цену при ошибке!
-                    if (!cached || cached.error) {
+                    // v10.3.46: НЕ перезаписываем старую рабочую цену при ошибке!
+                    // Проверяем suggestedPrice, а не просто cached.error
+                    if (!cached || !cached.suggestedPrice) {
                         state.brainrotPrices[cacheKey] = { error: true, _timestamp: Date.now() };
                         updatePriceInDOM(b.name, income, null, mutation);
+                    } else {
+                        // Есть старая цена - продлеваем её жизнь
+                        console.log(`💾 Error but keeping cached price for ${b.name}: $${cached.suggestedPrice}`);
+                        cached._timestamp = Date.now();
                     }
-                    // Старая цена остаётся - пользователь видит предыдущее значение
                 }
             });
             
