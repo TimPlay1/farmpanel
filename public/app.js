@@ -6076,26 +6076,46 @@ async function loadEldoradoBrainrotsList() {
 
 /**
  * v10.3.54: Check if brainrot is in Eldorado list using cached data
- * Uses partial word matching similar to server-side logic
+ * v10.3.55: Returns the Eldorado name if found, or null if not found
+ * This handles cases like "Dragon Cannelloni Lava" → "Dragon Cannelloni" in Eldorado
  */
-async function isBrainrotInEldoradoList(brainrotName) {
+async function findEldoradoName(brainrotName) {
     const list = await loadEldoradoBrainrotsList();
     const nameLower = brainrotName.toLowerCase();
     
     // Direct match
     if (list.has(nameLower)) {
-        return true;
+        return brainrotName; // Return original casing
     }
     
-    // Partial word match (for cases like "La Taco" vs "La Taco Combinasion")
-    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+    // Check if any Eldorado name is contained in our brainrot name
+    // This handles "Dragon Cannelloni Lava" → matches "dragon cannelloni"
     for (const key of list) {
-        if (words.every(w => key.includes(w))) {
-            return true;
+        const keyWords = key.split(/\s+/).filter(w => w.length > 2);
+        // All words of the Eldorado name must be in our brainrot name
+        if (keyWords.length > 0 && keyWords.every(w => nameLower.includes(w))) {
+            // Return properly capitalized Eldorado name
+            return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
         }
     }
     
-    return false;
+    // Check if all words of our brainrot are in some Eldorado name
+    // This handles "La Taco" → matches "la taco combinasion"
+    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+    for (const key of list) {
+        if (words.every(w => key.includes(w))) {
+            return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        }
+    }
+    
+    return null;
+}
+
+/**
+ * v10.3.55: Wrapper for backward compatibility
+ */
+async function isBrainrotInEldoradoList(brainrotName) {
+    return (await findEldoradoName(brainrotName)) !== null;
 }
 
 function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true, mutation = null) {
@@ -6171,14 +6191,18 @@ function getSelectedPriceLabel() {
 /**
  * Открыть ссылку Eldorado для брейнрота
  * v9.11.4: Добавлена поддержка mutation для фильтрации
- * v10.3.54: Use cached list from /api/eldorado-list instead of API calls
+ * v10.3.55: Use findEldoradoName to get correct Eldorado name for te_v2
  */
 async function openEldoradoLink(brainrotName, income, mutation = null) {
-    // v10.3.54: Check cached list (loaded once on startup)
-    const isInEldoradoList = await isBrainrotInEldoradoList(brainrotName);
-    console.log('🔗 openEldoradoLink:', brainrotName, '| isInEldoradoList:', isInEldoradoList, '| mutation:', mutation);
+    // v10.3.55: Find the correct Eldorado name (handles "Dragon Cannelloni Lava" → "Dragon Cannelloni")
+    const eldoradoName = await findEldoradoName(brainrotName);
+    const isInEldoradoList = eldoradoName !== null;
     
-    const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);
+    // Use Eldorado name for link if found, otherwise use original name
+    const nameForLink = eldoradoName || brainrotName;
+    console.log('🔗 openEldoradoLink:', brainrotName, '→', nameForLink, '| isInEldoradoList:', isInEldoradoList, '| mutation:', mutation);
+    
+    const link = getEldoradoSearchLink(nameForLink, income, isInEldoradoList, mutation);
     window.open(link, '_blank');
 }
 
