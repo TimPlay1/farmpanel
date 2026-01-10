@@ -1228,30 +1228,46 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     // Extract words from title that might be brainrot names (min 6 chars to avoid false positives)
                     const titleWords = titleLower.split(/[\s\-|/,!🔥⭐🎄💎🐉()\[\]{}]+/).filter(w => w.length >= 6);
                     
-                    // v10.3.40: Expanded skip list - common game terms that are NOT brainrot names
-                    // These cause false positives: "trait" → "tralalita tralala", "trade" → "tralaledon"
+                    // v10.3.41: COMPREHENSIVE skip list - common game terms that are NOT brainrot names
+                    // Analysis from test-fuzzy-analysis.js showed these cause false positives:
+                    // - "trait/trails" → "tralalita/tralaleritas" (87-100%)
+                    // - "instant" → "ananassini/santa" (80%)
+                    // - "mutations" → "statutino" (88%)
+                    // - "trade" → "tralaledon" (83%)
+                    // - "entrega" → "gingerat" (86%)
+                    // - "christmas" → "chrismasmamat" (100%) - common word in holiday offers!
+                    // NOTE: Real brainrots like "meowl", "spider" should NOT be in this list
                     const skipWords = new Set([
-                        // Trade terms
-                        'cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'super', 'trade', 'trading',
-                        // Rarity/quality
-                        'rarest', 'exclusive', 'limited', 'edition', 'unique', 'secret',
-                        // Game terms  
+                        // Trade/shop terms
+                        'cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'instante', 
+                        'super', 'trade', 'trading', 'trades', 'trader',
+                        // Rarity/quality  
+                        'rarest', 'exclusive', 'limited', 'edition', 'unique',
+                        // Game terms
                         'brainrot', 'brainrots', 'steal', 'roblox', 'account', 'accounts',
-                        // Traits/mutations
-                        'trait', 'traits', 'traitss', 'traitsss', 'traitssss', 'trail', 'trails',
-                        'mutation', 'mutations', 'mutated', 'mutas',
+                        // Traits - CRITICAL: "trait/trails" match "tralalita" at 100%!
+                        'trait', 'traits', 'traitss', 'traitsss', 'traitssss', 'trait}', 'trait]', 'trait.',
+                        'trail', 'trails', 'trailss',
+                        // Mutations
+                        'mutation', 'mutations', 'mutated', 'mutas', 'mutacion',
                         // Time/speed
-                        'second', 'seconds', 'minute', 'minutes', 'speed',
-                        // Sales terms
-                        'guaranteed', 'discount', 'bundle', 'package', 'quick', 'asap',
-                        // Common words in brainrot names (don't match as separate)
-                        'combinasion', 'grande', 'golden', 'spooky', 'candy', 'lucky', 'block',
-                        // Languages
-                        'entrega', 'rapida', 'rapido', 'imediata', 'barato', // Portuguese/Spanish
-                        // Christmas/holiday terms
-                        'christmas', 'santa', 'holiday', 'winter', 'event',
-                        // Special chars that get parsed
-                        'stealabrainrot', 'stealabrianrot', 'brianrot'
+                        'second', 'seconds', 'minute', 'minutes', 'speed', 'speeds',
+                        // Sales terms  
+                        'guaranteed', 'discount', 'bundle', 'package', 'quick', 'asap', 'urgent',
+                        // Common words in brainrot names (don't match as separate words)
+                        'combinasion', 'grande', 'golden', 'spooky', 'candy', 'lucky', 'block', 'secret',
+                        // Portuguese/Spanish common words in offers
+                        'entrega', 'rapida', 'rapido', 'imediata', 'imediato', 'barato', 'barata',
+                        'rapidas', 'rapidos', 'entregas', 'venta', 'ventas',
+                        // Holiday/seasonal terms - these appear in offer titles, NOT brainrot names!
+                        // "christmas" matches "chrismasmamat" @100% but sellers use "Christmas Limited"
+                        'christmas', 'holiday', 'winter', 'event', 'events', 'festive', 'limited',
+                        // Numbers with suffixes that get parsed
+                        'stealabrainrot', 'stealabrianrot', 'brianrot',
+                        // Common game words that aren't brainrots
+                        'hermanos', 'hermano', 'normal', 'normales',
+                        // Price patterns that might get through
+                        'cheapeast', 'fastes'
                     ]);
                     
                     // Get fuzzy keys for our brainrot (to compare)
