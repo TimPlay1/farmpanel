@@ -6051,18 +6051,17 @@ function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true, mu
     
     const encodedName = encodeURIComponent(brainrotName);
     
-    // v10.3.42: Если brainrot не в списке Eldorado, используем Other + searchQuery БЕЗ фильтра мутации
-    // Мутация не добавляется для Other потому что мало офферов с конкретной мутацией
-    if (!isInEldoradoList) {
+    // v10.3.49: Для мутаций ВСЕГДА используем te_v2=Other + searchQuery
+    // Мутационные офферы плохо фильтруются через te_v2, searchQuery работает лучше
+    // Также НЕ добавляем mutation attr_id - слишком мало офферов с конкретной мутацией
+    const hasMutation = mutation && mutation !== 'None' && mutation !== 'Default' && mutation !== '';
+    
+    // v10.3.42: Если brainrot не в списке Eldorado ИЛИ есть мутация - используем Other + searchQuery
+    if (!isInEldoradoList || hasMutation) {
         return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=Other&searchQuery=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
     }
     
-    // v9.11.4: Добавляем mutation attr_id только если brainrot в списке Eldorado
-    const mutationAttrId = getMutationAttrId(mutation);
-    if (mutationAttrId) {
-        attrIds = `${attrIds},${mutationAttrId}`;
-    }
-    
+    // Default брейнроты без мутации - используем te_v2 фильтр напрямую
     return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
 }
 
