@@ -1,3 +1,14 @@
+/**
+ * Eldorado Price API
+ * v10.3.38 - Fix offers with wrong brainrot tags (title verification before envValue trust)
+ * 
+ * Problem: Sellers tag offers with wrong brainrot (e.g. "REINITO SLEGITO" tagged as "Dragon Cannelloni")
+ * Solution: Check title for OTHER known brainrots FIRST before trusting envValue tag
+ * 
+ * v10.3.38: Check containsOtherBrainrot() BEFORE containsOurBrainrot()
+ * v10.3.38: Skip common words in title check (brainrot, lucky, block - game name)
+ */
+
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
@@ -1067,6 +1078,49 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 const eldoradoAlias = BRAINROT_NAME_ALIASES[nameLower];
                 const eldoradoNameLower = eldoradoAlias ? eldoradoAlias.toLowerCase() : null;
                 
+                // v10.3.38: FIRST check if title contains ANOTHER known brainrot
+                // This catches offers with wrong tags (e.g. seller tagged "Dragon Cannelloni" but title says "REINITO SLEGITO")
+                // Title is more reliable than envValue because sellers can set wrong tags!
+                const containsOtherBrainrot = () => {
+                    if (dynamicBrainrotsCache.size === 0) return false;
+                    
+                    for (const otherBrainrot of dynamicBrainrotsCache) {
+                        if (otherBrainrot.length < 5) continue;
+                        
+                        // Skip if it's our brainrot
+                        if (nameLower === otherBrainrot) continue;
+                        if (eldoradoNameLower && eldoradoNameLower === otherBrainrot) continue;
+                        if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
+                        if (eldoradoNameLower && (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower))) continue;
+                        
+                        // Check first unique word (most distinctive)
+                        const brainrotWords = otherBrainrot.split(/\s+/).filter(w => w.length >= 5);
+                        const firstWord = brainrotWords[0];
+                        // v10.3.38: Skip common words that appear in multiple brainrot names or game title
+                        // "brainrot" is in game name "Steal a Brainrot" - skip to avoid false positives
+                        const commonWords = ['combinasion', 'grande', 'secret', 'golden', 'money', 'spooky', 'candy', 'brainrot', 'lucky', 'block'];
+                        
+                        if (firstWord && !commonWords.includes(firstWord) && titleLower.includes(firstWord)) {
+                            if (!nameLower.includes(firstWord) && (!eldoradoNameLower || !eldoradoNameLower.includes(firstWord))) {
+                                console.log(`⚠️ Skipping offer with wrong brainrot (tag mismatch): "${offerTitle.substring(0, 50)}..." (title has: ${firstWord} → ${otherBrainrot}, but tagged as: ${envValue || brainrotName})`);
+                                return true;
+                            }
+                        }
+                        
+                        // Full name check
+                        if (titleLower.includes(otherBrainrot)) {
+                            console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
+                            return true;
+                        }
+                    }
+                    return false;
+                };
+                
+                // v10.3.38: Check for other brainrots FIRST - this catches wrong tags
+                if (containsOtherBrainrot()) {
+                    return false;
+                }
+                
                 // === ШАГИ 1: Проверяем содержит ли title наш брейнрот ===
                 const containsOurBrainrot = () => {
                     // 1a. Точное совпадение полного имени
@@ -1076,6 +1130,7 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     if (eldoradoNameLower && titleLower.includes(eldoradoNameLower)) return true;
                     
                     // 1b. Проверяем tradeEnvironmentValue (брейнрот из атрибутов Eldorado)
+                    // v10.3.38: Only trust envValue if title doesn't contain another known brainrot
                     if (envValue && (envValue.includes(nameLower) || nameLower.includes(envValue))) return true;
                     // 1b2. v10.3.13: Проверяем алиас в envValue
                     if (eldoradoNameLower && envValue && (envValue.includes(eldoradoNameLower) || eldoradoNameLower.includes(envValue))) return true;
@@ -1131,74 +1186,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     return true;
                 }
                 
-                // === ШАГ 2: Title НЕ содержит наш брейнрот ===
-                // Проверяем есть ли там ДРУГОЙ известный брейнрот из динамического списка
-                
-                // Пропускаем проверку на другие брейнроты если список пуст
-                if (dynamicBrainrotsCache.size === 0) {
-                    // Нет списка - не можем проверить, разрешаем оффер
-                    return true;
-                }
-                
-                // Используем уже объявленный eldoradoNameLower из containsOurBrainrot scope
-                // eldoradoAlias и eldoradoNameLower уже определены выше (строка 980-981)
-                
-                // Проверяем только брейнроты достаточной длины для надёжного матчинга
-                for (const otherBrainrot of dynamicBrainrotsCache) {
-                    // Пропускаем слишком короткие названия (могут давать ложные срабатывания)
-                    if (otherBrainrot.length < 5) continue;
-                    
-                    // Пропускаем если это наш брейнрот или его часть (учитываем алиас)
-                    if (nameLower === otherBrainrot) continue;
-                    if (eldoradoNameLower && eldoradoNameLower === otherBrainrot) continue; // Алиас совпадает с otherBrainrot
-                    if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
-                    if (eldoradoNameLower && (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower))) continue;
-                    
-                    // Специальная обработка для паттерна "Los XX"
-                    // "Los 25" не должен конфликтовать с "Los 67", "Los Mobilis" и т.д.
-                    const isOtherLosPattern = /^los\s+\d+$/i.test(otherBrainrot);
-                    const isOurLosPattern = /^los\s+\d+$/i.test(nameLower);
-                    
-                    if (isOtherLosPattern && isOurLosPattern) {
-                        // Оба "Los XX" - проверяем точное совпадение номера
-                        const otherNumber = otherBrainrot.match(/\d+/)?.[0];
-                        const ourNumber = nameLower.match(/\d+/)?.[0];
-                        if (otherNumber && ourNumber && otherNumber !== ourNumber) {
-                            // Разные номера - проверяем есть ли ДРУГОЙ Los XX в title
-                            const pattern = new RegExp(`los\\s+${otherNumber}(?!\\d)`, 'i');
-                            if (pattern.test(titleLower)) {
-                                console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
-                                return false;
-                            }
-                        }
-                        continue; // Не проверяем полное совпадение для Los XX vs Los YY
-                    }
-                    
-                    // Проверяем полное имя брейнрота в title
-                    if (titleLower.includes(otherBrainrot)) {
-                        console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found: ${otherBrainrot}, expected: ${brainrotName})`);
-                        return false;
-                    }
-                    
-                    // Для многословных брейнротов (например "La Extinct Grande") проверяем ключевые слова
-                    // Минимум 5 символов чтобы избежать false positives на коротких словах
-                    const brainrotWords = otherBrainrot.split(/\s+/).filter(w => w.length >= 5);
-                    if (brainrotWords.length >= 2) {
-                        // Уникальные слова брейнрота найденные в title
-                        const matchedWords = [...new Set(brainrotWords.filter(w => titleLower.includes(w)))];
-                        // Если 2+ УНИКАЛЬНЫХ ключевых слова найдены - это другой брейнрот
-                        if (matchedWords.length >= 2) {
-                            console.log(`⚠️ Skipping offer with wrong brainrot: "${offerTitle.substring(0, 50)}..." (found words: ${matchedWords.join(', ')} → ${otherBrainrot}, expected: ${brainrotName})`);
-                            return false;
-                        }
-                    }
-                }
-                
-                // ШАГ 3: В title нет ни нашего брейнрота, ни других известных
-                // v10.3.7: Это ФЕЙК оффер - продавец использует тег брейнрота но в заголовке его нет
-                // Примеры: "GET YOU CANDY BASE" при поиске "Dragon Cannelloni"
-                //          "50B Get 1B/s | CHEAPP" при поиске "Dragon Cannelloni"
-                // Такие офферы НЕ должны учитываться при расчёте цены!
+                // v10.3.38: If we reach here, title doesn't contain our brainrot AND
+                // doesn't contain another known brainrot (already checked in containsOtherBrainrot)
+                // This is a FAKE offer - seller used brainrot tag but title has no brainrot name
+                // Examples: "GET YOU CANDY BASE" when searching "Dragon Cannelloni"
+                //           "50B Get 1B/s | CHEAPP" when searching "Dragon Cannelloni"
                 console.log(`⚠️ Skipping fake offer (no brainrot name in title): "${offerTitle.substring(0, 60)}..." (expected: ${brainrotName})`);
                 return false;
             };
