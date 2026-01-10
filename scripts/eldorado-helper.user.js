@@ -4184,8 +4184,9 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
         if (existing) existing.remove();
         if (!offerData) return;
 
-        const price = offerData.maxPrice || offerData.minPrice || 0;
-        const qty = offerData.quantity || 1;
+        // v9.12.5: Ensure price is a number (can come as string from URL JSON)
+        const price = parseFloat(offerData.maxPrice || offerData.minPrice || 0) || 0;
+        const qty = parseInt(offerData.quantity, 10) || 1;
         const isFromQueue = offerData?.fromQueue;
         const queueIndex = offerData?.queueIndex || 0;
         const queueTotal = offerData?.queueTotal || 0;
