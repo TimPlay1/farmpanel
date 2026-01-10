@@ -1381,6 +1381,15 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         'blackhole', 'black', 'cooki', 'cookie'  // Common but not unique identifiers
                     ]);
                     
+                    // v10.3.53: Get ALL significant words from our brainrot name (not just first)
+                    // This fixes "La Ginger Sekolah" where "ginger" matched "Ginger Gerat"
+                    const ourBrainrotWords = new Set(
+                        nameLower.split(/\s+/).filter(w => w.length >= 4).map(w => w.toLowerCase())
+                    );
+                    if (eldoradoNameLower) {
+                        eldoradoNameLower.split(/\s+/).filter(w => w.length >= 4).forEach(w => ourBrainrotWords.add(w.toLowerCase()));
+                    }
+                    
                     for (const otherBrainrot of dynamicBrainrotsCache) {
                         // Only check multi-word brainrots (space in name)
                         if (!otherBrainrot.includes(' ')) continue;
@@ -1391,10 +1400,19 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         // Skip generic first words that cause false positives
                         if (genericFirstWords.has(firstWord)) continue;
                         
-                        // Skip if it's our brainrot's first word
-                        const ourFirstWord = nameLower.split(' ')[0];
-                        if (firstWord === ourFirstWord) continue;
-                        if (eldoradoNameLower && firstWord === eldoradoNameLower.split(' ')[0]) continue;
+                        // v10.3.53: Skip if first word appears in ANY word of our brainrot name
+                        // This fixes "La Ginger Sekolah" - "ginger" is in our name, not a different brainrot
+                        if (ourBrainrotWords.has(firstWord)) continue;
+                        
+                        // Also skip if first word is similar to any of our words (fuzzy)
+                        let skipDueToOurWord = false;
+                        for (const ourWord of ourBrainrotWords) {
+                            if (stringSimilarity(firstWord, ourWord) >= 0.85) {
+                                skipDueToOurWord = true;
+                                break;
+                            }
+                        }
+                        if (skipDueToOurWord) continue;
                         
                         // Check if this first word appears in title as a separate word
                         // Use word boundary regex to avoid partial matches
