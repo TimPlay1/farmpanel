@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.3
+// @version      9.12.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -19,15 +19,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.3
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.3
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.6
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.6
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.12.3';
+    const VERSION = '9.12.6';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -3696,8 +3696,59 @@
         return (base + ` #${offerId}`).substring(0, 160);
     }
 
-    function generateOfferDescription(offerId) {
+    /**
+     * Generate space variations of a string (insert space at each position)
+     * e.g. "ABC" -> ["A BC", "AB C"]
+     */
+    function generateSpaceVariations(str) {
+        if (!str || str.length < 2) return [];
+        const variations = [];
+        for (let i = 1; i < str.length; i++) {
+            variations.push(str.slice(0, i) + ' ' + str.slice(i));
+        }
+        return variations;
+    }
+
+    /**
+     * Generate all space variations for brainrot name with mutation
+     * Returns lines like "Svinina Bombardino Candy", "S vinina Bombardino Candy", etc.
+     */
+    function generateBrainrotSearchVariations(brainrotName, mutation) {
+        if (!brainrotName) return '';
+        
+        // Build full name: "BrainrotName Mutation" or just "BrainrotName" if no mutation
+        const mutationSuffix = mutation && mutation !== 'None' ? ` ${mutation}` : '';
+        const fullName = brainrotName + mutationSuffix;
+        
+        // Split into words
+        const words = fullName.split(' ').filter(w => w.length > 0);
+        if (words.length === 0) return '';
+        
+        const lines = [];
+        
+        // First line: original full name
+        lines.push(fullName);
+        
+        // Generate variations for each word
+        for (let wordIndex = 0; wordIndex < words.length; wordIndex++) {
+            const word = words[wordIndex];
+            const wordVariations = generateSpaceVariations(word);
+            
+            for (const variation of wordVariations) {
+                // Rebuild the full name with this word's variation
+                const newWords = [...words];
+                newWords[wordIndex] = variation;
+                lines.push(newWords.join(' '));
+            }
+        }
+        
+        return lines.join('\n');
+    }
+
+    function generateOfferDescription(offerId, brainrotName, mutation) {
         const shopName = getShopName();
+        const searchVariations = generateBrainrotSearchVariations(brainrotName, mutation);
+        
         return `📦 How We Delivery
 1️⃣ After purchase, send your Roblox username in live chat.
 2️⃣ I will send you a private sever's link to join or direct add if cant join by link.
@@ -3715,7 +3766,9 @@ NOTE: please read before buy
 
 Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
 
-#${offerId}`;
+#${offerId}
+
+${searchVariations}`;
     }
 
     function getIncomeRange(income) {
@@ -3998,7 +4051,7 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
             log('Step 8: Description');
             const descInput = document.querySelector('textarea[maxlength="2000"]');
             if (descInput) {
-                setInputValue(descInput, generateOfferDescription(offerId));
+                setInputValue(descInput, generateOfferDescription(offerId, name, mutation));
             }
             await new Promise(r => setTimeout(r, 150));
 
