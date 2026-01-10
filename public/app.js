@@ -6083,7 +6083,7 @@ async function loadEldoradoBrainrotsList() {
 /**
  * v10.3.54: Check if brainrot is in Eldorado list using cached data
  * v10.3.55: Returns the Eldorado name if found, or null if not found
- * This handles cases like "Dragon Cannelloni Lava" → "Dragon Cannelloni" in Eldorado
+ * v10.3.60: Strict matching - only exact match or typo correction (fuzzy 0.85+)
  */
 async function findEldoradoName(brainrotName) {
     const list = await loadEldoradoBrainrotsList();
@@ -6091,36 +6091,64 @@ async function findEldoradoName(brainrotName) {
     
     console.log('🔍 findEldoradoName:', brainrotName, '→', nameLower, '| list size:', list.size);
     
-    // Direct match
+    // 1. Direct exact match
     if (list.has(nameLower)) {
         console.log('✅ Direct match found:', nameLower);
         return brainrotName; // Return original casing
     }
     
-    // Check if any Eldorado name is contained in our brainrot name
-    // This handles "Dragon Cannelloni Lava" → matches "dragon cannelloni"
+    // 2. Fuzzy match for typos (like "chimnino" → "chimino")
+    // Using simple Levenshtein-like similarity
+    let bestMatch = null;
+    let bestScore = 0;
+    const TYPO_THRESHOLD = 0.85; // 85% similarity required
+    
     for (const key of list) {
-        const keyWords = key.split(/\s+/).filter(w => w.length > 2);
-        // All words of the Eldorado name must be in our brainrot name
-        if (keyWords.length > 0 && keyWords.every(w => nameLower.includes(w))) {
-            // Return properly capitalized Eldorado name
-            console.log('✅ Partial match found:', key, '→', nameLower);
-            return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        const similarity = stringSimilarity(nameLower, key);
+        if (similarity >= TYPO_THRESHOLD && similarity > bestScore) {
+            bestScore = similarity;
+            bestMatch = key;
         }
     }
     
-    // Check if all words of our brainrot are in some Eldorado name
-    // This handles "La Taco" → matches "la taco combinasion"
-    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
-    for (const key of list) {
-        if (words.every(w => key.includes(w))) {
-            console.log('✅ Reverse match found:', nameLower, '→', key);
-            return key.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-        }
+    if (bestMatch) {
+        console.log('✅ Fuzzy match found:', nameLower, '→', bestMatch, `(${(bestScore * 100).toFixed(0)}%)`);
+        return bestMatch.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
     }
     
     console.log('❌ No match found for:', nameLower);
     return null;
+}
+
+/**
+ * v10.3.60: Simple string similarity (0-1) for typo detection
+ */
+function stringSimilarity(str1, str2) {
+    if (str1 === str2) return 1;
+    if (str1.length === 0 || str2.length === 0) return 0;
+    
+    // Levenshtein distance
+    const matrix = [];
+    for (let i = 0; i <= str1.length; i++) {
+        matrix[i] = [i];
+    }
+    for (let j = 0; j <= str2.length; j++) {
+        matrix[0][j] = j;
+    }
+    for (let i = 1; i <= str1.length; i++) {
+        for (let j = 1; j <= str2.length; j++) {
+            const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+            matrix[i][j] = Math.min(
+                matrix[i - 1][j] + 1,
+                matrix[i][j - 1] + 1,
+                matrix[i - 1][j - 1] + cost
+            );
+        }
+    }
+    
+    const distance = matrix[str1.length][str2.length];
+    const maxLen = Math.max(str1.length, str2.length);
+    return 1 - distance / maxLen;
 }
 
 /**
