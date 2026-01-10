@@ -1,12 +1,13 @@
 /**
  * Eldorado Price API
- * v10.3.38 - Fix offers with wrong brainrot tags (title verification before envValue trust)
+ * v10.3.44 - Fix mutation validation for Other fallback (skip mutation check for brainrots not in Eldorado list)
  * 
  * Problem: Sellers tag offers with wrong brainrot (e.g. "REINITO SLEGITO" tagged as "Dragon Cannelloni")
  * Solution: Check title for OTHER known brainrots FIRST before trusting envValue tag
  * 
- * v10.3.38: Check containsOtherBrainrot() BEFORE containsOurBrainrot()
- * v10.3.38: Skip common words in title check (brainrot, lucky, block - game name)
+ * v10.3.44: Skip mutation validation entirely for Other fallback
+ * v10.3.43: Add Meowl trait exception
+ * v10.3.42: Disable mutation attr_id for Other fallback
  */
 
 const https = require('https');
@@ -1442,8 +1443,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
             // v9.12.86: CRITICAL FIX - When searching for a specific mutation (e.g. radioactive),
             // we must REQUIRE that the offer has that mutation, not just skip offers with DIFFERENT mutations.
             // Otherwise default/none offers slip through (like $1111 Swaggy Bros without radioactive)
+            // v10.3.44: SKIP mutation validation for Other fallback - too few offers with specific mutations
             let skipDueToMutation = false;
-            if (mutation && mutation !== 'None' && mutation !== 'Default') {
+            if (mutation && mutation !== 'None' && mutation !== 'Default' && !useOtherFallback) {
                 // v10.3.32: API returns "Mutations" (with s), not "Mutation"
                 const mutationAttr = offer.offerAttributeIdValues?.find(a => a.name === 'Mutation' || a.name === 'Mutations');
                 const offerMutation = mutationAttr?.value?.toLowerCase() || '';
