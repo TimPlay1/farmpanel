@@ -9120,15 +9120,13 @@ function renderOffers() {
                               (isPaused ? '<i class="fas fa-pause-circle"></i> ' + t('paused') : 
                               (needsUpdate ? t('needs_update_status') : t('active_status_offer')));
         
-        // v9.8.24: Count brainrots in collection with same name AND income for paused offers
+        // v9.8.24: Count brainrots in collection with same name AND income - always show badge
         let brainrotsCountBadge = '';
-        if (isPaused || isPending) {
-            const brainrotsCount = countBrainrotsWithSameNameAndIncome(offer.brainrotName, offer.income, offer.incomeRaw, offer.mutation);
-            if (brainrotsCount > 0) {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="${brainrotsCount} '${offer.brainrotName}' ${t('has_brainrots_in_collection')}"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
-            } else {
-                brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="${t('no_brainrots_in_collection')}: '${offer.brainrotName}'"><i class="fas fa-brain"></i> 0</span>`;
-            }
+        const brainrotsCount = countBrainrotsWithSameNameAndIncome(offer.brainrotName, offer.income, offer.incomeRaw, offer.mutation);
+        if (brainrotsCount > 0) {
+            brainrotsCountBadge = `<span class="offer-brainrots-badge has-brainrots" title="${brainrotsCount} '${offer.brainrotName}' ${t('has_brainrots_in_collection')}"><i class="fas fa-brain"></i> ${brainrotsCount}</span>`;
+        } else {
+            brainrotsCountBadge = `<span class="offer-brainrots-badge no-brainrots" title="${t('no_brainrots_in_collection')}: '${offer.brainrotName}'"><i class="fas fa-brain"></i> 0</span>`;
         }
         
         // v9.7.6: Calculate time until auto-delete for paused offers
