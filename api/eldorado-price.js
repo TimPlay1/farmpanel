@@ -1274,6 +1274,23 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         'cheapeast', 'fastes'
                     ]);
                     
+                    // v10.3.43: Special case - "meowl" can be both a brainrot AND a trait
+                    // If "meowl" appears near "trait/traits" words, it's the trait not the brainrot
+                    const isMeowlTrait = (brainrotWord) => {
+                        if (brainrotWord !== 'meowl') return false;
+                        // Check if title contains patterns like "meowl trait", "trait meowl", "traits meowl"
+                        const meowlTraitPatterns = [
+                            /meowl\s*trait/i,
+                            /trait\s*meowl/i,
+                            /traits?\s+.*meowl/i,
+                            /meowl\s+.*traits?/i,
+                            /with\s+.*meowl/i,  // "with 3 crazy traits meowl"
+                            /meowl\s+mutation/i,
+                            /mutation\s+meowl/i
+                        ];
+                        return meowlTraitPatterns.some(pattern => pattern.test(titleLower));
+                    };
+                    
                     // Get fuzzy keys for our brainrot (to compare)
                     const ourFuzzyKey = getFuzzyKey(nameLower);
                     const ourEldoradoFuzzyKey = eldoradoNameLower ? getFuzzyKey(eldoradoNameLower) : null;
@@ -1309,6 +1326,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                             if (nameLower.includes(matchedBrainrot) || matchedBrainrot.includes(nameLower)) continue;
                             if (eldoradoNameLower && (eldoradoNameLower.includes(matchedBrainrot) || matchedBrainrot.includes(eldoradoNameLower))) continue;
                             
+                            // v10.3.43: Skip "meowl" if it's used as a trait, not brainrot
+                            if (isMeowlTrait(matchedBrainrot)) continue;
+                            
                             console.log(`⚠️ Skipping offer with wrong brainrot (fuzzy match): "${offerTitle.substring(0, 50)}..." (title word "${word}" → "${matchedBrainrot}" @${(fuzzyResult.similarity*100).toFixed(0)}%, but expected: ${brainrotName})`);
                             return true;
                         }
@@ -1323,6 +1343,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         if (eldoradoNameLower && eldoradoNameLower === otherBrainrot) continue;
                         if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
                         if (eldoradoNameLower && (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower))) continue;
+                        
+                        // v10.3.43: Skip "meowl" if it's used as a trait, not brainrot
+                        if (isMeowlTrait(otherBrainrot)) continue;
                         
                         // Full name check
                         if (titleLower.includes(otherBrainrot)) {
