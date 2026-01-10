@@ -190,6 +190,146 @@ async function loadPanelUsersCache() {
 // Steal a Brainrot gameId на Eldorado
 const ELDORADO_GAME_ID = '259';
 
+// v10.3.39: Dynamic aliases loaded from both Eldorado API and our mapping
+// These are updated at runtime from dynamicBrainrotsCache
+let dynamicAliasMap = new Map(); // lowercase alias -> canonical name
+
+// Static fallback aliases (for known Eldorado typos)
+const STATIC_ALIASES = {
+    'chimnino': 'Chimino',  // Eldorado typo
+    'chimino': 'Chimnino'   // Reverse mapping
+};
+
+/**
+ * v10.3.39: Normalize string for fuzzy matching
+ * Removes vowels (except first), special chars, spaces
+ * "Sleighito" → "slght"
+ * "SLEGITO" → "slgt" 
+ * Both match because consonant skeleton is similar
+ */
+function getFuzzyKey(str) {
+    if (!str) return '';
+    const lower = str.toLowerCase().replace(/[^a-z0-9]/g, '');
+    // Keep first letter, then remove vowels
+    if (lower.length <= 2) return lower;
+    const first = lower[0];
+    const rest = lower.slice(1).replace(/[aeiou]/g, '');
+    return first + rest;
+}
+
+/**
+ * v10.3.39: Calculate similarity between two strings (0-1)
+ * Uses consonant matching + common substring
+ */
+function stringSimilarity(s1, s2) {
+    if (!s1 || !s2) return 0;
+    const a = s1.toLowerCase();
+    const b = s2.toLowerCase();
+    
+    // Exact match
+    if (a === b) return 1;
+    
+    // Fuzzy key match (consonant skeleton)
+    const keyA = getFuzzyKey(a);
+    const keyB = getFuzzyKey(b);
+    if (keyA === keyB && keyA.length >= 4) return 0.9;
+    
+    // Check if one contains the other
+    if (a.includes(b) || b.includes(a)) return 0.8;
+    
+    // Common characters ratio
+    const setA = new Set(a);
+    const setB = new Set(b);
+    const intersection = [...setA].filter(c => setB.has(c)).length;
+    const union = new Set([...setA, ...setB]).size;
+    const jaccard = intersection / union;
+    
+    // Prefix match bonus
+    let prefixLen = 0;
+    for (let i = 0; i < Math.min(a.length, b.length); i++) {
+        if (a[i] === b[i]) prefixLen++;
+        else break;
+    }
+    const prefixBonus = prefixLen >= 3 ? 0.2 : prefixLen >= 2 ? 0.1 : 0;
+    
+    return Math.min(1, jaccard + prefixBonus);
+}
+
+/**
+ * v10.3.39: Find best matching brainrot name from dynamic list
+ * Returns { match: string, similarity: number } or null
+ */
+function findFuzzyMatch(input, minSimilarity = 0.7) {
+    if (!input || input.length < 4) return null;
+    
+    const inputLower = input.toLowerCase();
+    const inputKey = getFuzzyKey(input);
+    
+    let bestMatch = null;
+    let bestSimilarity = 0;
+    
+    // Check dynamic Eldorado cache first
+    for (const brainrot of dynamicBrainrotsCache) {
+        const sim = stringSimilarity(inputLower, brainrot);
+        if (sim > bestSimilarity && sim >= minSimilarity) {
+            bestSimilarity = sim;
+            bestMatch = brainrot;
+        }
+        
+        // Also check fuzzy key match
+        const brainrotKey = getFuzzyKey(brainrot);
+        if (inputKey === brainrotKey && inputKey.length >= 4) {
+            bestSimilarity = 0.9;
+            bestMatch = brainrot;
+            break; // Fuzzy key exact match is good enough
+        }
+    }
+    
+    // Check static BRAINROT_ID_MAP as fallback
+    if (!bestMatch) {
+        for (const [name, data] of BRAINROT_ID_MAP) {
+            const sim = stringSimilarity(inputLower, name);
+            if (sim > bestSimilarity && sim >= minSimilarity) {
+                bestSimilarity = sim;
+                bestMatch = data.name; // Use canonical name
+            }
+        }
+    }
+    
+    return bestMatch ? { match: bestMatch, similarity: bestSimilarity } : null;
+}
+
+/**
+ * v10.3.39: Extract potential brainrot names from offer title
+ * Returns array of { word, fuzzyMatch } for words that might be brainrot names
+ */
+function extractPotentialBrainrots(title) {
+    if (!title) return [];
+    
+    const results = [];
+    const titleLower = title.toLowerCase();
+    
+    // Split by common delimiters
+    const words = titleLower.split(/[\s\-|/,!🔥⭐🎄💎🐉]+/).filter(w => w.length >= 5);
+    
+    // Check each significant word
+    for (const word of words) {
+        // Skip common non-brainrot words
+        const skipWords = ['cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'super', 'rare', 
+                          'rarest', 'exclusive', 'brainrot', 'steal', 'roblox', 'lucky', 'block',
+                          'traits', 'mutation', 'mutations', 'second', 'seconds', 'guaranteed'];
+        if (skipWords.includes(word)) continue;
+        
+        // Try to find fuzzy match
+        const fuzzyResult = findFuzzyMatch(word, 0.7);
+        if (fuzzyResult) {
+            results.push({ word, ...fuzzyResult });
+        }
+    }
+    
+    return results;
+}
+
 // Алиасы для брейнротов с ошибками в названиях на Eldorado
 // Ключ = наше правильное название (lowercase), значение = название в системе Eldorado
 const BRAINROT_NAME_ALIASES = {
@@ -1078,12 +1218,58 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 const eldoradoAlias = BRAINROT_NAME_ALIASES[nameLower];
                 const eldoradoNameLower = eldoradoAlias ? eldoradoAlias.toLowerCase() : null;
                 
-                // v10.3.38: FIRST check if title contains ANOTHER known brainrot
+                // v10.3.39: FIRST check if title contains ANOTHER known brainrot
                 // This catches offers with wrong tags (e.g. seller tagged "Dragon Cannelloni" but title says "REINITO SLEGITO")
                 // Title is more reliable than envValue because sellers can set wrong tags!
+                // Now with FUZZY MATCHING to catch typos like "SLEGITO" → "Sleighito"
                 const containsOtherBrainrot = () => {
-                    if (dynamicBrainrotsCache.size === 0) return false;
+                    if (dynamicBrainrotsCache.size === 0 && BRAINROT_ID_MAP.size === 0) return false;
                     
+                    // Extract words from title that might be brainrot names
+                    const titleWords = titleLower.split(/[\s\-|/,!🔥⭐🎄💎🐉()]+/).filter(w => w.length >= 5);
+                    
+                    // Build skip list dynamically from common game terms
+                    const skipWords = new Set(['cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'super', 'rare', 
+                                  'rarest', 'exclusive', 'brainrot', 'steal', 'roblox', 'lucky', 'block',
+                                  'traits', 'mutation', 'mutations', 'second', 'seconds', 'guaranteed',
+                                  'combinasion', 'grande', 'secret', 'golden', 'money', 'spooky', 'candy']);
+                    
+                    // Get fuzzy keys for our brainrot (to compare)
+                    const ourFuzzyKey = getFuzzyKey(nameLower);
+                    const ourEldoradoFuzzyKey = eldoradoNameLower ? getFuzzyKey(eldoradoNameLower) : null;
+                    const ourNameWords = nameLower.split(/\s+/).filter(w => w.length >= 4);
+                    const eldoradoNameWords = eldoradoNameLower ? eldoradoNameLower.split(/\s+/).filter(w => w.length >= 4) : [];
+                    
+                    for (const word of titleWords) {
+                        if (skipWords.has(word)) continue;
+                        
+                        // Skip if this word is part of OUR brainrot name
+                        if (ourNameWords.some(w => w === word || stringSimilarity(w, word) >= 0.8)) continue;
+                        if (eldoradoNameWords.some(w => w === word || stringSimilarity(w, word) >= 0.8)) continue;
+                        
+                        // Check fuzzy key against our brainrot
+                        const wordFuzzyKey = getFuzzyKey(word);
+                        if (wordFuzzyKey === ourFuzzyKey) continue;
+                        if (ourEldoradoFuzzyKey && wordFuzzyKey === ourEldoradoFuzzyKey) continue;
+                        
+                        // Try to find this word in known brainrots (with fuzzy matching)
+                        const fuzzyResult = findFuzzyMatch(word, 0.75);
+                        
+                        if (fuzzyResult && fuzzyResult.similarity >= 0.75) {
+                            const matchedBrainrot = fuzzyResult.match;
+                            
+                            // Skip if matched brainrot IS our brainrot
+                            if (matchedBrainrot === nameLower) continue;
+                            if (eldoradoNameLower && matchedBrainrot === eldoradoNameLower) continue;
+                            if (nameLower.includes(matchedBrainrot) || matchedBrainrot.includes(nameLower)) continue;
+                            if (eldoradoNameLower && (eldoradoNameLower.includes(matchedBrainrot) || matchedBrainrot.includes(eldoradoNameLower))) continue;
+                            
+                            console.log(`⚠️ Skipping offer with wrong brainrot (fuzzy match): "${offerTitle.substring(0, 50)}..." (title word "${word}" → "${matchedBrainrot}" @${(fuzzyResult.similarity*100).toFixed(0)}%, but expected: ${brainrotName})`);
+                            return true;
+                        }
+                    }
+                    
+                    // Also check full brainrot names directly in title
                     for (const otherBrainrot of dynamicBrainrotsCache) {
                         if (otherBrainrot.length < 5) continue;
                         
@@ -1092,20 +1278,6 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         if (eldoradoNameLower && eldoradoNameLower === otherBrainrot) continue;
                         if (nameLower.includes(otherBrainrot) || otherBrainrot.includes(nameLower)) continue;
                         if (eldoradoNameLower && (eldoradoNameLower.includes(otherBrainrot) || otherBrainrot.includes(eldoradoNameLower))) continue;
-                        
-                        // Check first unique word (most distinctive)
-                        const brainrotWords = otherBrainrot.split(/\s+/).filter(w => w.length >= 5);
-                        const firstWord = brainrotWords[0];
-                        // v10.3.38: Skip common words that appear in multiple brainrot names or game title
-                        // "brainrot" is in game name "Steal a Brainrot" - skip to avoid false positives
-                        const commonWords = ['combinasion', 'grande', 'secret', 'golden', 'money', 'spooky', 'candy', 'brainrot', 'lucky', 'block'];
-                        
-                        if (firstWord && !commonWords.includes(firstWord) && titleLower.includes(firstWord)) {
-                            if (!nameLower.includes(firstWord) && (!eldoradoNameLower || !eldoradoNameLower.includes(firstWord))) {
-                                console.log(`⚠️ Skipping offer with wrong brainrot (tag mismatch): "${offerTitle.substring(0, 50)}..." (title has: ${firstWord} → ${otherBrainrot}, but tagged as: ${envValue || brainrotName})`);
-                                return true;
-                            }
-                        }
                         
                         // Full name check
                         if (titleLower.includes(otherBrainrot)) {

@@ -1,4 +1,7 @@
-// FarmerPanel App v10.3.37 - Never overwrite good price with null
+// FarmerPanel App v10.3.39 - Fuzzy matching for brainrot name typos
+// - v10.3.39: Fuzzy matching to catch typos like "SLEGITO" → "Sleighito"
+// - v10.3.39: Dynamic lists from Eldorado API, not hardcoded aliases
+// - v10.3.38: Verify title BEFORE trusting envValue tag (sellers can set wrong tags!)
 // - v10.3.37: Don't cache null API responses - keep existing valid prices
 // - v10.3.37: Only log AI price when actually found (no $null spam in console)
 // - v10.3.36: Skip expensive UI operations when tab is hidden (Page Visibility API)
