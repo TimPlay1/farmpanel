@@ -6108,12 +6108,21 @@ function getSelectedPriceLabel() {
 /**
  * Открыть ссылку Eldorado для брейнрота
  * v9.11.4: Добавлена поддержка mutation для фильтрации
+ * v10.3.44: Check both mutation and default cache for isInEldoradoList
  */
 function openEldoradoLink(brainrotName, income, mutation = null) {
     // v9.9.6: Проверяем isInEldoradoList из кэша цен
     const normalizedIncome = normalizeIncomeForApi(income);
-    const cacheKey = getPriceCacheKey(brainrotName, normalizedIncome, mutation);
-    const priceData = state.brainrotPrices[cacheKey];
+    
+    // v10.3.44: Check mutation cache first, then default cache
+    // isInEldoradoList is the same for both, but one might be loaded before the other
+    const mutationCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, mutation);
+    const defaultCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, null);
+    const mutationPriceData = state.brainrotPrices[mutationCacheKey];
+    const defaultPriceData = state.brainrotPrices[defaultCacheKey];
+    
+    // Use mutation data if available, otherwise fallback to default
+    const priceData = mutationPriceData || defaultPriceData;
     const isInEldoradoList = priceData ? priceData.isInEldoradoList !== false : true;
     
     const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);
