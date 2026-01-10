@@ -1,11 +1,38 @@
 /**
- * Test brainrots from screenshots
+ * Test brainrots from screenshots - v10.3.39 fuzzy matching test
  */
 
 const ep = require('./api/eldorado-price.js');
 
 const testCases = [
-    // Screenshot 1
+    // === NEW SCREENSHOT - High income brainrots ===
+    // These test fuzzy matching (SLEGITO -> Sleighito) and high-value offers
+    { name: 'Dragon Cannelloni', income: 1500, mutation: 'Lava' },
+    { name: 'Reinito Sleighito', income: 1400, mutation: null },
+    { name: 'Fragrama and Chocrama', income: 1400, mutation: null },
+    { name: 'La Ginger Sekolah', income: 1400, mutation: null },
+    { name: 'Eviledon', income: 992.2, mutation: null },
+    { name: 'Reinito Sleighito', income: 840, mutation: 'Lava' },
+    { name: 'La Taco Combinasion', income: 822.5, mutation: 'Yin-Yang' },
+    { name: 'Swaggy Bros', income: 780, mutation: null },
+    { name: 'La Secret Combinasion', income: 750, mutation: null },
+    { name: 'Fragrama and Chocrama', income: 750, mutation: null },
+    { name: 'Mieteteira Bicicleteira', income: 715, mutation: null },
+    { name: 'Swaggy Bros', income: 700, mutation: 'Radioactive' },
+    
+    // === NEW SCREENSHOT - Medium income ===
+    { name: 'Lavadorito Spinito', income: 270, mutation: null },
+    { name: 'Los Puggies', income: 270, mutation: null },
+    { name: 'Esok Sekolah', income: 270, mutation: 'Candy' },
+    { name: 'Chimnino', income: 266, mutation: null },
+    { name: 'Los Mobilis', income: 264, mutation: 'Rainbow' },
+    { name: 'Chicleteira Noelteira', income: 262.5, mutation: 'Yin-Yang' },
+    { name: 'Money Money Puggy', income: 262.5, mutation: 'Diamond' },
+    { name: 'Spaghetti Tualetti', income: 255, mutation: 'Gold' },
+    { name: 'Ketchuru and Musturu', income: 255, mutation: 'Lava' },
+    { name: 'Los 67', income: 253.1, mutation: 'Gold' },
+    
+    // === ORIGINAL Screenshot 1 ===
     { name: 'Los Candies', income: 333.5, mutation: 'Galaxy' },
     { name: 'Spaghetti Tualetti', income: 330, mutation: 'Diamond' },
     { name: 'Mieteteira Bicicleteira', income: 325, mutation: 'Yin-Yang' },
@@ -14,12 +41,10 @@ const testCases = [
     { name: 'Spaghetti Tualetti', income: 315, mutation: 'Gold' },
     { name: 'Chimnino', income: 308, mutation: 'Rainbow' },
     { name: 'Los Mobilis', income: 308, mutation: 'Galaxy' },
-    // v10.3.35: Fixed name - Los Spooky Combinasionas (not in Eldorado dropdown, uses Other+searchQuery)
-    // Note: На Eldorado нет Gold мутации для этого брейнрота, есть None и Lava
     { name: 'Los Spooky Combinasionas', income: 305, mutation: null },
     { name: 'Chimnino', income: 301, mutation: 'Radioactive' },
     
-    // Screenshot 2
+    // === ORIGINAL Screenshot 2 ===
     { name: 'Los Mobilis', income: 385, mutation: 'Yin-Yang' },
     { name: 'Los Candies', income: 379.5, mutation: 'Radioactive' },
     { name: 'Money Money Puggy', income: 378, mutation: 'Rainbow' },

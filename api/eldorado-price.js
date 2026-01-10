@@ -1225,14 +1225,34 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                 const containsOtherBrainrot = () => {
                     if (dynamicBrainrotsCache.size === 0 && BRAINROT_ID_MAP.size === 0) return false;
                     
-                    // Extract words from title that might be brainrot names
-                    const titleWords = titleLower.split(/[\s\-|/,!🔥⭐🎄💎🐉()]+/).filter(w => w.length >= 5);
+                    // Extract words from title that might be brainrot names (min 6 chars to avoid false positives)
+                    const titleWords = titleLower.split(/[\s\-|/,!🔥⭐🎄💎🐉()\[\]{}]+/).filter(w => w.length >= 6);
                     
-                    // Build skip list dynamically from common game terms
-                    const skipWords = new Set(['cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'super', 'rare', 
-                                  'rarest', 'exclusive', 'brainrot', 'steal', 'roblox', 'lucky', 'block',
-                                  'traits', 'mutation', 'mutations', 'second', 'seconds', 'guaranteed',
-                                  'combinasion', 'grande', 'secret', 'golden', 'money', 'spooky', 'candy']);
+                    // v10.3.40: Expanded skip list - common game terms that are NOT brainrot names
+                    // These cause false positives: "trait" → "tralalita tralala", "trade" → "tralaledon"
+                    const skipWords = new Set([
+                        // Trade terms
+                        'cheap', 'cheapest', 'fastest', 'delivery', 'instant', 'super', 'trade', 'trading',
+                        // Rarity/quality
+                        'rarest', 'exclusive', 'limited', 'edition', 'unique', 'secret',
+                        // Game terms  
+                        'brainrot', 'brainrots', 'steal', 'roblox', 'account', 'accounts',
+                        // Traits/mutations
+                        'trait', 'traits', 'traitss', 'traitsss', 'traitssss', 'trail', 'trails',
+                        'mutation', 'mutations', 'mutated', 'mutas',
+                        // Time/speed
+                        'second', 'seconds', 'minute', 'minutes', 'speed',
+                        // Sales terms
+                        'guaranteed', 'discount', 'bundle', 'package', 'quick', 'asap',
+                        // Common words in brainrot names (don't match as separate)
+                        'combinasion', 'grande', 'golden', 'spooky', 'candy', 'lucky', 'block',
+                        // Languages
+                        'entrega', 'rapida', 'rapido', 'imediata', 'barato', // Portuguese/Spanish
+                        // Christmas/holiday terms
+                        'christmas', 'santa', 'holiday', 'winter', 'event',
+                        // Special chars that get parsed
+                        'stealabrainrot', 'stealabrianrot', 'brianrot'
+                    ]);
                     
                     // Get fuzzy keys for our brainrot (to compare)
                     const ourFuzzyKey = getFuzzyKey(nameLower);
@@ -1242,6 +1262,9 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                     
                     for (const word of titleWords) {
                         if (skipWords.has(word)) continue;
+                        
+                        // Skip words that start with $ or numbers (prices like "$255m")
+                        if (/^[\$\d\[\]]/.test(word)) continue;
                         
                         // Skip if this word is part of OUR brainrot name
                         if (ourNameWords.some(w => w === word || stringSimilarity(w, word) >= 0.8)) continue;
@@ -1253,9 +1276,11 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
                         if (ourEldoradoFuzzyKey && wordFuzzyKey === ourEldoradoFuzzyKey) continue;
                         
                         // Try to find this word in known brainrots (with fuzzy matching)
-                        const fuzzyResult = findFuzzyMatch(word, 0.75);
+                        // v10.3.40: Increased threshold to 0.88 to reduce false positives
+                        // Word must be very similar to a known brainrot name
+                        const fuzzyResult = findFuzzyMatch(word, 0.88);
                         
-                        if (fuzzyResult && fuzzyResult.similarity >= 0.75) {
+                        if (fuzzyResult && fuzzyResult.similarity >= 0.88) {
                             const matchedBrainrot = fuzzyResult.match;
                             
                             // Skip if matched brainrot IS our brainrot

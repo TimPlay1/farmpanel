@@ -1,4 +1,7 @@
-// FarmerPanel App v10.3.39 - Fuzzy matching for brainrot name typos
+// FarmerPanel App v10.3.40 - Reduce fuzzy matching false positives
+// - v10.3.40: Expanded skipWords list (trait, trade, christmas, entrega, etc)
+// - v10.3.40: Increased similarity threshold to 0.88 for stricter matching
+// - v10.3.40: Skip words starting with $ or numbers (prices like "$255m")
 // - v10.3.39: Fuzzy matching to catch typos like "SLEGITO" → "Sleighito"
 // - v10.3.39: Dynamic lists from Eldorado API, not hardcoded aliases
 // - v10.3.38: Verify title BEFORE trusting envValue tag (sellers can set wrong tags!)
