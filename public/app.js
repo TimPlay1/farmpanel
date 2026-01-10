@@ -6139,7 +6139,8 @@ async function openEldoradoLink(brainrotName, income, mutation = null) {
         }
     }
     
-    const isInEldoradoList = priceData ? priceData.isInEldoradoList !== false : true;
+    // v10.3.51: isInEldoradoList must be explicitly true, undefined or null means NOT in list
+    const isInEldoradoList = priceData && priceData.isInEldoradoList === true;
     console.log('🔗 openEldoradoLink:', brainrotName, '| isInEldoradoList:', isInEldoradoList, '| mutation:', mutation);
     
     const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);
