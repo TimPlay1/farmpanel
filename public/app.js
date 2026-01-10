@@ -1083,7 +1083,9 @@ let state = {
     currentBalanceChange: null, // Текущее изменение баланса
     isManualPriceRefresh: false, // Флаг ручного рефреша цен (не записываем в историю)
     frozenBalance: null, // Замороженный баланс во время ручного рефреша
-    lastRecordedPrices: {} // Последние записанные цены для сравнения
+    lastRecordedPrices: {}, // Последние записанные цены для сравнения
+    eldoradoBrainrotsList: null, // v10.3.54: Cached list of Eldorado brainrots for link generation
+    eldoradoBrainrotsListTime: 0 // v10.3.54: Timestamp when list was loaded
 };
 
 // v10.3.36: Page visibility optimization - skip expensive operations when tab is hidden
@@ -3285,6 +3287,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadAvatarCache(); // Кэш аватаров
     loadOffersFromStorage(); // Кэш офферов
     loadShopNameFromCache(); // Кэш названия магазина (мгновенно)
+    
+    // v10.3.54: Предзагружаем список Eldorado brainrots для генерации ссылок
+    loadEldoradoBrainrotsList().catch(e => console.warn('Eldorado list preload failed:', e));
     
     // v2.5: Загружаем кэш графиков СРАЗУ (до показа UI)
     if (state.currentKey) {
@@ -6035,6 +6040,64 @@ function getMutationAttrId(mutation) {
     return MUTATION_ATTR_IDS[cleanMut] || null;
 }
 
+/**
+ * v10.3.54: Load Eldorado brainrots list from server (cached for 30 min)
+ * This list is used for generating correct Eldorado links without API calls
+ */
+async function loadEldoradoBrainrotsList() {
+    // Check if we already have a valid cache
+    const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+    if (state.eldoradoBrainrotsList && Date.now() - state.eldoradoBrainrotsListTime < CACHE_TTL) {
+        return state.eldoradoBrainrotsList;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/eldorado-list`);
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        
+        // Convert array to Set for fast lookup
+        state.eldoradoBrainrotsList = new Set(data.brainrots || []);
+        state.eldoradoBrainrotsListTime = Date.now();
+        console.log(`📋 Loaded Eldorado brainrots list: ${state.eldoradoBrainrotsList.size} items`);
+        
+        return state.eldoradoBrainrotsList;
+    } catch (e) {
+        console.warn('Failed to load Eldorado brainrots list:', e.message);
+        // Return empty set if failed, will fallback to API
+        if (!state.eldoradoBrainrotsList) {
+            state.eldoradoBrainrotsList = new Set();
+        }
+        return state.eldoradoBrainrotsList;
+    }
+}
+
+/**
+ * v10.3.54: Check if brainrot is in Eldorado list using cached data
+ * Uses partial word matching similar to server-side logic
+ */
+async function isBrainrotInEldoradoList(brainrotName) {
+    const list = await loadEldoradoBrainrotsList();
+    const nameLower = brainrotName.toLowerCase();
+    
+    // Direct match
+    if (list.has(nameLower)) {
+        return true;
+    }
+    
+    // Partial word match (for cases like "La Taco" vs "La Taco Combinasion")
+    const words = nameLower.split(/\s+/).filter(w => w.length > 2);
+    for (const key of list) {
+        if (words.every(w => key.includes(w))) {
+            return true;
+        }
+    }
+    
+    return false;
+}
+
 function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true, mutation = null) {
     const incomeValue = typeof income === 'string' ? parseFloat(income) : income;
     
@@ -6108,39 +6171,11 @@ function getSelectedPriceLabel() {
 /**
  * Открыть ссылку Eldorado для брейнрота
  * v9.11.4: Добавлена поддержка mutation для фильтрации
- * v10.3.44: Check both mutation and default cache for isInEldoradoList
- * v10.3.45: If no cache, fetch isInEldoradoList from API before opening link
+ * v10.3.54: Use cached list from /api/eldorado-list instead of API calls
  */
 async function openEldoradoLink(brainrotName, income, mutation = null) {
-    // v9.9.6: Проверяем isInEldoradoList из кэша цен
-    const normalizedIncome = normalizeIncomeForApi(income);
-    
-    // v10.3.44: Check mutation cache first, then default cache
-    // isInEldoradoList is the same for both, but one might be loaded before the other
-    const mutationCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, mutation);
-    const defaultCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, null);
-    let mutationPriceData = state.brainrotPrices[mutationCacheKey];
-    let defaultPriceData = state.brainrotPrices[defaultCacheKey];
-    
-    // Use mutation data if available, otherwise fallback to default
-    let priceData = mutationPriceData || defaultPriceData;
-    
-    // v10.3.45: If no cached data, fetch from API to get isInEldoradoList
-    if (!priceData || priceData.isInEldoradoList === undefined) {
-        try {
-            console.log('🔍 Fetching isInEldoradoList for', brainrotName);
-            priceData = await fetchEldoradoPrice(brainrotName, normalizedIncome, null);
-            if (priceData) {
-                priceData._timestamp = Date.now();
-                state.brainrotPrices[defaultCacheKey] = priceData;
-            }
-        } catch (e) {
-            console.warn('Failed to fetch isInEldoradoList:', e);
-        }
-    }
-    
-    // v10.3.51: isInEldoradoList must be explicitly true, undefined or null means NOT in list
-    const isInEldoradoList = priceData && priceData.isInEldoradoList === true;
+    // v10.3.54: Check cached list (loaded once on startup)
+    const isInEldoradoList = await isBrainrotInEldoradoList(brainrotName);
     console.log('🔗 openEldoradoLink:', brainrotName, '| isInEldoradoList:', isInEldoradoList, '| mutation:', mutation);
     
     const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);

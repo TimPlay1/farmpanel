@@ -362,6 +362,7 @@ const userColorHandler = require('./api/user-color');
 const accountColorsHandler = require('./api/account-colors');
 const supaGenerateHandler = require('./api/supa-generate');
 const supaStatusHandler = require('./api/supa-status');
+const eldoradoListHandler = require('./api/eldorado-list');
 
 // API Routes
 
@@ -496,6 +497,11 @@ app.get('/api/supa-status', async (req, res) => {
 // Eldorado price endpoint - get optimal price for brainrot
 app.get('/api/eldorado-price', async (req, res) => {
     await eldoradoPriceHandler(req, res);
+});
+
+// Eldorado brainrots list endpoint - cached list for link generation
+app.get('/api/eldorado-list', async (req, res) => {
+    await eldoradoListHandler(req, res);
 });
 
 // AI price endpoint - AI-first pricing with regex fallback
