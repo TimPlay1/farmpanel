@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.2
+// @version      9.12.3
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -15,21 +15,19 @@
 // @grant        GM_registerMenuCommand
 // @grant        window.close
 // @connect      ody.farm
-// @connect      api.supa.ru
-// @connect      storage.supa.ru
-// @connect      supa-temp.storage.yandexcloud.net
+// @connect      cdn.jsdelivr.net
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.1
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.1
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.3
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.3
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.12.1';
+    const VERSION = '9.12.3';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
