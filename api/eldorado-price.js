@@ -1140,30 +1140,34 @@ async function searchBrainrotOffers(brainrotName, targetIncome = 0, maxPages = 5
     let searchName = useOtherFallback ? 'Other' : eldoradoName;
     let searchQueryParam = useOtherFallback ? brainrotName : null;
     
+    // v10.3.42: Для Other fallback НЕ используем фильтр мутации - мало офферов с конкретной мутацией
+    let effectiveMutationAttrId = useOtherFallback ? null : mutationAttrId;
+    
     if (useOtherFallback) {
-        console.log('📋 Brainrot not in Eldorado list, using Other + searchQuery fallback');
+        console.log('📋 Brainrot not in Eldorado list, using Other + searchQuery fallback (no mutation filter)');
         filterMode = 'other+search';
     }
     
     for (let page = 1; page <= maxPages; page++) {
-        // v10.3.35: Используем Other + searchQuery для брейнротов не в списке
-        let response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, mutationAttrId);
+        // v10.3.42: Используем effectiveMutationAttrId (null для Other fallback)
+        let response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, effectiveMutationAttrId);
         
         if (page === 1) {
             totalPages = response.totalPages || 0;
             if (filterMode === 'other+search') {
-                console.log('Total pages in range:', totalPages, '| Filter: te_v2=Other + searchQuery=' + brainrotName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
+                console.log('Total pages in range:', totalPages, '| Filter: te_v2=Other + searchQuery=' + brainrotName);
             } else {
-                console.log('Total pages in range:', totalPages, '| Filter: te_v2=' + eldoradoName, mutationAttrId ? '| Mutation: ' + mutationAttrId : '');
+                console.log('Total pages in range:', totalPages, '| Filter: te_v2=' + eldoradoName, effectiveMutationAttrId ? '| Mutation: ' + effectiveMutationAttrId : '');
             }
             
-            // v10.3.35: Если 0 результатов с именем И не используем Other fallback - пробуем Other + searchQuery
+            // v10.3.42: Если 0 результатов с именем И не используем Other fallback - пробуем Other + searchQuery БЕЗ мутации
             if (totalPages === 0 && filterMode !== 'other+search') {
-                console.log('No results for "' + eldoradoName + '", trying Other + searchQuery fallback...');
+                console.log('No results for "' + eldoradoName + '", trying Other + searchQuery fallback (no mutation filter)...');
                 filterMode = 'other+search';
                 searchName = 'Other';
                 searchQueryParam = brainrotName;
-                response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, mutationAttrId);
+                effectiveMutationAttrId = null; // v10.3.42: Сбрасываем мутацию для Other fallback
+                response = await fetchEldorado(page, msRangeAttrId, searchName, searchQueryParam, effectiveMutationAttrId);
                 totalPages = response.totalPages || 0;
                 console.log('With Other + searchQuery - total pages:', totalPages);
             }

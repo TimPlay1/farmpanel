@@ -6049,17 +6049,18 @@ function getEldoradoSearchLink(brainrotName, income, isInEldoradoList = true, mu
     else if (incomeValue >= 25) attrIds = '0-2';   // 25-49 M/s
     else if (incomeValue > 0) attrIds = '0-1';     // 0-24 M/s
     
-    // v9.11.4: Добавляем mutation attr_id если есть мутация
+    const encodedName = encodeURIComponent(brainrotName);
+    
+    // v10.3.42: Если brainrot не в списке Eldorado, используем Other + searchQuery БЕЗ фильтра мутации
+    // Мутация не добавляется для Other потому что мало офферов с конкретной мутацией
+    if (!isInEldoradoList) {
+        return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=Other&searchQuery=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
+    }
+    
+    // v9.11.4: Добавляем mutation attr_id только если brainrot в списке Eldorado
     const mutationAttrId = getMutationAttrId(mutation);
     if (mutationAttrId) {
         attrIds = `${attrIds},${mutationAttrId}`;
-    }
-    
-    const encodedName = encodeURIComponent(brainrotName);
-    
-    // v9.9.6: Если brainrot не в списке Eldorado, используем Other + searchQuery
-    if (!isInEldoradoList) {
-        return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=Other&searchQuery=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
     }
     
     return `https://www.eldorado.gg/steal-a-brainrot-brainrots/i/259?attr_ids=${attrIds}&te_v2=${encodedName}&offerSortingCriterion=Price&isAscending=true&gamePageOfferIndex=1&gamePageOfferSize=24`;
