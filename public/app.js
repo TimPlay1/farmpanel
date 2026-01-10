@@ -9039,6 +9039,9 @@ function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, off
     // Normalize brainrot name for comparison (lowercase, remove special chars)
     const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
     
+    // Normalize offer mutation for comparison
+    const normalizedOfferMutation = offerMutation ? offerMutation.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+    
     let count = 0;
     for (const b of collectionState.allBrainrots) {
         if (!b.name) continue;
@@ -9052,8 +9055,11 @@ function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, off
             
             if (roundedBrainrotIncome !== roundedOfferIncome) continue;
             
-            // v9.8.25: Count all brainrots with same name+income, regardless of mutation
-            // Mutation affects price, but for counting "how many do I have" - name+income is enough
+            // v10.3.62: Match mutation - if offer has mutation, only count brainrots with same mutation
+            // If offer has no mutation, only count brainrots without mutation
+            const normalizedBrainrotMutation = b.mutation ? b.mutation.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+            if (normalizedOfferMutation !== normalizedBrainrotMutation) continue;
+            
             count++;
         }
     }
