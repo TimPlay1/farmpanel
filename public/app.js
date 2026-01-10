@@ -6109,8 +6109,9 @@ function getSelectedPriceLabel() {
  * Открыть ссылку Eldorado для брейнрота
  * v9.11.4: Добавлена поддержка mutation для фильтрации
  * v10.3.44: Check both mutation and default cache for isInEldoradoList
+ * v10.3.45: If no cache, fetch isInEldoradoList from API before opening link
  */
-function openEldoradoLink(brainrotName, income, mutation = null) {
+async function openEldoradoLink(brainrotName, income, mutation = null) {
     // v9.9.6: Проверяем isInEldoradoList из кэша цен
     const normalizedIncome = normalizeIncomeForApi(income);
     
@@ -6118,12 +6119,28 @@ function openEldoradoLink(brainrotName, income, mutation = null) {
     // isInEldoradoList is the same for both, but one might be loaded before the other
     const mutationCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, mutation);
     const defaultCacheKey = getPriceCacheKey(brainrotName, normalizedIncome, null);
-    const mutationPriceData = state.brainrotPrices[mutationCacheKey];
-    const defaultPriceData = state.brainrotPrices[defaultCacheKey];
+    let mutationPriceData = state.brainrotPrices[mutationCacheKey];
+    let defaultPriceData = state.brainrotPrices[defaultCacheKey];
     
     // Use mutation data if available, otherwise fallback to default
-    const priceData = mutationPriceData || defaultPriceData;
+    let priceData = mutationPriceData || defaultPriceData;
+    
+    // v10.3.45: If no cached data, fetch from API to get isInEldoradoList
+    if (!priceData || priceData.isInEldoradoList === undefined) {
+        try {
+            console.log('🔍 Fetching isInEldoradoList for', brainrotName);
+            priceData = await fetchEldoradoPrice(brainrotName, normalizedIncome, null);
+            if (priceData) {
+                priceData._timestamp = Date.now();
+                state.brainrotPrices[defaultCacheKey] = priceData;
+            }
+        } catch (e) {
+            console.warn('Failed to fetch isInEldoradoList:', e);
+        }
+    }
+    
     const isInEldoradoList = priceData ? priceData.isInEldoradoList !== false : true;
+    console.log('🔗 openEldoradoLink:', brainrotName, '| isInEldoradoList:', isInEldoradoList, '| mutation:', mutation);
     
     const link = getEldoradoSearchLink(brainrotName, income, isInEldoradoList, mutation);
     window.open(link, '_blank');
