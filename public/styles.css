@@ -2669,6 +2669,7 @@ body {
 /* Inline additional prices for non-mutation offers */
 .offer-additional-prices-inline {
     display: flex;
+    justify-content: center;
     gap: 0.5rem;
     margin-top: 0.25rem;
 }
@@ -4733,7 +4734,7 @@ body {
 .offer-card-prices {
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     padding: 0.5rem 0.75rem;
     background: var(--bg-tertiary);
     border-radius: 8px;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.6
+// @version      9.12.7
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -19,15 +19,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.6
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.6
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.7
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.7
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.12.6';
+    const VERSION = '9.12.7';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -4198,6 +4198,21 @@ ${searchVariations}`;
                             })
                         });
                         log(`Offer ${offerId} saved to panel with income=${offerData.income}`);
+                        
+                        // v9.12.7: Add new offerId to userOfferCodes immediately for instant highlighting
+                        const normalizedCode = offerId.toUpperCase().replace(/^#/, '');
+                        userOfferCodes.add(normalizedCode);
+                        userOfferCodes.add('#' + normalizedCode);
+                        log(`Added ${normalizedCode} to userOfferCodes for immediate highlighting`);
+                        
+                        // Update localStorage cache with new code
+                        try {
+                            localStorage.setItem('glitched_offer_codes', JSON.stringify([...userOfferCodes]));
+                            localStorage.setItem('glitched_offer_codes_timestamp', Date.now().toString());
+                        } catch (cacheErr) { log('Failed to update code cache: ' + cacheErr.message); }
+                        
+                        // Re-highlight offers after adding new code
+                        setTimeout(() => highlightUserOffers(), 500);
                         
                         // Trigger offers refresh in panel
                         localStorage.setItem('glitched_refresh_offers', Date.now().toString());
