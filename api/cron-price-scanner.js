@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.33';  // v3.0.33: Split time budget - 35s prices, 15s offers + fix paused marking
+const VERSION = '3.0.34';  // v3.0.34: Add cursor for offer scanning + increase total time to 90s
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -181,11 +181,11 @@ function getCurrentDelay(baseDelay) {
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
-// v3.0.33: Split time budget - 35s for prices, 15s for offers
+// v3.0.34: Increased total time to 90s (Coolify has no 60s limit like Vercel)
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
-const MAX_SCAN_TIME_MS = 50 * 1000;  // v10.3.7: Max 50 seconds per cron cycle (must be < 1 minute)
-const MAX_PRICE_SCAN_TIME_MS = 35 * 1000;  // v3.0.33: Max 35s for price scanning, leave 15s for offers
+const MAX_SCAN_TIME_MS = 90 * 1000;  // v3.0.34: 90 seconds total (50s prices + 40s offers)
+const MAX_PRICE_SCAN_TIME_MS = 50 * 1000;  // v3.0.34: 50s for price scanning (same as before)
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
@@ -423,6 +423,39 @@ async function saveScanState(db, cycleId, scannedThisRun, isNewCycle) {
             },
             $inc: {
                 totalScanned: scannedThisRun
+            }
+        },
+        { upsert: true }
+    );
+}
+
+/**
+ * v3.0.34: Получить курсор для сканирования офферов
+ * Возвращает индекс последнего просканированного фермера
+ */
+async function getOfferScanCursor(db) {
+    const collection = db.collection('scan_state');
+    const state = await collection.findOne({ _id: 'offer_scanner' });
+    return {
+        farmerIndex: state?.farmerIndex || 0,
+        cycleId: state?.cycleId || 0,
+        lastScanAt: state?.lastScanAt || null
+    };
+}
+
+/**
+ * v3.0.34: Сохранить курсор для сканирования офферов
+ */
+async function saveOfferScanCursor(db, farmerIndex, cycleId, isNewCycle = false) {
+    const collection = db.collection('scan_state');
+    
+    await collection.updateOne(
+        { _id: 'offer_scanner' },
+        {
+            $set: {
+                farmerIndex: farmerIndex,
+                cycleId: isNewCycle ? cycleId + 1 : cycleId,
+                lastScanAt: new Date()
             }
         },
         { upsert: true }
@@ -727,10 +760,11 @@ function buildImageUrl(imageName) {
  * v3.0.0: Сканирует офферы на Eldorado и обновляет БД
  * v3.0.18: ПОЛНОСТЬЮ ПЕРЕРАБОТАНО - сканируем по shopName каждого фермера
  *          Это намного эффективнее чем сканировать все 56000+ офферов
+ * v3.0.34: Добавлен курсор - продолжаем с места где остановились
  * Запускается ПОСЛЕ сканирования цен
  */
 async function scanOffers(db, globalStartTime = null) {
-    console.log(`\n📦 Starting offer scan v3.0.18 (by shopName)...`);
+    console.log(`\n📦 Starting offer scan v3.0.34 (by shopName with cursor)...`);
     
     // v3.0.20: Check backup mode
     if (isInBackupMode()) {
@@ -748,12 +782,27 @@ async function scanOffers(db, globalStartTime = null) {
     const now = new Date();
     
     // v3.0.18: Загружаем всех фермеров с shopName
-    const farmers = await farmersCollection.find(
+    const allFarmers = await farmersCollection.find(
         { shopName: { $exists: true, $ne: null, $ne: '' } },
         { projection: { farmKey: 1, shopName: 1 } }
     ).toArray();
     
-    console.log(`👥 Found ${farmers.length} farmers with shopName`);
+    // v3.0.34: Сортируем фермеров по farmKey для стабильного порядка
+    allFarmers.sort((a, b) => a.farmKey.localeCompare(b.farmKey));
+    
+    // v3.0.34: Получаем курсор - с какого фермера продолжать
+    const cursor = await getOfferScanCursor(db);
+    let startIndex = cursor.farmerIndex || 0;
+    let currentCycleId = cursor.cycleId || 0;
+    
+    // Если курсор за пределами - начинаем новый цикл
+    if (startIndex >= allFarmers.length) {
+        startIndex = 0;
+        currentCycleId++;
+        console.log(`🔄 Starting new offer scan cycle #${currentCycleId}`);
+    }
+    
+    console.log(`👥 Found ${allFarmers.length} farmers with shopName, starting from index ${startIndex} (cycle #${currentCycleId})`);
     
     // Загружаем все существующие офферы для быстрого поиска
     const existingOffers = await offersCollection.find({}).toArray();
@@ -772,14 +821,18 @@ async function scanOffers(db, globalStartTime = null) {
     const foundCodes = new Set();
     const scannedFarmKeys = new Set();
     let offerTimeoutBreak = false;  // v10.3.7: Track if we hit time limit
+    let lastScannedIndex = startIndex;  // v3.0.34: Track last scanned farmer
     
-    // Для каждого фермера - сканируем его офферы по shopName
-    for (const farmer of farmers) {
+    // v3.0.34: Сканируем фермеров начиная с курсора
+    for (let i = startIndex; i < allFarmers.length; i++) {
+        const farmer = allFarmers[i];
+        lastScannedIndex = i;
+        
         // v10.3.7: Check global time limit
         if (globalStartTime) {
             const globalElapsed = Date.now() - globalStartTime;
             if (globalElapsed >= MAX_SCAN_TIME_MS) {
-                console.log(`⏰ Offer scan stopped - global time limit reached (${(globalElapsed/1000).toFixed(1)}s)`);
+                console.log(`⏰ Offer scan stopped at farmer ${i}/${allFarmers.length} - time limit (${(globalElapsed/1000).toFixed(1)}s)`);
                 offerTimeoutBreak = true;
                 break;
             }
@@ -908,7 +961,7 @@ async function scanOffers(db, globalStartTime = null) {
         console.log(`   ⚠️ Skipping paused marking - had ${adaptiveRateLimit.consecutiveErrors} rate limit errors`);
     } else {
         const allTrackedCodes = [];
-        for (const farmer of farmers) {
+        for (const farmer of allFarmers) {
             // v9.12.8: ТОЛЬКО для фермеров которые были реально просканированы
             if (!scannedFarmKeys.has(farmer.farmKey)) {
                 continue;
@@ -994,6 +1047,19 @@ async function scanOffers(db, globalStartTime = null) {
     }
     
     const duration = Math.round((Date.now() - startTime) / 1000);
+    
+    // v3.0.34: Сохраняем курсор для следующего цикла
+    // Если дошли до конца - сбрасываем на 0 и увеличиваем cycleId
+    const reachedEnd = lastScannedIndex >= allFarmers.length - 1 && !offerTimeoutBreak;
+    if (reachedEnd) {
+        await saveOfferScanCursor(db, 0, currentCycleId, true);  // isNewCycle=true
+        console.log(`✅ Completed full offer scan cycle #${currentCycleId}, starting new cycle`);
+    } else {
+        // Сохраняем следующий индекс для продолжения
+        await saveOfferScanCursor(db, lastScannedIndex + 1, currentCycleId, false);
+        console.log(`💾 Saved cursor: next farmer index ${lastScannedIndex + 1}/${allFarmers.length}`);
+    }
+    
     console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)${offerTimeoutBreak ? ' [TIME LIMIT]' : ''}`);
     
     return { 
@@ -1004,7 +1070,9 @@ async function scanOffers(db, globalStartTime = null) {
         pausedCount,
         foundCodes: foundCodes.size,
         duration,
-        timeoutBreak: offerTimeoutBreak // v10.3.7
+        timeoutBreak: offerTimeoutBreak, // v10.3.7
+        cursorIndex: lastScannedIndex,   // v3.0.34
+        cycleId: currentCycleId          // v3.0.34
     };
 }
 
