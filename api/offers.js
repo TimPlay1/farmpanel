@@ -256,18 +256,19 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'farmKey and offerId are required' });
             }
 
+            // v2.2: Sanitize all fields to avoid undefined in MySQL
             const offer = {
                 farmKey,
                 offerId,
-                brainrotName,
-                income: parseIncomeValue(income),
-                incomeRaw: incomeRaw || income, // сохраняем оригинальную строку
+                brainrotName: brainrotName || 'Unknown',
+                income: parseIncomeValue(income) || 0,
+                incomeRaw: incomeRaw || String(income) || '0',
                 currentPrice: parseFloat(currentPrice) || 0,
                 recommendedPrice: parseFloat(recommendedPrice) || 0,
-                imageUrl,
-                eldoradoOfferId,
-                accountId,
-                status,
+                imageUrl: imageUrl || null,
+                eldoradoOfferId: eldoradoOfferId || null,
+                accountId: accountId || null,
+                status: status || 'pending',
                 updatedAt: new Date()
             };
 

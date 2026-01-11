@@ -513,6 +513,10 @@ class MySQLCollection {
     }
     
     _toValue(value) {
+        // v10.3.50: Convert undefined to null for MySQL compatibility
+        if (value === undefined) {
+            return null;
+        }
         if (value instanceof Date) {
             return value.toISOString().slice(0, 19).replace('T', ' ');
         }

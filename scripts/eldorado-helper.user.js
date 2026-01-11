@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.9
+// @version      9.12.10
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -4270,20 +4270,62 @@ ${searchVariations}`;
                 try {
                     const farmKey = CONFIG.farmKey || localStorage.getItem('glitched_farm_key');
                     if (farmKey && offerData) {
-                        // v9.12.42: income теперь числовое, incomeRaw сохраняем для display
-                        await fetch(`${API_BASE}/offers`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                farmKey, offerId,
-                                brainrotName: offerData.name,
-                                income: offerData.income,  // Числовое значение M/s
-                                incomeRaw: offerData.incomeText || offerData.income, // Текст для отображения
-                                currentPrice: offerData.maxPrice || offerData.minPrice || 0,
-                                imageUrl: offerData.generatedImageUrl,
-                                status: 'pending'
-                            })
+                        // v9.12.10: Use GM_xmlhttpRequest to bypass CORS and save to BOTH offers and offer_codes
+                        const normalizedCode = offerId.toUpperCase().replace(/^#/, '');
+                        
+                        // Save to offers table
+                        const offerPayload = {
+                            farmKey, 
+                            offerId,
+                            brainrotName: offerData.name || 'Unknown',
+                            income: offerData.income || 0,
+                            incomeRaw: offerData.incomeText || String(offerData.income || 0),
+                            currentPrice: offerData.maxPrice || offerData.minPrice || 0,
+                            imageUrl: offerData.generatedImageUrl || null,
+                            status: 'pending'
+                        };
+                        
+                        await new Promise((resolve, reject) => {
+                            GM_xmlhttpRequest({
+                                method: 'POST',
+                                url: `${API_BASE}/offers`,
+                                headers: { 'Content-Type': 'application/json' },
+                                data: JSON.stringify(offerPayload),
+                                onload: (response) => {
+                                    if (response.status >= 200 && response.status < 300) {
+                                        log(`✅ Offer ${offerId} saved to panel (status ${response.status})`);
+                                        resolve();
+                                    } else {
+                                        log(`⚠️ Offer save returned ${response.status}: ${response.responseText}`, 'error');
+                                        resolve(); // Don't fail, continue
+                                    }
+                                },
+                                onerror: (err) => {
+                                    log(`❌ Offer save failed: ${err.message || 'network error'}`, 'error');
+                                    resolve(); // Don't fail, continue
+                                }
+                            });
                         });
+                        
+                        // v9.12.10: ALSO save to offer_codes for highlight feature
+                        await new Promise((resolve) => {
+                            GM_xmlhttpRequest({
+                                method: 'POST',
+                                url: `${API_BASE}/offer-codes`,
+                                headers: { 'Content-Type': 'application/json' },
+                                data: JSON.stringify({ farmKey, code: normalizedCode }),
+                                onload: (response) => {
+                                    if (response.status >= 200 && response.status < 300) {
+                                        log(`✅ Code ${normalizedCode} registered for highlight`);
+                                    } else {
+                                        log(`⚠️ Code registration returned ${response.status}`);
+                                    }
+                                    resolve();
+                                },
+                                onerror: () => resolve()
+                            });
+                        });
+                        
                         log(`Offer ${offerId} saved to panel with income=${offerData.income}`);
                         
                         // v9.12.7: Add new offerId to userOfferCodes immediately for instant highlighting
