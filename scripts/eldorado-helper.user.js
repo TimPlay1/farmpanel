@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.8
+// @version      9.12.9
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.12.8';
+    const VERSION = '9.12.9';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -2924,6 +2924,19 @@
             el.classList.remove('glitched-my-offer-text');
         });
         
+        // v9.12.9: Debug logging for highlight issues
+        const debugInfo = {
+            highlightEnabled: CONFIG.highlightEnabled,
+            codesCount: userOfferCodes.size,
+            sampleCodes: [...userOfferCodes].slice(0, 5),
+            ordersContainer: !!document.querySelector('.orders-container'),
+            offerInfoCards: document.querySelectorAll('.offer-info').length,
+            offerTitles: document.querySelectorAll('.offer-title').length,
+            offerLinks: document.querySelectorAll('a[href*="/oi/"]').length,
+            pathname: window.location.pathname
+        };
+        log('Highlight debug:', JSON.stringify(debugInfo));
+        
         if (!CONFIG.highlightEnabled || userOfferCodes.size === 0) return;
         
         let highlighted = 0;
@@ -2954,6 +2967,14 @@
         const offerInfoCards = document.querySelectorAll('.offer-info');
         
         if (offerInfoCards.length > 0) {
+            // v9.12.9: Debug first few cards
+            const sampleTexts = [...offerInfoCards].slice(0, 3).map(c => {
+                const t = c.textContent?.substring(0, 100);
+                const codes = t?.match(/#[A-Z0-9]{4,12}\b/gi);
+                return { text: t, foundCodes: codes };
+            });
+            log('Dashboard cards sample:', JSON.stringify(sampleTexts));
+            
             // Мы на dashboard странице - подсвечиваем карточки
             offerInfoCards.forEach(card => {
                 const text = card.textContent || '';
