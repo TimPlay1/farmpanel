@@ -381,8 +381,13 @@ class MySQLCollection {
                             params.push(this._toValue(opValue));
                             break;
                         case '$ne':
-                            conditions.push(`${column} != ?`);
-                            params.push(this._toValue(opValue));
+                            // v10.3.19: Handle $ne: null specially - in SQL, != NULL doesn't work!
+                            if (opValue === null || opValue === undefined) {
+                                conditions.push(`${column} IS NOT NULL`);
+                            } else {
+                                conditions.push(`${column} != ?`);
+                                params.push(this._toValue(opValue));
+                            }
                             break;
                         case '$exists':
                             conditions.push(opValue ? `${column} IS NOT NULL` : `${column} IS NULL`);
