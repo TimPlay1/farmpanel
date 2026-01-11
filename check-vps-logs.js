@@ -12,10 +12,10 @@ async function run() {
     const containerName = ps.stdout?.split(' ')[0];
     console.log('Container:', containerName);
     
-    // Get offer scan logs
-    console.log('\n=== OFFER SCAN LOGS ===');
-    const logs = await ssh.execCommand(`docker logs ${containerName} 2>&1 | grep -E "Scanning offers|No offers|Paused|successfully scanned|error|timeout|Page" | tail -30`);
-    console.log(logs.stdout || 'No logs');
+    // Get balance history logs
+    console.log('\n=== BALANCE HISTORY LOGS ===');
+    const logs = await ssh.execCommand(`docker logs ${containerName} 2>&1 | grep -E "Recording balance|Recorded|📝|total_value|v3.0" | tail -30`);
+    console.log(logs.stdout || 'No logs yet');
     
     ssh.dispose();
 }

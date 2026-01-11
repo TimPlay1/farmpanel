@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.39';  // v3.0.39: Fixed balance history - use total_value from farmers table instead of calculating from offers
+const VERSION = '3.0.40';  // v3.0.40: Compare with last cron record only (ignore frequent client records)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -791,23 +791,24 @@ async function recordAllFarmersBalance(db) {
                 continue;
             }
             
-            // Проверяем последнюю запись - не записываем слишком часто
-            const lastRecord = await balanceHistoryCollection.findOne(
-                { farmKey },
+            // v3.0.40: Проверяем последнюю CRON запись (не клиентскую)
+            // Клиент пишет часто, но cron должен писать независимо
+            const lastCronRecord = await balanceHistoryCollection.findOne(
+                { farmKey, source: 'cron' },
                 { sort: { timestamp: -1 } }
             );
             
-            if (lastRecord) {
-                const timeDiff = now.getTime() - new Date(lastRecord.timestamp).getTime();
-                const minInterval = 60 * 1000; // 1 минута для cron
+            if (lastCronRecord) {
+                const timeDiff = now.getTime() - new Date(lastCronRecord.timestamp).getTime();
+                const minInterval = 55 * 1000; // ~55 сек для cron (чуть меньше цикла)
                 
                 if (timeDiff < minInterval) {
                     skipped++;
                     continue;
                 }
                 
-                // Не записываем если баланс не изменился
-                if (Math.abs(parseFloat(lastRecord.value) - totalValue) < 0.01) {
+                // Не записываем если баланс не изменился с последней cron записи
+                if (Math.abs(parseFloat(lastCronRecord.value) - totalValue) < 0.01) {
                     skipped++;
                     continue;
                 }
