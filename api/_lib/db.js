@@ -393,8 +393,13 @@ class MySQLCollection {
                             conditions.push(opValue ? `${column} IS NOT NULL` : `${column} IS NULL`);
                             break;
                         case '$regex':
+                            // v10.3.20: Support both string and RegExp objects
+                            let regexStr = opValue;
+                            if (opValue instanceof RegExp) {
+                                regexStr = opValue.source;
+                            }
                             conditions.push(`${column} REGEXP ?`);
-                            params.push(opValue);
+                            params.push(regexStr);
                             break;
                     }
                 }
