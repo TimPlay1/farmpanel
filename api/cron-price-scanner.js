@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.37';  // v3.0.37: Simplified paused marking - no direct search, instant marking if shop scan successful
+const VERSION = '3.0.38';  // v3.0.38: Added balance history recording for offline users (fixes 7D/30D charts)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -757,6 +757,119 @@ function buildImageUrl(imageName) {
 }
 
 /**
+ * v3.0.38: Записывает баланс всех фермеров в balance_history
+ * Это позволяет накапливать историю даже когда пользователь оффлайн
+ */
+async function recordAllFarmersBalance(db) {
+    console.log(`\n📊 Recording balance history for all farmers...`);
+    
+    try {
+        const farmersCollection = db.collection('farmers');
+        const priceCacheCollection = db.collection('price_cache');
+        const balanceHistoryCollection = db.collection('balance_history');
+        
+        // Получаем всех фермеров
+        const farmers = await farmersCollection.find({}).toArray();
+        if (farmers.length === 0) {
+            console.log(`   ℹ️ No farmers found`);
+            return { recorded: 0 };
+        }
+        
+        // Получаем все кэшированные цены для расчёта баланса
+        const allPrices = await priceCacheCollection.find({}).toArray();
+        const priceMap = new Map();
+        for (const p of allPrices) {
+            const key = p._id || p.cacheKey;
+            if (key && p.minPrice !== undefined) {
+                priceMap.set(key, parseFloat(p.minPrice) || 0);
+            }
+        }
+        
+        const now = new Date();
+        let recorded = 0;
+        let skipped = 0;
+        
+        for (const farmer of farmers) {
+            const farmKey = farmer.farmKey || farmer.farm_key;
+            if (!farmKey || farmKey === 'TEST') continue;
+            
+            // Получаем все брейнроты этого фермера из offers
+            const offersCollection = db.collection('offers');
+            const farmerOffers = await offersCollection.find({ 
+                farmKey: farmKey,
+                status: 'active'
+            }).toArray();
+            
+            // Рассчитываем баланс из цен
+            let totalValue = 0;
+            for (const offer of farmerOffers) {
+                const brainrotName = (offer.brainrotName || '').toLowerCase();
+                const income = offer.income || 0;
+                const mutation = offer.mutation;
+                
+                // Ищем цену в кэше (с мутацией и без)
+                let cacheKey = `${brainrotName}_${income}`;
+                if (mutation) {
+                    const cleanMut = mutation.replace(/[^a-zA-Z]/g, '');
+                    const mutKey = `${cacheKey}_${cleanMut}`;
+                    if (priceMap.has(mutKey)) {
+                        totalValue += priceMap.get(mutKey);
+                        continue;
+                    }
+                }
+                if (priceMap.has(cacheKey)) {
+                    totalValue += priceMap.get(cacheKey);
+                }
+            }
+            
+            if (totalValue <= 0) {
+                skipped++;
+                continue;
+            }
+            
+            // Проверяем последнюю запись - не записываем слишком часто
+            const lastRecord = await balanceHistoryCollection.findOne(
+                { farmKey },
+                { sort: { timestamp: -1 } }
+            );
+            
+            if (lastRecord) {
+                const timeDiff = now.getTime() - new Date(lastRecord.timestamp).getTime();
+                const minInterval = 60 * 1000; // 1 минута для cron
+                
+                if (timeDiff < minInterval) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Не записываем если баланс не изменился
+                if (Math.abs(parseFloat(lastRecord.value) - totalValue) < 0.01) {
+                    skipped++;
+                    continue;
+                }
+            }
+            
+            // Записываем баланс
+            await balanceHistoryCollection.insertOne({
+                farmKey,
+                value: totalValue,
+                timestamp: now,
+                source: 'cron',
+                createdAt: now
+            });
+            recorded++;
+        }
+        
+        console.log(`   ✅ Recorded ${recorded} balances, skipped ${skipped} (unchanged/frequent)`);
+        return { recorded, skipped };
+        
+    } catch (e) {
+        console.warn(`   ⚠️ Balance history error: ${e.message}`);
+        return { error: e.message };
+    }
+}
+
+/**
  * v3.0.0: Сканирует офферы на Eldorado и обновляет БД
  * v3.0.18: ПОЛНОСТЬЮ ПЕРЕРАБОТАНО - сканируем по shopName каждого фермера
  *          Это намного эффективнее чем сканировать все 56000+ офферов
@@ -1337,6 +1450,16 @@ async function runPriceScan() {
         }
     }
     
+    // 7.5. v3.0.38: Записываем баланс всех фермеров
+    // Это позволяет графикам накапливать данные даже когда пользователь оффлайн
+    let balanceHistoryResult = null;
+    try {
+        balanceHistoryResult = await recordAllFarmersBalance(db);
+    } catch (e) {
+        console.warn('Balance history error:', e.message);
+        balanceHistoryResult = { error: e.message };
+    }
+    
     // 8. v10.3.6: Очистка orphan цен (брейнротов которых нет у фермеров)
     // Удаляем цены старше 2 часов если брейнрот не в списке актуальных
     let orphansCleaned = 0;
@@ -1415,7 +1538,8 @@ async function runPriceScan() {
             progress: `${cycleProgress}%`,
             remaining: isNewCycle ? brainrots.length - regexScanned : staleBrainrots.length - regexScanned
         },
-        offers: offerScanResult // v3.0.0
+        offers: offerScanResult, // v3.0.0
+        balanceHistory: balanceHistoryResult // v3.0.38
     };
     
     console.log(`✅ Cron scan complete:`, summary);
