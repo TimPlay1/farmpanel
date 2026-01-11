@@ -148,14 +148,21 @@ module.exports = async (req, res) => {
             const maxRecords = MAX_RECORDS[periodKey];
             const cutoffDate = new Date(Date.now() - periodMs);
             
-            // v2.4: Загружаем записи за период с лимитом для скорости
-            // Берём больше записей чем нужно, потом агрегируем.
-            // ВАЖНО: Сортируем по убыванию (новые первыми), чтобы лимит не отрезал свежие данные
-            const dbLimit = maxRecords * 3; // 3x запас для агрегации
-            let records = await collection.find({
+            // v2.5: Для 7D/30D используем только cron записи (стабильные точки)
+            // Для RT/1H/24H - все записи (включая client для детализации)
+            const useCronOnly = (periodKey === 'week' || periodKey === 'month');
+            
+            const query = {
                 farmKey,
                 timestamp: { $gte: cutoffDate }
-            }).sort({ timestamp: -1 }).limit(dbLimit).toArray();
+            };
+            
+            if (useCronOnly) {
+                query.source = 'cron';
+            }
+            
+            const dbLimit = maxRecords * 3; // 3x запас для агрегации
+            let records = await collection.find(query).sort({ timestamp: -1 }).limit(dbLimit).toArray();
 
             // Разворачиваем обратно в хронологическом порядке для агрегации
             records.reverse();
