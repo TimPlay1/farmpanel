@@ -148,9 +148,8 @@ module.exports = async (req, res) => {
             const maxRecords = MAX_RECORDS[periodKey];
             const cutoffDate = new Date(Date.now() - periodMs);
             
-            // v2.5: Для 7D/30D используем только cron записи (стабильные точки)
-            // Для RT/1H/24H - все записи (включая client для детализации)
-            const useCronOnly = (periodKey === 'week' || periodKey === 'month');
+            // v2.6: RT использует client (детализация), остальные периоды - только cron
+            const useCronOnly = (periodKey !== 'realtime');
             
             const query = {
                 farmKey,
