@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.35';  // v3.0.35: Prioritized queue for offers like prices (new→stale→fresh)
+const VERSION = '3.0.36';  // v3.0.36: Always run verification if farmers were scanned
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -985,19 +985,17 @@ async function scanOffers(db, globalStartTime = null) {
     }
     
     // v3.0.18: Помечаем офферы которые НЕ были найдены как paused
-    // v9.12.8: ИСПРАВЛЕНО - помечаем paused ТОЛЬКО если:
-    // 1. Фермер был реально просканирован (есть в scannedFarmKeys)
-    // 2. Не было прерывания по времени (offerTimeoutBreak = false)
-    // 3. Не было rate limit ошибок во время сканирования
-    // 4. НОВОЕ: Прямой поиск по коду подтвердил отсутствие оффера
+    // v10.3.21: ИСПРАВЛЕНО - верификация всегда запускается, но:
+    // 1. Только для фермеров которые были реально просканированы (scannedFarmKeys)
+    // 2. Прекращается при time limit или rate limit
+    // 3. Продолжает с того места где остановились (по порядку в БД)
     let pausedCount = 0;
     let verifiedMissingCount = 0;
     
-    // Если было прерывание - НЕ помечаем ничего как paused (данные неполные)
-    if (offerTimeoutBreak) {
-        console.log(`   ⚠️ Skipping paused marking - scan was interrupted by time limit`);
-    } else if (adaptiveRateLimit.consecutiveErrors > 0) {
-        console.log(`   ⚠️ Skipping paused marking - had ${adaptiveRateLimit.consecutiveErrors} rate limit errors`);
+    // v10.3.21: Верификация всегда запускается если есть просканированные фермеры
+    // Раньше пропускалась при offerTimeoutBreak или consecutiveErrors
+    if (scannedFarmKeys.size === 0) {
+        console.log(`   ⚠️ No farmers were scanned, skipping verification`);
     } else {
         const allTrackedCodes = [];
         for (const farmer of allFarmers) {
