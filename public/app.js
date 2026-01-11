@@ -1763,10 +1763,10 @@ function recordBalanceHistory(farmKey, value) {
     const history = state.balanceHistory[farmKey];
     const now = Date.now();
     
-    // Записываем раз в 10 секунд для real-time графика
+    // v9.12.80: Записываем раз в 5 секунд для более плавного real-time графика
     if (history.length > 0) {
         const last = history[history.length - 1];
-        if (now - last.timestamp < 10000) return;
+        if (now - last.timestamp < 5000) return;
         
         // Не записываем если баланс не изменился (разница < $0.01)
         if (Math.abs(last.value - value) < 0.01) {
@@ -1795,8 +1795,8 @@ function recordBalanceHistory(farmKey, value) {
     // v2.1: Обновляем график если выбран RT период и это текущий ключ
     // RT реагирует на изменения в реальном времени без загрузки с сервера
     if (farmKey === state.currentKey && currentChartPeriod === PERIODS.realtime) {
-        // Debounce - не чаще раза в 2 секунды для RT
-        if (!recordBalanceHistory._lastRTUpdate || now - recordBalanceHistory._lastRTUpdate > 2000) {
+        // v9.12.80: Debounce 1 секунда для более плавного RT
+        if (!recordBalanceHistory._lastRTUpdate || now - recordBalanceHistory._lastRTUpdate > 1000) {
             recordBalanceHistory._lastRTUpdate = now;
             updateBalanceChart();
         }
