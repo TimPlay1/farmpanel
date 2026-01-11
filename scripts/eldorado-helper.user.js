@@ -4329,7 +4329,6 @@ ${searchVariations}`;
                         log(`Offer ${offerId} saved to panel with income=${offerData.income}`);
                         
                         // v9.12.7: Add new offerId to userOfferCodes immediately for instant highlighting
-                        const normalizedCode = offerId.toUpperCase().replace(/^#/, '');
                         userOfferCodes.add(normalizedCode);
                         userOfferCodes.add('#' + normalizedCode);
                         log(`Added ${normalizedCode} to userOfferCodes for immediate highlighting`);
