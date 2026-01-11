@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.38';  // v3.0.38: Added balance history recording for offline users (fixes 7D/30D charts)
+const VERSION = '3.0.39';  // v3.0.39: Fixed balance history - use total_value from farmers table instead of calculating from offers
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -757,7 +757,8 @@ function buildImageUrl(imageName) {
 }
 
 /**
- * v3.0.38: Записывает баланс всех фермеров в balance_history
+ * v3.0.39: Записывает баланс всех фермеров в balance_history
+ * Берёт total_value прямо из таблицы farmers (как клиент)
  * Это позволяет накапливать историю даже когда пользователь оффлайн
  */
 async function recordAllFarmersBalance(db) {
@@ -765,24 +766,13 @@ async function recordAllFarmersBalance(db) {
     
     try {
         const farmersCollection = db.collection('farmers');
-        const priceCacheCollection = db.collection('price_cache');
         const balanceHistoryCollection = db.collection('balance_history');
         
-        // Получаем всех фермеров
+        // Получаем всех фермеров с их total_value
         const farmers = await farmersCollection.find({}).toArray();
         if (farmers.length === 0) {
             console.log(`   ℹ️ No farmers found`);
             return { recorded: 0 };
-        }
-        
-        // Получаем все кэшированные цены для расчёта баланса
-        const allPrices = await priceCacheCollection.find({}).toArray();
-        const priceMap = new Map();
-        for (const p of allPrices) {
-            const key = p._id || p.cacheKey;
-            if (key && p.minPrice !== undefined) {
-                priceMap.set(key, parseFloat(p.minPrice) || 0);
-            }
         }
         
         const now = new Date();
@@ -793,34 +783,8 @@ async function recordAllFarmersBalance(db) {
             const farmKey = farmer.farmKey || farmer.farm_key;
             if (!farmKey || farmKey === 'TEST') continue;
             
-            // Получаем все брейнроты этого фермера из offers
-            const offersCollection = db.collection('offers');
-            const farmerOffers = await offersCollection.find({ 
-                farmKey: farmKey,
-                status: 'active'
-            }).toArray();
-            
-            // Рассчитываем баланс из цен
-            let totalValue = 0;
-            for (const offer of farmerOffers) {
-                const brainrotName = (offer.brainrotName || '').toLowerCase();
-                const income = offer.income || 0;
-                const mutation = offer.mutation;
-                
-                // Ищем цену в кэше (с мутацией и без)
-                let cacheKey = `${brainrotName}_${income}`;
-                if (mutation) {
-                    const cleanMut = mutation.replace(/[^a-zA-Z]/g, '');
-                    const mutKey = `${cacheKey}_${cleanMut}`;
-                    if (priceMap.has(mutKey)) {
-                        totalValue += priceMap.get(mutKey);
-                        continue;
-                    }
-                }
-                if (priceMap.has(cacheKey)) {
-                    totalValue += priceMap.get(cacheKey);
-                }
-            }
+            // v3.0.39: Берём total_value прямо из записи фермера
+            const totalValue = parseFloat(farmer.totalValue || farmer.total_value) || 0;
             
             if (totalValue <= 0) {
                 skipped++;
@@ -858,6 +822,7 @@ async function recordAllFarmersBalance(db) {
                 createdAt: now
             });
             recorded++;
+            console.log(`   📝 ${farmKey.substring(0, 15)}... = $${totalValue.toFixed(2)}`);
         }
         
         console.log(`   ✅ Recorded ${recorded} balances, skipped ${skipped} (unchanged/frequent)`);
