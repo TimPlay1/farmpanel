@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.32';  // v9.12.8: Fix paused marking - verify each missing offer with direct code search
+const VERSION = '3.0.33';  // v3.0.33: Split time budget - 35s prices, 15s offers + fix paused marking
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -181,9 +181,11 @@ function getCurrentDelay(baseDelay) {
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
+// v3.0.33: Split time budget - 35s for prices, 15s for offers
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
 const MAX_SCAN_TIME_MS = 50 * 1000;  // v10.3.7: Max 50 seconds per cron cycle (must be < 1 minute)
+const MAX_PRICE_SCAN_TIME_MS = 35 * 1000;  // v3.0.33: Max 35s for price scanning, leave 15s for offers
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
@@ -1194,10 +1196,10 @@ async function runPriceScan() {
     let timeoutBreak = false;  // v10.3.7: Track if we hit time limit
     
     for (const brainrot of toScan) {
-        // v10.3.7: Check time limit - stop before 1 minute
+        // v3.0.33: Check PRICE scan time limit (35s) - leave time for offer scan
         const elapsedMs = Date.now() - startTime;
-        if (elapsedMs >= MAX_SCAN_TIME_MS) {
-            console.log(`⏰ Time limit reached (${(elapsedMs/1000).toFixed(1)}s >= ${MAX_SCAN_TIME_MS/1000}s) - stopping scan`);
+        if (elapsedMs >= MAX_PRICE_SCAN_TIME_MS) {
+            console.log(`⏰ Price scan time limit (${(elapsedMs/1000).toFixed(1)}s >= ${MAX_PRICE_SCAN_TIME_MS/1000}s) - stopping to scan offers`);
             timeoutBreak = true;
             break;
         }
