@@ -686,7 +686,8 @@ class FarmersCollection extends MySQLCollection {
                 income: b.income,
                 incomeText: b.income_text,
                 mutation: b.mutation,
-                imageUrl: b.image_url
+                imageUrl: b.image_url,
+                offerId: b.offer_id
             }));
             
             farmer.accounts.push(account);
@@ -816,15 +817,16 @@ class FarmersCollection extends MySQLCollection {
                 // Insert new brainrots
                 for (const br of account.brainrots) {
                     await this.pool.execute(
-                        `INSERT INTO farmer_brainrots (account_id, name, income, income_text, mutation, image_url)
-                         VALUES (?, ?, ?, ?, ?, ?)`,
+                        `INSERT INTO farmer_brainrots (account_id, name, income, income_text, mutation, image_url, offer_id)
+                         VALUES (?, ?, ?, ?, ?, ?, ?)`,
                         [
                             accountId,
                             br.name,
                             this._parseIncome(br.income),
                             br.incomeText || br.income || null,
                             br.mutation || null,
-                            br.imageUrl || null
+                            br.imageUrl || null,
+                            br.offerId || null
                         ]
                     );
                 }

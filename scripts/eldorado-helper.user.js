@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.7
+// @version      9.12.8
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -19,15 +19,15 @@
 // @connect      raw.githubusercontent.com
 // @connect      localhost
 // @connect      *
-// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.7
-// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.7
+// @updateURL    https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.8
+// @downloadURL  https://raw.githubusercontent.com/TimPlay1/farmpanel/main/scripts/eldorado-helper.user.js?v=9.12.8
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    const VERSION = '9.12.7';
+    const VERSION = '9.12.8';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -2783,22 +2783,43 @@
         if (!CONFIG.farmKey || CONFIG.connectionError) return;
         
         try {
-            // Quick check - only fetch offers endpoint (faster than full sync)
-            const response = await fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`);
-            if (!response.ok) return;
+            // v9.12.8: Fetch BOTH offers and offer-codes in parallel for complete picture
+            const [offersResponse, codesResponse] = await Promise.all([
+                fetch(`${API_BASE}/offers?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null),
+                fetch(`${API_BASE}/offer-codes?farmKey=${encodeURIComponent(CONFIG.farmKey)}`).catch(() => null)
+            ]);
             
-            const data = await response.json();
-            const apiOffers = data.offers || [];
-            
-            // Build new codes set from API
+            // Build new codes set from BOTH sources
             const newCodes = new Set();
-            for (const offer of apiOffers) {
-                if (offer.offerId) {
-                    const code = offer.offerId.toUpperCase().replace(/^#/, '');
-                    newCodes.add(code);
-                    newCodes.add('#' + code);
+            
+            // From offers API
+            if (offersResponse && offersResponse.ok) {
+                const data = await offersResponse.json();
+                const apiOffers = data.offers || [];
+                for (const offer of apiOffers) {
+                    if (offer.offerId) {
+                        const code = offer.offerId.toUpperCase().replace(/^#/, '');
+                        newCodes.add(code);
+                        newCodes.add('#' + code);
+                    }
                 }
             }
+            
+            // From offer-codes API
+            if (codesResponse && codesResponse.ok) {
+                const codesData = await codesResponse.json();
+                const registeredCodes = codesData.codes || [];
+                for (const codeEntry of registeredCodes) {
+                    if (codeEntry.code) {
+                        const code = codeEntry.code.toUpperCase().replace(/^#/, '');
+                        newCodes.add(code);
+                        newCodes.add('#' + code);
+                    }
+                }
+            }
+            
+            // If no responses at all, skip
+            if (newCodes.size === 0 && !offersResponse && !codesResponse) return;
             
             // Compare with current codes
             const newHash = [...newCodes].sort().join(',');

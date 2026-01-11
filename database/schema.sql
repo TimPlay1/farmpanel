@@ -59,12 +59,14 @@ CREATE TABLE IF NOT EXISTS farmer_brainrots (
     income_text VARCHAR(32),
     mutation VARCHAR(32),
     image_url VARCHAR(512),
+    offer_id VARCHAR(32),
     
     FOREIGN KEY (account_id) REFERENCES farmer_accounts(id) ON DELETE CASCADE,
     INDEX idx_name (name),
     INDEX idx_income (income),
     INDEX idx_name_income (name, income),
-    INDEX idx_mutation (mutation)
+    INDEX idx_mutation (mutation),
+    INDEX idx_offer_id (offer_id)
 ) ENGINE=InnoDB;
 
 -- ============================================================
