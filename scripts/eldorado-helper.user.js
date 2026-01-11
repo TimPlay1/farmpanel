@@ -2190,11 +2190,16 @@
         
         // Collect actual status of all OUR offers visible on page
         const statusUpdates = [];
+        const visibleCodes = new Set(); // v9.12.8: Track which codes are visible on page
         const items = document.querySelectorAll('eld-dashboard-offers-list-item');
         
         for (const item of items) {
             const code = extractOfferCodeFromElement(item);
             if (!code) continue;
+            
+            // Track all visible codes (not just ours)
+            visibleCodes.add(code.toUpperCase());
+            
             if (!userOfferCodes.has(code) && !userOfferCodes.has('#' + code)) continue;
             
             // Check actual status from Eldorado UI
@@ -2204,6 +2209,46 @@
             
             const status = (pausedChip || resumeIcon) ? 'paused' : 'active';
             statusUpdates.push({ offerId: '#' + code, status });
+        }
+        
+        // v9.12.8: Detect missing offers - codes in userOfferCodes but NOT visible on current page
+        // Only check if we're on CustomItem category (brainrots) to avoid false positives
+        const urlParams = new URLSearchParams(window.location.search);
+        const category = urlParams.get('category');
+        const isCustomItemPage = category === 'CustomItem' || window.location.href.includes('CustomItem');
+        
+        // v9.12.8: Also check if all offers are loaded (no pagination or all pages viewed)
+        const paginationInfo = document.querySelector('.pagination');
+        const totalPages = getTotalPages();
+        const currentPage = getCurrentPageNumber();
+        const isAllOffersVisible = !paginationInfo || totalPages === 1;
+        
+        if (isCustomItemPage && isAllOffersVisible && userOfferCodes.size > 0) {
+            // Find offers that should exist but are not on page
+            const missingCodes = [];
+            for (const code of userOfferCodes) {
+                // Skip codes with # prefix (we have duplicates)
+                if (code.startsWith('#')) continue;
+                const normalizedCode = code.toUpperCase();
+                if (!visibleCodes.has(normalizedCode)) {
+                    missingCodes.push(normalizedCode);
+                }
+            }
+            
+            if (missingCodes.length > 0) {
+                log(`⚠️ Detected ${missingCodes.length} missing offers on Eldorado: [${missingCodes.slice(0, 5).join(', ')}${missingCodes.length > 5 ? '...' : ''}]`);
+                
+                // Mark missing offers as 'closed' in the panel
+                for (const code of missingCodes) {
+                    statusUpdates.push({ offerId: '#' + code, status: 'closed' });
+                }
+                
+                if (missingCodes.length > 0) {
+                    showNotification(`⚠️ ${missingCodes.length} offer(s) not found on Eldorado`, 'warning');
+                }
+            }
+        } else if (!isAllOffersVisible && totalPages > 1) {
+            log(`Skipping missing offers check: page ${currentPage}/${totalPages} (need to view all pages)`);
         }
         
         if (statusUpdates.length === 0) return;

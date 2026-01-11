@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.36';  // v3.0.36: Always run verification if farmers were scanned
+const VERSION = '3.0.37';  // v3.0.37: Simplified paused marking - no direct search, instant marking if shop scan successful
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -860,6 +860,7 @@ async function scanOffers(db, globalStartTime = null) {
     let createdCount = 0;
     const foundCodes = new Set();
     const scannedFarmKeys = new Set();
+    const successfullyScannedFarmKeys = new Set(); // v3.0.37: Only farmers with at least 1 successful page
     let offerTimeoutBreak = false;  // v10.3.7: Track if we hit time limit
     let farmersScannedCount = 0;    // v3.0.35: Track how many farmers scanned
     
@@ -907,9 +908,13 @@ async function scanOffers(db, globalStartTime = null) {
             }
             if (!response.results?.length) {
                 if (page === 1) console.log(`   ℹ️ No offers found for "${cleanShopName}"`);
+                // v3.0.37: Empty results on page 1 is still "successful" scan (shop has no offers)
+                if (page === 1) successfullyScannedFarmKeys.add(farmer.farmKey);
                 break;
             }
             
+            // v3.0.37: Mark as successfully scanned (at least one page loaded)
+            successfullyScannedFarmKeys.add(farmer.farmKey);
             totalScanned += response.results.length;
             
             // Обрабатываем офферы
@@ -984,100 +989,41 @@ async function scanOffers(db, globalStartTime = null) {
         }
     }
     
-    // v3.0.18: Помечаем офферы которые НЕ были найдены как paused
-    // v10.3.21: ИСПРАВЛЕНО - верификация всегда запускается, но:
-    // 1. Только для фермеров которые были реально просканированы (scannedFarmKeys)
-    // 2. Прекращается при time limit или rate limit
-    // 3. Продолжает с того места где остановились (по порядку в БД)
+    // v3.0.37: УПРОЩЁННАЯ ВЕРИФИКАЦИЯ
+    // Помечаем офферы как paused сразу, БЕЗ дополнительного direct search
+    // Условие: фермер был УСПЕШНО просканирован (хотя бы 1 страница загружена без ошибок)
+    // Это быстрее и надёжнее - не зависит от time limit
     let pausedCount = 0;
-    let verifiedMissingCount = 0;
     
-    // v10.3.21: Верификация всегда запускается если есть просканированные фермеры
-    // Раньше пропускалась при offerTimeoutBreak или consecutiveErrors
-    if (scannedFarmKeys.size === 0) {
-        console.log(`   ⚠️ No farmers were scanned, skipping verification`);
+    if (successfullyScannedFarmKeys.size === 0) {
+        console.log(`   ⚠️ No farmers were successfully scanned, skipping paused marking`);
     } else {
-        const allTrackedCodes = [];
+        console.log(`   📋 Marking missing offers as paused for ${successfullyScannedFarmKeys.size} successfully scanned farmers...`);
+        
         for (const farmer of allFarmers) {
-            // v9.12.8: ТОЛЬКО для фермеров которые были реально просканированы
-            if (!scannedFarmKeys.has(farmer.farmKey)) {
+            // v3.0.37: ТОЛЬКО для фермеров которые были УСПЕШНО просканированы
+            // Если timeout на page 1 - не помечаем их офферы как paused
+            if (!successfullyScannedFarmKeys.has(farmer.farmKey)) {
                 continue;
             }
             
             const farmerOffers = await offersCollection.find({ 
                 farmKey: farmer.farmKey, 
                 offerId: { $exists: true, $ne: null },
-                status: 'active'  // v9.12.8: Только активные офферы проверяем
+                status: 'active'
             }).toArray();
             
             for (const offer of farmerOffers) {
                 if (offer.offerId && !foundCodes.has(offer.offerId.toUpperCase())) {
-                    allTrackedCodes.push({ 
-                        code: offer.offerId.toUpperCase(), 
-                        farmKey: farmer.farmKey,
-                        brainrotName: offer.brainrotName 
-                    });
-                }
-            }
-        }
-        
-        console.log(`   🔍 Verifying ${allTrackedCodes.length} missing offers with direct search...`);
-        
-        // v9.12.8: Прямой поиск по коду для каждого "пропавшего" оффера
-        // Это важно - иногда оффер не найден по shopName, но существует на Eldorado
-        for (const { code, farmKey, brainrotName } of allTrackedCodes) {
-            // Проверяем time limit
-            if (globalStartTime && (Date.now() - globalStartTime) >= MAX_SCAN_TIME_MS) {
-                console.log(`   ⏰ Time limit - stopping direct verification`);
-                break;
-            }
-            
-            // Прямой поиск по коду оффера
-            await new Promise(r => setTimeout(r, getCurrentDelay(BASE_OFFER_SCAN_DELAY_MS)));
-            const directSearch = await fetchEldoradoOffers(1, 10, `#${code}`);
-            
-            if (directSearch.rateLimited) {
-                console.log(`   🚫 Rate limited during verification, stopping`);
-                break;
-            }
-            
-            // Проверяем, найден ли оффер с нашим кодом
-            let foundInDirect = false;
-            if (directSearch.results && directSearch.results.length > 0) {
-                for (const item of directSearch.results) {
-                    const offer = item.offer || item;
-                    const title = offer.offerTitle || '';
-                    if (title.toUpperCase().includes(code)) {
-                        foundInDirect = true;
-                        console.log(`   ✅ ${code}: Found via direct search (${brainrotName})`);
-                        
-                        // Обновляем оффер как активный
-                        const price = offer.pricePerUnitInUSD?.amount || 0;
-                        await offersCollection.updateOne(
-                            { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') } },
-                            { $set: { 
-                                status: 'active', 
-                                currentPrice: price,
-                                lastScannedAt: now,
-                                updatedAt: now 
-                            }}
-                        );
-                        foundCodes.add(code);
-                        break;
+                    // Сразу помечаем как paused - без дополнительной проверки через API
+                    const result = await offersCollection.updateOne(
+                        { _id: offer._id },
+                        { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+                    );
+                    if (result.modifiedCount > 0) {
+                        pausedCount++;
+                        console.log(`   ⏸️ Paused: ${offer.offerId} (${offer.brainrotName}) - not found in shop scan`);
                     }
-                }
-            }
-            
-            // Если НЕ найден - помечаем как paused
-            if (!foundInDirect) {
-                verifiedMissingCount++;
-                const result = await offersCollection.updateMany(
-                    { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') }, status: { $ne: 'paused' } },
-                    { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-                );
-                if (result.modifiedCount > 0) {
-                    pausedCount++;
-                    console.log(`   ⏸️ VERIFIED paused: ${code} (${brainrotName}) - not found on Eldorado`);
                 }
             }
         }
@@ -1100,7 +1046,8 @@ async function scanOffers(db, globalStartTime = null) {
         duration,
         timeoutBreak: offerTimeoutBreak,
         farmersScanned: farmersScannedCount,  // v3.0.35
-        farmersTotal: allFarmers.length       // v3.0.35
+        farmersTotal: allFarmers.length,      // v3.0.35
+        successfullyScanned: successfullyScannedFarmKeys.size  // v3.0.37
     };
 }
 

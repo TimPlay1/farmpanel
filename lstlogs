@@ -1,0 +1,1911 @@
+2026-Jan-11 03:23:16
+Total pages in range: 1 | Filter: te_v2=La Secret Combinasion | Mutation: 1-1
+2026-Jan-11 03:23:16
+Found UPPER at page 1 (API page 1): 156.2 M/s @ 7.50
+2026-Jan-11 03:23:16
+Found NEXT COMPETITOR at page 1 (API page 1): 156.2 M/s @ 8.00
+2026-Jan-11 03:23:16
+Upper found at page 1 , nextCompetitor found . Total offers collected: 47
+2026-Jan-11 03:23:16
+Search complete. Upper: 156.2M/s @ $7.50 | Lower: none | NextCompetitor: 156.2M/s @ $8.00 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:16
+[AI-DEBUG] disableAI=true, unparsed=5, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:16
+📊 Median: $10.60 (page 1, API page 1, 24/24 offers) → -$0.46 → $10.14
+2026-Jan-11 03:23:16
+📈 Next competitor: 156.2M/s @ $8.00, lower: $7.50, diff: $0.50 → -$0.10 → $7.90
+2026-Jan-11 03:23:16
+📊 La Secret Combinasion @ 100-249 M/s: dynamic (similar income): avg×2.5=$22.86, p95×1.5=$41.85 → limit=$41.85
+2026-Jan-11 03:23:17
+Searching: La Ginger Sekolah | Eldorado name: La Ginger Sekolah | Target M/s: 250-499 M/s | attr_id: 0-5  | Target income: 450 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:17
+Total pages in range: 4 | Filter: te_v2=La Ginger Sekolah 
+2026-Jan-11 03:23:17
+Found UPPER at page 1 (API page 1): 450 M/s @ 7.95
+2026-Jan-11 03:23:17
+Found NEXT COMPETITOR at page 1 (API page 1): 468.7 M/s @ 7.99
+2026-Jan-11 03:23:17
+Found LOWER: 375 M/s @ 7.00 (page 1 , API page 1)
+2026-Jan-11 03:23:17
+Upper found at page 1 , nextCompetitor found . Total offers collected: 50
+2026-Jan-11 03:23:17
+Search complete. Upper: 450M/s @ $7.95 | Lower: 375M/s @ $7.00 | NextCompetitor: 468.7M/s @ $7.99 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:17
+[AI-DEBUG] disableAI=true, unparsed=1, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:17
+📊 Median: $8.00 (page 1, API page 1, 24/24 offers) → -$0.30 → $7.70
+2026-Jan-11 03:23:17
+📈 Next competitor: 468.7M/s @ $7.99, lower: $7.95, diff: $0.04 → -$0.10 → $7.89
+2026-Jan-11 03:23:17
+🔍 La Ginger Sekolah @ 450M/s: near upper bound of 250-499 M/s, checking 500-749 M/s...
+2026-Jan-11 03:23:17
+🗄️ Using cached search result for La Ginger Sekolah (age: 26s)
+2026-Jan-11 03:23:17
+❌ Cheapest in 500-749 M/s: 525M/s @ $10.00 - more expensive than $7.95
+2026-Jan-11 03:23:17
+📊 La Ginger Sekolah @ 250-499 M/s: dynamic (similar income): avg×2.5=$18.88, p95×1.5=$16.50 → limit=$18.88
+2026-Jan-11 03:23:18
+Searching: La Ginger Sekolah | Eldorado name: La Ginger Sekolah | Target M/s: 250-499 M/s | attr_id: 0-5 | Mutation: Lava (1-5) | Target income: 450 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:18
+Total pages in range: 1 | Filter: te_v2=La Ginger Sekolah | Mutation: 1-5
+2026-Jan-11 03:23:18
+Found UPPER at page 1 (API page 1): 450 M/s @ 9.99
+2026-Jan-11 03:23:18
+Found NEXT COMPETITOR at page 1 (API page 1): 450 M/s @ 10.00
+2026-Jan-11 03:23:18
+⚠️ Skipping range offer: "Brainrot Secret La Ginger Sekolah 250-499 M/s Lava" (250-499 range)
+2026-Jan-11 03:23:18
+Upper found at page 1 , nextCompetitor found . Total offers collected: 21
+2026-Jan-11 03:23:18
+Search complete. Upper: 450M/s @ $9.99 | Lower: none | NextCompetitor: 450M/s @ $10.00 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:18
+[AI-DEBUG] disableAI=true, unparsed=4, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:18
+📊 Median: $17.00 (page 1, API page 1, 21/24 offers) → -$1.00 → $16.00
+2026-Jan-11 03:23:18
+📈 Next competitor: 450M/s @ $10.00, lower: $9.99, diff: $0.01 → -$0.10 → $9.90
+2026-Jan-11 03:23:18
+🔍 La Ginger Sekolah @ 450M/s: near upper bound of 250-499 M/s, checking 500-749 M/s... (mutation: Lava)
+2026-Jan-11 03:23:18
+Searching: La Ginger Sekolah | Eldorado name: La Ginger Sekolah | Target M/s: 500-749 M/s | attr_id: 0-6 | Mutation: Lava (1-5) | Target income: 505 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:19
+Total pages in range: 1 | Filter: te_v2=La Ginger Sekolah | Mutation: 1-5
+2026-Jan-11 03:23:19
+Found UPPER at page 1 (API page 1): 600 M/s @ 17.00
+2026-Jan-11 03:23:19
+Found NEXT COMPETITOR at page 1 (API page 1): 675 M/s @ 22.00
+2026-Jan-11 03:23:19
+Upper found at page 1 , nextCompetitor found . Total offers collected: 5
+2026-Jan-11 03:23:19
+Search complete. Upper: 600M/s @ $17.00 | Lower: none | NextCompetitor: 675M/s @ $22.00 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:19
+❌ Cheapest in 500-749 M/s: 600M/s @ $17.00 - more expensive than $9.99
+2026-Jan-11 03:23:19
+📊 La Ginger Sekolah @ 250-499 M/s: dynamic (similar income): avg×2.5=$33.49, p95×1.5=$38.21 → limit=$38.21
+2026-Jan-11 03:23:20
+Searching: W or L | Eldorado name: W or L | Target M/s: 250-499 M/s | attr_id: 0-5  | Target income: 270 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:20
+Total pages in range: 3 | Filter: te_v2=W or L 
+2026-Jan-11 03:23:20
+Found UPPER at page 1 (API page 1): 330 M/s @ 7.25
+2026-Jan-11 03:23:20
+Found NEXT COMPETITOR at page 1 (API page 1): 285 M/s @ 7.50
+2026-Jan-11 03:23:20
+Upper found at page 1 , nextCompetitor found . Total offers collected: 50
+2026-Jan-11 03:23:20
+Search complete. Upper: 330M/s @ $7.25 | Lower: none | NextCompetitor: 285M/s @ $7.50 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:20
+[AI-DEBUG] disableAI=true, unparsed=1, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:20
+📊 Median: $10.00 (page 1, API page 1, 24/24 offers) → -$0.41 → $9.59
+2026-Jan-11 03:23:20
+📈 Next competitor: 285M/s @ $7.50, lower: $7.25, diff: $0.25 → -$0.10 → $7.40
+2026-Jan-11 03:23:20
+📊 W or L @ 250-499 M/s: dynamic (similar income): avg×2.5=$22.04, p95×1.5=$20.84 → limit=$22.04
+2026-Jan-11 03:23:21
+Searching: W or L | Eldorado name: W or L | Target M/s: 250-499 M/s | attr_id: 0-5 | Mutation: Gold (1-1) | Target income: 270 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:21
+Total pages in range: 1 | Filter: te_v2=W or L | Mutation: 1-1
+2026-Jan-11 03:23:21
+Found UPPER at page 1 (API page 1): 337.5 M/s @ 10.00
+2026-Jan-11 03:23:21
+Found NEXT COMPETITOR at page 1 (API page 1): 367.5 M/s @ 10.50
+2026-Jan-11 03:23:21
+Found LOWER: 247.5 M/s @ 8.95 (page 1 , API page 1)
+2026-Jan-11 03:23:21
+Upper found at page 1 , nextCompetitor found . Total offers collected: 20
+2026-Jan-11 03:23:21
+Search complete. Upper: 337.5M/s @ $10.00 | Lower: 247.5M/s @ $8.95 | NextCompetitor: 367.5M/s @ $10.50 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:21
+📊 Median: $18.45 (page 1, API page 1, 20/24 offers) → -$1.00 → $17.45
+2026-Jan-11 03:23:21
+📈 Next competitor: 367.5M/s @ $10.50, lower: $10.00, diff: $0.50 → -$0.10 → $10.40
+2026-Jan-11 03:23:21
+📊 W or L @ 250-499 M/s: dynamic (similar income): avg×2.5=$37.70, p95×1.5=$35.99 → limit=$37.70
+2026-Jan-11 03:23:22
+Searching: Eviledon | Eldorado name: Eviledon | Target M/s: 25-49 M/s | attr_id: 0-2  | Target income: 30 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:22
+Total pages in range: 2 | Filter: te_v2=Eviledon 
+2026-Jan-11 03:23:22
+Found UPPER at page 1 (API page 1): 31.5 M/s @ 4.00
+2026-Jan-11 03:23:22
+Found NEXT COMPETITOR at page 1 (API page 1): 31.5 M/s @ 4.15
+2026-Jan-11 03:23:22
+⚠️ Skipping range offer: "Eviledon   31m/s -40M/s" (31-40 range)
+2026-Jan-11 03:23:22
+Upper found at page 1 , nextCompetitor found . Total offers collected: 50
+2026-Jan-11 03:23:22
+Search complete. Upper: 31.5M/s @ $4.00 | Lower: none | NextCompetitor: 31.5M/s @ $4.15 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:22
+[AI-DEBUG] disableAI=true, unparsed=10, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:22
+📊 Median: $7.75 (page 1, API page 1, 24/24 offers) → -$0.56 → $7.19
+2026-Jan-11 03:23:22
+📈 Next competitor: 31.5M/s @ $4.15, lower: $4.00, diff: $0.15 → -$0.10 → $4.05
+2026-Jan-11 03:23:22
+📊 Eviledon @ 25-49 M/s: dynamic (similar income): avg×2.5=$13.81, p95×1.5=$19.49 → limit=$19.49
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:23
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:23
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:23
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:23
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:23
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:23
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:23
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:23
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:23
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 100-249 M/s | attr_id: 0-4 | Mutation: Radioactive (1-8) | Target income: 160 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:23
+Total pages in range: 2 | Filter: te_v2=Chimino | Mutation: 1-8
+2026-Jan-11 03:23:23
+Found UPPER at page 1 (API page 1): 168 M/s @ 3.19
+2026-Jan-11 03:23:23
+Found NEXT COMPETITOR at page 1 (API page 1): 175 M/s @ 3.50
+2026-Jan-11 03:23:23
+Found LOWER: 119 M/s @ 1.99 (page 1 , API page 1)
+2026-Jan-11 03:23:23
+Upper found at page 1 , nextCompetitor found . Total offers collected: 49
+2026-Jan-11 03:23:23
+Search complete. Upper: 168M/s @ $3.19 | Lower: 119M/s @ $1.99 | NextCompetitor: 175M/s @ $3.50 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:23
+[AI-DEBUG] disableAI=true, unparsed=8, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:23
+📊 Median: $3.09 (page 1, API page 1, 24/24 offers) → -$0.16 → $2.93
+2026-Jan-11 03:23:23
+📈 Next competitor: 175M/s @ $3.50, lower: $3.19, diff: $0.31 → -$0.10 → $3.40
+2026-Jan-11 03:23:23
+📊 Chimnino @ 100-249 M/s: dynamic (similar income): avg×2.5=$5.94, p95×1.5=$14.99 → limit=$14.99
+2026-Jan-11 03:23:24
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 100-249 M/s | attr_id: 0-4  | Target income: 160 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:25
+Total pages in range: 6 | Filter: te_v2=Chimino 
+2026-Jan-11 03:23:25
+⚠️ Skipping range offer: "Chimnino (Random M/s)  126 M/s ~ 182 M/s ⚡ CHEAP FAST" (126-182 range)
+2026-Jan-11 03:23:25
+🚫 Skipping panel user offer (code #4K9Z733H)
+2026-Jan-11 03:23:25
+🚫 Skipping panel user offer (code #2TRDGD3P)
+2026-Jan-11 03:23:25
+🚫 Skipping panel user offer (code #YMTUGJKH)
+2026-Jan-11 03:23:25
+Found UPPER at page 2 (API page 1): 168 M/s @ 2.99
+2026-Jan-11 03:23:25
+Found NEXT COMPETITOR at page 2 (API page 1): 161 M/s @ 2.99
+2026-Jan-11 03:23:25
+🚫 Skipping panel user offer (code #JGS8G83B)
+2026-Jan-11 03:23:25
+Found LOWER: 157.5 M/s @ 2.59 (page 1 , API page 1)
+2026-Jan-11 03:23:25
+Upper found at page 1 , nextCompetitor found . Total offers collected: 46
+2026-Jan-11 03:23:25
+Search complete. Upper: 168M/s @ $2.99 | Lower: 157.5M/s @ $2.59 | NextCompetitor: 161M/s @ $2.99 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 4
+2026-Jan-11 03:23:25
+[AI-DEBUG] disableAI=true, unparsed=5, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:25
+📊 Median: $2.16 (page 2, API page 1, 24/24 offers) → -$0.11 → $2.05
+2026-Jan-11 03:23:25
+📈 Next competitor: 161M/s @ $2.99, lower: $2.99, diff: $0.00 → -$0.10 → $2.89
+2026-Jan-11 03:23:25
+📊 Chimnino @ 100-249 M/s: dynamic (similar income): avg×2.5=$4.93, p95×1.5=$4.80 → limit=$5.00
+2026-Jan-11 03:23:25
+[sync-fast] Background refresh for FARM-7VZV-EY4Y-1OOX-IOQJ complete
+2026-Jan-11 03:23:26
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:26
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:26
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:26
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:26
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:26
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:26
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:26
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:26
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:26
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:26
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:26
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:26
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:26
+Searching: Spaghetti Tualetti | Eldorado name: Spaghetti Tualetti | Target M/s: 250-499 M/s | attr_id: 0-5  | Target income: 330 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:26
+Total pages in range: 7 | Filter: te_v2=Spaghetti Tualetti 
+2026-Jan-11 03:23:26
+Found UPPER at page 1 (API page 1): 390 M/s @ 5.75
+2026-Jan-11 03:23:26
+Found NEXT COMPETITOR at page 1 (API page 1): 360 M/s @ 5.99
+2026-Jan-11 03:23:26
+Found LOWER: 300 M/s @ 4.70 (page 1 , API page 1)
+2026-Jan-11 03:23:26
+Upper found at page 1 , nextCompetitor found . Total offers collected: 50
+2026-Jan-11 03:23:26
+Search complete. Upper: 390M/s @ $5.75 | Lower: 300M/s @ $4.70 | NextCompetitor: 360M/s @ $5.99 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:26
+📊 Median: $6.00 (page 1, API page 1, 24/24 offers) → -$0.19 → $5.81
+2026-Jan-11 03:23:26
+📈 Next competitor: 360M/s @ $5.99, lower: $5.75, diff: $0.24 → -$0.10 → $5.89
+2026-Jan-11 03:23:26
+📊 Spaghetti Tualetti @ 250-499 M/s: dynamic (similar income): avg×2.5=$14.22, p95×1.5=$11.99 → limit=$14.22
+2026-Jan-11 03:23:27
+Searching: Spaghetti Tualetti | Eldorado name: Spaghetti Tualetti | Target M/s: 250-499 M/s | attr_id: 0-5 | Mutation: Diamond (1-2) | Target income: 330 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:27
+Total pages in range: 1 | Filter: te_v2=Spaghetti Tualetti | Mutation: 1-2
+2026-Jan-11 03:23:27
+Found UPPER at page 1 (API page 1): 390 M/s @ 5.75
+2026-Jan-11 03:23:27
+Found NEXT COMPETITOR at page 1 (API page 1): 330 M/s @ 5.99
+2026-Jan-11 03:23:27
+Upper found at page 1 , nextCompetitor found . Total offers collected: 41
+2026-Jan-11 03:23:27
+Search complete. Upper: 390M/s @ $5.75 | Lower: none | NextCompetitor: 330M/s @ $5.99 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:27
+[AI-DEBUG] disableAI=true, unparsed=1, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:27
+📊 Median: $8.00 (page 1, API page 1, 24/24 offers) → -$0.34 → $7.66
+2026-Jan-11 03:23:27
+📈 Next competitor: 330M/s @ $5.99, lower: $5.75, diff: $0.24 → -$0.10 → $5.89
+2026-Jan-11 03:23:27
+📊 Spaghetti Tualetti @ 250-499 M/s: dynamic (similar income): avg×2.5=$17.26, p95×1.5=$49.49 → limit=$49.49
+2026-Jan-11 03:23:28
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 100-249 M/s | attr_id: 0-4 | Mutation: Diamond (1-2) | Target income: 240 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:28
+Total pages in range: 1 | Filter: te_v2=Chimino | Mutation: 1-2
+2026-Jan-11 03:23:28
+🚫 Skipping panel user offer (code #4K9Z733H)
+2026-Jan-11 03:23:28
+⚠️ Skipping offer with wrong brainrot (first word match): "Chimino Diamond 147m/s - strawberry traits - rare ..." (found: "strawberry" from "strawberry elephant", expected: Chimnino)
+2026-Jan-11 03:23:29
+No more results at page 2 
+2026-Jan-11 03:23:29
+Search complete. Upper: none | Lower: none | NextCompetitor: none | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 1
+2026-Jan-11 03:23:29
+[AI-DEBUG] disableAI=true, unparsed=1, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:29
+🔍 Searching nextCompetitor in NEXT RANGE: 250-499 M/s (0-5)...
+2026-Jan-11 03:23:29
+✅ Found UPPER in 250-499 M/s: 287M/s @ $7.98
+2026-Jan-11 03:23:29
+✅ Found nextCompetitor in 250-499 M/s: 259M/s @ $9.00
+2026-Jan-11 03:23:29
+📈 Next competitor: 259M/s @ $9.00, lower: $7.98, diff: $1.02 → -$0.15 → $8.85
+2026-Jan-11 03:23:29
+🔍 Chimnino @ 240M/s: near upper bound of 100-249 M/s, checking 250-499 M/s... (mutation: Diamond)
+2026-Jan-11 03:23:29
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 250-499 M/s | attr_id: 0-5 | Mutation: Diamond (1-2) | Target income: 255 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:29
+Total pages in range: 1 | Filter: te_v2=Chimino | Mutation: 1-2
+2026-Jan-11 03:23:29
+Found UPPER at page 1 (API page 1): 287 M/s @ 7.98
+2026-Jan-11 03:23:29
+Found NEXT COMPETITOR at page 1 (API page 1): 259 M/s @ 9.00
+2026-Jan-11 03:23:29
+Upper found at page 1 , nextCompetitor found . Total offers collected: 4
+2026-Jan-11 03:23:29
+Search complete. Upper: 287M/s @ $7.98 | Lower: none | NextCompetitor: 259M/s @ $9.00 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:29
+❌ Cheapest in 250-499 M/s: 287M/s @ $7.98 - more expensive than $7.98
+2026-Jan-11 03:23:29
+📊 Chimnino @ 100-249 M/s: dynamic (similar income): avg×2.5=$11.55, p95×1.5=$10.50 → limit=$11.55
+2026-Jan-11 03:23:30
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 100-249 M/s | attr_id: 0-4  | Target income: 240 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:30
+Total pages in range: 6 | Filter: te_v2=Chimino 
+2026-Jan-11 03:23:30
+⚠️ Skipping range offer: "Chimnino (Random M/s)  126 M/s ~ 182 M/s ⚡ CHEAP FAST" (126-182 range)
+2026-Jan-11 03:23:30
+🚫 Skipping panel user offer (code #4K9Z733H)
+2026-Jan-11 03:23:30
+🚫 Skipping panel user offer (code #2TRDGD3P)
+2026-Jan-11 03:23:30
+🚫 Skipping panel user offer (code #YMTUGJKH)
+2026-Jan-11 03:23:30
+🚫 Skipping panel user offer (code #JGS8G83B)
+2026-Jan-11 03:23:31
+🚫 Skipping panel user offer (code #UEC6Q493)
+2026-Jan-11 03:23:31
+🚫 Skipping panel user offer (code #2UENSNTD)
+2026-Jan-11 03:23:31
+⚠️ Skipping offer with wrong brainrot: "chimnino CANDY + los 25..." (found: los 25, expected: Chimnino)
+2026-Jan-11 03:23:31
+⚠️ Skipping offer with wrong brainrot (first word match): "115.5M/s chimnino with strawberry trait...." (found: "strawberry" from "strawberry elephant", expected: Chimnino)
+2026-Jan-11 03:23:31
+⚠️ Skipping offer with wrong brainrot (first word match): "🔥GOLD Chimnino🔥(💲115.5 M/s) I STRAWBERRY  TRAIT..." (found: "strawberry" from "strawberry elephant", expected: Chimnino)
+2026-Jan-11 03:23:31
+Found UPPER at page 5 (API page 3): 245 M/s @ 5.49
+2026-Jan-11 03:23:31
+🚫 Skipping panel user offer (code #N6FYFVLZ)
+2026-Jan-11 03:23:31
+Found NEXT COMPETITOR at page 5 (API page 3): 245 M/s @ 5.59
+2026-Jan-11 03:23:31
+Found LOWER: 238 M/s @ 3.20 (page 2 , API page 1)
+2026-Jan-11 03:23:31
+Upper found at page 3 , nextCompetitor found . Total offers collected: 140
+2026-Jan-11 03:23:31
+Search complete. Upper: 245M/s @ $5.49 | Lower: 238M/s @ $3.20 | NextCompetitor: 245M/s @ $5.59 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 7
+2026-Jan-11 03:23:31
+[AI-DEBUG] disableAI=true, unparsed=18, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:31
+📊 Median: $5.00 (page 5, API page 3, 24/24 offers) → -$0.10 → $4.90
+2026-Jan-11 03:23:31
+📈 Next competitor: 245M/s @ $5.59, lower: $5.49, diff: $0.10 → -$0.10 → $5.49
+2026-Jan-11 03:23:31
+🔍 Chimnino @ 240M/s: near upper bound of 100-249 M/s, checking 250-499 M/s...
+2026-Jan-11 03:23:31
+Searching: Chimnino | Eldorado name: Chimino | Target M/s: 250-499 M/s | attr_id: 0-5  | Target income: 255 | In Eldorado: true | Panel users cached: 5 shops, 226 codes
+2026-Jan-11 03:23:32
+Total pages in range: 1 | Filter: te_v2=Chimino 
+2026-Jan-11 03:23:32
+Found UPPER at page 1 (API page 1): 266 M/s @ 3.70
+2026-Jan-11 03:23:32
+Found NEXT COMPETITOR at page 1 (API page 1): 280 M/s @ 3.99
+2026-Jan-11 03:23:32
+Upper found at page 1 , nextCompetitor found . Total offers collected: 46
+2026-Jan-11 03:23:32
+Search complete. Upper: 266M/s @ $3.70 | Lower: none | NextCompetitor: 280M/s @ $3.99 | Filter mode: te_v2 | Reliable: true | Panel offers skipped: 0
+2026-Jan-11 03:23:32
+[AI-DEBUG] disableAI=true, unparsed=2, aiScanner=true, GEMINI_KEY=true
+2026-Jan-11 03:23:32
+Found 6 cheaper offers in 250-499 M/s
+2026-Jan-11 03:23:32
+Cheapest: 266M/s @ $3.70
+2026-Jan-11 03:23:32
+Current competitor: 245M/s @ $5.49
+2026-Jan-11 03:23:32
+✅ Switching to next range competitor! $5.15 → $3.60
+2026-Jan-11 03:23:32
+📈 NextCompetitor recalculated: 245M/s @ $5.59, lower: $3.70 → $5.31
+2026-Jan-11 03:23:32
+📊 Chimnino @ 100-249 M/s: dynamic (similar income): avg×2.5=$7.25, p95×1.5=$9.00 → limit=$9.00
+2026-Jan-11 03:23:33
+⏰ Price scan time limit (52.3s >= 50s) - stopping to scan offers
+2026-Jan-11 03:23:33
+2026-Jan-11 03:23:33
+📦 Starting offer scan v3.0.35 (prioritized queue)...
+2026-Jan-11 03:23:33
+📋 Priority: 0 new, 2 stale (>10min), 1 fresh (<10min, skipped)
+2026-Jan-11 03:23:33
+👥 Scanning 2 farmers (3 total)
+2026-Jan-11 03:23:33
+📋 Loaded 226 existing offers from DB
+2026-Jan-11 03:23:33
+2026-Jan-11 03:23:33
+🔍 Scanning offers for "✅Aboba Store✅" (farmKey: FARM-TAES-479W-XJJ8-4M0J)...
+2026-Jan-11 03:23:34
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:34
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:34
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:34
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:34
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:34
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:34
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:34
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:34
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:34
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:34
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:34
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:34
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:34
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:34
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:37
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:37
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:37
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:37
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:37
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:37
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:37
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:37
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:37
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:37
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:37
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:37
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:37
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:37
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:38
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:38
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:38
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:38
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:38
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:38
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:38
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:38
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:38
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:38
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:38
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:38
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:39
+2026-Jan-11 03:23:39
+🔍 Scanning offers for "💎Aboba Store💎" (farmKey: FARM-KFRV-UPE4-U2WJ-JOE6)...
+2026-Jan-11 03:23:41
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:41
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:41
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:41
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:41
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:41
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:41
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:41
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:41
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:41
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:41
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:41
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:41
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:41
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:41
+⏳ Price scan already running, skipping...
+2026-Jan-11 03:23:44
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:44
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:44
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:44
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:44
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:44
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:44
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:44
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:44
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:44
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:44
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:44
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:44
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:44
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:44
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:45
+🔍 Verifying 0 missing offers with direct search...
+2026-Jan-11 03:23:45
+📦 Offer scan complete: 2 farmers, 500 offers scanned, 0 matched, 0 updated, 0 created, 0 paused (12s)
+2026-Jan-11 03:23:45
+✅ Cron scan complete: {
+2026-Jan-11 03:23:45
+success: true,
+2026-Jan-11 03:23:45
+version: '3.0.35',
+2026-Jan-11 03:23:45
+duration: '64s',
+2026-Jan-11 03:23:45
+timeoutBreak: true,
+2026-Jan-11 03:23:45
+totalBrainrots: 543,
+2026-Jan-11 03:23:45
+scanned: 39,
+2026-Jan-11 03:23:45
+newPrices: 36,
+2026-Jan-11 03:23:45
+priceChanges: 0,
+2026-Jan-11 03:23:45
+skipped: 103,
+2026-Jan-11 03:23:45
+errors: 3,
+2026-Jan-11 03:23:45
+orphansCleaned: 0,
+2026-Jan-11 03:23:45
+cycle: { id: 598, isNew: false, progress: '26%', remaining: 399 },
+2026-Jan-11 03:23:45
+offers: {
+2026-Jan-11 03:23:45
+totalScanned: 500,
+2026-Jan-11 03:23:45
+matchedCount: 0,
+2026-Jan-11 03:23:45
+updatedCount: 0,
+2026-Jan-11 03:23:45
+createdCount: 0,
+2026-Jan-11 03:23:45
+pausedCount: 0,
+2026-Jan-11 03:23:45
+foundCodes: 0,
+2026-Jan-11 03:23:45
+duration: 12,
+2026-Jan-11 03:23:45
+timeoutBreak: false,
+2026-Jan-11 03:23:45
+farmersScanned: 2,
+2026-Jan-11 03:23:45
+farmersTotal: 2
+2026-Jan-11 03:23:45
+}
+2026-Jan-11 03:23:45
+}
+2026-Jan-11 03:23:45
+✅ [CRON] Price scan completed: 39 prices, 0 offers
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:48
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:48
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:48
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:48
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:48
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:52
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:52
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:52
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:52
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:52
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:52
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:52
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:52
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:52
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:52
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:52
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:52
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:52
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:52
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:53
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:53
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:53
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:53
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:53
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:53
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:53
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:53
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:53
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:53
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:53
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:53
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+[prices-cache] since=2026-01-11T03:21:53.535Z, serverNow=2026-01-11T03:23:54.087Z, diff=121s
+2026-Jan-11 03:23:54
+[prices-cache] Found 36 updated prices. Sample: chicleteira noelteira_360: 2026-01-11T03:22:55.000Z, chimnino_160: 2026-01-11T03:23:25.000Z, chimnino_160_radioactive: 2026-01-11T03:23:23.000Z
+2026-Jan-11 03:23:54
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:54
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:54
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:54
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:54
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:54
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:54
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:54
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:54
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:54
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:54
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:54
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:54
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:54
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:54
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:23:56
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:23:56
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:23:56
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:56
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:56
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:23:56
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:56
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:23:56
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:23:56
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:23:56
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:23:56
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:56
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:23:56
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:23:56
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:04
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:04
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:04
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:04
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:04
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:04
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:04
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:04
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:04
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:04
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:04
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:04
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:04
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:04
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:07
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:07
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:07
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:07
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:07
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:07
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:07
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:07
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:07
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:07
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:07
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:07
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:07
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:07
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:08
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:08
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:08
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:08
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:08
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:08
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:08
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:08
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:08
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:08
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:08
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:08
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:11
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:11
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:11
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:11
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:11
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:11
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:11
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:11
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:11
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:11
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:11
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:11
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:11
+🔍 Offer "Reinito Sleighito" income=840 → key="reinito sleighito_840", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:11
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:14
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Eviledon" income=551 → key="eviledon_550", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:14
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Fragrama and Chocrama" income=750 → key="fragrama and chocrama_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "La Secret Combinasion" income=750 → key="la secret combinasion_750", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Swaggy Bros" income=780 → key="swaggy bros_780", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "La Taco Combinasion" income=822 → key="la taco combinasion_820", db.mutation=Yin-Yang, collection.mutation=YinYang
+2026-Jan-11 03:24:14
+🔍 Offer "Eviledon" income=992 → key="eviledon_990", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Dragon Cannelloni" income=1500 → key="dragon cannelloni_1500", db.mutation=Lava, collection.mutation=Lava
+2026-Jan-11 03:24:14
+🔍 Offer "Money Money Reindeer" income=612 → key="money money reindeer_610", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Reinito Sleighito" income=1400 → key="reinito sleighito_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+[prices-cache] since=2026-01-11T03:22:14.362Z, serverNow=2026-01-11T03:24:14.305Z, diff=120s
+2026-Jan-11 03:24:14
+[prices-cache] Found 36 updated prices. Sample: chicleteira noelteira_360: 2026-01-11T03:22:55.000Z, chimnino_160: 2026-01-11T03:23:25.000Z, chimnino_160_radioactive: 2026-01-11T03:23:23.000Z
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_150" → Gold
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_120" → null
+2026-Jan-11 03:24:14
+📋 MutationsMap: "la secret combinasion_1120" → Cursed
+2026-Jan-11 03:24:14
+🔍 Offer "Swaggy Bros" income=700 → key="swaggy bros_700", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "Fragrama and Chocrama" income=1400 → key="fragrama and chocrama_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Esok Sekolah" income=540 → key="esok sekolah_540", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Garama and Madundung" income=625 → key="garama and madundung_620", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "Ketchuru and Musturu" income=574 → key="ketchuru and musturu_570", db.mutation=Radioactive, collection.mutation=Radioactive
+2026-Jan-11 03:24:14
+🔍 Offer "La Ginger Sekolah" income=1400 → key="la ginger sekolah_1400", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "La Taco Combinasion" income=508 → key="la taco combinasion_500", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Diamond, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Spaghetti Tualetti" income=510 → key="spaghetti tualetti_510", db.mutation=Radioactive, collection.mutation=Diamond
+2026-Jan-11 03:24:14
+🔍 Offer "Ketchuru and Musturu" income=595 → key="ketchuru and musturu_590", db.mutation=Rainbow, collection.mutation=Rainbow
+2026-Jan-11 03:24:14
+🔍 Offer "Tictac Sahur" income=609 → key="tictac sahur_600", db.mutation=Gold, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Eviledon" income=630 → key="eviledon_630", db.mutation=null, collection.mutation=NOT_FOUND
+2026-Jan-11 03:24:14
+🔍 Offer "Mieteteira Bicicleteira" income=715 → key="mieteteira bicicleteira_710", db.mutation=null, collection.mutation=NOT_FOUND
