@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.31';  // v10.3.47: Sync proxy state with eldorado-price module
+const VERSION = '3.0.32';  // v9.12.8: Fix paused marking - verify each missing offer with direct code search
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -891,27 +891,103 @@ async function scanOffers(db, globalStartTime = null) {
     }
     
     // v3.0.18: Помечаем офферы которые НЕ были найдены как paused
-    // Но только если они были в списке для сканирования и не нашлись
+    // v9.12.8: ИСПРАВЛЕНО - помечаем paused ТОЛЬКО если:
+    // 1. Фермер был реально просканирован (есть в scannedFarmKeys)
+    // 2. Не было прерывания по времени (offerTimeoutBreak = false)
+    // 3. Не было rate limit ошибок во время сканирования
+    // 4. НОВОЕ: Прямой поиск по коду подтвердил отсутствие оффера
     let pausedCount = 0;
-    const allTrackedCodes = [];
-    for (const farmer of farmers) {
-        const farmerOffers = await offersCollection.find({ farmKey: farmer.farmKey, offerId: { $exists: true, $ne: null } }).toArray();
-        for (const offer of farmerOffers) {
-            if (offer.offerId && !foundCodes.has(offer.offerId.toUpperCase())) {
-                allTrackedCodes.push({ code: offer.offerId.toUpperCase(), farmKey: farmer.farmKey });
+    let verifiedMissingCount = 0;
+    
+    // Если было прерывание - НЕ помечаем ничего как paused (данные неполные)
+    if (offerTimeoutBreak) {
+        console.log(`   ⚠️ Skipping paused marking - scan was interrupted by time limit`);
+    } else if (adaptiveRateLimit.consecutiveErrors > 0) {
+        console.log(`   ⚠️ Skipping paused marking - had ${adaptiveRateLimit.consecutiveErrors} rate limit errors`);
+    } else {
+        const allTrackedCodes = [];
+        for (const farmer of farmers) {
+            // v9.12.8: ТОЛЬКО для фермеров которые были реально просканированы
+            if (!scannedFarmKeys.has(farmer.farmKey)) {
+                continue;
+            }
+            
+            const farmerOffers = await offersCollection.find({ 
+                farmKey: farmer.farmKey, 
+                offerId: { $exists: true, $ne: null },
+                status: 'active'  // v9.12.8: Только активные офферы проверяем
+            }).toArray();
+            
+            for (const offer of farmerOffers) {
+                if (offer.offerId && !foundCodes.has(offer.offerId.toUpperCase())) {
+                    allTrackedCodes.push({ 
+                        code: offer.offerId.toUpperCase(), 
+                        farmKey: farmer.farmKey,
+                        brainrotName: offer.brainrotName 
+                    });
+                }
             }
         }
-    }
-    
-    // Помечаем не найденные как paused
-    for (const { code, farmKey } of allTrackedCodes) {
-        const result = await offersCollection.updateMany(
-            { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') }, status: { $ne: 'paused' } },
-            { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
-        );
-        if (result.modifiedCount > 0) {
-            pausedCount++;
-            console.log(`   ⏸️ Marked paused: ${code}`);
+        
+        console.log(`   🔍 Verifying ${allTrackedCodes.length} missing offers with direct search...`);
+        
+        // v9.12.8: Прямой поиск по коду для каждого "пропавшего" оффера
+        // Это важно - иногда оффер не найден по shopName, но существует на Eldorado
+        for (const { code, farmKey, brainrotName } of allTrackedCodes) {
+            // Проверяем time limit
+            if (globalStartTime && (Date.now() - globalStartTime) >= MAX_SCAN_TIME_MS) {
+                console.log(`   ⏰ Time limit - stopping direct verification`);
+                break;
+            }
+            
+            // Прямой поиск по коду оффера
+            await new Promise(r => setTimeout(r, getCurrentDelay(BASE_OFFER_SCAN_DELAY_MS)));
+            const directSearch = await fetchEldoradoOffers(1, 10, `#${code}`);
+            
+            if (directSearch.rateLimited) {
+                console.log(`   🚫 Rate limited during verification, stopping`);
+                break;
+            }
+            
+            // Проверяем, найден ли оффер с нашим кодом
+            let foundInDirect = false;
+            if (directSearch.results && directSearch.results.length > 0) {
+                for (const item of directSearch.results) {
+                    const offer = item.offer || item;
+                    const title = offer.offerTitle || '';
+                    if (title.toUpperCase().includes(code)) {
+                        foundInDirect = true;
+                        console.log(`   ✅ ${code}: Found via direct search (${brainrotName})`);
+                        
+                        // Обновляем оффер как активный
+                        const price = offer.pricePerUnitInUSD?.amount || 0;
+                        await offersCollection.updateOne(
+                            { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') } },
+                            { $set: { 
+                                status: 'active', 
+                                currentPrice: price,
+                                lastScannedAt: now,
+                                updatedAt: now 
+                            }}
+                        );
+                        foundCodes.add(code);
+                        break;
+                    }
+                }
+            }
+            
+            // Если НЕ найден - помечаем как paused
+            if (!foundInDirect) {
+                verifiedMissingCount++;
+                const result = await offersCollection.updateMany(
+                    { farmKey: farmKey, offerId: { $regex: new RegExp(`^${code}$`, 'i') }, status: { $ne: 'paused' } },
+                    { $set: { status: 'paused', pausedAt: now, updatedAt: now } }
+                );
+                if (result.modifiedCount > 0) {
+                    pausedCount++;
+                    console.log(`   ⏸️ VERIFIED paused: ${code} (${brainrotName}) - not found on Eldorado`);
+                }
+            }
         }
     }
     

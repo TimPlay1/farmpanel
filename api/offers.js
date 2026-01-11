@@ -301,11 +301,15 @@ module.exports = async (req, res) => {
                         updatedAt: now 
                     };
                     
-                    // Track paused/active times
+                    // Track paused/active/closed times
                     if (update.status === 'paused') {
                         updateData.pausedAt = now;
                     } else if (update.status === 'active') {
                         updateData.pausedAt = null;
+                    } else if (update.status === 'closed') {
+                        // v9.12.8: Mark as closed (offer removed from Eldorado)
+                        updateData.closedAt = now;
+                        updateData.pausedAt = now; // Also set pausedAt for auto-delete
                     }
                     
                     await offersCollection.updateOne(
@@ -328,11 +332,16 @@ module.exports = async (req, res) => {
             if (recommendedPrice !== undefined) update.recommendedPrice = parseFloat(recommendedPrice);
             if (status !== undefined) {
                 update.status = status;
-                // Track when offer was paused for auto-deletion after 3 days
+                // Track when offer was paused/closed for auto-deletion after 3 days
                 if (status === 'paused') {
                     update.pausedAt = new Date();
                 } else if (status === 'active') {
                     update.pausedAt = null; // Clear pausedAt when reactivated
+                    update.closedAt = null; // Clear closedAt when reactivated
+                } else if (status === 'closed') {
+                    // v9.12.8: Mark as closed (offer removed from Eldorado)
+                    update.closedAt = new Date();
+                    update.pausedAt = new Date(); // Also set pausedAt for auto-delete
                 }
             }
 
