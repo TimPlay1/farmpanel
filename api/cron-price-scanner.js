@@ -20,7 +20,7 @@
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  */
 
-const VERSION = '3.0.34';  // v3.0.34: Add cursor for offer scanning + increase total time to 90s
+const VERSION = '3.0.35';  // v3.0.35: Prioritized queue for offers like prices (new→stale→fresh)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -761,10 +761,11 @@ function buildImageUrl(imageName) {
  * v3.0.18: ПОЛНОСТЬЮ ПЕРЕРАБОТАНО - сканируем по shopName каждого фермера
  *          Это намного эффективнее чем сканировать все 56000+ офферов
  * v3.0.34: Добавлен курсор - продолжаем с места где остановились
+ * v3.0.35: Приоритизация как у цен - новые и stale первыми
  * Запускается ПОСЛЕ сканирования цен
  */
 async function scanOffers(db, globalStartTime = null) {
-    console.log(`\n📦 Starting offer scan v3.0.34 (by shopName with cursor)...`);
+    console.log(`\n📦 Starting offer scan v3.0.35 (prioritized queue)...`);
     
     // v3.0.20: Check backup mode
     if (isInBackupMode()) {
@@ -775,34 +776,73 @@ async function scanOffers(db, globalStartTime = null) {
     }
     
     const startTime = Date.now();
+    const nowTs = Date.now();
     
     const codesCollection = db.collection('offer_codes');
     const offersCollection = db.collection('offers');
     const farmersCollection = db.collection('farmers');
     const now = new Date();
     
+    // v3.0.35: Порог свежести - 10 минут для офферов (дольше чем для цен)
+    const OFFER_FRESH_THRESHOLD_MS = 10 * 60 * 1000;
+    
     // v3.0.18: Загружаем всех фермеров с shopName
-    const allFarmers = await farmersCollection.find(
+    const allFarmersRaw = await farmersCollection.find(
         { shopName: { $exists: true, $ne: null, $ne: '' } },
         { projection: { farmKey: 1, shopName: 1 } }
     ).toArray();
     
-    // v3.0.34: Сортируем фермеров по farmKey для стабильного порядка
-    allFarmers.sort((a, b) => a.farmKey.localeCompare(b.farmKey));
+    // v3.0.35: Получаем lastScannedAt для каждого фермера из его офферов
+    // Берём самую свежую дату сканирования среди офферов фермера
+    const farmerScanTimes = new Map();
+    const allOffers = await offersCollection.find(
+        { lastScannedAt: { $exists: true } },
+        { projection: { farmKey: 1, lastScannedAt: 1 } }
+    ).toArray();
     
-    // v3.0.34: Получаем курсор - с какого фермера продолжать
-    const cursor = await getOfferScanCursor(db);
-    let startIndex = cursor.farmerIndex || 0;
-    let currentCycleId = cursor.cycleId || 0;
-    
-    // Если курсор за пределами - начинаем новый цикл
-    if (startIndex >= allFarmers.length) {
-        startIndex = 0;
-        currentCycleId++;
-        console.log(`🔄 Starting new offer scan cycle #${currentCycleId}`);
+    for (const offer of allOffers) {
+        const scanTime = offer.lastScannedAt ? new Date(offer.lastScannedAt).getTime() : 0;
+        const existing = farmerScanTimes.get(offer.farmKey) || 0;
+        if (scanTime > existing) {
+            farmerScanTimes.set(offer.farmKey, scanTime);
+        }
     }
     
-    console.log(`👥 Found ${allFarmers.length} farmers with shopName, starting from index ${startIndex} (cycle #${currentCycleId})`);
+    // v3.0.35: Классифицируем фермеров по приоритету
+    const newFarmers = [];      // Никогда не сканировались
+    const staleFarmers = [];    // Давно не сканировались (>10 мин)
+    const freshFarmers = [];    // Недавно сканировались (<10 мин)
+    
+    for (const farmer of allFarmersRaw) {
+        const lastScan = farmerScanTimes.get(farmer.farmKey) || 0;
+        const age = nowTs - lastScan;
+        
+        if (lastScan === 0) {
+            // Новый - никогда не сканировался
+            newFarmers.push({ ...farmer, _lastScanAt: 0 });
+        } else if (age >= OFFER_FRESH_THRESHOLD_MS) {
+            // Устаревший - нужно пересканировать
+            staleFarmers.push({ ...farmer, _lastScanAt: lastScan });
+        } else {
+            // Свежий - пропускаем
+            freshFarmers.push(farmer);
+        }
+    }
+    
+    // v3.0.35: Сортируем stale фермеров - самые старые первыми
+    staleFarmers.sort((a, b) => a._lastScanAt - b._lastScanAt);
+    
+    // v3.0.35: Формируем очередь: новые → устаревшие (sorted by oldest)
+    const allFarmers = [...newFarmers, ...staleFarmers];
+    
+    console.log(`📋 Priority: ${newFarmers.length} new, ${staleFarmers.length} stale (>10min), ${freshFarmers.length} fresh (<10min, skipped)`);
+    
+    if (allFarmers.length === 0) {
+        console.log(`✅ All farmers are fresh, nothing to scan`);
+        return { skipped: true, reason: 'all_fresh' };
+    }
+    
+    console.log(`👥 Scanning ${allFarmers.length} farmers (${allFarmersRaw.length} total)`);
     
     // Загружаем все существующие офферы для быстрого поиска
     const existingOffers = await offersCollection.find({}).toArray();
@@ -821,18 +861,17 @@ async function scanOffers(db, globalStartTime = null) {
     const foundCodes = new Set();
     const scannedFarmKeys = new Set();
     let offerTimeoutBreak = false;  // v10.3.7: Track if we hit time limit
-    let lastScannedIndex = startIndex;  // v3.0.34: Track last scanned farmer
+    let farmersScannedCount = 0;    // v3.0.35: Track how many farmers scanned
     
-    // v3.0.34: Сканируем фермеров начиная с курсора
-    for (let i = startIndex; i < allFarmers.length; i++) {
-        const farmer = allFarmers[i];
-        lastScannedIndex = i;
+    // v3.0.35: Сканируем фермеров по приоритету (без курсора - приоритет важнее)
+    for (const farmer of allFarmers) {
+        farmersScannedCount++;
         
         // v10.3.7: Check global time limit
         if (globalStartTime) {
             const globalElapsed = Date.now() - globalStartTime;
             if (globalElapsed >= MAX_SCAN_TIME_MS) {
-                console.log(`⏰ Offer scan stopped at farmer ${i}/${allFarmers.length} - time limit (${(globalElapsed/1000).toFixed(1)}s)`);
+                console.log(`⏰ Offer scan stopped at farmer ${farmersScannedCount}/${allFarmers.length} - time limit (${(globalElapsed/1000).toFixed(1)}s)`);
                 offerTimeoutBreak = true;
                 break;
             }
@@ -1048,19 +1087,10 @@ async function scanOffers(db, globalStartTime = null) {
     
     const duration = Math.round((Date.now() - startTime) / 1000);
     
-    // v3.0.34: Сохраняем курсор для следующего цикла
-    // Если дошли до конца - сбрасываем на 0 и увеличиваем cycleId
-    const reachedEnd = lastScannedIndex >= allFarmers.length - 1 && !offerTimeoutBreak;
-    if (reachedEnd) {
-        await saveOfferScanCursor(db, 0, currentCycleId, true);  // isNewCycle=true
-        console.log(`✅ Completed full offer scan cycle #${currentCycleId}, starting new cycle`);
-    } else {
-        // Сохраняем следующий индекс для продолжения
-        await saveOfferScanCursor(db, lastScannedIndex + 1, currentCycleId, false);
-        console.log(`💾 Saved cursor: next farmer index ${lastScannedIndex + 1}/${allFarmers.length}`);
-    }
+    // v3.0.35: Курсор больше не нужен - используем приоритизацию по lastScannedAt
+    // Каждый цикл автоматически выбирает самых "старых" фермеров первыми
     
-    console.log(`📦 Offer scan complete: ${totalScanned} scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)${offerTimeoutBreak ? ' [TIME LIMIT]' : ''}`);
+    console.log(`📦 Offer scan complete: ${farmersScannedCount} farmers, ${totalScanned} offers scanned, ${matchedCount} matched, ${updatedCount} updated, ${createdCount} created, ${pausedCount} paused (${duration}s)${offerTimeoutBreak ? ' [TIME LIMIT]' : ''}`);
     
     return { 
         totalScanned, 
@@ -1070,9 +1100,9 @@ async function scanOffers(db, globalStartTime = null) {
         pausedCount,
         foundCodes: foundCodes.size,
         duration,
-        timeoutBreak: offerTimeoutBreak, // v10.3.7
-        cursorIndex: lastScannedIndex,   // v3.0.34
-        cycleId: currentCycleId          // v3.0.34
+        timeoutBreak: offerTimeoutBreak,
+        farmersScanned: farmersScannedCount,  // v3.0.35
+        farmersTotal: allFarmers.length       // v3.0.35
     };
 }
 
