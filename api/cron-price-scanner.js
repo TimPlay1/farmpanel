@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен + офферов
- * Version: 3.0.42 - Reduced scan times (100s prices + 20s offers)
+ * Version: 3.0.43 - Fix shop name search (use first word only)
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -18,9 +18,10 @@
  * 
  * v3.0.0: Добавлено сканирование офферов (из universal-scan)
  *         Последовательные запросы чтобы избежать Cloudflare 1015
+ * v3.0.43: Fix - Eldorado API doesn't support phrase search, use first word only
  */
 
-const VERSION = '3.0.40';  // v3.0.40: Compare with last cron record only (ignore frequent client records)
+const VERSION = '3.0.43';  // v3.0.43: Fix shop name search (first word only)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -977,14 +978,17 @@ async function scanOffers(db, globalStartTime = null) {
         }
         
         const shopName = farmer.shopName;
-        // Очищаем shopName от эмодзи для поиска
+        // v3.0.43: Очищаем shopName от эмодзи и берём ПЕРВОЕ слово для поиска
+        // Eldorado API не поддерживает поиск по фразам ("Aboba Store" → 0 results)
+        // Но поиск по одному слову работает ("Aboba" → находит офферы)
         const cleanShopName = shopName.replace(/[^\w\s]/g, '').trim();
-        if (!cleanShopName || cleanShopName.length < 3) {
-            console.log(`⏭️ Skipping "${shopName}" - too short after cleaning`);
+        const searchTerm = cleanShopName.split(/\s+/)[0]; // Берём только первое слово
+        if (!searchTerm || searchTerm.length < 3) {
+            console.log(`⏭️ Skipping "${shopName}" - search term too short`);
             continue;
         }
         
-        console.log(`\n🔍 Scanning offers for "${shopName}" (farmKey: ${farmer.farmKey})...`);
+        console.log(`\n🔍 Scanning offers for "${shopName}" → search: "${searchTerm}" (farmKey: ${farmer.farmKey})...`);
         scannedFarmKeys.add(farmer.farmKey);
         
         // Сканируем до 5 страниц для каждого магазина (250 офферов макс)
@@ -992,7 +996,7 @@ async function scanOffers(db, globalStartTime = null) {
             // v3.0.20: Use adaptive delay
             await new Promise(r => setTimeout(r, getCurrentDelay(BASE_OFFER_SCAN_DELAY_MS)));
             
-            const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, cleanShopName);
+            const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, searchTerm);
             
             // v3.0.20: Check for rate limit
             if (response.rateLimited) {
@@ -1005,7 +1009,7 @@ async function scanOffers(db, globalStartTime = null) {
                 break;
             }
             if (!response.results?.length) {
-                if (page === 1) console.log(`   ℹ️ No offers found for "${cleanShopName}"`);
+                if (page === 1) console.log(`   ℹ️ No offers found for "${searchTerm}"`);
                 // v3.0.37: Empty results on page 1 is still "successful" scan (shop has no offers)
                 if (page === 1) successfullyScannedFarmKeys.add(farmer.farmKey);
                 break;
