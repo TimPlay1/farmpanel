@@ -177,11 +177,12 @@ module.exports = async (req, res) => {
             }
             
             // v3.0.5: Debug - показываем мутации для La Secret Combinasion
-            for (const [key, mut] of mutationsMap.entries()) {
-                if (key.includes('secret')) {
-                    console.log(`📋 MutationsMap: "${key}" → ${mut || 'null'}`);
-                }
-            }
+            // DISABLED: засоряет логи cron сканера
+            // for (const [key, mut] of mutationsMap.entries()) {
+            //     if (key.includes('secret')) {
+            //         console.log(`📋 MutationsMap: "${key}" → ${mut || 'null'}`);
+            //     }
+            // }
             
             // Собираем все ключи цен для batch запроса
             const priceKeys = [];
@@ -211,9 +212,10 @@ module.exports = async (req, res) => {
                 const priceData = key ? pricesMap.get(key) : null;
                 
                 // Debug: логируем для offers с B/s income
-                if (offer.income > 500) {
-                    console.log(`🔍 Offer "${offer.brainrotName}" income=${offer.income} → key="${key}", db.mutation=${offer.mutation || 'null'}, collection.mutation=${mutationsMap.get(key) || 'NOT_FOUND'}`);
-                }
+                // DISABLED: засоряет логи cron сканера
+                // if (offer.income > 500) {
+                //     console.log(`🔍 Offer "${offer.brainrotName}" income=${offer.income} → key="${key}", db.mutation=${offer.mutation || 'null'}, collection.mutation=${mutationsMap.get(key) || 'NOT_FOUND'}`);
+                // }
                 
                 if (priceData && priceData.suggestedPrice) {
                     offer.recommendedPrice = priceData.suggestedPrice;
