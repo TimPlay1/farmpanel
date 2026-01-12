@@ -363,8 +363,14 @@ const accountColorsHandler = require('./api/account-colors');
 const supaGenerateHandler = require('./api/supa-generate');
 const supaStatusHandler = require('./api/supa-status');
 const eldoradoListHandler = require('./api/eldorado-list');
+const heartbeatHandler = require('./api/heartbeat');
 
 // API Routes
+
+// Heartbeat - updates user last_seen_at for inactive user price updates
+app.post('/api/heartbeat', async (req, res) => {
+    await heartbeatHandler(req, res);
+});
 
 // Sync-fast endpoint - fast cached sync for frontend polling
 app.get('/api/sync-fast', async (req, res) => {

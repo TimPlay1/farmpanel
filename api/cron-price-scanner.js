@@ -238,6 +238,7 @@ try {
 /**
  * Собирает все уникальные брейнроты со всех панелей из БД
  * v9.12.10: Теперь также собирает мутации как отдельные записи
+ * v10.4.0: Добавлена информация о lastSeenAt фермера для приоритизации неактивных
  */
 async function collectAllBrainrotsFromDB() {
     const { db } = await connectToDatabase();
@@ -250,9 +251,20 @@ async function collectAllBrainrotsFromDB() {
     let totalAccounts = 0;
     let totalBrainrots = 0;
     let totalMutations = 0;
+    let activeUsers = 0;
+    let inactiveUsers = 0;
+    
+    const now = Date.now();
+    const ONE_HOUR_MS = 60 * 60 * 1000;
     
     for (const farmer of farmers) {
         if (!farmer.accounts) continue;
+        
+        // v10.4.0: Определяем активность пользователя
+        const lastSeenAt = farmer.lastSeenAt ? new Date(farmer.lastSeenAt).getTime() : 0;
+        const isActiveUser = (now - lastSeenAt) < ONE_HOUR_MS;
+        if (isActiveUser) activeUsers++;
+        else inactiveUsers++;
         
         for (const account of farmer.accounts) {
             if (!account.brainrots) continue;
@@ -270,10 +282,14 @@ async function collectAllBrainrotsFromDB() {
                         name,
                         income,
                         mutation: null,
-                        count: 1
+                        count: 1,
+                        hasActiveOwner: isActiveUser // v10.4.0: Track if any owner is active
                     });
                 } else {
-                    uniqueBrainrots.get(defaultKey).count++;
+                    const existing = uniqueBrainrots.get(defaultKey);
+                    existing.count++;
+                    // Если хотя бы один владелец активен - брейнрот считается активным
+                    if (isActiveUser) existing.hasActiveOwner = true;
                 }
                 
                 // 2. Mutation price (если есть мутация)
@@ -287,17 +303,20 @@ async function collectAllBrainrotsFromDB() {
                             name,
                             income,
                             mutation: b.mutation, // Сохраняем оригинал для передачи в API
-                            count: 1
+                            count: 1,
+                            hasActiveOwner: isActiveUser // v10.4.0: Track if any owner is active
                         });
                     } else {
-                        uniqueBrainrots.get(mutationKey).count++;
+                        const existing = uniqueBrainrots.get(mutationKey);
+                        existing.count++;
+                        if (isActiveUser) existing.hasActiveOwner = true;
                     }
                 }
             }
         }
     }
     
-    console.log(`📊 Collected from DB: ${farmers.length} farmers, ${totalAccounts} accounts, ${totalBrainrots} brainrots (${totalMutations} mutations), ${uniqueBrainrots.size} unique`);
+    console.log(`📊 Collected from DB: ${farmers.length} farmers (${activeUsers} active, ${inactiveUsers} inactive), ${totalAccounts} accounts, ${totalBrainrots} brainrots (${totalMutations} mutations), ${uniqueBrainrots.size} unique`);
     
     return Array.from(uniqueBrainrots.values());
 }
@@ -1193,11 +1212,14 @@ async function runPriceScan() {
     
     // 3. Генерируем ключи и классифицируем брейнроты по приоритету
     const newBrainrots = [];      // Нет в кэше - высший приоритет
-    const staleBrainrots = [];    // Есть в кэше, но устаревшие (>5 мин)
-    const freshBrainrots = [];    // Недавно сканировались (<5 мин) - пропускаем
+    const staleBrainrots = [];    // Есть в кэше, но устаревшие (>5 мин для активных, >1ч для неактивных)
+    const freshBrainrots = [];    // Недавно сканировались - пропускаем
     
-    // v9.12.100: Используем время вместо cycleId для определения свежести
-    const FRESH_THRESHOLD_MS = 5 * 60 * 1000; // 5 минут
+    // v10.4.0: Разные thresholds для активных и неактивных пользователей
+    // Активные (<1ч назад) - обновляем каждые 5 минут
+    // Неактивные (>1ч назад) - обновляем каждый час
+    const FRESH_THRESHOLD_ACTIVE_MS = 5 * 60 * 1000; // 5 минут
+    const FRESH_THRESHOLD_INACTIVE_MS = 60 * 60 * 1000; // 1 час
     const now = Date.now();
     
     for (const b of brainrots) {
@@ -1210,14 +1232,17 @@ async function runPriceScan() {
         const cached = cachedPrices.get(cacheKey);
         
         if (!cached) {
-            // Новый - нет в кэше вообще
+            // Новый - нет в кэше вообще - высший приоритет
             newBrainrots.push(b);
         } else {
             const updatedAt = cached.updatedAt ? new Date(cached.updatedAt).getTime() : 0;
             const age = now - updatedAt;
             
-            if (age < FRESH_THRESHOLD_MS) {
-                // Свежий - сканировался меньше 5 минут назад
+            // v10.4.0: Выбираем threshold в зависимости от активности владельца
+            const freshThreshold = b.hasActiveOwner ? FRESH_THRESHOLD_ACTIVE_MS : FRESH_THRESHOLD_INACTIVE_MS;
+            
+            if (age < freshThreshold) {
+                // Свежий - сканировался недавно относительно активности владельца
                 freshBrainrots.push(b);
             } else {
                 // Устаревший - нужно пересканировать
@@ -1229,13 +1254,21 @@ async function runPriceScan() {
     
     // v3.0.14: Сортируем stale брейнроты по updatedAt (по возрастанию)
     // Те что дольше всего не обновлялись - сканируются первыми
+    // v10.4.0: Брейнроты активных пользователей имеют приоритет
     staleBrainrots.sort((a, b) => {
+        // Сначала приоритет по активности владельца (активные первые)
+        if (a.hasActiveOwner && !b.hasActiveOwner) return -1;
+        if (!a.hasActiveOwner && b.hasActiveOwner) return 1;
+        // Затем по возрасту (oldest first)
         const aTime = a._cachedUpdatedAt ? new Date(a._cachedUpdatedAt).getTime() : 0;
         const bTime = b._cachedUpdatedAt ? new Date(b._cachedUpdatedAt).getTime() : 0;
         return aTime - bTime; // Ascending: oldest first
     });
     
-    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale (>5min), ${freshBrainrots.length} fresh (<5min, skipped)`);
+    // v10.4.0: Подсчитываем активных/неактивных для логирования
+    const activeStale = staleBrainrots.filter(b => b.hasActiveOwner).length;
+    const inactiveStale = staleBrainrots.length - activeStale;
+    console.log(`📋 Priority: ${newBrainrots.length} new, ${staleBrainrots.length} stale (${activeStale} active, ${inactiveStale} inactive), ${freshBrainrots.length} fresh (skipped)`);
     
     // 4. Формируем список для сканирования: сначала новые, потом устаревшие (sorted by oldest)
     const toScanAll = [...newBrainrots, ...staleBrainrots];

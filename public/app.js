@@ -1092,6 +1092,31 @@ let state = {
 let isPageVisible = !document.hidden;
 let pendingUIUpdate = false; // Flag to update UI when page becomes visible
 let lastVisibleTime = Date.now();
+let lastHeartbeatTime = 0; // v10.4.0: Track last heartbeat time
+
+// v10.4.0: Send heartbeat to server to update last_seen_at
+// This helps the cron scanner prioritize active users' brainrots
+async function sendHeartbeat() {
+    if (!state.currentKey) return;
+    
+    const now = Date.now();
+    // Don't send more often than every 5 minutes
+    if (now - lastHeartbeatTime < 5 * 60 * 1000) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/heartbeat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey: state.currentKey })
+        });
+        if (response.ok) {
+            lastHeartbeatTime = now;
+            console.log('💓 Heartbeat sent');
+        }
+    } catch (e) {
+        console.warn('Failed to send heartbeat:', e.message);
+    }
+}
 
 // v10.3.36: Track page visibility changes
 document.addEventListener('visibilitychange', () => {
@@ -1099,6 +1124,9 @@ document.addEventListener('visibilitychange', () => {
     if (isPageVisible) {
         const hiddenDuration = Date.now() - lastVisibleTime;
         console.log(`👁️ Page visible again (was hidden for ${Math.round(hiddenDuration/1000)}s)`);
+        
+        // v10.4.0: Send heartbeat when page becomes visible after being hidden
+        sendHeartbeat();
         
         // If UI update was pending, do it now
         if (pendingUIUpdate) {
@@ -3396,6 +3424,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             startPolling();
         }, 2000);
         
+        // v10.4.0: Send heartbeat on initial load to mark user as active
+        sendHeartbeat();
+        
         // Автообновление цен каждые 10 минут
         startAutoPriceRefresh();
         
@@ -5376,6 +5407,9 @@ window.selectFarmKey = async function(farmKey) {
     const previousKey = state.currentKey;
     state.currentKey = farmKey;
     saveState();
+    
+    // v10.4.0: Send heartbeat when selecting a farm key
+    sendHeartbeat();
     
     // v9.12.4: Проверяем есть ли кэш для этого ключа (в localStorage или уже загруженный)
     const cachedData = state.farmersData[farmKey];
