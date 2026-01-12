@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен + офферов
- * Version: 3.0.0 - Added offer scanning (replaces universal-scan)
+ * Version: 3.0.42 - Reduced scan times (100s prices + 20s offers)
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -181,11 +181,11 @@ function getCurrentDelay(baseDelay) {
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
-// v3.0.41: Increased total time to 180s (120s prices + 60s offers)
+// v3.0.42: Reduced scan times (100s prices + 20s offers = 120s total)
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
-const MAX_SCAN_TIME_MS = 180 * 1000;  // v3.0.41: 180 seconds total (120s prices + 60s offers)
-const MAX_PRICE_SCAN_TIME_MS = 120 * 1000;  // v3.0.41: 120s for price scanning
+const MAX_SCAN_TIME_MS = 120 * 1000;  // v3.0.42: 120 seconds total (100s prices + 20s offers)
+const MAX_PRICE_SCAN_TIME_MS = 100 * 1000;  // v3.0.42: 100s for price scanning (was 120s)
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
