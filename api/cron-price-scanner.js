@@ -181,11 +181,11 @@ function getCurrentDelay(baseDelay) {
 // v3.0.19: Adjusted for VPS (single IP) - increased delays to avoid Cloudflare rate limit
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
-// v3.0.34: Increased total time to 90s (Coolify has no 60s limit like Vercel)
+// v3.0.41: Increased total time to 180s (120s prices + 60s offers)
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
-const MAX_SCAN_TIME_MS = 90 * 1000;  // v3.0.34: 90 seconds total (50s prices + 40s offers)
-const MAX_PRICE_SCAN_TIME_MS = 50 * 1000;  // v3.0.34: 50s for price scanning (same as before)
+const MAX_SCAN_TIME_MS = 180 * 1000;  // v3.0.41: 180 seconds total (120s prices + 60s offers)
+const MAX_PRICE_SCAN_TIME_MS = 120 * 1000;  // v3.0.41: 120s for price scanning
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
