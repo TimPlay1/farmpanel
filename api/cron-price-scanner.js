@@ -1296,8 +1296,8 @@ async function runPriceScan() {
                     // Проверяем что default не свежий
                     const cached = cachedPrices.get(defaultKey);
                     const age = cached?.updatedAt ? (now - new Date(cached.updatedAt).getTime()) : Infinity;
-                    
-                    if (age >= FRESH_THRESHOLD_MS) {
+                    // v10.4.0: Use active threshold for related prices (they should update together)
+                    if (age >= FRESH_THRESHOLD_ACTIVE_MS) {
                         toScanWithRelated.push(defaultVersion);
                         addedKeys.add(defaultKey);
                     }
@@ -1315,8 +1315,8 @@ async function runPriceScan() {
                         // Проверяем что mutation не свежий
                         const cached = cachedPrices.get(br._cacheKey);
                         const age = cached?.updatedAt ? (now - new Date(cached.updatedAt).getTime()) : Infinity;
-                        
-                        if (age >= FRESH_THRESHOLD_MS) {
+                        // v10.4.0: Use active threshold for related prices (they should update together)
+                        if (age >= FRESH_THRESHOLD_ACTIVE_MS) {
                             toScanWithRelated.push(br);
                             addedKeys.add(br._cacheKey);
                         }
