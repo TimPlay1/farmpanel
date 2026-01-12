@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен + офферов
- * Version: 3.0.43 - Fix shop name search (use first word only)
+ * Version: 3.0.44 - Auto-create offers from pending offer_codes
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -18,10 +18,10 @@
  * 
  * v3.0.0: Добавлено сканирование офферов (из universal-scan)
  *         Последовательные запросы чтобы избежать Cloudflare 1015
- * v3.0.43: Fix - Eldorado API doesn't support phrase search, use first word only
+ * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
  */
 
-const VERSION = '3.0.43';  // v3.0.43: Fix shop name search (first word only)
+const VERSION = '3.0.44';  // v3.0.44: Auto-create offers from pending codes
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -953,6 +953,17 @@ async function scanOffers(db, globalStartTime = null) {
     }
     console.log(`📋 Loaded ${offersByCode.size} existing offers from DB`);
     
+    // v3.0.44: Загружаем pending offer_codes для создания новых офферов
+    const pendingCodes = await codesCollection.find({ status: 'pending' }).toArray();
+    const pendingCodesByFarmKey = new Map();
+    for (const c of pendingCodes) {
+        if (!pendingCodesByFarmKey.has(c.farmKey)) {
+            pendingCodesByFarmKey.set(c.farmKey, new Map());
+        }
+        pendingCodesByFarmKey.get(c.farmKey).set(c.code.toUpperCase(), c);
+    }
+    console.log(`📋 Loaded ${pendingCodes.length} pending offer_codes from DB`);
+    
     let totalScanned = 0;
     let matchedCount = 0;
     let updatedCount = 0;
@@ -978,17 +989,14 @@ async function scanOffers(db, globalStartTime = null) {
         }
         
         const shopName = farmer.shopName;
-        // v3.0.43: Очищаем shopName от эмодзи и берём ПЕРВОЕ слово для поиска
-        // Eldorado API не поддерживает поиск по фразам ("Aboba Store" → 0 results)
-        // Но поиск по одному слову работает ("Aboba" → находит офферы)
+        // Очищаем shopName от эмодзи для поиска
         const cleanShopName = shopName.replace(/[^\w\s]/g, '').trim();
-        const searchTerm = cleanShopName.split(/\s+/)[0]; // Берём только первое слово
-        if (!searchTerm || searchTerm.length < 3) {
-            console.log(`⏭️ Skipping "${shopName}" - search term too short`);
+        if (!cleanShopName || cleanShopName.length < 3) {
+            console.log(`⏭️ Skipping "${shopName}" - too short after cleaning`);
             continue;
         }
         
-        console.log(`\n🔍 Scanning offers for "${shopName}" → search: "${searchTerm}" (farmKey: ${farmer.farmKey})...`);
+        console.log(`\n🔍 Scanning offers for "${shopName}" → search: "${cleanShopName}" (farmKey: ${farmer.farmKey})...`);
         scannedFarmKeys.add(farmer.farmKey);
         
         // Сканируем до 5 страниц для каждого магазина (250 офферов макс)
@@ -996,7 +1004,7 @@ async function scanOffers(db, globalStartTime = null) {
             // v3.0.20: Use adaptive delay
             await new Promise(r => setTimeout(r, getCurrentDelay(BASE_OFFER_SCAN_DELAY_MS)));
             
-            const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, searchTerm);
+            const response = await fetchEldoradoOffers(page, OFFER_SCAN_PAGE_SIZE, cleanShopName);
             
             // v3.0.20: Check for rate limit
             if (response.rateLimited) {
@@ -1009,7 +1017,7 @@ async function scanOffers(db, globalStartTime = null) {
                 break;
             }
             if (!response.results?.length) {
-                if (page === 1) console.log(`   ℹ️ No offers found for "${searchTerm}"`);
+                if (page === 1) console.log(`   ℹ️ No offers found for "${cleanShopName}"`);
                 // v3.0.37: Empty results on page 1 is still "successful" scan (shop has no offers)
                 if (page === 1) successfullyScannedFarmKeys.add(farmer.farmKey);
                 break;
@@ -1082,6 +1090,83 @@ async function scanOffers(db, globalStartTime = null) {
                             { code: code },
                             { $set: { status: 'active', lastSeenAt: now, updatedAt: now } }
                         );
+                    }
+                    // v3.0.44: Создаём новый оффер если код в pending offer_codes этого фермера
+                    else if (!existingOffer) {
+                        const farmerPendingCodes = pendingCodesByFarmKey.get(farmer.farmKey);
+                        const pendingCode = farmerPendingCodes?.get(code);
+                        
+                        if (pendingCode) {
+                            // Код найден в pending - создаём новый оффер!
+                            const price = offer.pricePerUnitInUSD?.amount || 0;
+                            const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
+                            const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
+                            let income = parseIncomeFromTitle(title);
+                            
+                            // Парсим название брейнрота из title
+                            let brainrotName = null;
+                            const namePatterns = [
+                                /🔥(.+?)\s*[l|]\s*\$?\d/i,
+                                /🎄(.+?)\s*[l|]\s*\$?\d/i,
+                                /🌟(.+?)\s*[l|]\s*\$?\d/i,
+                                /(.+?)\s+l\s+\$?\d/i
+                            ];
+                            for (const pattern of namePatterns) {
+                                const match = title.match(pattern);
+                                if (match) {
+                                    brainrotName = match[1].trim();
+                                    break;
+                                }
+                            }
+                            
+                            if (!brainrotName) {
+                                // Fallback: берём первую часть до |
+                                const parts = title.split(/[l|]/);
+                                if (parts[0]) {
+                                    brainrotName = parts[0].replace(/[🔥🎄🌟✅]/g, '').trim();
+                                }
+                            }
+                            
+                            const newOffer = {
+                                farmKey: farmer.farmKey,
+                                offerId: code,
+                                brainrotName: brainrotName || 'Unknown',
+                                income: income || 0,
+                                currentPrice: price,
+                                eldoradoOfferId: offer.id,
+                                status: 'active',
+                                mutation: mutation,
+                                imageUrl: buildImageUrl(imageName),
+                                eldoradoTitle: title,
+                                sellerName: item.user?.username || null,
+                                lastScannedAt: now,
+                                createdAt: now,
+                                updatedAt: now
+                            };
+                            
+                            await offersCollection.insertOne(newOffer);
+                            createdCount++;
+                            foundCodes.add(code);
+                            
+                            // Обновляем статус в offer_codes
+                            await codesCollection.updateOne(
+                                { code: code, farmKey: farmer.farmKey },
+                                { $set: { 
+                                    status: 'active', 
+                                    brainrotName: brainrotName,
+                                    income: income || 0,
+                                    eldoradoOfferId: offer.id,
+                                    currentPrice: price,
+                                    lastSeenAt: now, 
+                                    updatedAt: now 
+                                }}
+                            );
+                            
+                            // Добавляем в кэш чтобы не создавать дубликаты
+                            offersByCode.set(code, newOffer);
+                            
+                            console.log(`   🆕 ${code}: CREATED (${brainrotName}, $${price})`);
+                        }
                     }
                 }
             }
