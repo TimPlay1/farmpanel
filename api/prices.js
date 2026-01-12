@@ -1,7 +1,11 @@
 const { connectToDatabase } = require('./_lib/db');
 
-// Глобальный кэш цен для всех пользователей (5 минут TTL)
-const PRICE_CACHE_TTL = 5 * 60 * 1000;
+// TTL для spike detection в POST (5 минут) - если цена старше, не сравниваем для spike
+const SPIKE_DETECTION_TTL = 5 * 60 * 1000;
+
+// TTL для GET запросов (1 час) - показываем последние известные цены даже если cron не работал
+// Это предотвращает пустые цены когда панель неактивна
+const GET_CACHE_TTL = 60 * 60 * 1000;
 
 module.exports = async (req, res) => {
     // CORS headers
@@ -149,8 +153,9 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // Проверяем TTL - возвращаем только свежие записи
-            const minDate = new Date(Date.now() - PRICE_CACHE_TTL);
+            // v10.3.48: Используем GET_CACHE_TTL (1 час) чтобы всегда показывать последние известные цены
+            // Это предотвращает пустые цены когда cron не работал или был rate limited
+            const minDate = new Date(Date.now() - GET_CACHE_TTL);
             query.updatedAt = { $gte: minDate };
             
             const cached = await globalPricesCollection.find(query).toArray();
@@ -158,8 +163,13 @@ module.exports = async (req, res) => {
             // Преобразуем в объект { cacheKey: priceData }
             const prices = {};
             let oldestTimestamp = null;
+            const now = Date.now();
+            const staleThreshold = 5 * 60 * 1000; // 5 минут - после этого помечаем как stale
             
             for (const item of cached) {
+                const itemTimestamp = new Date(item.updatedAt).getTime();
+                const isStale = (now - itemTimestamp) > staleThreshold;
+                
                 prices[item.cacheKey] = {
                     suggestedPrice: item.suggestedPrice,
                     previousPrice: item.previousPrice || null,
@@ -168,11 +178,13 @@ module.exports = async (req, res) => {
                     spikeDetectedAt: item.spikeDetectedAt || null,
                     competitorPrice: item.competitorPrice,
                     competitorIncome: item.competitorIncome,
-                    priceSource: item.priceSource
+                    priceSource: item.priceSource,
+                    isStale: isStale, // v10.3.48: Помечаем устаревшие цены
+                    updatedAt: itemTimestamp // v10.3.48: Время последнего обновления
                 };
-                const ts = new Date(item.updatedAt).getTime();
-                if (!oldestTimestamp || ts < oldestTimestamp) {
-                    oldestTimestamp = ts;
+                
+                if (!oldestTimestamp || itemTimestamp < oldestTimestamp) {
+                    oldestTimestamp = itemTimestamp;
                 }
             }
 
