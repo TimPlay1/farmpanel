@@ -2939,6 +2939,37 @@ function refreshPriceTimeBadges() {
 setInterval(refreshPriceTimeBadges, 30000);
 
 /**
+ * v10.4.1: Update timestamp badge in DOM for a specific brainrot card
+ * Called when keeping cached prices to refresh the "last update" indicator
+ */
+function updatePriceTimestampInDOM(brainrotName, income, timestamp, mutation = null) {
+    const roundedIncome = Math.floor(income / 10) * 10;
+    const brainrotsGridEl = document.getElementById('brainrots-grid');
+    const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
+    if (!cards || cards.length === 0) return;
+    
+    let card = null;
+    for (const c of cards) {
+        const cardIncome = parseFloat(c.dataset.brainrotIncome) || 0;
+        const cardRoundedIncome = Math.floor(cardIncome / 10) * 10;
+        if (cardRoundedIncome === roundedIncome) {
+            card = c;
+            break;
+        }
+    }
+    if (!card) card = cards[0];
+    
+    // Find the timestamp badge(s) in this card
+    const badges = card.querySelectorAll('.price-last-update[data-timestamp]');
+    badges.forEach(badge => {
+        const newTime = formatPriceUpdateTime(timestamp);
+        badge.dataset.timestamp = timestamp;
+        badge.textContent = newTime || '<1m';
+        badge.title = `Cron scanned ${newTime || 'just now'} ago`;
+    });
+}
+
+/**
  * v9.11.1: Рендер единого блока цены для обычных карточек (без мутации)
  * Новый стиль, соответствующий карточкам с мутациями
  * v9.12.12: НИКОГДА не показываем Loading если есть хоть какие-то данные в кэше
@@ -6741,6 +6772,8 @@ async function loadBrainrotPrices(brainrots) {
                         // v10.3.46: Есть старая рабочая цена - оставляем её, только обновляем timestamp
                         console.log(`💾 Keeping cached price for ${b.name} ${mutation || 'default'}: $${cached.suggestedPrice}`);
                         cached._timestamp = Date.now(); // Продлеваем жизнь кэша
+                        // v10.4.1: Update DOM timestamp badge to show fresh indicator
+                        updatePriceTimestampInDOM(b.name, income, Date.now(), mutation);
                     }
                     
                 } catch (err) {
@@ -6754,6 +6787,8 @@ async function loadBrainrotPrices(brainrots) {
                         // Есть старая цена - продлеваем её жизнь
                         console.log(`💾 Error but keeping cached price for ${b.name}: $${cached.suggestedPrice}`);
                         cached._timestamp = Date.now();
+                        // v10.4.1: Update DOM timestamp badge to show fresh indicator
+                        updatePriceTimestampInDOM(b.name, income, Date.now(), mutation);
                     }
                 }
             });
