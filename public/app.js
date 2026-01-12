@@ -2675,8 +2675,19 @@ function normalizeIncomeForApi(income, incomeText) {
  * @param {string} mutation - мутация (опционально)
  */
 function getPriceCacheKey(name, income, mutation = null) {
-    // Округляем income до 10 для группировки близких значений
-    const roundedIncome = Math.floor(income / 10) * 10;
+    // v10.3.49: Smart rounding based on income level
+    // Low income (< 25 M/s): round to nearest integer (7.5 -> 8, 2.1 -> 2)
+    // Medium income (25-100): round to 5 (37.5 -> 35, 46.8 -> 45)
+    // High income (100+): round to 10 (645 -> 640)
+    let roundedIncome;
+    if (income < 25) {
+        roundedIncome = Math.round(income);  // Round to nearest integer
+    } else if (income < 100) {
+        roundedIncome = Math.round(income / 5) * 5;  // Round to 5
+    } else {
+        roundedIncome = Math.round(income / 10) * 10;  // Round to 10
+    }
+    
     // v9.11.0: Добавляем мутацию в ключ для отдельного кэширования цен мутаций
     // v9.11.3: Нормализуем мутацию - очищаем и приводим к единому формату
     // v9.12.10: Приводим мутацию к lowercase для совместимости с серверным кэшем
@@ -2941,9 +2952,9 @@ setInterval(refreshPriceTimeBadges, 30000);
 /**
  * v10.4.1: Update timestamp badge in DOM for a specific brainrot card
  * Called when keeping cached prices to refresh the "last update" indicator
+ * v10.3.49: Use ±0.5 tolerance instead of rounding to 10
  */
 function updatePriceTimestampInDOM(brainrotName, income, timestamp, mutation = null) {
-    const roundedIncome = Math.floor(income / 10) * 10;
     const brainrotsGridEl = document.getElementById('brainrots-grid');
     const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
     if (!cards || cards.length === 0) return;
@@ -2951,8 +2962,8 @@ function updatePriceTimestampInDOM(brainrotName, income, timestamp, mutation = n
     let card = null;
     for (const c of cards) {
         const cardIncome = parseFloat(c.dataset.brainrotIncome) || 0;
-        const cardRoundedIncome = Math.floor(cardIncome / 10) * 10;
-        if (cardRoundedIncome === roundedIncome) {
+        // v10.3.49: Use ±0.5 tolerance for matching
+        if (Math.abs(cardIncome - income) <= 0.5) {
             card = c;
             break;
         }
@@ -6827,22 +6838,20 @@ async function loadBrainrotPrices(brainrots) {
 
 /**
  * Обновить цену в DOM для конкретного брейнрота
+ * v10.3.49: Use ±0.5 tolerance instead of rounding to 10
  */
 function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
-    // Округляем income для поиска (так же как при рендере)
-    const roundedIncome = Math.floor(income / 10) * 10;
     const cacheKey = getPriceCacheKey(brainrotName, income, mutation);
     
     // Ищем карточку по имени и income
     const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
     if (!cards || cards.length === 0) return;
     
-    // Находим карточку с нужным income
+    // Находим карточку с нужным income (v10.3.49: use ±0.5 tolerance)
     let card = null;
     for (const c of cards) {
         const cardIncome = parseFloat(c.dataset.brainrotIncome) || 0;
-        const cardRoundedIncome = Math.floor(cardIncome / 10) * 10;
-        if (cardRoundedIncome === roundedIncome) {
+        if (Math.abs(cardIncome - income) <= 0.5) {
             card = c;
             break;
         }
@@ -7770,16 +7779,16 @@ function getGroupKey(nameOrGroup, incomeArg, mutationArg) {
  * Check if brainrot has an active offer
  * v9.12.13: Now considers mutation - different mutations are different offers
  * v9.12.40: Fixed - if offer has no mutation data (null), match by name+income only
- *           This handles cases where Eldorado API doesn't return mutation info
  * v9.12.41: Fixed income comparison - must verify both incomes are valid numbers
+ * v10.3.49: Simplified income matching - use ±0.5 M/s tolerance (no more rounding to 10)
+ *           Since farmers send exact values like 7.5 M/s, we just need small tolerance for parsing differences
  */
 function hasActiveOffer(brainrotName, income, mutation = null) {
     if (!offersState.offers || offersState.offers.length === 0) return false;
     const normalizedIncome = normalizeIncomeForApi(income, null);
-    const roundedIncome = Math.floor(normalizedIncome / 10) * 10;
     
     // Validate that we have a valid income to compare
-    if (isNaN(roundedIncome) || roundedIncome <= 0) return false;
+    if (isNaN(normalizedIncome) || normalizedIncome <= 0) return false;
     
     // Normalize mutation for comparison
     const cleanMut = mutation ? cleanMutationText(mutation)?.toLowerCase() : null;
@@ -7787,28 +7796,29 @@ function hasActiveOffer(brainrotName, income, mutation = null) {
     return offersState.offers.some(offer => {
         if (!offer.brainrotName) return false;
         const offerIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
-        const offerRoundedIncome = Math.floor(offerIncome / 10) * 10;
         
-        // v9.12.41: Skip offers with invalid/missing income - can't match without income
-        if (isNaN(offerRoundedIncome) || offerRoundedIncome <= 0) return false;
+        // Skip offers with invalid/missing income
+        if (isNaN(offerIncome) || offerIncome <= 0) return false;
         
-        // Check name and income match
+        // Check name match
         const nameMatch = offer.brainrotName.toLowerCase() === brainrotName.toLowerCase();
-        const incomeMatch = offerRoundedIncome === roundedIncome;
+        if (!nameMatch) return false;
         
-        if (!nameMatch || !incomeMatch) return false;
+        // v10.3.49: Simple income matching with ±0.5 M/s tolerance
+        // This handles minor parsing differences (7.5 vs 7.4, 645.0 vs 645.2)
+        const incomeMatch = Math.abs(normalizedIncome - offerIncome) <= 0.5;
+        
+        if (!incomeMatch) return false;
         
         // Check mutation match
         const offerMut = offer.mutation ? cleanMutationText(offer.mutation)?.toLowerCase() : null;
         
         // v9.12.40: If offer has no mutation data (null), match by name+income only
-        // This handles cases where Eldorado API doesn't return mutation attribute
         if (offerMut === null) {
-            return true; // Name and income match, offer has no mutation data - assume match
+            return true;
         }
         
         // Both have mutations - they must match
-        // Or both null = default = match
         return cleanMut === offerMut;
     });
 }
@@ -9028,7 +9038,6 @@ function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeR
     
     // Normalize offer income
     const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
-    const roundedOfferIncome = Math.floor(normalizedOfferIncome / 10) * 10;
     
     // Normalize brainrot name for comparison
     const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -9041,11 +9050,10 @@ function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeR
         
         // Match by name
         if (normalizedBrainrotName === normalizedOfferName) {
-            // Also check income matches (rounded to 10)
+            // v10.3.49: Simple income matching with ±0.5 M/s tolerance (no rounding to 10)
             const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
-            const roundedBrainrotIncome = Math.floor(normalizedBrainrotIncome / 10) * 10;
             
-            if (roundedBrainrotIncome === roundedOfferIncome) {
+            if (Math.abs(normalizedBrainrotIncome - normalizedOfferIncome) <= 0.5) {
                 matchingBrainrots.push(b);
             }
         }
@@ -9094,6 +9102,7 @@ function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeR
 }
 
 // v9.8.25: Count brainrots in collection with same name AND income (ignore mutation)
+// v10.3.49: Use ±0.5 tolerance instead of rounding to 10
 function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, offerIncomeRaw, offerMutation) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return 0;
@@ -9101,9 +9110,8 @@ function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, off
     
     if (!offerBrainrotName) return 0;
     
-    // Normalize offer income (same logic as price cache key)
+    // Normalize offer income
     const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
-    const roundedOfferIncome = Math.floor(normalizedOfferIncome / 10) * 10;
     
     // Normalize brainrot name for comparison (lowercase, remove special chars)
     const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -9118,11 +9126,10 @@ function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, off
         
         // Match by name
         if (normalizedBrainrotName === normalizedOfferName) {
-            // Also check income matches (rounded to 10)
+            // v10.3.49: Use ±0.5 tolerance for income matching
             const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
-            const roundedBrainrotIncome = Math.floor(normalizedBrainrotIncome / 10) * 10;
             
-            if (roundedBrainrotIncome !== roundedOfferIncome) continue;
+            if (Math.abs(normalizedBrainrotIncome - normalizedOfferIncome) > 0.5) continue;
             
             // v10.3.62: Match mutation - if offer has mutation, only count brainrots with same mutation
             // If offer has no mutation, only count brainrots without mutation
