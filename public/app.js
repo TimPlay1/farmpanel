@@ -2951,8 +2951,7 @@ setInterval(refreshPriceTimeBadges, 30000);
 
 /**
  * v10.4.1: Update timestamp badge in DOM for a specific brainrot card
- * Called when keeping cached prices to refresh the "last update" indicator
- * v10.3.49: Use ±0.5 tolerance instead of rounding to 10
+ * v10.3.50: Exact income match (farmers send precise values)
  */
 function updatePriceTimestampInDOM(brainrotName, income, timestamp, mutation = null) {
     const brainrotsGridEl = document.getElementById('brainrots-grid');
@@ -2962,8 +2961,8 @@ function updatePriceTimestampInDOM(brainrotName, income, timestamp, mutation = n
     let card = null;
     for (const c of cards) {
         const cardIncome = parseFloat(c.dataset.brainrotIncome) || 0;
-        // v10.3.49: Use ±0.5 tolerance for matching
-        if (Math.abs(cardIncome - income) <= 0.5) {
+        // v10.3.50: Exact income match
+        if (cardIncome === income) {
             card = c;
             break;
         }
@@ -6838,7 +6837,7 @@ async function loadBrainrotPrices(brainrots) {
 
 /**
  * Обновить цену в DOM для конкретного брейнрота
- * v10.3.49: Use ±0.5 tolerance instead of rounding to 10
+ * v10.3.50: Exact income match (farmers send precise values)
  */
 function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
     const cacheKey = getPriceCacheKey(brainrotName, income, mutation);
@@ -6847,11 +6846,11 @@ function updatePriceInDOM(brainrotName, income, priceData, mutation = null) {
     const cards = brainrotsGridEl?.querySelectorAll(`[data-brainrot-name="${CSS.escape(brainrotName)}"]`);
     if (!cards || cards.length === 0) return;
     
-    // Находим карточку с нужным income (v10.3.49: use ±0.5 tolerance)
+    // v10.3.50: Exact income match
     let card = null;
     for (const c of cards) {
         const cardIncome = parseFloat(c.dataset.brainrotIncome) || 0;
-        if (Math.abs(cardIncome - income) <= 0.5) {
+        if (cardIncome === income) {
             card = c;
             break;
         }
@@ -7778,47 +7777,38 @@ function getGroupKey(nameOrGroup, incomeArg, mutationArg) {
 /**
  * Check if brainrot has an active offer
  * v9.12.13: Now considers mutation - different mutations are different offers
- * v9.12.40: Fixed - if offer has no mutation data (null), match by name+income only
- * v9.12.41: Fixed income comparison - must verify both incomes are valid numbers
- * v10.3.49: Simplified income matching - use ±0.5 M/s tolerance (no more rounding to 10)
- *           Since farmers send exact values like 7.5 M/s, we just need small tolerance for parsing differences
+ * v10.3.50: Simplified - exact income match (farmers send precise values)
  */
 function hasActiveOffer(brainrotName, income, mutation = null) {
     if (!offersState.offers || offersState.offers.length === 0) return false;
     const normalizedIncome = normalizeIncomeForApi(income, null);
     
-    // Validate that we have a valid income to compare
     if (isNaN(normalizedIncome) || normalizedIncome <= 0) return false;
     
-    // Normalize mutation for comparison
     const cleanMut = mutation ? cleanMutationText(mutation)?.toLowerCase() : null;
     
     return offersState.offers.some(offer => {
         if (!offer.brainrotName) return false;
         const offerIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
         
-        // Skip offers with invalid/missing income
         if (isNaN(offerIncome) || offerIncome <= 0) return false;
         
-        // Check name match
+        // Exact name match
         const nameMatch = offer.brainrotName.toLowerCase() === brainrotName.toLowerCase();
         if (!nameMatch) return false;
         
-        // v10.3.49: Simple income matching with ±0.5 M/s tolerance
-        // This handles minor parsing differences (7.5 vs 7.4, 645.0 vs 645.2)
-        const incomeMatch = Math.abs(normalizedIncome - offerIncome) <= 0.5;
-        
+        // v10.3.50: Exact income match (both normalized to M/s)
+        const incomeMatch = normalizedIncome === offerIncome;
         if (!incomeMatch) return false;
         
         // Check mutation match
         const offerMut = offer.mutation ? cleanMutationText(offer.mutation)?.toLowerCase() : null;
         
-        // v9.12.40: If offer has no mutation data (null), match by name+income only
+        // If offer has no mutation data, match by name+income only
         if (offerMut === null) {
             return true;
         }
         
-        // Both have mutations - they must match
         return cleanMut === offerMut;
     });
 }
@@ -9028,6 +9018,7 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
  * 2. If found exactly 1 - use its mutation
  * 3. If found multiple with different mutations - we have ambiguity (need Eldorado check)
  * 4. If found multiple with same mutation - use it
+ * v10.3.50: Exact income match (farmers send precise values)
  */
 function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
@@ -9050,10 +9041,10 @@ function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeR
         
         // Match by name
         if (normalizedBrainrotName === normalizedOfferName) {
-            // v10.3.49: Simple income matching with ±0.5 M/s tolerance (no rounding to 10)
+            // v10.3.50: Exact income match
             const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
             
-            if (Math.abs(normalizedBrainrotIncome - normalizedOfferIncome) <= 0.5) {
+            if (normalizedBrainrotIncome === normalizedOfferIncome) {
                 matchingBrainrots.push(b);
             }
         }
@@ -9101,8 +9092,8 @@ function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeR
     return { mutation: null, source: 'collection', ambiguous: false, count: matchingBrainrots.length };
 }
 
-// v9.8.25: Count brainrots in collection with same name AND income (ignore mutation)
-// v10.3.49: Use ±0.5 tolerance instead of rounding to 10
+// v9.8.25: Count brainrots in collection with same name AND income
+// v10.3.50: Exact income match (farmers send precise values)
 function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, offerIncomeRaw, offerMutation) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return 0;
@@ -9126,13 +9117,12 @@ function countBrainrotsWithSameNameAndIncome(offerBrainrotName, offerIncome, off
         
         // Match by name
         if (normalizedBrainrotName === normalizedOfferName) {
-            // v10.3.49: Use ±0.5 tolerance for income matching
+            // v10.3.50: Exact income match
             const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
             
-            if (Math.abs(normalizedBrainrotIncome - normalizedOfferIncome) > 0.5) continue;
+            if (normalizedBrainrotIncome !== normalizedOfferIncome) continue;
             
-            // v10.3.62: Match mutation - if offer has mutation, only count brainrots with same mutation
-            // If offer has no mutation, only count brainrots without mutation
+            // Match mutation
             const normalizedBrainrotMutation = b.mutation ? b.mutation.toLowerCase().replace(/[^a-z0-9]/g, '') : '';
             if (normalizedOfferMutation !== normalizedBrainrotMutation) continue;
             
