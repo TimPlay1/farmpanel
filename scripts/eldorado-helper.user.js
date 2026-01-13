@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      9.12.10
+// @version      10.0.6
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.12.9';
+    const VERSION = '9.12.10';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -795,6 +795,7 @@
             if (rect.width > 0 && rect.height > 0) {
                 const style = window.getComputedStyle(eldSpinner);
                 if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                    console.log('[Glitched] isSpinnerVisible: eld-spinner detected');
                     return true;
                 }
             }
@@ -807,6 +808,7 @@
             if (rect.width > 0 && rect.height > 0) {
                 const style = window.getComputedStyle(appSpinner);
                 if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                    console.log('[Glitched] isSpinnerVisible: app-spinner detected');
                     return true;
                 }
             }
@@ -843,8 +845,11 @@
      * @returns {Promise<boolean>} - true if spinner disappeared, false if timeout (page will reload)
      */
     async function waitForSpinner(timeout = 15000, actionName = null) {
+        console.log('[Glitched] waitForSpinner called, actionName:', actionName);
         // If no spinner visible, return immediately
-        if (!isSpinnerVisible()) {
+        const spinnerVisible = isSpinnerVisible();
+        console.log('[Glitched] isSpinnerVisible:', spinnerVisible);
+        if (!spinnerVisible) {
             return true;
         }
         
@@ -3358,24 +3363,89 @@
     }
 
     function closeAllDropdowns() {
+        // v10.3.0: Close new eld-dropdown menus
+        document.querySelectorAll('.dropdown-menu.show, .dropdown.open').forEach(d => {
+            d.classList.remove('show', 'open');
+        });
+        // Close by clicking outside
+        document.body.click();
+        // Legacy: ng-select dropdowns
         document.querySelectorAll('ng-dropdown-panel').forEach(p => p.remove());
         document.querySelectorAll('ng-select.ng-select-opened').forEach(s => s.classList.remove('ng-select-opened'));
     }
 
     function getNgSelectValue(ngSelect) {
         if (!ngSelect) return null;
-        return ngSelect.querySelector('.ng-value-label')?.textContent?.trim() || null;
+        
+        // v10.0.4: If dropdown has ng-invalid class, it means no value is selected
+        // This catches cases where trigger shows placeholder like "M/s" or "Mutations"
+        if (ngSelect.classList.contains('ng-invalid')) {
+            console.log('[Glitched] getNgSelectValue: ng-invalid class detected, no value selected');
+            return null;
+        }
+        
+        // v10.0.5: If dropdown has ng-valid class, trust the trigger content as selected value
+        const hasValidClass = ngSelect.classList.contains('ng-valid');
+        
+        // v10.3.0: Check new dropdown format first
+        const triggerContent = ngSelect.querySelector('.trigger-content, .dropdown-trigger');
+        if (triggerContent) {
+            const text = triggerContent.textContent?.trim();
+            console.log('[Glitched] getNgSelectValue triggerContent:', text, 'ng-valid:', hasValidClass);
+            
+            // v10.0.5: If ng-valid is present, the value is selected - don't check placeholder patterns
+            if (hasValidClass && text) {
+                return text;
+            }
+            
+            // Check if it's a placeholder (typically "Select..." or empty-like)
+            // v10.0.5: Only check patterns if NOT ng-valid
+            const textLower = text?.toLowerCase() || '';
+            if (text && !textLower.includes('select') && text !== '-') {
+                return text;
+            }
+        }
+        // Legacy: ng-select format
+        const ngValue = ngSelect.querySelector('.ng-value-label')?.textContent?.trim() || null;
+        if (ngValue) {
+            console.log('[Glitched] getNgSelectValue ng-value-label:', ngValue);
+        }
+        return ngValue;
     }
 
     function isValueSelected(ngSelect, expectedText) {
         const currentValue = getNgSelectValue(ngSelect);
         if (!currentValue) return false;
-        return currentValue.toLowerCase().includes(expectedText.toLowerCase()) ||
-               expectedText.toLowerCase().includes(currentValue.toLowerCase());
+        
+        const currentLower = currentValue.toLowerCase().trim();
+        const expectedLower = expectedText.toLowerCase().trim();
+        
+        // v10.0.4: Stricter matching to avoid false positives
+        // Exact match
+        if (currentLower === expectedLower) {
+            console.log('[Glitched] isValueSelected: exact match');
+            return true;
+        }
+        
+        // v10.0.4: For income ranges, require more specific matching
+        // "500-749 M/s" should not match "M/s" or short strings
+        // Only allow contains if the shorter string is substantial (>5 chars) or is numeric range
+        const minLength = 5;
+        if (currentLower.length >= minLength && expectedLower.includes(currentLower)) {
+            console.log('[Glitched] isValueSelected: current contains in expected');
+            return true;
+        }
+        if (expectedLower.length >= minLength && currentLower.includes(expectedLower)) {
+            console.log('[Glitched] isValueSelected: expected contains in current');
+            return true;
+        }
+        
+        return false;
     }
 
     // v9.8.4: Special function for brainrot selection with "Other" fallback
     // This keeps the dropdown OPEN if brainrot not found, so we can select "Other" immediately
+    // v10.3.0: Updated to support new eld-dropdown components
     async function selectBrainrotWithOtherFallback(ngSelect, searchName, originalName) {
         if (!ngSelect) return false;
         
@@ -3387,6 +3457,27 @@
             return true;
         }
         
+        // v10.3.0: Check if this is a new eld-dropdown component
+        const isNewDropdown = ngSelect.classList.contains('dropdown') || 
+                              ngSelect.tagName?.toLowerCase() === 'eld-dropdown' ||
+                              ngSelect.querySelector('.dropdown-trigger');
+        
+        if (isNewDropdown) {
+            console.log('[Glitched] Using new dropdown for brainrot selection');
+            // Try to select the brainrot name first
+            let selected = await trySelectNewDropdownOption(ngSelect, searchName);
+            if (!selected && originalName !== searchName) {
+                selected = await trySelectNewDropdownOption(ngSelect, originalName);
+            }
+            if (!selected) {
+                // Try selecting "Other"
+                log('Brainrot not found, trying "Other"', 'warn');
+                selected = await trySelectNewDropdownOption(ngSelect, 'Other');
+            }
+            return selected;
+        }
+        
+        // Legacy ng-select handling below
         try {
             closeAllDropdowns();
             await new Promise(r => setTimeout(r, 200));
@@ -3538,6 +3629,24 @@
             closeAllDropdowns();
             await new Promise(r => setTimeout(r, 150));
             
+            // v10.0.1: Check if this is a new eld-dropdown component
+            // ng-select has specific structure with .ng-select-container
+            // Only treat as new dropdown if it explicitly has .dropdown class AND no ng-select structure
+            const hasNgSelectStructure = ngSelect.tagName?.toLowerCase() === 'ng-select' || 
+                                         ngSelect.querySelector('.ng-select-container') ||
+                                         ngSelect.classList.contains('ng-select');
+            const isNewDropdown = !hasNgSelectStructure && 
+                                  (ngSelect.classList.contains('dropdown') || 
+                                   ngSelect.tagName?.toLowerCase() === 'eld-dropdown');
+            
+            if (isNewDropdown) {
+                console.log('[Glitched] Using new dropdown interaction for:', optionText);
+                return await trySelectNewDropdownOption(ngSelect, optionText);
+            }
+            
+            console.log('[Glitched] Using legacy ng-select interaction for:', optionText);
+            
+            // Legacy ng-select handling
             const input = ngSelect.querySelector('input[role="combobox"]');
             if (!input) {
                 log('Input not found in ng-select', 'warn');
@@ -3623,6 +3732,155 @@
             return false;
         }
     }
+    
+    // v10.3.0: New function to handle eld-dropdown components
+    // v10.0.2: New function to handle eld-dropdown components
+    async function trySelectNewDropdownOption(dropdown, optionText) {
+        try {
+            // Find and click the trigger to open dropdown
+            const trigger = dropdown.querySelector('.dropdown-trigger');
+            if (!trigger) {
+                log('Dropdown trigger not found', 'warn');
+                return false;
+            }
+            
+            // Click to open
+            trigger.click();
+            await new Promise(r => setTimeout(r, 300));
+            
+            // Wait for dropdown menu to appear
+            let menu = null;
+            for (let i = 0; i < 20; i++) {
+                menu = dropdown.querySelector('.dropdown-menu') || 
+                       document.querySelector('.dropdown-menu.show, .dropdown-menu:not(.hidden)');
+                if (menu && menu.offsetParent !== null) break;
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            if (!menu) {
+                log('Dropdown menu not found', 'warn');
+                return false;
+            }
+            
+            console.log('[Glitched] Dropdown menu found, searching for:', optionText);
+            
+            // v10.0.6: Check if there's a search input and use it to filter
+            // Search input can be inside menu or inside the dropdown itself
+            let searchInput = menu.querySelector('.search-input, input[type="text"], input[type="search"]');
+            if (!searchInput) {
+                searchInput = dropdown.querySelector('.search-input, input[type="text"], input[type="search"]');
+            }
+            
+            if (searchInput) {
+                console.log('[Glitched] Found search input, typing:', optionText);
+                searchInput.focus();
+                await new Promise(r => setTimeout(r, 50));
+                
+                // Clear existing value
+                searchInput.value = '';
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                await new Promise(r => setTimeout(r, 100));
+                
+                // Type the search text character by character for better compatibility
+                searchInput.value = optionText;
+                searchInput.dispatchEvent(new Event('input', { bubbles: true }));
+                searchInput.dispatchEvent(new Event('change', { bubbles: true }));
+                searchInput.dispatchEvent(new KeyboardEvent('keyup', { bubbles: true }));
+                searchInput.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true }));
+                await new Promise(r => setTimeout(r, 500)); // Wait for filter to apply
+                
+                console.log('[Glitched] Search input value after typing:', searchInput.value);
+            } else {
+                console.log('[Glitched] No search input found in dropdown');
+            }
+            
+            // v10.0.2: Find options - look for .dropdown-option elements
+            // Text is inside: .dropdown-option > .option-content > .content-left > div > span
+            const options = menu.querySelectorAll('.dropdown-option');
+            const searchText = optionText.toLowerCase();
+            
+            console.log('[Glitched] Found', options.length, 'dropdown-option elements after search');
+            
+            // Helper function to get option text
+            const getOptionText = (opt) => {
+                // Try to get text from nested span (Eldorado structure)
+                const span = opt.querySelector('.content-left span');
+                if (span) return span.textContent?.trim() || '';
+                // Fallback to direct text content
+                return opt.textContent?.trim() || '';
+            };
+            
+            // Exact match first
+            for (const opt of options) {
+                const label = getOptionText(opt);
+                console.log('[Glitched] Checking option:', label);
+                if (label.toLowerCase() === searchText) {
+                    console.log('[Glitched] Exact match found:', label);
+                    // Click on the option-content or the option itself
+                    const clickTarget = opt.querySelector('.option-content') || opt;
+                    clickTarget.click();
+                    await new Promise(r => setTimeout(r, 250));
+                    return true;
+                }
+            }
+            
+            // Partial match
+            for (const opt of options) {
+                const label = getOptionText(opt);
+                if (label.toLowerCase().includes(searchText) || searchText.includes(label.toLowerCase())) {
+                    console.log('[Glitched] Partial match found:', label);
+                    const clickTarget = opt.querySelector('.option-content') || opt;
+                    clickTarget.click();
+                    await new Promise(r => setTimeout(r, 250));
+                    return true;
+                }
+            }
+            
+            // v10.0.6: If using virtual scroll and option not found, try scrolling
+            const virtualScroll = menu.querySelector('cdk-virtual-scroll-viewport');
+            if (virtualScroll) {
+                console.log('[Glitched] Virtual scroll detected, trying to scroll and find:', optionText);
+                
+                // Get the spacer to know the full height
+                const spacer = virtualScroll.querySelector('.cdk-virtual-scroll-spacer');
+                const totalHeight = spacer ? parseInt(spacer.style.height) || 5000 : 5000;
+                const scrollStep = 300; // Scroll 300px at a time
+                const maxScrolls = Math.ceil(totalHeight / scrollStep) + 5; // Extra scrolls for safety
+                
+                console.log('[Glitched] Virtual scroll total height:', totalHeight, 'max scrolls:', maxScrolls);
+                
+                // Scroll through the entire list
+                for (let scroll = 0; scroll < maxScrolls; scroll++) {
+                    virtualScroll.scrollTop = scroll * scrollStep;
+                    await new Promise(r => setTimeout(r, 100));
+                    
+                    const currentOptions = menu.querySelectorAll('.dropdown-option');
+                    for (const opt of currentOptions) {
+                        const label = getOptionText(opt);
+                        if (label.toLowerCase() === searchText || label.toLowerCase().includes(searchText)) {
+                            console.log('[Glitched] Found after scroll at position', scroll * scrollStep, ':', label);
+                            const clickTarget = opt.querySelector('.option-content') || opt;
+                            clickTarget.click();
+                            await new Promise(r => setTimeout(r, 250));
+                            return true;
+                        }
+                    }
+                }
+                
+                console.log('[Glitched] Scrolled through entire list, option not found');
+            }
+            
+            log(`Option "${optionText}" not found in dropdown`, 'warn');
+            closeAllDropdowns();
+            return false;
+            
+        } catch (e) {
+            log(`Error in new dropdown selection: ${e.message}`, 'error');
+            closeAllDropdowns();
+            return false;
+        }
+    }
 
     async function selectNgOption(ngSelect, optionText, maxRetries = 3) {
         if (!ngSelect) return false;
@@ -3661,24 +3919,78 @@
     }
 
     function findNgSelectByAriaLabel(label) {
-        // Сначала ищем в desktop версии
+        // v10.0.1: FIRST try legacy ng-select (they are still used on Eldorado!)
         const inputs = document.querySelectorAll('.hidden.md\\:block input[aria-label]');
         for (const input of inputs) {
             if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
-                return input.closest('ng-select');
+                const ngSelect = input.closest('ng-select');
+                if (ngSelect) {
+                    console.log('[Glitched] Found ng-select by aria-label:', label);
+                    return ngSelect;
+                }
             }
         }
-        // Потом во всех ng-select
         const allInputs = document.querySelectorAll('ng-select input[aria-label]');
         for (const input of allInputs) {
             if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
-                return input.closest('ng-select');
+                const ngSelect = input.closest('ng-select');
+                if (ngSelect) {
+                    console.log('[Glitched] Found ng-select by input aria-label:', label);
+                    return ngSelect;
+                }
             }
         }
+        
+        // Try finding ng-select by placeholder or value text
+        const allNgSelects = document.querySelectorAll('ng-select');
+        for (const ngSelect of allNgSelects) {
+            const placeholder = ngSelect.querySelector('.ng-placeholder')?.textContent?.toLowerCase() || '';
+            const value = ngSelect.querySelector('.ng-value-label')?.textContent?.toLowerCase() || '';
+            if (placeholder.includes(label.toLowerCase()) || value.includes(label.toLowerCase())) {
+                console.log('[Glitched] Found ng-select by placeholder/value:', label);
+                return ngSelect;
+            }
+        }
+        
+        // v10.0.1: Now try new eld-dropdown components
+        // Look for dropdowns in find-item-group containers with matching labels
+        const findItemGroups = document.querySelectorAll('.find-item-group');
+        for (const group of findItemGroups) {
+            const labelSpan = group.querySelector('span');
+            if (labelSpan && labelSpan.textContent?.toLowerCase().includes(label.toLowerCase())) {
+                // Found a matching label, check for ng-select first, then .dropdown
+                const groupNgSelect = group.querySelector('ng-select');
+                if (groupNgSelect) {
+                    console.log('[Glitched] Found ng-select in group by label:', label);
+                    return groupNgSelect;
+                }
+                const dropdown = group.querySelector('.dropdown:not(.ng-select), eld-dropdown');
+                if (dropdown) {
+                    console.log('[Glitched] Found dropdown by group label:', label);
+                    return dropdown;
+                }
+            }
+        }
+        
+        console.log('[Glitched] Dropdown not found for label:', label);
         return null;
     }
 
     function findNgSelectByPlaceholder(text) {
+        // v10.3.0: First try new eld-dropdown components
+        const dropdowns = document.querySelectorAll('.dropdown, eld-dropdown');
+        for (const dropdown of dropdowns) {
+            const trigger = dropdown.querySelector('.dropdown-trigger, .trigger-content');
+            if (trigger) {
+                const triggerText = trigger.textContent?.toLowerCase() || '';
+                if (triggerText.includes(text.toLowerCase())) {
+                    console.log('[Glitched] Found dropdown by placeholder:', text);
+                    return dropdown;
+                }
+            }
+        }
+        
+        // Fallback: Legacy ng-select support
         const selects = document.querySelectorAll('ng-select');
         for (const s of selects) {
             const placeholder = s.querySelector('.ng-placeholder')?.textContent?.toLowerCase() || '';
@@ -3686,6 +3998,34 @@
             if (placeholder.includes(text.toLowerCase()) || value.includes(text.toLowerCase())) return s;
         }
         return null;
+    }
+    
+    // v10.0.0: Find dropdown by index in .find-item-group containers
+    // Useful when label matching fails
+    function findDropdownByIndex(index) {
+        // Get all find-item-groups
+        const groups = document.querySelectorAll('.find-item-group');
+        if (index < groups.length) {
+            const dropdown = groups[index].querySelector('.dropdown, eld-dropdown');
+            if (dropdown) {
+                console.log('[Glitched] Found dropdown by index:', index);
+                return dropdown;
+            }
+        }
+        return null;
+    }
+    
+    // v10.0.0: Get all dropdowns info for debugging
+    function debugDropdowns() {
+        const groups = document.querySelectorAll('.find-item-group');
+        console.log('[Glitched] Found', groups.length, 'find-item-groups');
+        groups.forEach((group, index) => {
+            const label = group.querySelector('span')?.textContent || 'no label';
+            const dropdown = group.querySelector('.dropdown, eld-dropdown');
+            const trigger = dropdown?.querySelector('.trigger-content');
+            const value = trigger?.textContent?.trim() || 'no value';
+            console.log(`[Glitched] Group ${index}: label="${label}", value="${value}", hasDropdown=${!!dropdown}`);
+        });
     }
 
     // ==================== ГЕНЕРАТОРЫ ====================
@@ -3884,9 +4224,22 @@ ${searchVariations}`;
     async function waitForOfferPage(timeout = 30000) {
         const start = Date.now();
         while (Date.now() - start < timeout) {
-            if (document.querySelectorAll('ng-select').length >= 3) return true;
+            // v10.3.0: Eldorado updated to use eld-dropdown instead of ng-select
+            // Check for both old ng-select and new eld-dropdown/dropdown elements
+            const ngSelects = document.querySelectorAll('ng-select').length;
+            const eldDropdowns = document.querySelectorAll('.dropdown, eld-dropdown, [class*="dropdown"]').length;
+            const findItemGroups = document.querySelectorAll('.find-item-group').length;
+            
+            console.log('[Glitched] waitForOfferPage check - ng-select:', ngSelects, 'dropdowns:', eldDropdowns, 'findItemGroups:', findItemGroups);
+            
+            // If we have enough dropdown elements (old or new), page is ready
+            if (ngSelects >= 3 || eldDropdowns >= 3 || findItemGroups >= 1) {
+                console.log('[Glitched] Page ready!');
+                return true;
+            }
             await new Promise(r => setTimeout(r, 500));
         }
+        console.log('[Glitched] waitForOfferPage timeout');
         return false;
     }
 
@@ -3993,12 +4346,16 @@ ${searchVariations}`;
 
     // ==================== ЗАПОЛНЕНИЕ ФОРМЫ ====================
     async function fillOfferForm() {
+        console.log('[Glitched] fillOfferForm called, offerData:', offerData ? 'present' : 'null');
         if (!offerData) return;
 
+        console.log('[Glitched] Checking spinner before fill...');
         // Wait for any loading spinner before starting
         if (!await waitForSpinner(15000, 'autoFill')) {
+            console.log('[Glitched] waitForSpinner returned false, page will reload');
             return; // Page reloaded, will retry
         }
+        console.log('[Glitched] Spinner check passed, continuing fill...');
 
         const { name, income, generatedImageUrl, minPrice, maxPrice, rarity, quantity, mutation } = offerData;
         // v9.9.4: Use offerId from panel if available, otherwise generate new one
@@ -4009,14 +4366,26 @@ ${searchVariations}`;
         log(`Starting auto-fill v5.3... (quantity: ${totalQuantity}, mutation: ${mutation || 'None'}, offerId: ${offerId})`);
 
         try {
-            await waitForOfferPage();
+            console.log('[Glitched] Waiting for offer page...');
+            const pageReady = await waitForOfferPage();
+            console.log('[Glitched] waitForOfferPage result:', pageReady);
+            
+            // v10.0.0: Debug dropdown detection
+            console.log('[Glitched] Dropdowns on page:');
+            debugDropdowns();
+            console.log('[Glitched] ng-selects found:', document.querySelectorAll('ng-select').length);
+            console.log('[Glitched] .dropdown elements found:', document.querySelectorAll('.dropdown').length);
             
             // Wait for spinner after page load
+            console.log('[Glitched] Second spinner check...');
             if (!await waitForSpinner(15000, 'autoFill')) {
+                console.log('[Glitched] Second spinner check failed');
                 return;
             }
+            console.log('[Glitched] Second spinner check passed');
             
             await new Promise(r => setTimeout(r, 1000));
+            console.log('[Glitched] Starting form fill steps...');
 
             const expectedIncomeRange = getIncomeRange(income);
             const expectedRarity = rarity || 'Secret';
@@ -4031,7 +4400,8 @@ ${searchVariations}`;
             let incomeSelect = findNgSelectByAriaLabel('M/s') || 
                                findNgSelectByAriaLabel('Income') || 
                                findNgSelectByPlaceholder('m/s') ||
-                               findNgSelectByPlaceholder('income');
+                               findNgSelectByPlaceholder('income') ||
+                               findDropdownByIndex(0); // v10.0.0: Fallback to first dropdown
             
             if (!incomeSelect) {
                 const firstDesktopSelect = document.querySelector('.hidden.md\\:block ng-select');
@@ -4039,10 +4409,14 @@ ${searchVariations}`;
             }
             
             if (incomeSelect) {
+                console.log('[Glitched] Income dropdown found:', incomeSelect.tagName, incomeSelect.className);
                 const selected = await selectNgOption(incomeSelect, expectedIncomeRange);
+                console.log('[Glitched] Income selection result:', selected);
                 verificationResults.incomeRange = selected;
                 if (!selected) log('⚠️ Income range may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 300));
+            } else {
+                console.log('[Glitched] Income dropdown NOT found!');
             }
             
             // 2. Mutations - v9.8.27: Используем мутацию из данных брейнрота
@@ -4059,37 +4433,50 @@ ${searchVariations}`;
             };
             const fixedMutation = mutationNameFixes[expectedMutation] || expectedMutation;
             log('Step 2: Mutations -> ' + fixedMutation);
-            const mutationSelect = findNgSelectByAriaLabel('Mutations') || findNgSelectByPlaceholder('mutation');
+            const mutationSelect = findNgSelectByAriaLabel('Mutations') || 
+                                   findNgSelectByPlaceholder('mutation') ||
+                                   findDropdownByIndex(1); // v10.0.0: Fallback to second dropdown
             if (mutationSelect) {
+                console.log('[Glitched] Mutation dropdown found:', mutationSelect.className);
                 const selected = await selectNgOption(mutationSelect, fixedMutation);
                 verificationResults.mutations = selected;
                 if (!selected) log('⚠️ Mutations may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 300));
+            } else {
+                console.log('[Glitched] Mutation dropdown NOT found!');
             }
             
             // 3. Item type - Brainrot
             log('Step 3: Item type -> Brainrot');
-            const itemTypeSelect = findNgSelectByAriaLabel('Item type');
+            const itemTypeSelect = findNgSelectByAriaLabel('Item type') ||
+                                   findNgSelectByAriaLabel('Item Type') ||
+                                   findDropdownByIndex(2); // v10.0.0: Fallback to third dropdown
             if (itemTypeSelect) {
+                console.log('[Glitched] ItemType dropdown found:', itemTypeSelect.className);
                 const selected = await selectNgOption(itemTypeSelect, 'Brainrot');
                 verificationResults.itemType = selected;
                 if (!selected) log('⚠️ Item type may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 500));
+            } else {
+                console.log('[Glitched] ItemType dropdown NOT found!');
             }
             
             // 4. Rarity
             log('Step 4: Rarity -> ' + expectedRarity);
             let raritySelect = null;
             for (let i = 0; i < 10; i++) {
-                raritySelect = findNgSelectByAriaLabel('Rarity');
+                raritySelect = findNgSelectByAriaLabel('Rarity') || findDropdownByIndex(3);
                 if (raritySelect) break;
                 await new Promise(r => setTimeout(r, 150));
             }
             if (raritySelect) {
+                console.log('[Glitched] Rarity dropdown found:', raritySelect.className);
                 const selected = await selectNgOption(raritySelect, expectedRarity);
                 verificationResults.rarity = selected;
                 if (!selected) log('⚠️ Rarity may not be selected correctly', 'warn');
                 await new Promise(r => setTimeout(r, 500));
+            } else {
+                console.log('[Glitched] Rarity dropdown NOT found!');
             }
             
             // 5. Brainrot name
@@ -4108,15 +4495,20 @@ ${searchVariations}`;
             
             let brainrotSelect = null;
             for (let i = 0; i < 10; i++) {
-                brainrotSelect = findNgSelectByAriaLabel('Brainrot');
+                brainrotSelect = findNgSelectByAriaLabel('Brainrot') || 
+                                 findNgSelectByAriaLabel('Item') ||
+                                 findDropdownByIndex(4); // v10.0.0: Fifth dropdown
                 if (brainrotSelect) break;
                 await new Promise(r => setTimeout(r, 150));
             }
             if (brainrotSelect) {
+                console.log('[Glitched] Brainrot dropdown found:', brainrotSelect.className);
                 // v9.8.4: Improved brainrot selection with fallback to Other
                 let selected = await selectBrainrotWithOtherFallback(brainrotSelect, searchName, name);
                 verificationResults.brainrot = selected;
                 await new Promise(r => setTimeout(r, 300));
+            } else {
+                console.log('[Glitched] Brainrot dropdown NOT found!');
             }
 
             // 6. Title (с кодом оффера для поиска)
@@ -4146,17 +4538,44 @@ ${searchVariations}`;
             log('Step 9: Delivery time');
             let deliverySelect = document.querySelector('.delivery-group ng-select');
             if (!deliverySelect) {
-                const deliveryLabel = [...document.querySelectorAll('span')].find(s => 
-                    s.textContent?.toLowerCase().includes('delivery time')
+                // v10.0.4: Try to find new eld-dropdown for delivery time
+                deliverySelect = document.querySelector('.delivery-group eld-dropdown, .delivery-group .dropdown');
+            }
+            if (!deliverySelect) {
+                // Try finding by label text
+                const deliveryLabel = [...document.querySelectorAll('span, label')].find(s => 
+                    s.textContent?.toLowerCase().includes('delivery time') ||
+                    s.textContent?.toLowerCase().includes('guaranteed delivery')
                 );
                 if (deliveryLabel) {
-                    deliverySelect = deliveryLabel.closest('div')?.querySelector('ng-select');
+                    // Try ng-select first, then eld-dropdown
+                    const container = deliveryLabel.closest('div') || deliveryLabel.parentElement;
+                    deliverySelect = container?.querySelector('ng-select') || 
+                                     container?.querySelector('eld-dropdown') ||
+                                     container?.querySelector('.dropdown');
+                    // If not found in immediate container, try parent containers
+                    if (!deliverySelect) {
+                        const parentDiv = container?.parentElement;
+                        deliverySelect = parentDiv?.querySelector('ng-select') || 
+                                         parentDiv?.querySelector('eld-dropdown') ||
+                                         parentDiv?.querySelector('.dropdown');
+                    }
                 }
             }
+            if (!deliverySelect) {
+                // v10.0.4: Fallback - find by placeholder text "Choose" or "min"
+                deliverySelect = findNgSelectByPlaceholder('choose') ||
+                                 findNgSelectByPlaceholder('min') ||
+                                 findNgSelectByPlaceholder('delivery');
+                console.log('[Glitched] Delivery dropdown by placeholder:', deliverySelect?.tagName);
+            }
             if (deliverySelect) {
+                console.log('[Glitched] Delivery dropdown found:', deliverySelect.tagName, deliverySelect.className);
                 const selected = await selectNgOption(deliverySelect, '20 min');
                 verificationResults.deliveryTime = selected;
                 if (!selected) log('⚠️ Delivery time may not be selected correctly', 'warn');
+            } else {
+                console.log('[Glitched] Delivery dropdown NOT found!');
             }
             await new Promise(r => setTimeout(r, 150));
 
