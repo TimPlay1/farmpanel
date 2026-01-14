@@ -7586,7 +7586,9 @@ async function generateImage() {
                 titleColor: genSettings.titleColor,
                 titleGlow: genSettings.titleGlow,
                 incomeColor: genSettings.incomeColor,
-                fontFamily: genSettings.fontFamily
+                fontFamily: genSettings.fontFamily,
+                bgColor1: genSettings.bgColor1,
+                bgColor2: genSettings.bgColor2
             })
         });
         
@@ -8316,7 +8318,9 @@ async function doStartMassGeneration() {
                     titleColor: genSettings.titleColor,
                     titleGlow: genSettings.titleGlow,
                     incomeColor: genSettings.incomeColor,
-                    fontFamily: genSettings.fontFamily
+                    fontFamily: genSettings.fontFamily,
+                    bgColor1: genSettings.bgColor1,
+                    bgColor2: genSettings.bgColor2
                 })
             });
             
@@ -10868,7 +10872,9 @@ const DEFAULT_GENERATOR_SETTINGS = {
     titleColor: '#ffff00',
     titleGlow: '#ff6600',
     incomeColor: '#1bff00',
-    fontFamily: 'Press Start 2P'
+    fontFamily: 'Press Start 2P',
+    bgColor1: '#2d1b4e',
+    bgColor2: '#0d0519'
 };
 
 let generatorSettings = { ...DEFAULT_GENERATOR_SETTINGS };
@@ -10912,6 +10918,12 @@ function openGeneratorSettingsModal() {
     document.getElementById('genIncomeColorText').value = generatorSettings.incomeColor;
     document.getElementById('genFontFamily').value = generatorSettings.fontFamily;
     
+    // Background gradient colors
+    const bgColor1El = document.getElementById('genBgColor1');
+    const bgColor2El = document.getElementById('genBgColor2');
+    if (bgColor1El) bgColor1El.value = generatorSettings.bgColor1 || '#2d1b4e';
+    if (bgColor2El) bgColor2El.value = generatorSettings.bgColor2 || '#0d0519';
+    
     // Update preview
     updateGeneratorSettingsPreview();
     
@@ -10935,6 +10947,14 @@ function updateGeneratorSettingsPreview() {
     const titleGlow = document.getElementById('genTitleGlow').value;
     const incomeColor = document.getElementById('genIncomeColor').value;
     const fontFamily = document.getElementById('genFontFamily').value;
+    const bgColor1 = document.getElementById('genBgColor1')?.value || '#2d1b4e';
+    const bgColor2 = document.getElementById('genBgColor2')?.value || '#0d0519';
+    
+    // Update background gradient
+    const previewCanvas = document.getElementById('genSettingsPreviewCanvas');
+    if (previewCanvas) {
+        previewCanvas.style.background = `linear-gradient(135deg, ${bgColor1}, ${bgColor2})`;
+    }
     
     // Update border
     const previewBorder = document.getElementById('genPreviewBorder');
@@ -10955,13 +10975,19 @@ function updateGeneratorSettingsPreview() {
         previewShopName.textContent = shopName.toUpperCase();
     }
     
-    // Update brainrot name
+    // Update brainrot name with font
     const previewBrainrotName = document.getElementById('genPreviewBrainrotName');
     if (previewBrainrotName) {
         previewBrainrotName.style.fontFamily = `'${fontFamily}', monospace`;
     }
     
-    // Update income
+    // Update mutation badge with font
+    const previewMutation = document.getElementById('genPreviewMutation');
+    if (previewMutation) {
+        previewMutation.style.fontFamily = `'${fontFamily}', monospace`;
+    }
+    
+    // Update income with font and color
     const previewIncome = document.getElementById('genPreviewIncomeText');
     if (previewIncome) {
         previewIncome.style.color = incomeColor;
@@ -10988,6 +11014,12 @@ function resetGeneratorSettings() {
     document.getElementById('genIncomeColorText').value = DEFAULT_GENERATOR_SETTINGS.incomeColor;
     document.getElementById('genFontFamily').value = DEFAULT_GENERATOR_SETTINGS.fontFamily;
     
+    // Background colors
+    const bgColor1El = document.getElementById('genBgColor1');
+    const bgColor2El = document.getElementById('genBgColor2');
+    if (bgColor1El) bgColor1El.value = DEFAULT_GENERATOR_SETTINGS.bgColor1;
+    if (bgColor2El) bgColor2El.value = DEFAULT_GENERATOR_SETTINGS.bgColor2;
+    
     updateGeneratorSettingsPreview();
 }
 
@@ -10998,7 +11030,9 @@ function saveGeneratorSettings() {
         titleColor: document.getElementById('genTitleColor').value,
         titleGlow: document.getElementById('genTitleGlow').value,
         incomeColor: document.getElementById('genIncomeColor').value,
-        fontFamily: document.getElementById('genFontFamily').value
+        fontFamily: document.getElementById('genFontFamily').value,
+        bgColor1: document.getElementById('genBgColor1')?.value || DEFAULT_GENERATOR_SETTINGS.bgColor1,
+        bgColor2: document.getElementById('genBgColor2')?.value || DEFAULT_GENERATOR_SETTINGS.bgColor2
     };
     
     // Save to localStorage
@@ -11088,6 +11122,16 @@ function setupGeneratorSettingsListeners() {
     const fontSelect = document.getElementById('genFontFamily');
     if (fontSelect) {
         fontSelect.addEventListener('change', updateGeneratorSettingsPreview);
+    }
+    
+    // Background color pickers (no text input, just color pickers)
+    const bgColor1 = document.getElementById('genBgColor1');
+    const bgColor2 = document.getElementById('genBgColor2');
+    if (bgColor1) {
+        bgColor1.addEventListener('input', updateGeneratorSettingsPreview);
+    }
+    if (bgColor2) {
+        bgColor2.addEventListener('input', updateGeneratorSettingsPreview);
     }
     
     // Modal overlay

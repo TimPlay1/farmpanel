@@ -7053,20 +7053,38 @@ body.theme-light textarea {
 .color-picker-wrapper input[type="color"] {
     width: 36px;
     height: 36px;
-    border: 2px solid var(--border-color);
+    border: 2px solid var(--accent-primary);
     border-radius: 8px;
     cursor: pointer;
-    padding: 2px;
-    background: var(--bg-secondary);
+    padding: 0;
+    background: transparent;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.color-picker-wrapper input[type="color"]:hover {
+    border-color: var(--accent-secondary);
+    transform: scale(1.05);
 }
 
 .color-picker-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
-    padding: 2px;
+    padding: 3px;
 }
 
 .color-picker-wrapper input[type="color"]::-webkit-color-swatch {
     border-radius: 4px;
     border: none;
+}
+
+.color-picker-wrapper input[type="color"]::-moz-color-swatch {
+    border-radius: 4px;
+    border: none;
+}
+
+.color-picker-wrapper .color-arrow {
+    color: var(--text-muted);
+    font-size: 14px;
 }
 
 .color-picker-wrapper input[type="text"] {
@@ -7075,6 +7093,10 @@ body.theme-light textarea {
     font-family: monospace;
     text-transform: uppercase;
     font-size: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
 }
 
 .gen-font-select {

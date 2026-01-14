@@ -268,6 +268,23 @@ async function downloadImage(imageUrl) {
 }
 
 /**
+ * Смешивание двух HEX цветов
+ */
+function mixColors(color1, color2, ratio) {
+    const hex = (c) => parseInt(c.slice(1), 16);
+    const r1 = (hex(color1) >> 16) & 255;
+    const g1 = (hex(color1) >> 8) & 255;
+    const b1 = hex(color1) & 255;
+    const r2 = (hex(color2) >> 16) & 255;
+    const g2 = (hex(color2) >> 8) & 255;
+    const b2 = hex(color2) & 255;
+    const r = Math.round(r1 + (r2 - r1) * ratio);
+    const g = Math.round(g1 + (g2 - g1) * ratio);
+    const b = Math.round(b1 + (b2 - b1) * ratio);
+    return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+/**
  * Рисование закруглённого прямоугольника
  */
 function roundRect(ctx, x, y, width, height, radius) {
@@ -715,7 +732,9 @@ async function generateBrainrotImage(options) {
         titleColor = COLORS.title,
         titleGlow = '#ff6600',
         incomeColor = COLORS.income,
-        fontFamily = 'Press Start 2P'
+        fontFamily = 'Press Start 2P',
+        bgColor1 = '#2d1b4e',
+        bgColor2 = '#0d0519'
     } = options;
     
     console.log('[LocalGen] DESTRUCTURED VALUES:', { 
@@ -745,11 +764,11 @@ async function generateBrainrotImage(options) {
     const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
     const ctx = canvas.getContext('2d');
     
-    // Градиентный фон (тёмно-фиолетовый)
+    // Градиентный фон (настраиваемый)
     const bgGradient = ctx.createLinearGradient(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    bgGradient.addColorStop(0, '#2d1b4e');
-    bgGradient.addColorStop(0.5, '#1a0a2e');
-    bgGradient.addColorStop(1, '#0d0519');
+    bgGradient.addColorStop(0, bgColor1);
+    bgGradient.addColorStop(0.5, mixColors(bgColor1, bgColor2, 0.5));
+    bgGradient.addColorStop(1, bgColor2);
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     

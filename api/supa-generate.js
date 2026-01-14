@@ -282,21 +282,19 @@ async function handleLocalGeneration(req, res, params) {
     const { 
         name, income, price, imageUrl, accountId, accountName, mutation, titleText,
         // Новые параметры настроек генератора
-        borderColor, titleColor, titleGlow, incomeColor, fontFamily
+        borderColor, titleColor, titleGlow, incomeColor, fontFamily, bgColor1, bgColor2
     } = params;
     
     console.log('[SupaGen] Using LOCAL generator');
     console.log('[SupaGen] === Local Generate Request ===');
     console.log('[SupaGen] Name:', name);
     console.log('[SupaGen] Income:', income);
-    console.log('[SupaGen] Price:', price);
     console.log('[SupaGen] Image URL:', imageUrl?.substring(0, 50));
     console.log('[SupaGen] Border Color:', borderColor);
     console.log('[SupaGen] Title Color:', titleColor);
-    console.log('[SupaGen] Income Color:', incomeColor);
+    console.log('[SupaGen] Background:', bgColor1, '→', bgColor2);
     console.log('[SupaGen] Font:', fontFamily);
     console.log('[SupaGen] Mutation:', mutation || 'none');
-    console.log('[SupaGen] Title:', titleText || 'MY SHOP');
 
     try {
         // Генерируем изображение локально с полными настройками
@@ -311,7 +309,9 @@ async function handleLocalGeneration(req, res, params) {
             titleColor: titleColor || '#ffff00',
             titleGlow: titleGlow || '#ff6600',
             incomeColor: incomeColor || '#1bff00',
-            fontFamily: fontFamily || 'Press Start 2P'
+            fontFamily: fontFamily || 'Press Start 2P',
+            bgColor1: bgColor1 || '#2d1b4e',
+            bgColor2: bgColor2 || '#0d0519'
         });
 
         // Сохраняем файл
@@ -448,7 +448,7 @@ module.exports = async (req, res) => {
         const { 
             name, income, price, imageUrl, borderColor, accountId, accountName, templateId, useLocal, mutation, titleText,
             // Generator settings
-            titleColor, titleGlow, incomeColor, fontFamily
+            titleColor, titleGlow, incomeColor, fontFamily, bgColor1, bgColor2
         } = req.body;
 
         if (!name) {
@@ -458,7 +458,7 @@ module.exports = async (req, res) => {
         const params = { 
             name, income, price, imageUrl, borderColor, accountId, accountName, templateId, mutation, titleText,
             // Generator settings
-            titleColor, titleGlow, incomeColor, fontFamily
+            titleColor, titleGlow, incomeColor, fontFamily, bgColor1, bgColor2
         };
 
         // Выбираем генератор: локальный или Supa

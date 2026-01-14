@@ -19,7 +19,7 @@
     <link rel="preload" href="styles.css?v=15" as="style">
     <!-- Note: app.js not preloaded due to versioned query string causing browser warnings -->
     <!-- Стили -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Press+Start+2P&family=Bebas+Neue&family=Oswald:wght@700&family=Bangers&family=Bungee&family=Russo+One&family=Montserrat:wght@700&family=Roboto:wght@700&family=Comic+Neue:wght@700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <link rel="stylesheet" href="styles.css?v=15">
@@ -979,6 +979,16 @@
                                 <option value="Roboto" style="font-family: 'Roboto', sans-serif;">Roboto</option>
                                 <option value="Comic Neue" style="font-family: 'Comic Neue', cursive;">Comic Neue</option>
                             </select>
+                        </div>
+                        
+                        <!-- Background Gradient -->
+                        <div class="gen-setting-row">
+                            <label>Background</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="genBgColor1" value="#2d1b4e">
+                                <span class="color-arrow">→</span>
+                                <input type="color" id="genBgColor2" value="#0d0519">
+                            </div>
                         </div>
                     </div>
                 </div>
