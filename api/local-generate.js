@@ -881,8 +881,11 @@ module.exports = async (req, res) => {
         const filename = generateFilename(name);
         const savedPath = await saveGeneratedImage(imageBuffer, filename);
         
-        // URL для доступа к файлу
-        const resultUrl = `/generated/${filename}`;
+        // Build full URL с доменом панели для Tampermonkey
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const host = req.get('host') || 'localhost:3000';
+        const baseUrl = `${protocol}://${host}`;
+        const resultUrl = `${baseUrl}/generated/${filename}`;
 
         console.log('[LocalGen] Generation complete, URL:', resultUrl);
 

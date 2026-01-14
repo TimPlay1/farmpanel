@@ -318,8 +318,12 @@ async function handleLocalGeneration(req, res, params) {
         const filename = localGenerator.generateFilename(name);
         const savedPath = await localGenerator.saveGeneratedImage(imageBuffer, filename);
         
-        // URL для доступа к файлу
-        const resultUrl = `/generated/${filename}`;
+        // Build full URL с доменом панели для Tampermonkey
+        // Получаем базовый URL из запроса
+        const protocol = req.get('x-forwarded-proto') || req.protocol || 'https';
+        const host = req.get('host') || 'localhost:3000';
+        const baseUrl = `${protocol}://${host}`;
+        const resultUrl = `${baseUrl}/generated/${filename}`;
 
         console.log('[SupaGen] Local generation complete, URL:', resultUrl);
 
