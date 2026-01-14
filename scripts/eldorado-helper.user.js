@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.7
+// @version      10.0.8
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -4497,17 +4497,24 @@ ${searchVariations}`;
                 const selected = await selectNgOption(itemTypeSelect, 'Brainrot');
                 verificationResults.itemType = selected;
                 if (!selected) log('⚠️ Item type may not be selected correctly', 'warn');
-                await new Promise(r => setTimeout(r, 500));
+                // v10.0.8: Wait longer for Rarity/Brainrot dropdowns to appear after Item type selection
+                await new Promise(r => setTimeout(r, 800));
             } else {
                 console.log('[Glitched] ItemType dropdown NOT found!');
             }
             
             // 4. Rarity
+            // v10.0.8: After selecting "Brainrot" in Item type, Rarity dropdown appears dynamically
+            // We must wait for it to appear and find it by label, NOT by index
             log('Step 4: Rarity -> ' + expectedRarity);
             let raritySelect = null;
-            for (let i = 0; i < 10; i++) {
-                raritySelect = findNgSelectByAriaLabel('Rarity') || findDropdownByIndex(3);
-                if (raritySelect) break;
+            for (let i = 0; i < 20; i++) {
+                // v10.0.8: Only search by label, not by index - index is unreliable when fields appear dynamically
+                raritySelect = findNgSelectByAriaLabel('Rarity');
+                if (raritySelect) {
+                    console.log('[Glitched] Rarity dropdown appeared after', (i+1)*150, 'ms');
+                    break;
+                }
                 await new Promise(r => setTimeout(r, 150));
             }
             if (raritySelect) {
@@ -4515,12 +4522,14 @@ ${searchVariations}`;
                 const selected = await selectNgOption(raritySelect, expectedRarity);
                 verificationResults.rarity = selected;
                 if (!selected) log('⚠️ Rarity may not be selected correctly', 'warn');
-                await new Promise(r => setTimeout(r, 500));
+                // v10.0.8: Wait for Brainrot dropdown to appear after Rarity selection
+                await new Promise(r => setTimeout(r, 800));
             } else {
-                console.log('[Glitched] Rarity dropdown NOT found!');
+                console.log('[Glitched] Rarity dropdown NOT found after waiting!');
             }
             
             // 5. Brainrot name
+            // v10.0.8: Brainrot dropdown appears after Rarity is selected
             log('Step 5: Brainrot -> ' + name);
             
             // Маппинг исправлений опечаток на Eldorado
@@ -4534,12 +4543,16 @@ ${searchVariations}`;
             let searchName = brainrotNameFixes[name] || name;
             log('Searching for brainrot: ' + searchName);
             
+            // v10.0.8: Brainrot dropdown appears dynamically after Rarity is selected
+            // Only search by label, not by index
             let brainrotSelect = null;
-            for (let i = 0; i < 10; i++) {
+            for (let i = 0; i < 20; i++) {
                 brainrotSelect = findNgSelectByAriaLabel('Brainrot') || 
-                                 findNgSelectByAriaLabel('Item') ||
-                                 findDropdownByIndex(4); // v10.0.0: Fifth dropdown
-                if (brainrotSelect) break;
+                                 findNgSelectByAriaLabel('Item');
+                if (brainrotSelect) {
+                    console.log('[Glitched] Brainrot dropdown appeared after', (i+1)*150, 'ms');
+                    break;
+                }
                 await new Promise(r => setTimeout(r, 150));
             }
             if (brainrotSelect) {
@@ -4549,7 +4562,7 @@ ${searchVariations}`;
                 verificationResults.brainrot = selected;
                 await new Promise(r => setTimeout(r, 300));
             } else {
-                console.log('[Glitched] Brainrot dropdown NOT found!');
+                console.log('[Glitched] Brainrot dropdown NOT found after waiting!');
             }
 
             // 6. Title (с кодом оффера для поиска)
