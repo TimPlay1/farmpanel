@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.10
+// @version      10.0.11
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -4234,6 +4234,20 @@ Thanks for choosing and working with ${shopName}! Cheers 🎁🎁
 ${searchVariations}`;
     }
 
+    // v10.0.11: Format numeric income to display string with M/s suffix
+    function formatIncomeForDisplay(income) {
+        if (!income && income !== 0) return '0 M/s';
+        const num = parseFloat(income);
+        if (isNaN(num)) return String(income); // Already a string like "540M/s"
+        
+        // If number >= 1000, it's in B/s range
+        if (num >= 1000) {
+            return (num / 1000).toFixed(2) + ' B/s';
+        }
+        // Otherwise it's M/s
+        return num + ' M/s';
+    }
+
     function getIncomeRange(income) {
         if (!income) return '0-24 M/s';
         const incomeStr = String(income).toUpperCase();
@@ -4569,7 +4583,9 @@ ${searchVariations}`;
             log('Step 6: Title');
             const titleInput = document.querySelector('textarea[maxlength="160"]');
             if (titleInput) {
-                setInputValue(titleInput, generateOfferTitle(name, income, offerId));
+                // v10.0.11: Use incomeText for display, fallback to formatted income
+                const displayIncome = offerData.incomeText || formatIncomeForDisplay(income);
+                setInputValue(titleInput, generateOfferTitle(name, displayIncome, offerId));
             }
             await new Promise(r => setTimeout(r, 150));
 
@@ -4869,7 +4885,9 @@ ${searchVariations}`;
                 const qtyBadge = item.quantity > 1 ? `<span style="color:#f59e0b;font-weight:bold;">x${item.quantity}</span>` : '';
                 // v9.8.27: Show mutation badge if present
                 const mutBadge = item.mutation ? `<span style="color:#a855f7;font-size:9px;margin-left:3px;">[${item.mutation}]</span>` : '';
-                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name} ${qtyBadge}${mutBadge}</span></div>`;
+                // v10.0.11: Show income in queue items
+                const incomeDisplay = item.incomeText || formatIncomeForDisplay(item.income);
+                return `<div class="queue-item ${className}"><span class="q-icon">${icon}</span><span class="q-name">${item.name} ${qtyBadge}${mutBadge}</span><span style="color:#22c55e;font-size:10px;margin-left:auto;">${incomeDisplay}</span></div>`;
             }).join('');
             queueHtml = `<div class="queue-info"><div class="queue-progress">📋 ${queueIndex + 1} / ${queueTotal}</div><div>Очередь Eldorado</div></div><div class="queue-list">${queueItems}</div>`;
         }
@@ -4890,7 +4908,7 @@ ${searchVariations}`;
                 <div style="flex:1;min-width:0;">
                     <div class="name">${offerData.name || 'Unknown'} ${qtyBadge} ${mutationBadge}</div>
                     <div class="details">
-                        <span class="income">💰 ${offerData.income || '0/s'}</span>
+                        <span class="income">💰 ${offerData.incomeText || formatIncomeForDisplay(offerData.income)}</span>
                         ${price > 0 ? `<span class="price">💵 $${price.toFixed(2)}</span>` : ''}
                     </div>
                 </div>
