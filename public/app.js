@@ -7510,6 +7510,39 @@ async function generateSupaImage() {
     // Используем единый цвет панели
     const borderColor = collectionState.panelColor || '#4ade80';
     
+    // v9.12.50: Получаем выбранную цену для отображения на изображении
+    const selectedPriceType = document.querySelector('input[name="supaPriceType"]:checked')?.value || 'suggested';
+    const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
+    const hasMutation = currentSupaBrainrot?.mutation && cleanMutationText(currentSupaBrainrot?.mutation);
+    
+    const normalizedIncome = normalizeIncomeForApi(currentSupaBrainrot?.income, income);
+    let priceKey;
+    if (selectedVariant === 'mutation' && hasMutation) {
+        priceKey = getPriceCacheKey(name, normalizedIncome, currentSupaBrainrot.mutation);
+    } else {
+        priceKey = getPriceCacheKey(name, normalizedIncome);
+    }
+    const priceData = state.brainrotPrices[priceKey];
+    
+    const customPriceInput = document.getElementById('supaCustomPrice');
+    const customPrice = customPriceInput ? parseFloat(customPriceInput.value) : 0;
+    
+    let price = 0;
+    if (selectedPriceType === 'custom' && customPrice > 0) {
+        price = customPrice;
+    } else if (priceData) {
+        switch (selectedPriceType) {
+            case 'median':
+                price = priceData.medianPrice || priceData.suggestedPrice || 0;
+                break;
+            case 'nextCompetitor':
+                price = priceData.nextCompetitorPrice || priceData.suggestedPrice || 0;
+                break;
+            default:
+                price = priceData.suggestedPrice || 0;
+        }
+    }
+    
     const generateBtn = document.getElementById('supaGenerateBtn');
     const statusEl = document.getElementById('supaStatus');
     const statusText = document.getElementById('supaStatusText');
@@ -7534,7 +7567,8 @@ async function generateSupaImage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 name, 
-                income, 
+                income,
+                price: price ? `$${parseFloat(price).toFixed(2)}` : '', // v9.12.50: Передаём цену для отображения
                 imageUrl,
                 borderColor,
                 accountId,

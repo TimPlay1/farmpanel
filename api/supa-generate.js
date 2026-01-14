@@ -20,7 +20,8 @@ const DEFAULT_TEMPLATE_ID = 21157229; // Default Supa template
 const TEMPLATE_OBJECTS = {
     IMAGE: 'brainrot_image',
     NAME: 'brainrot_name',
-    INCOME: 'brainrot_income'
+    INCOME: 'brainrot_income',
+    PRICE: 'brainrot_price'  // v9.12.50: Добавлена поддержка цены
 };
 
 // Detect image format by magic bytes
@@ -147,7 +148,7 @@ async function uploadImageToSupa(imageUrl) {
 
 // Request render
 async function requestRender(brainrotData) {
-    const { name, income, supaImageUrl, borderColor, customTemplateId } = brainrotData;
+    const { name, income, price, supaImageUrl, borderColor, customTemplateId } = brainrotData;
 
     const objectsOverrides = {};
 
@@ -183,6 +184,13 @@ async function requestRender(brainrotData) {
     objectsOverrides[TEMPLATE_OBJECTS.INCOME] = {
         text: `<substyle color="#1BFF00">${cleanIncome}</substyle>`
     };
+
+    // v9.12.50: Price - жёлтый цвет для цены
+    if (price) {
+        objectsOverrides[TEMPLATE_OBJECTS.PRICE] = {
+            text: `<substyle color="#FFD700">${price}</substyle>`
+        };
+    }
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));
 
@@ -262,7 +270,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { name, income, imageUrl, borderColor, accountId, accountName, templateId } = req.body;
+        const { name, income, price, imageUrl, borderColor, accountId, accountName, templateId } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'name is required' });
@@ -271,6 +279,7 @@ module.exports = async (req, res) => {
         console.log('=== Generate Request ===');
         console.log('Name:', name);
         console.log('Income:', income);
+        console.log('Price:', price);
         console.log('Image URL:', imageUrl);
         console.log('Border Color:', borderColor);
 
@@ -297,6 +306,7 @@ module.exports = async (req, res) => {
         const renderResult = await requestRender({
             name,
             income,
+            price,
             supaImageUrl,
             borderColor,
             customTemplateId
