@@ -8337,8 +8337,9 @@ async function doStartMassGeneration() {
             
             // Always add to Eldorado queue
             const offerId = generateOfferId();
-            // v9.11.1: Pass mutation only if using mutation variant
-            const effectiveMutation = isUsingMutationPrice ? (group.mutation || '') : '';
+            // v10.0.13: Always pass mutation if present (for display and form filling)
+            // The variant selection only affects PRICE, not the mutation itself
+            const effectiveMutation = group.mutation || '';
             // v9.12.42: Pass both numeric income and text for display
             eldoradoQueue.push({
                 name: group.name,
