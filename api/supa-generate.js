@@ -1,6 +1,22 @@
 const fetch = require('node-fetch');
 const FormData = require('form-data');
 
+// ============================================
+// LOCAL GENERATOR MODE (временная замена Supa API)
+// Установите USE_LOCAL_GENERATOR = true для использования локального генератора
+// ============================================
+const USE_LOCAL_GENERATOR = process.env.USE_LOCAL_GENERATOR === 'true' || true; // По умолчанию включён
+
+// Local generator import
+let localGenerator;
+try {
+    localGenerator = require('./local-generate');
+    console.log('[SupaGen] Local generator loaded successfully');
+} catch (e) {
+    console.log('[SupaGen] Local generator not available:', e.message);
+    localGenerator = null;
+}
+
 // Sharp для конвертации webp в png
 let sharp;
 try {
@@ -11,7 +27,7 @@ try {
     sharp = null;
 }
 
-// Supa API Configuration
+// Supa API Configuration (used when USE_LOCAL_GENERATOR = false)
 const SUPA_API_KEY = process.env.SUPA_API_KEY || 'dZddxo0zt0u1MHC8YXoUgzBu5tW5JuiM';
 const SUPA_API_BASE = 'https://api.supa.ru/public/v2';
 const DEFAULT_TEMPLATE_ID = 21157229; // Default Supa template
@@ -259,6 +275,157 @@ async function waitForRender(taskId, maxAttempts = 4) {
     return { state: 'pending', task_id: taskId };
 }
 
+// ============================================
+// LOCAL GENERATION HANDLER
+// ============================================
+async function handleLocalGeneration(req, res, params) {
+    const { 
+        name, income, price, imageUrl, accountId, accountName, mutation, titleText,
+        // Новые параметры настроек генератора
+        borderColor, titleColor, titleGlow, incomeColor, fontFamily
+    } = params;
+    
+    console.log('[SupaGen] Using LOCAL generator');
+    console.log('[SupaGen] === Local Generate Request ===');
+    console.log('[SupaGen] Name:', name);
+    console.log('[SupaGen] Income:', income);
+    console.log('[SupaGen] Price:', price);
+    console.log('[SupaGen] Image URL:', imageUrl?.substring(0, 50));
+    console.log('[SupaGen] Border Color:', borderColor);
+    console.log('[SupaGen] Title Color:', titleColor);
+    console.log('[SupaGen] Income Color:', incomeColor);
+    console.log('[SupaGen] Font:', fontFamily);
+    console.log('[SupaGen] Mutation:', mutation || 'none');
+    console.log('[SupaGen] Title:', titleText || 'MY SHOP');
+
+    try {
+        // Генерируем изображение локально с полными настройками
+        const imageBuffer = await localGenerator.generateBrainrotImage({
+            name,
+            income: income || '0/s',
+            imageUrl,
+            borderColor: borderColor || '#ff0000',
+            mutation,
+            titleText: titleText || 'MY SHOP',
+            // Настройки генератора
+            titleColor: titleColor || '#ffff00',
+            titleGlow: titleGlow || '#ff6600',
+            incomeColor: incomeColor || '#1bff00',
+            fontFamily: fontFamily || 'Press Start 2P'
+        });
+
+        // Сохраняем файл
+        const filename = localGenerator.generateFilename(name);
+        const savedPath = await localGenerator.saveGeneratedImage(imageBuffer, filename);
+        
+        // URL для доступа к файлу
+        const resultUrl = `/generated/${filename}`;
+
+        console.log('[SupaGen] Local generation complete, URL:', resultUrl);
+
+        return res.json({
+            success: true,
+            resultUrl,
+            localPath: savedPath,
+            brainrotName: name,
+            accountId,
+            accountName,
+            generator: 'local',
+            imageUploaded: true,
+            imageUploadError: null
+        });
+
+    } catch (error) {
+        console.error('[SupaGen] Local generate error:', error);
+        throw error;
+    }
+}
+
+// ============================================
+// SUPA API GENERATION HANDLER
+// ============================================
+async function handleSupaGeneration(req, res, params) {
+    const { name, income, price, imageUrl, borderColor, accountId, accountName, templateId } = params;
+    
+    console.log('[SupaGen] Using SUPA API generator');
+    console.log('=== Supa Generate Request ===');
+    console.log('Name:', name);
+    console.log('Income:', income);
+    console.log('Price:', price);
+    console.log('Image URL:', imageUrl);
+    console.log('Border Color:', borderColor);
+
+    // Upload image to Supa
+    let supaImageUrl = null;
+    let imageUploadError = null;
+    
+    if (imageUrl && imageUrl.startsWith('http')) {
+        try {
+            supaImageUrl = await uploadImageToSupa(imageUrl);
+            console.log('Supa image URL:', supaImageUrl);
+        } catch (uploadError) {
+            imageUploadError = uploadError.message;
+            console.error('Failed to upload image:', uploadError.message);
+            console.error('Stack:', uploadError.stack);
+        }
+    } else {
+        console.log('No valid imageUrl provided:', imageUrl);
+    }
+
+    // Request render
+    // v9.9.5: Support custom templateId
+    const customTemplateId = templateId ? parseInt(templateId, 10) : null;
+    const renderResult = await requestRender({
+        name,
+        income,
+        price,
+        supaImageUrl,
+        borderColor,
+        customTemplateId
+    });
+
+    console.log('Render requested with supaImageUrl:', supaImageUrl);
+
+    if (!renderResult.task_id) {
+        throw new Error('No task_id received');
+    }
+
+    // Wait for render
+    console.log('Waiting for render to complete...');
+    const finalResult = await waitForRender(renderResult.task_id);
+
+    console.log('Render result:', finalResult);
+
+    // If still pending, return task_id for client polling
+    if (finalResult.state === 'pending') {
+        return res.json({
+            success: true,
+            pending: true,
+            taskId: renderResult.task_id,
+            statusUrl: `/api/supa-status?taskId=${renderResult.task_id}`,
+            brainrotName: name,
+            accountId,
+            accountName,
+            imageUploaded: !!supaImageUrl,
+            imageUploadError: imageUploadError || null,
+            generator: 'supa'
+        });
+    }
+
+    return res.json({
+        success: true,
+        taskId: renderResult.task_id,
+        resultUrl: finalResult.result_url,
+        state: finalResult.state,
+        brainrotName: name,
+        accountId,
+        accountName,
+        imageUploaded: !!supaImageUrl,
+        imageUploadError: imageUploadError || null,
+        generator: 'supa'
+    });
+}
+
 module.exports = async (req, res) => {
     // CORS
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -274,86 +441,25 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { name, income, price, imageUrl, borderColor, accountId, accountName, templateId } = req.body;
+        const { name, income, price, imageUrl, borderColor, accountId, accountName, templateId, useLocal, mutation, titleText } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'name is required' });
         }
 
-        console.log('=== Generate Request ===');
-        console.log('Name:', name);
-        console.log('Income:', income);
-        console.log('Price:', price);
-        console.log('Image URL:', imageUrl);
-        console.log('Border Color:', borderColor);
+        const params = { name, income, price, imageUrl, borderColor, accountId, accountName, templateId, mutation, titleText };
 
-        // Upload image to Supa
-        let supaImageUrl = null;
-        let imageUploadError = null;
-        
-        if (imageUrl && imageUrl.startsWith('http')) {
-            try {
-                supaImageUrl = await uploadImageToSupa(imageUrl);
-                console.log('Supa image URL:', supaImageUrl);
-            } catch (uploadError) {
-                imageUploadError = uploadError.message;
-                console.error('Failed to upload image:', uploadError.message);
-                console.error('Stack:', uploadError.stack);
-            }
+        // Выбираем генератор: локальный или Supa
+        // Приоритет: 1) параметр запроса useLocal, 2) глобальная настройка USE_LOCAL_GENERATOR, 3) наличие локального генератора
+        const shouldUseLocal = useLocal !== undefined 
+            ? useLocal 
+            : (USE_LOCAL_GENERATOR && localGenerator);
+
+        if (shouldUseLocal && localGenerator) {
+            return await handleLocalGeneration(req, res, params);
         } else {
-            console.log('No valid imageUrl provided:', imageUrl);
+            return await handleSupaGeneration(req, res, params);
         }
-
-        // Request render
-        // v9.9.5: Support custom templateId
-        const customTemplateId = templateId ? parseInt(templateId, 10) : null;
-        const renderResult = await requestRender({
-            name,
-            income,
-            price,
-            supaImageUrl,
-            borderColor,
-            customTemplateId
-        });
-
-        console.log('Render requested with supaImageUrl:', supaImageUrl);
-
-        if (!renderResult.task_id) {
-            throw new Error('No task_id received');
-        }
-
-        // Wait for render
-        console.log('Waiting for render to complete...');
-        const finalResult = await waitForRender(renderResult.task_id);
-
-        console.log('Render result:', finalResult);
-
-        // If still pending, return task_id for client polling
-        if (finalResult.state === 'pending') {
-            return res.json({
-                success: true,
-                pending: true,
-                taskId: renderResult.task_id,
-                statusUrl: `/api/supa-status?taskId=${renderResult.task_id}`,
-                brainrotName: name,
-                accountId,
-                accountName,
-                imageUploaded: !!supaImageUrl,
-                imageUploadError: imageUploadError || null
-            });
-        }
-
-        res.json({
-            success: true,
-            taskId: renderResult.task_id,
-            resultUrl: finalResult.result_url,
-            state: finalResult.state,
-            brainrotName: name,
-            accountId,
-            accountName,
-            imageUploaded: !!supaImageUrl,
-            imageUploadError: imageUploadError || null
-        });
 
     } catch (error) {
         console.error('Generate error:', error);

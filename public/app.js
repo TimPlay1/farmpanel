@@ -179,9 +179,12 @@ const i18n = {
         
         // Generator Settings Modal
         generator_settings_title: 'Generator Settings',
-        generator_settings_desc: 'Configure your image generator template. Leave empty to use the default template.',
-        supa_template_id: 'Supa Template ID',
-        template_hint: 'Enter your custom Supa.ru template ID or leave empty for default',
+        generator_settings_desc: 'Configure your image generator colors, fonts, and style.',
+        border_color: 'Border Color',
+        title_color: 'Shop Name Color',
+        title_glow: 'Shop Name Glow',
+        income_color: 'Income Color',
+        font_family: 'Font',
         save_settings: 'Save Settings',
         
         // Emoji Picker
@@ -296,8 +299,8 @@ const i18n = {
         no_data_yet: 'No data yet',
         top_description: 'Top is formed from all panel users data',
         
-        // Supa Generator
-        supa_generator: 'Supa Generator',
+        // Image Generator
+        image_generator: 'Image Generator',
         preview: 'Preview',
         account_label: 'Account',
         name_label: 'Name',
@@ -305,14 +308,14 @@ const i18n = {
         image_url: 'Image URL',
         price_variant: 'Price variant',
         price_for_eldorado: 'Price for Eldorado',
-        supa_recommended: 'Recommended',
-        supa_median: 'Median',
-        supa_next_competitor: 'Next Competitor',
-        supa_custom: 'Custom price',
-        supa_generate: 'Generate',
-        supa_download: 'Download (800x800)',
-        supa_post_eldorado: 'Post to Eldorado',
-        supa_processing: 'Processing...',
+        gen_recommended: 'Recommended',
+        gen_median: 'Median',
+        gen_next_competitor: 'Next Competitor',
+        gen_custom: 'Custom price',
+        gen_generate: 'Generate',
+        gen_download: 'Download',
+        gen_post_eldorado: 'Post to Eldorado',
+        gen_processing: 'Processing...',
         
         // Mass select
         items: 'items',
@@ -500,9 +503,12 @@ const i18n = {
         
         // Generator Settings Modal
         generator_settings_title: 'Настройки генератора',
-        generator_settings_desc: 'Настройте шаблон генератора изображений. Оставьте пустым для использования шаблона по умолчанию.',
-        supa_template_id: 'ID шаблона Supa',
-        template_hint: 'Введите свой ID шаблона Supa.ru или оставьте пустым',
+        generator_settings_desc: 'Настройте цвета, шрифты и стиль генератора изображений.',
+        border_color: 'Цвет рамки',
+        title_color: 'Цвет названия магазина',
+        title_glow: 'Подсветка названия',
+        income_color: 'Цвет дохода',
+        font_family: 'Шрифт',
         save_settings: 'Сохранить настройки',
         
         // Emoji Picker
@@ -617,8 +623,8 @@ const i18n = {
         no_data_yet: 'Пока нет данных',
         top_description: 'Топ формируется из данных всех пользователей панели',
         
-        // Supa Generator
-        supa_generator: 'Supa Генератор',
+        // Image Generator
+        image_generator: 'Генератор изображений',
         preview: 'Предпросмотр',
         account_label: 'Аккаунт',
         name_label: 'Название',
@@ -626,14 +632,14 @@ const i18n = {
         image_url: 'URL изображения',
         price_variant: 'Вариант цены',
         price_for_eldorado: 'Цена для Eldorado',
-        supa_recommended: 'Рекомендованная',
-        supa_median: 'Медианная',
-        supa_next_competitor: 'След. компетитор',
-        supa_custom: 'Своя цена',
-        supa_generate: 'Генерировать',
-        supa_download: 'Скачать (800x800)',
-        supa_post_eldorado: 'Post to Eldorado',
-        supa_processing: 'Обработка...',
+        gen_recommended: 'Рекомендованная',
+        gen_median: 'Медианная',
+        gen_next_competitor: 'След. конкурент',
+        gen_custom: 'Своя цена',
+        gen_generate: 'Генерировать',
+        gen_download: 'Скачать',
+        gen_post_eldorado: 'Post to Eldorado',
+        gen_processing: 'Обработка...',
         
         // Mass select
         items: 'шт',
@@ -5912,7 +5918,7 @@ function getGroupTotalGenerationCount(name, income) {
 }
 
 // Current brainrot data for generation
-let currentSupaBrainrot = null;
+let currentGeneratorBrainrot = null;
 
 // Setup Collection event listeners
 function setupCollectionListeners() {
@@ -7153,7 +7159,7 @@ async function updateCollection() {
 function handleGenerateClick(index) {
     const brainrot = collectionState.filteredBrainrots[index];
     if (brainrot) {
-        openSupaGenerator(brainrot);
+        openImageGenerator(brainrot);
     }
 }
 
@@ -7184,37 +7190,37 @@ function handleGroupGenerateClick(index) {
         groupItems: group.items // Все элементы группы
     };
     
-    openSupaGenerator(brainrotData);
+    openImageGenerator(brainrotData);
 }
 
 // ==========================================
-// SUPA GENERATOR MODAL
+// IMAGE GENERATOR MODAL
 // ==========================================
 
-// Open Supa Generator modal for a brainrot
-function openSupaGenerator(brainrotData) {
-    console.log('Opening Supa Generator for:', brainrotData);
+// Open Image Generator modal for a brainrot
+function openImageGenerator(brainrotData) {
+    console.log('Opening Image Generator for:', brainrotData);
     
-    currentSupaBrainrot = brainrotData;
+    currentGeneratorBrainrot = brainrotData;
     
-    let modal = document.getElementById('supaGeneratorModal');
+    let modal = document.getElementById('imageGeneratorModal');
     if (!modal) {
-        modal = createSupaGeneratorModal();
+        modal = createImageGeneratorModal();
         document.body.appendChild(modal);
     }
     
-    document.getElementById('supaName').value = brainrotData.name || '';
-    document.getElementById('supaIncome').value = brainrotData.incomeText || formatIncome(brainrotData.income);
-    document.getElementById('supaImageUrl').value = brainrotData.imageUrl || '';
+    document.getElementById('genName').value = brainrotData.name || '';
+    document.getElementById('genIncome').value = brainrotData.incomeText || formatIncome(brainrotData.income);
+    document.getElementById('genImageUrl').value = brainrotData.imageUrl || '';
     
     // v9.9.0: Заполняем варианты цен
     const normalizedIncome = normalizeIncomeForApi(brainrotData.income, brainrotData.incomeText);
     const hasMutation = brainrotData.mutation && cleanMutationText(brainrotData.mutation);
     
     // v9.11.1: Настройка mutation selector
-    const mutationSelectorEl = document.getElementById('supaMutationSelector');
-    const mutationLabelEl = document.getElementById('supaMutationLabel');
-    const defaultVariantRadio = document.querySelector('input[name="supaPriceVariant"][value="default"]');
+    const mutationSelectorEl = document.getElementById('genMutationSelector');
+    const mutationLabelEl = document.getElementById('genMutationLabel');
+    const defaultVariantRadio = document.querySelector('input[name="genPriceVariant"][value="default"]');
     
     if (hasMutation && mutationSelectorEl) {
         mutationSelectorEl.classList.remove('hidden');
@@ -7231,7 +7237,7 @@ function openSupaGenerator(brainrotData) {
     
     // v9.11.1: Функция обновления цен на основе выбранного варианта
     const updatePricesForVariant = () => {
-        const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
+        const selectedVariant = document.querySelector('input[name="genPriceVariant"]:checked')?.value || 'default';
         let priceKey;
         
         if (selectedVariant === 'mutation' && hasMutation) {
@@ -7242,24 +7248,24 @@ function openSupaGenerator(brainrotData) {
         
         const priceData = state.brainrotPrices[priceKey];
         
-        const suggestedEl = document.getElementById('supaPriceSuggested');
-        const medianEl = document.getElementById('supaPriceMedian');
-        const nextEl = document.getElementById('supaPriceNext');
+        const suggestedEl = document.getElementById('genPriceSuggested');
+        const medianEl = document.getElementById('genPriceMedian');
+        const nextEl = document.getElementById('genPriceNext');
         
         if (suggestedEl) suggestedEl.textContent = priceData?.suggestedPrice ? `$${parseFloat(priceData.suggestedPrice).toFixed(2)}` : 'N/A';
         if (medianEl) medianEl.textContent = priceData?.medianPrice ? `$${parseFloat(priceData.medianPrice).toFixed(2)}` : 'N/A';
         if (nextEl) nextEl.textContent = priceData?.nextCompetitorPrice ? `$${parseFloat(priceData.nextCompetitorPrice).toFixed(2)}` : 'N/A';
         
         // Disable options if price not available
-        const medianOption = document.querySelector('input[name="supaPriceType"][value="median"]');
-        const nextOption = document.querySelector('input[name="supaPriceType"][value="nextCompetitor"]');
+        const medianOption = document.querySelector('input[name="genPriceType"][value="median"]');
+        const nextOption = document.querySelector('input[name="genPriceType"][value="nextCompetitor"]');
         if (medianOption) {
             medianOption.disabled = !priceData?.medianPrice;
-            medianOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.medianPrice);
+            medianOption.closest('.gen-price-option')?.classList.toggle('disabled', !priceData?.medianPrice);
         }
         if (nextOption) {
             nextOption.disabled = !priceData?.nextCompetitorPrice;
-            nextOption.closest('.supa-price-option')?.classList.toggle('disabled', !priceData?.nextCompetitorPrice);
+            nextOption.closest('.gen-price-option')?.classList.toggle('disabled', !priceData?.nextCompetitorPrice);
         }
     };
     
@@ -7267,20 +7273,20 @@ function openSupaGenerator(brainrotData) {
     updatePricesForVariant();
     
     // Добавляем listener для смены варианта
-    document.querySelectorAll('input[name="supaPriceVariant"]').forEach(radio => {
+    document.querySelectorAll('input[name="genPriceVariant"]').forEach(radio => {
         radio.onchange = updatePricesForVariant;
     });
     
     // Reset to suggested
-    document.querySelector('input[name="supaPriceType"][value="suggested"]').checked = true;
+    document.querySelector('input[name="genPriceType"][value="suggested"]').checked = true;
     
     // Reset custom price
-    const customPriceInput = document.getElementById('supaCustomPrice');
+    const customPriceInput = document.getElementById('genCustomPrice');
     if (customPriceInput) customPriceInput.value = '';
     
     // Используем единый цвет панели для границы
     const panelColor = collectionState.panelColor || '#4ade80';
-    const accountInfoEl = document.getElementById('supaAccountInfo');
+    const accountInfoEl = document.getElementById('genAccountInfo');
     if (accountInfoEl) {
         // Показываем информацию о количестве если > 1
         const quantity = brainrotData.quantity || 1;
@@ -7297,132 +7303,132 @@ function openSupaGenerator(brainrotData) {
         `;
     }
     
-    updateSupaImagePreview(brainrotData.imageUrl);
+    updateGeneratorImagePreview(brainrotData.imageUrl);
     
-    document.getElementById('supaGenerateBtn').disabled = false;
-    document.getElementById('supaStatus').classList.add('hidden');
-    document.getElementById('supaError').classList.add('hidden');
-    document.getElementById('supaDownloadSection').classList.add('hidden');
-    document.getElementById('supaResultImage').classList.add('hidden');
-    document.getElementById('supaPreviewPlaceholder').classList.remove('hidden');
+    document.getElementById('genGenerateBtn').disabled = false;
+    document.getElementById('genStatus').classList.add('hidden');
+    document.getElementById('genError').classList.add('hidden');
+    document.getElementById('genDownloadSection').classList.add('hidden');
+    document.getElementById('genResultImage').classList.add('hidden');
+    document.getElementById('genPreviewPlaceholder').classList.remove('hidden');
     
     modal.classList.remove('hidden');
 }
 
-// Create Supa Generator Modal
-function createSupaGeneratorModal() {
+// Create Image Generator Modal
+function createImageGeneratorModal() {
     const modal = document.createElement('div');
-    modal.id = 'supaGeneratorModal';
+    modal.id = 'imageGeneratorModal';
     modal.className = 'modal hidden';
     modal.innerHTML = `
-        <div class="modal-overlay" onclick="closeSupaModal()"></div>
-        <div class="modal-content supa-modal-content">
+        <div class="modal-overlay" onclick="closeImageGeneratorModal()"></div>
+        <div class="modal-content gen-modal-content">
             <div class="modal-header">
-                <h3><i class="fas fa-wand-magic-sparkles"></i> ${t('supa_generator')}</h3>
-                <button class="modal-close" onclick="closeSupaModal()">
+                <h3><i class="fas fa-wand-magic-sparkles"></i> ${t('image_generator')}</h3>
+                <button class="modal-close" onclick="closeImageGeneratorModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body supa-modal-body">
-                <div class="supa-preview-section">
-                    <div class="supa-preview-frame">
-                        <div class="supa-preview-placeholder" id="supaPreviewPlaceholder">
+            <div class="modal-body gen-modal-body">
+                <div class="gen-preview-section">
+                    <div class="gen-preview-frame">
+                        <div class="gen-preview-placeholder" id="genPreviewPlaceholder">
                             <i class="fas fa-image"></i>
                             <p>${t('preview')}</p>
                         </div>
-                        <img id="supaPreviewImage" class="supa-preview-image hidden" src="" alt="Preview">
-                        <img id="supaResultImage" class="supa-result-image hidden" src="" alt="Result">
+                        <img id="genPreviewImage" class="gen-preview-image hidden" src="" alt="Preview">
+                        <img id="genResultImage" class="gen-result-image hidden" src="" alt="Result">
                     </div>
-                    <div id="supaDownloadSection" class="supa-download-section hidden">
-                        <button id="supaDownloadBtn" class="supa-download-btn" onclick="downloadSupaImage()">
+                    <div id="genDownloadSection" class="gen-download-section hidden">
+                        <button id="genDownloadBtn" class="gen-download-btn" onclick="downloadGeneratorImage()">
                             <i class="fas fa-download"></i>
-                            ${t('supa_download')}
+                            ${t('gen_download')}
                         </button>
-                        <button id="supaPostEldoradoBtn" class="supa-eldorado-btn" onclick="postToEldorado()">
+                        <button id="genPostEldoradoBtn" class="gen-eldorado-btn" onclick="postToEldorado()">
                             <i class="fas fa-store"></i>
-                            ${t('supa_post_eldorado')}
+                            ${t('gen_post_eldorado')}
                         </button>
                     </div>
                 </div>
-                <div class="supa-form-section">
-                    <div class="supa-form-group supa-account-group">
+                <div class="gen-form-section">
+                    <div class="gen-form-group gen-account-group">
                         <label><i class="fas fa-user"></i> ${t('account_label')}</label>
-                        <div id="supaAccountInfo" class="supa-account-info">-</div>
+                        <div id="genAccountInfo" class="gen-account-info">-</div>
                     </div>
-                    <div class="supa-form-group">
+                    <div class="gen-form-group">
                         <label><i class="fas fa-tag"></i> ${t('name_label')}</label>
-                        <input type="text" id="supaName" placeholder="${t('name_label')}">
+                        <input type="text" id="genName" placeholder="${t('name_label')}">
                     </div>
-                    <div class="supa-form-group">
+                    <div class="gen-form-group">
                         <label><i class="fas fa-coins"></i> ${t('income_form')}</label>
-                        <input type="text" id="supaIncome" placeholder="338M/s">
+                        <input type="text" id="genIncome" placeholder="338M/s">
                     </div>
-                    <div class="supa-form-group">
+                    <div class="gen-form-group">
                         <label><i class="fas fa-image"></i> ${t('image_url')}</label>
-                        <input type="url" id="supaImageUrl" placeholder="https://..." onchange="updateSupaImagePreview(this.value)">
+                        <input type="url" id="genImageUrl" placeholder="https://..." onchange="updateGeneratorImagePreview(this.value)">
                     </div>
                     <!-- v9.11.1: Mutation price selector (hidden if no mutation) -->
-                    <div class="supa-form-group supa-mutation-selector hidden" id="supaMutationSelector">
+                    <div class="gen-form-group gen-mutation-selector hidden" id="genMutationSelector">
                         <label><i class="fas fa-dna"></i> ${t('price_variant')}</label>
-                        <div class="supa-variant-options">
-                            <label class="supa-variant-option">
-                                <input type="radio" name="supaPriceVariant" value="default" checked>
-                                <span class="supa-variant-label default">${t('default')}</span>
+                        <div class="gen-variant-options">
+                            <label class="gen-variant-option">
+                                <input type="radio" name="genPriceVariant" value="default" checked>
+                                <span class="gen-variant-label default">${t('default')}</span>
                             </label>
-                            <label class="supa-variant-option" id="supaMutationOption">
-                                <input type="radio" name="supaPriceVariant" value="mutation">
-                                <span class="supa-variant-label mutation" id="supaMutationLabel">MUTATION</span>
+                            <label class="gen-variant-option" id="genMutationOption">
+                                <input type="radio" name="genPriceVariant" value="mutation">
+                                <span class="gen-variant-label mutation" id="genMutationLabel">MUTATION</span>
                             </label>
                         </div>
                     </div>
-                    <div class="supa-form-group supa-price-selector">
+                    <div class="gen-form-group gen-price-selector">
                         <label><i class="fas fa-dollar-sign"></i> ${t('price_for_eldorado')}</label>
-                        <div class="supa-price-options" id="supaPriceOptions">
-                            <label class="supa-price-option">
-                                <input type="radio" name="supaPriceType" value="suggested" checked>
-                                <span class="supa-price-label">
+                        <div class="gen-price-options" id="genPriceOptions">
+                            <label class="gen-price-option">
+                                <input type="radio" name="genPriceType" value="suggested" checked>
+                                <span class="gen-price-label">
                                     <i class="fas fa-tag"></i>
-                                    <span>${t('supa_recommended')}</span>
-                                    <strong id="supaPriceSuggested">$0.00</strong>
+                                    <span>${t('gen_recommended')}</span>
+                                    <strong id="genPriceSuggested">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="supa-price-option median">
-                                <input type="radio" name="supaPriceType" value="median">
-                                <span class="supa-price-label">
+                            <label class="gen-price-option median">
+                                <input type="radio" name="genPriceType" value="median">
+                                <span class="gen-price-label">
                                     <i class="fas fa-chart-bar"></i>
-                                    <span>${t('supa_median')}</span>
-                                    <strong id="supaPriceMedian">$0.00</strong>
+                                    <span>${t('gen_median')}</span>
+                                    <strong id="genPriceMedian">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="supa-price-option next-comp">
-                                <input type="radio" name="supaPriceType" value="nextCompetitor">
-                                <span class="supa-price-label">
+                            <label class="gen-price-option next-comp">
+                                <input type="radio" name="genPriceType" value="nextCompetitor">
+                                <span class="gen-price-label">
                                     <i class="fas fa-arrow-up"></i>
-                                    <span>${t('supa_next_competitor')}</span>
-                                    <strong id="supaPriceNext">$0.00</strong>
+                                    <span>${t('gen_next_competitor')}</span>
+                                    <strong id="genPriceNext">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="supa-price-option custom">
-                                <input type="radio" name="supaPriceType" value="custom">
-                                <span class="supa-price-label">
+                            <label class="gen-price-option custom">
+                                <input type="radio" name="genPriceType" value="custom">
+                                <span class="gen-price-label">
                                     <i class="fas fa-edit"></i>
-                                    <span>${t('supa_custom')}</span>
-                                    <input type="number" step="0.01" min="0" id="supaCustomPrice" class="supa-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=supaPriceType][value=custom]').checked = true;">
+                                    <span>${t('gen_custom')}</span>
+                                    <input type="number" step="0.01" min="0" id="genCustomPrice" class="gen-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=genPriceType][value=custom]').checked = true;">
                                 </span>
                             </label>
                         </div>
                     </div>
-                    <button id="supaGenerateBtn" class="supa-generate-btn" onclick="generateSupaImage()">
+                    <button id="genGenerateBtn" class="gen-generate-btn" onclick="generateImage()">
                         <i class="fas fa-wand-magic-sparkles"></i>
-                        ${t('supa_generate')}
+                        ${t('gen_generate')}
                     </button>
-                    <div id="supaStatus" class="supa-status hidden">
-                        <div class="supa-spinner"></div>
-                        <span id="supaStatusText">${t('supa_processing')}</span>
+                    <div id="genStatus" class="gen-status hidden">
+                        <div class="gen-spinner"></div>
+                        <span id="genStatusText">${t('gen_processing')}</span>
                     </div>
-                    <div id="supaError" class="supa-error hidden">
+                    <div id="genError" class="gen-error hidden">
                         <i class="fas fa-exclamation-triangle"></i>
-                        <span id="supaErrorText"></span>
+                        <span id="genErrorText"></span>
                     </div>
                 </div>
             </div>
@@ -7431,17 +7437,17 @@ function createSupaGeneratorModal() {
     return modal;
 }
 
-function closeSupaModal() {
-    const modal = document.getElementById('supaGeneratorModal');
+function closeImageGeneratorModal() {
+    const modal = document.getElementById('imageGeneratorModal');
     if (modal) {
         modal.classList.add('hidden');
     }
 }
 
-function updateSupaImagePreview(url) {
-    const previewImg = document.getElementById('supaPreviewImage');
-    const placeholder = document.getElementById('supaPreviewPlaceholder');
-    const resultImg = document.getElementById('supaResultImage');
+function updateGeneratorImagePreview(url) {
+    const previewImg = document.getElementById('genPreviewImage');
+    const placeholder = document.getElementById('genPreviewPlaceholder');
+    const resultImg = document.getElementById('genResultImage');
     
     if (!url) {
         previewImg.classList.add('hidden');
@@ -7463,7 +7469,7 @@ function updateSupaImagePreview(url) {
     img.src = url;
 }
 
-let currentSupaResult = null;
+let currentGeneratorResult = null;
 
 // Poll for render status (client-side polling to avoid Vercel timeout)
 async function pollForResult(taskId, statusText, maxAttempts = 30) {
@@ -7495,36 +7501,36 @@ async function pollForResult(taskId, statusText, maxAttempts = 30) {
     return null; // Timeout
 }
 
-async function generateSupaImage() {
-    const name = document.getElementById('supaName').value.trim();
-    const income = document.getElementById('supaIncome').value.trim();
-    const imageUrl = document.getElementById('supaImageUrl').value.trim();
+async function generateImage() {
+    const name = document.getElementById('genName').value.trim();
+    const income = document.getElementById('genIncome').value.trim();
+    const imageUrl = document.getElementById('genImageUrl').value.trim();
     
     if (!name || !income) {
-        showSupaError('Заполните название и доходность');
+        showGeneratorError('Заполните название и доходность');
         return;
     }
     
-    const accountId = currentSupaBrainrot?.accountId;
-    const accountName = currentSupaBrainrot?.accountName;
+    const accountId = currentGeneratorBrainrot?.accountId;
+    const accountName = currentGeneratorBrainrot?.accountName;
     // Используем единый цвет панели
     const borderColor = collectionState.panelColor || '#4ade80';
     
     // v9.12.50: Получаем выбранную цену для отображения на изображении
-    const selectedPriceType = document.querySelector('input[name="supaPriceType"]:checked')?.value || 'suggested';
-    const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
-    const hasMutation = currentSupaBrainrot?.mutation && cleanMutationText(currentSupaBrainrot?.mutation);
+    const selectedPriceType = document.querySelector('input[name="genPriceType"]:checked')?.value || 'suggested';
+    const selectedVariant = document.querySelector('input[name="genPriceVariant"]:checked')?.value || 'default';
+    const hasMutation = currentGeneratorBrainrot?.mutation && cleanMutationText(currentGeneratorBrainrot?.mutation);
     
-    const normalizedIncome = normalizeIncomeForApi(currentSupaBrainrot?.income, income);
+    const normalizedIncome = normalizeIncomeForApi(currentGeneratorBrainrot?.income, income);
     let priceKey;
     if (selectedVariant === 'mutation' && hasMutation) {
-        priceKey = getPriceCacheKey(name, normalizedIncome, currentSupaBrainrot.mutation);
+        priceKey = getPriceCacheKey(name, normalizedIncome, currentGeneratorBrainrot.mutation);
     } else {
         priceKey = getPriceCacheKey(name, normalizedIncome);
     }
     const priceData = state.brainrotPrices[priceKey];
     
-    const customPriceInput = document.getElementById('supaCustomPrice');
+    const customPriceInput = document.getElementById('genCustomPrice');
     const customPrice = customPriceInput ? parseFloat(customPriceInput.value) : 0;
     
     let price = 0;
@@ -7543,14 +7549,14 @@ async function generateSupaImage() {
         }
     }
     
-    const generateBtn = document.getElementById('supaGenerateBtn');
-    const statusEl = document.getElementById('supaStatus');
-    const statusText = document.getElementById('supaStatusText');
-    const errorEl = document.getElementById('supaError');
-    const downloadSection = document.getElementById('supaDownloadSection');
-    const resultImg = document.getElementById('supaResultImage');
-    const previewImg = document.getElementById('supaPreviewImage');
-    const placeholder = document.getElementById('supaPreviewPlaceholder');
+    const generateBtn = document.getElementById('genGenerateBtn');
+    const statusEl = document.getElementById('genStatus');
+    const statusText = document.getElementById('genStatusText');
+    const errorEl = document.getElementById('genError');
+    const downloadSection = document.getElementById('genDownloadSection');
+    const resultImg = document.getElementById('genResultImage');
+    const previewImg = document.getElementById('genPreviewImage');
+    const placeholder = document.getElementById('genPreviewPlaceholder');
     
     generateBtn.disabled = true;
     statusEl.classList.remove('hidden');
@@ -7559,8 +7565,8 @@ async function generateSupaImage() {
     statusText.textContent = 'Загрузка изображения...';
     
     try {
-        // v9.9.5: Get custom template ID
-        const templateId = getTemplateId();
+        // Get generator settings (colors, fonts)
+        const genSettings = getGeneratorSettings();
         
         const response = await fetch('/api/supa-generate', {
             method: 'POST',
@@ -7568,12 +7574,18 @@ async function generateSupaImage() {
             body: JSON.stringify({ 
                 name, 
                 income,
-                price: price ? `$${parseFloat(price).toFixed(2)}` : '', // v9.12.50: Передаём цену для отображения
+                price: price ? `$${parseFloat(price).toFixed(2)}` : '',
                 imageUrl,
-                borderColor,
                 accountId,
                 accountName,
-                templateId // v9.9.5: Custom template support
+                mutation: currentGeneratorBrainrot?.mutation || null,
+                titleText: collectionState.shopName || 'MY SHOP',
+                // Generator settings
+                borderColor: genSettings.borderColor,
+                titleColor: genSettings.titleColor,
+                titleGlow: genSettings.titleGlow,
+                incomeColor: genSettings.incomeColor,
+                fontFamily: genSettings.fontFamily
             })
         });
         
@@ -7589,7 +7601,7 @@ async function generateSupaImage() {
         if (result.pending && result.taskId) {
             const finalResult = await pollForResult(result.taskId, statusText);
             if (finalResult && finalResult.resultUrl) {
-                currentSupaResult = { ...result, resultUrl: finalResult.resultUrl };
+                currentGeneratorResult = { ...result, resultUrl: finalResult.resultUrl };
                 
                 resultImg.onload = async () => {
                     resultImg.classList.remove('hidden');
@@ -7605,7 +7617,7 @@ async function generateSupaImage() {
                 throw new Error('Render failed or timeout');
             }
         } else if (result.success && result.resultUrl) {
-            currentSupaResult = result;
+            currentGeneratorResult = result;
             
             resultImg.onload = async () => {
                 resultImg.classList.remove('hidden');
@@ -7622,30 +7634,30 @@ async function generateSupaImage() {
         }
         
     } catch (error) {
-        console.error('Supa Generate error:', error);
-        showSupaError(error.message);
+        console.error('Image Generate error:', error);
+        showGeneratorError(error.message);
         statusEl.classList.add('hidden');
     } finally {
         generateBtn.disabled = false;
     }
 }
 
-async function downloadSupaImage() {
-    if (!currentSupaResult || !currentSupaResult.resultUrl) {
-        showSupaError('Нет изображения для скачивания');
+async function downloadGeneratorImage() {
+    if (!currentGeneratorResult || !currentGeneratorResult.resultUrl) {
+        showGeneratorError('Нет изображения для скачивания');
         return;
     }
     
-    const downloadBtn = document.getElementById('supaDownloadBtn');
-    const name = document.getElementById('supaName').value.trim();
+    const downloadBtn = document.getElementById('genDownloadBtn');
+    const name = document.getElementById('genName').value.trim();
     
     try {
         downloadBtn.disabled = true;
-        downloadBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('supa_processing')}`;
+        downloadBtn.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${t('gen_processing')}`;
         
         const filename = `${name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
         
-        const response = await fetch(currentSupaResult.resultUrl);
+        const response = await fetch(currentGeneratorResult.resultUrl);
         const blob = await response.blob();
         
         const url = window.URL.createObjectURL(blob);
@@ -7659,16 +7671,16 @@ async function downloadSupaImage() {
         
     } catch (error) {
         console.error('Download error:', error);
-        showSupaError(`${t('download_error_msg')}: ${error.message}`);
+        showGeneratorError(`${t('download_error_msg')}: ${error.message}`);
     } finally {
         downloadBtn.disabled = false;
-        downloadBtn.innerHTML = `<i class="fas fa-download"></i> ${t('supa_download')}`;
+        downloadBtn.innerHTML = `<i class="fas fa-download"></i> ${t('gen_download')}`;
     }
 }
 
-function showSupaError(message) {
-    const errorEl = document.getElementById('supaError');
-    const errorText = document.getElementById('supaErrorText');
+function showGeneratorError(message) {
+    const errorEl = document.getElementById('genError');
+    const errorText = document.getElementById('genErrorText');
     errorText.textContent = message;
     errorEl.classList.remove('hidden');
 }
@@ -7678,43 +7690,43 @@ async function postToEldorado() {
     // v9.9.3: Проверяем и загружаем имя магазина если нужно
     const hasShopName = await ensureShopNameLoaded();
     if (!hasShopName) {
-        showSupaError('Please configure your shop name first');
+        showGeneratorError('Please configure your shop name first');
         openShopNameModal(() => postToEldorado());
         return;
     }
     
-    if (!currentSupaResult || !currentSupaResult.resultUrl) {
-        showSupaError('Сначала сгенерируйте изображение');
+    if (!currentGeneratorResult || !currentGeneratorResult.resultUrl) {
+        showGeneratorError('Сначала сгенерируйте изображение');
         return;
     }
     
-    const name = document.getElementById('supaName').value.trim();
-    const income = document.getElementById('supaIncome').value.trim();
-    const imageUrl = document.getElementById('supaImageUrl').value.trim();
+    const name = document.getElementById('genName').value.trim();
+    const income = document.getElementById('genIncome').value.trim();
+    const imageUrl = document.getElementById('genImageUrl').value.trim();
     
     // v9.9.0: Получаем выбранный тип цены
-    const selectedPriceType = document.querySelector('input[name="supaPriceType"]:checked')?.value || 'suggested';
+    const selectedPriceType = document.querySelector('input[name="genPriceType"]:checked')?.value || 'suggested';
     
     // v9.11.1: Получаем выбранный вариант цены (default/mutation)
-    const selectedVariant = document.querySelector('input[name="supaPriceVariant"]:checked')?.value || 'default';
-    const hasMutation = currentSupaBrainrot?.mutation && cleanMutationText(currentSupaBrainrot?.mutation);
+    const selectedVariant = document.querySelector('input[name="genPriceVariant"]:checked')?.value || 'default';
+    const hasMutation = currentGeneratorBrainrot?.mutation && cleanMutationText(currentGeneratorBrainrot?.mutation);
     
     // Получаем цену из кэша или из данных брейнрота
     let minPrice = 0;
     let maxPrice = 0;
     
     // v9.11.1: Получаем цену по ключу с учетом варианта (default/mutation)
-    const normalizedIncome = normalizeIncomeForApi(currentSupaBrainrot?.income, income);
+    const normalizedIncome = normalizeIncomeForApi(currentGeneratorBrainrot?.income, income);
     let priceKey;
     if (selectedVariant === 'mutation' && hasMutation) {
-        priceKey = getPriceCacheKey(name, normalizedIncome, currentSupaBrainrot.mutation);
+        priceKey = getPriceCacheKey(name, normalizedIncome, currentGeneratorBrainrot.mutation);
     } else {
         priceKey = getPriceCacheKey(name, normalizedIncome);
     }
     const priceData = state.brainrotPrices[priceKey];
     
     // v9.11.1: Проверяем кастомную цену
-    const customPriceInput = document.getElementById('supaCustomPrice');
+    const customPriceInput = document.getElementById('genCustomPrice');
     const customPrice = customPriceInput ? parseFloat(customPriceInput.value) : 0;
     
     // v9.9.0: Выбираем цену в зависимости от типа
@@ -7735,23 +7747,23 @@ async function postToEldorado() {
     minPrice = Math.floor(maxPrice * 0.9);
     
     // Количество одинаковых брейнротов (для Eldorado Quantity)
-    const quantity = currentSupaBrainrot?.quantity || 1;
+    const quantity = currentGeneratorBrainrot?.quantity || 1;
     
     // Формируем данные для Tampermonkey скрипта
     const offerData = {
         name: name,
         income: income,
         imageUrl: imageUrl,
-        generatedImageUrl: currentSupaResult.resultUrl,
+        generatedImageUrl: currentGeneratorResult.resultUrl,
         minPrice: minPrice,
         maxPrice: maxPrice,
         priceType: selectedPriceType, // v9.9.0: Тип выбранной цены
         priceVariant: selectedVariant, // v9.11.1: Вариант цены (default/mutation)
         quantity: quantity, // Количество для Eldorado Total Quantity
-        rarity: currentSupaBrainrot?.rarity || '', // Secret, Mythical, etc
-        mutation: currentSupaBrainrot?.mutation || '', // v9.8.27: Мутация брейнрота (YinYang, Diamond, etc)
-        accountId: currentSupaBrainrot?.accountId,
-        accountName: currentSupaBrainrot?.accountName,
+        rarity: currentGeneratorBrainrot?.rarity || '', // Secret, Mythical, etc
+        mutation: currentGeneratorBrainrot?.mutation || '', // v9.8.27: Мутация брейнрота (YinYang, Diamond, etc)
+        accountId: currentGeneratorBrainrot?.accountId,
+        accountName: currentGeneratorBrainrot?.accountName,
         farmKey: state.currentKey, // Передаём farmKey для сохранения оффера в панель
         timestamp: Date.now()
     };
@@ -7848,7 +7860,7 @@ function hasActiveOffer(brainrotName, income, mutation = null) {
 }
 
 // Mass selection state
-const MASS_SELECTION_MAX = 10; // Maximum items for mass generation
+const MASS_SELECTION_MAX = 50; // Maximum items for mass generation (no API limits with local generator)
 let massSelectionState = {
     isActive: false,
     selectedItems: new Set(), // Set of group keys (stable across search/filter)
@@ -8283,8 +8295,8 @@ async function doStartMassGeneration() {
             // Use panel color
             const borderColor = collectionState.panelColor || '#4ade80';
             
-            // v9.9.5: Get custom template ID if configured
-            const templateId = getTemplateId();
+            // Get generator settings
+            const genSettings = getGeneratorSettings();
             
             // Generate image
             const response = await fetch(`/api/supa-generate`, {
@@ -8295,9 +8307,15 @@ async function doStartMassGeneration() {
                     income: group.incomeText || formatIncome(group.income), 
                     price: price ? `$${parseFloat(price).toFixed(2)}` : '',
                     imageUrl: group.imageUrl,
-                    borderColor,
                     quantity: group.quantity || 1,
-                    templateId // v9.9.5: Custom template support
+                    mutation: group.mutation || null,
+                    titleText: collectionState.shopName || 'MY SHOP',
+                    // Generator settings
+                    borderColor: genSettings.borderColor,
+                    titleColor: genSettings.titleColor,
+                    titleGlow: genSettings.titleGlow,
+                    incomeColor: genSettings.incomeColor,
+                    fontFamily: genSettings.fontFamily
                 })
             });
             
@@ -10843,20 +10861,58 @@ function setupInfoBannerListener() {
 // GENERATOR SETTINGS MODAL
 // ============================================
 
-// Generator settings state
-let generatorSettings = {
-    templateId: localStorage.getItem('supa_template_id') || ''
+// Generator settings state - default values
+const DEFAULT_GENERATOR_SETTINGS = {
+    borderColor: '#ff0000',
+    titleColor: '#ffff00',
+    titleGlow: '#ff6600',
+    incomeColor: '#1bff00',
+    fontFamily: 'Press Start 2P'
 };
+
+let generatorSettings = { ...DEFAULT_GENERATOR_SETTINGS };
+
+// Load generator settings from localStorage (per farm key)
+function loadGeneratorSettings() {
+    const farmKey = state.currentFarmKey || 'default';
+    const saved = localStorage.getItem(`generator_settings_${farmKey}`);
+    if (saved) {
+        try {
+            generatorSettings = { ...DEFAULT_GENERATOR_SETTINGS, ...JSON.parse(saved) };
+        } catch (e) {
+            generatorSettings = { ...DEFAULT_GENERATOR_SETTINGS };
+        }
+    } else {
+        generatorSettings = { ...DEFAULT_GENERATOR_SETTINGS };
+    }
+}
+
+// Save generator settings to localStorage (per farm key)
+function saveGeneratorSettingsToStorage() {
+    const farmKey = state.currentFarmKey || 'default';
+    localStorage.setItem(`generator_settings_${farmKey}`, JSON.stringify(generatorSettings));
+}
 
 function openGeneratorSettingsModal() {
     const modal = document.getElementById('generatorSettingsModal');
     if (!modal) return;
     
-    // Load current value
-    const input = document.getElementById('templateIdInput');
-    if (input) {
-        input.value = generatorSettings.templateId;
-    }
+    // Load current settings
+    loadGeneratorSettings();
+    
+    // Populate form fields
+    document.getElementById('genBorderColor').value = generatorSettings.borderColor;
+    document.getElementById('genBorderColorText').value = generatorSettings.borderColor;
+    document.getElementById('genTitleColor').value = generatorSettings.titleColor;
+    document.getElementById('genTitleColorText').value = generatorSettings.titleColor;
+    document.getElementById('genTitleGlow').value = generatorSettings.titleGlow;
+    document.getElementById('genTitleGlowText').value = generatorSettings.titleGlow;
+    document.getElementById('genIncomeColor').value = generatorSettings.incomeColor;
+    document.getElementById('genIncomeColorText').value = generatorSettings.incomeColor;
+    document.getElementById('genFontFamily').value = generatorSettings.fontFamily;
+    
+    // Update preview
+    updateGeneratorSettingsPreview();
     
     // Clear error
     const errorEl = document.getElementById('generatorSettingsError');
@@ -10872,24 +10928,74 @@ function closeGeneratorSettingsModal() {
     }
 }
 
-function saveGeneratorSettings() {
-    const input = document.getElementById('templateIdInput');
-    const errorEl = document.getElementById('generatorSettingsError');
+function updateGeneratorSettingsPreview() {
+    const borderColor = document.getElementById('genBorderColor').value;
+    const titleColor = document.getElementById('genTitleColor').value;
+    const titleGlow = document.getElementById('genTitleGlow').value;
+    const incomeColor = document.getElementById('genIncomeColor').value;
+    const fontFamily = document.getElementById('genFontFamily').value;
     
-    const value = input?.value?.trim() || '';
+    const previewBox = document.getElementById('genSettingsPreview');
+    const previewTitle = document.getElementById('previewTitle');
+    const previewIncome = document.getElementById('previewIncome');
     
-    // Validate if provided
-    if (value && !/^\d+$/.test(value)) {
-        if (errorEl) errorEl.textContent = 'Template ID must be a number';
-        return;
+    if (previewBox) {
+        previewBox.style.borderColor = borderColor;
+        previewBox.style.boxShadow = `0 0 20px ${borderColor}50`;
     }
+    if (previewTitle) {
+        previewTitle.style.color = titleColor;
+        previewTitle.style.textShadow = `0 0 10px ${titleGlow}, 2px 2px 0 #000`;
+        previewTitle.style.fontFamily = `'${fontFamily}', monospace`;
+        
+        // Update title text from shop name
+        const shopConfig = state.shopNameConfig || {};
+        const shopName = shopConfig.shopName || 'MY SHOP';
+        previewTitle.textContent = shopName.toUpperCase();
+    }
+    if (previewIncome) {
+        previewIncome.style.color = incomeColor;
+        previewIncome.style.textShadow = `0 0 10px ${incomeColor}, 2px 2px 0 #000`;
+        previewIncome.style.fontFamily = `'${fontFamily}', monospace`;
+    }
+}
+
+function resetGeneratorSettings() {
+    // Reset to defaults
+    document.getElementById('genBorderColor').value = DEFAULT_GENERATOR_SETTINGS.borderColor;
+    document.getElementById('genBorderColorText').value = DEFAULT_GENERATOR_SETTINGS.borderColor;
+    document.getElementById('genTitleColor').value = DEFAULT_GENERATOR_SETTINGS.titleColor;
+    document.getElementById('genTitleColorText').value = DEFAULT_GENERATOR_SETTINGS.titleColor;
+    document.getElementById('genTitleGlow').value = DEFAULT_GENERATOR_SETTINGS.titleGlow;
+    document.getElementById('genTitleGlowText').value = DEFAULT_GENERATOR_SETTINGS.titleGlow;
+    document.getElementById('genIncomeColor').value = DEFAULT_GENERATOR_SETTINGS.incomeColor;
+    document.getElementById('genIncomeColorText').value = DEFAULT_GENERATOR_SETTINGS.incomeColor;
+    document.getElementById('genFontFamily').value = DEFAULT_GENERATOR_SETTINGS.fontFamily;
+    
+    updateGeneratorSettingsPreview();
+}
+
+function saveGeneratorSettings() {
+    // Get values from form
+    generatorSettings = {
+        borderColor: document.getElementById('genBorderColor').value,
+        titleColor: document.getElementById('genTitleColor').value,
+        titleGlow: document.getElementById('genTitleGlow').value,
+        incomeColor: document.getElementById('genIncomeColor').value,
+        fontFamily: document.getElementById('genFontFamily').value
+    };
     
     // Save to localStorage
-    generatorSettings.templateId = value;
-    localStorage.setItem('supa_template_id', value);
+    saveGeneratorSettingsToStorage();
     
-    showNotification(`Generator settings saved${value ? ` (Template: ${value})` : ' (using default)'}`, 'success');
+    showNotification('Generator settings saved', 'success');
     closeGeneratorSettingsModal();
+}
+
+// Get current generator settings for API calls
+function getGeneratorSettings() {
+    loadGeneratorSettings();
+    return { ...generatorSettings };
 }
 
 function setupGeneratorSettingsListeners() {
@@ -10917,16 +11023,61 @@ function setupGeneratorSettingsListeners() {
         confirmBtn.addEventListener('click', saveGeneratorSettings);
     }
     
+    // Reset button
+    const resetBtn = document.getElementById('resetGeneratorSettings');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetGeneratorSettings);
+    }
+    
+    // Color picker sync with text inputs
+    ['Border', 'Title', 'TitleGlow', 'Income'].forEach(name => {
+        const colorInput = document.getElementById(`gen${name}Color`);
+        const textInput = document.getElementById(`gen${name}ColorText`);
+        
+        if (colorInput && textInput) {
+            colorInput.addEventListener('input', () => {
+                textInput.value = colorInput.value;
+                updateGeneratorSettingsPreview();
+            });
+            
+            textInput.addEventListener('input', () => {
+                const value = textInput.value;
+                if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                    colorInput.value = value;
+                    updateGeneratorSettingsPreview();
+                }
+            });
+        }
+    });
+    
+    // Glow color sync
+    const glowColorInput = document.getElementById('genTitleGlow');
+    const glowTextInput = document.getElementById('genTitleGlowText');
+    if (glowColorInput && glowTextInput) {
+        glowColorInput.addEventListener('input', () => {
+            glowTextInput.value = glowColorInput.value;
+            updateGeneratorSettingsPreview();
+        });
+        glowTextInput.addEventListener('input', () => {
+            const value = glowTextInput.value;
+            if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+                glowColorInput.value = value;
+                updateGeneratorSettingsPreview();
+            }
+        });
+    }
+    
+    // Font family change
+    const fontSelect = document.getElementById('genFontFamily');
+    if (fontSelect) {
+        fontSelect.addEventListener('change', updateGeneratorSettingsPreview);
+    }
+    
     // Modal overlay
     const modal = document.getElementById('generatorSettingsModal');
     if (modal) {
         modal.querySelector('.modal-overlay')?.addEventListener('click', closeGeneratorSettingsModal);
     }
-}
-
-// Get current template ID for generation
-function getTemplateId() {
-    return generatorSettings.templateId || null;
 }
 
 // Setup offers event listeners

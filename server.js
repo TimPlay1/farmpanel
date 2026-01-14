@@ -51,6 +51,15 @@ if (isDocker) {
 
 const GENERATIONS_DATA_PATH = path.join(__dirname, 'data', 'generations.json');
 
+// Путь к сгенерированным изображениям (локальный генератор)
+const GENERATED_IMAGES_PATH = path.join(__dirname, 'generated');
+
+// Создаём папку для сгенерированных изображений если не существует
+if (!fs.existsSync(GENERATED_IMAGES_PATH)) {
+    fs.mkdirSync(GENERATED_IMAGES_PATH, { recursive: true });
+    console.log('Created generated images folder:', GENERATED_IMAGES_PATH);
+}
+
 // Middleware
 app.use(cors());
 // v9.12.71: Increase JSON body limit to 10mb (default 100kb caused 413 errors)
@@ -60,6 +69,9 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve brainrot images from downloaded_images folder
 app.use('/brainrot-images', express.static(BRAINROT_IMAGES_PATH));
+
+// Serve locally generated images
+app.use('/generated', express.static(GENERATED_IMAGES_PATH));
 
 // Store connected clients
 const clients = new Map();
@@ -362,6 +374,7 @@ const userColorHandler = require('./api/user-color');
 const accountColorsHandler = require('./api/account-colors');
 const supaGenerateHandler = require('./api/supa-generate');
 const supaStatusHandler = require('./api/supa-status');
+const localGenerateHandler = require('./api/local-generate');
 const eldoradoListHandler = require('./api/eldorado-list');
 const heartbeatHandler = require('./api/heartbeat');
 
@@ -490,7 +503,7 @@ app.get('/api/account-colors', async (req, res) => {
     await accountColorsHandler(req, res);
 });
 
-// Supa Generate endpoint - generates offer images via Supa.ru API
+// Supa Generate endpoint - generates offer images via Supa.ru API (or local generator if enabled)
 app.post('/api/supa-generate', async (req, res) => {
     await supaGenerateHandler(req, res);
 });
@@ -498,6 +511,11 @@ app.post('/api/supa-generate', async (req, res) => {
 // Supa status endpoint - check generation status
 app.get('/api/supa-status', async (req, res) => {
     await supaStatusHandler(req, res);
+});
+
+// Local Generate endpoint - direct access to local image generator
+app.post('/api/local-generate', async (req, res) => {
+    await localGenerateHandler(req, res);
 });
 
 // Eldorado price endpoint - get optimal price for brainrot

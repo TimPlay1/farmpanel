@@ -904,25 +904,81 @@
     <!-- Generator Settings Modal -->
     <div id="generatorSettingsModal" class="modal hidden">
         <div class="modal-overlay"></div>
-        <div class="modal-content">
+        <div class="modal-content generator-settings-content">
             <div class="modal-header">
-                <h3><i class="fas fa-cog"></i> <span data-i18n="generator_settings_title">Generator Settings</span></h3>
+                <h3><i class="fas fa-palette"></i> <span data-i18n="generator_settings_title">Generator Settings</span></h3>
                 <button class="modal-close" id="closeGeneratorSettingsModal">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <div class="modal-body">
-                <p class="modal-description" data-i18n="generator_settings_desc">Configure your image generator template. Leave empty to use the default template.</p>
+                <p class="modal-description" data-i18n="generator_settings_desc">Configure your image generator colors, fonts, and style.</p>
                 
-                <div class="input-group">
-                    <label for="templateIdInput" data-i18n="supa_template_id">Supa Template ID</label>
-                    <input type="text" id="templateIdInput" placeholder="21157229 (default)" autocomplete="off">
-                    <small class="input-hint" data-i18n="template_hint">Enter your custom Supa.ru template ID or leave empty for default</small>
+                <div class="gen-settings-grid">
+                    <!-- Border Color -->
+                    <div class="gen-setting-row">
+                        <label data-i18n="border_color">Border Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="genBorderColor" value="#ff0000">
+                            <input type="text" id="genBorderColorText" value="#ff0000" maxlength="7">
+                        </div>
+                    </div>
+                    
+                    <!-- Title Color -->
+                    <div class="gen-setting-row">
+                        <label data-i18n="title_color">Shop Name Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="genTitleColor" value="#ffff00">
+                            <input type="text" id="genTitleColorText" value="#ffff00" maxlength="7">
+                        </div>
+                    </div>
+                    
+                    <!-- Title Glow -->
+                    <div class="gen-setting-row">
+                        <label data-i18n="title_glow">Shop Name Glow</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="genTitleGlow" value="#ff6600">
+                            <input type="text" id="genTitleGlowText" value="#ff6600" maxlength="7">
+                        </div>
+                    </div>
+                    
+                    <!-- Income Color -->
+                    <div class="gen-setting-row">
+                        <label data-i18n="income_color">Income Color</label>
+                        <div class="color-picker-wrapper">
+                            <input type="color" id="genIncomeColor" value="#1bff00">
+                            <input type="text" id="genIncomeColorText" value="#1bff00" maxlength="7">
+                        </div>
+                    </div>
+                    
+                    <!-- Font Family -->
+                    <div class="gen-setting-row">
+                        <label data-i18n="font_family">Font</label>
+                        <select id="genFontFamily">
+                            <option value="Press Start 2P">Press Start 2P (Pixel)</option>
+                            <option value="Arial Black">Arial Black</option>
+                            <option value="Impact">Impact</option>
+                            <option value="Comic Sans MS">Comic Sans MS</option>
+                            <option value="Courier New">Courier New</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Preview -->
+                <div class="gen-settings-preview">
+                    <div class="gen-preview-box" id="genSettingsPreview">
+                        <div class="gen-preview-title" id="previewTitle">MY SHOP</div>
+                        <div class="gen-preview-income" id="previewIncome">500K/s</div>
+                    </div>
                 </div>
                 
                 <div id="generatorSettingsError" class="modal-error"></div>
             </div>
             <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetGeneratorSettings">
+                    <i class="fas fa-undo"></i>
+                    Reset
+                </button>
                 <button class="btn btn-secondary" id="cancelGeneratorSettings" data-i18n="cancel">Cancel</button>
                 <button class="btn btn-primary" id="confirmGeneratorSettings">
                     <i class="fas fa-save"></i>
