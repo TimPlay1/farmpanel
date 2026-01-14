@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.8
+// @version      10.0.9
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -3919,7 +3919,30 @@
     }
 
     function findNgSelectByAriaLabel(label) {
-        // v10.0.7: NEW - Search in Offer Details form with new structure:
+        // v10.0.9: FIXED - First check find-item-group containers which have proper label->dropdown structure
+        // This is the most reliable way for Item type, Rarity, Brainrot fields
+        const findItemGroups = document.querySelectorAll('.find-item-group');
+        for (const group of findItemGroups) {
+            const labelSpan = group.querySelector('span.picker-select-label, span');
+            if (labelSpan) {
+                const labelText = labelSpan.textContent?.trim().toLowerCase().replace(':', '') || '';
+                if (labelText === label.toLowerCase() || labelText.includes(label.toLowerCase())) {
+                    // Found matching label in find-item-group
+                    const groupNgSelect = group.querySelector('ng-select');
+                    if (groupNgSelect) {
+                        console.log('[Glitched] Found ng-select in find-item-group for:', label);
+                        return groupNgSelect;
+                    }
+                    const dropdown = group.querySelector('eld-dropdown');
+                    if (dropdown) {
+                        console.log('[Glitched] Found eld-dropdown in find-item-group for:', label);
+                        return dropdown;
+                    }
+                }
+            }
+        }
+        
+        // v10.0.7: Search in Offer Details form with new structure:
         // <div><span>M/s</span><span>:</span></div><div><eld-dropdown...></div>
         // Find spans that contain the label text and look for adjacent eld-dropdown
         const allSpans = document.querySelectorAll('span');
@@ -3932,21 +3955,13 @@
                     // The dropdown is in the next sibling div
                     const nextDiv = parentDiv.nextElementSibling;
                     if (nextDiv) {
-                        const dropdown = nextDiv.querySelector('eld-dropdown, .dropdown');
+                        const dropdown = nextDiv.querySelector('eld-dropdown');
                         if (dropdown) {
                             console.log('[Glitched] Found dropdown by span label:', label);
                             return dropdown;
                         }
                     }
-                    // Also check parent's next sibling (different nesting level)
-                    const parentParent = parentDiv.parentElement;
-                    if (parentParent) {
-                        const dropdown = parentParent.querySelector('eld-dropdown, .dropdown');
-                        if (dropdown) {
-                            console.log('[Glitched] Found dropdown in parent by span label:', label);
-                            return dropdown;
-                        }
-                    }
+                    // v10.0.9: REMOVED the parentParent search - it was returning wrong dropdowns!
                 }
             }
         }
@@ -3981,26 +3996,6 @@
             if (placeholder.includes(label.toLowerCase()) || value.includes(label.toLowerCase())) {
                 console.log('[Glitched] Found ng-select by placeholder/value:', label);
                 return ngSelect;
-            }
-        }
-        
-        // v10.0.1: Now try new eld-dropdown components
-        // Look for dropdowns in find-item-group containers with matching labels
-        const findItemGroups = document.querySelectorAll('.find-item-group');
-        for (const group of findItemGroups) {
-            const labelSpan = group.querySelector('span, .picker-select-label');
-            if (labelSpan && labelSpan.textContent?.toLowerCase().includes(label.toLowerCase())) {
-                // Found a matching label, check for ng-select first, then .dropdown
-                const groupNgSelect = group.querySelector('ng-select');
-                if (groupNgSelect) {
-                    console.log('[Glitched] Found ng-select in group by label:', label);
-                    return groupNgSelect;
-                }
-                const dropdown = group.querySelector('eld-dropdown, .dropdown:not(.ng-select)');
-                if (dropdown) {
-                    console.log('[Glitched] Found dropdown by group label:', label);
-                    return dropdown;
-                }
             }
         }
         
