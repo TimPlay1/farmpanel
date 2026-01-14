@@ -3903,6 +3903,28 @@ body {
     border-color: var(--accent-primary);
 }
 
+/* Generator Settings Button */
+#generatorSettingsBtn {
+    background: var(--accent-primary);
+    border: 1px solid var(--accent-primary);
+    color: #ffffff;
+    padding: 0.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#generatorSettingsBtn:hover {
+    background: var(--accent-secondary);
+    border-color: var(--accent-secondary);
+    color: #ffffff;
+    transform: scale(1.05);
+}
+
+#generatorSettingsBtn i {
+    color: #ffffff;
+}
+
 .shop-name-hint {
     display: flex;
     align-items: center;

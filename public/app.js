@@ -7567,6 +7567,7 @@ async function generateImage() {
     try {
         // Get generator settings (colors, fonts)
         const genSettings = getGeneratorSettings();
+        console.log('[Generator] Settings being sent:', genSettings);
         
         const response = await fetch('/api/supa-generate', {
             method: 'POST',
@@ -11010,6 +11011,7 @@ function saveGeneratorSettings() {
 // Get current generator settings for API calls
 function getGeneratorSettings() {
     loadGeneratorSettings();
+    console.log('[Generator] Loaded settings:', generatorSettings);
     return { ...generatorSettings };
 }
 

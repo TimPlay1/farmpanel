@@ -445,13 +445,21 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { name, income, price, imageUrl, borderColor, accountId, accountName, templateId, useLocal, mutation, titleText } = req.body;
+        const { 
+            name, income, price, imageUrl, borderColor, accountId, accountName, templateId, useLocal, mutation, titleText,
+            // Generator settings
+            titleColor, titleGlow, incomeColor, fontFamily
+        } = req.body;
 
         if (!name) {
             return res.status(400).json({ error: 'name is required' });
         }
 
-        const params = { name, income, price, imageUrl, borderColor, accountId, accountName, templateId, mutation, titleText };
+        const params = { 
+            name, income, price, imageUrl, borderColor, accountId, accountName, templateId, mutation, titleText,
+            // Generator settings
+            titleColor, titleGlow, incomeColor, fontFamily
+        };
 
         // Выбираем генератор: локальный или Supa
         // Приоритет: 1) параметр запроса useLocal, 2) глобальная настройка USE_LOCAL_GENERATOR, 3) наличие локального генератора
