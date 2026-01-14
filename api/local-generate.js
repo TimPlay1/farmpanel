@@ -28,25 +28,38 @@ if (!fs.existsSync(fontsDir)) {
 const fontPath = path.join(fontsDir, 'PressStart2P-Regular.ttf');
 let fontsRegistered = {};
 
-// Карта шрифтов: название -> URL для скачивания
+// Карта шрифтов: название -> URL для скачивания (Google Fonts)
 const FONT_URLS = {
     'Press Start 2P': 'https://github.com/google/fonts/raw/main/ofl/pressstart2p/PressStart2P-Regular.ttf',
-    'Arial Black': null, // Системный шрифт, не требует скачивания
-    'Impact': null,
-    'Roboto': 'https://github.com/google/fonts/raw/main/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf',
-    'Montserrat': 'https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf'
+    'Bebas Neue': 'https://github.com/google/fonts/raw/main/ofl/bebasneue/BebasNeue-Regular.ttf',
+    'Oswald': 'https://github.com/google/fonts/raw/main/ofl/oswald/Oswald%5Bwght%5D.ttf',
+    'Roboto': 'https://github.com/google/fonts/raw/main/apache/roboto/Roboto%5Bwdth%2Cwght%5D.ttf',
+    'Montserrat': 'https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf',
+    'Comic Neue': 'https://github.com/google/fonts/raw/main/ofl/comicneue/ComicNeue-Bold.ttf',
+    'Bangers': 'https://github.com/google/fonts/raw/main/ofl/bangers/Bangers-Regular.ttf',
+    'Russo One': 'https://github.com/google/fonts/raw/main/ofl/russoone/RussoOne-Regular.ttf',
+    'Bungee': 'https://github.com/google/fonts/raw/main/ofl/bungee/Bungee-Regular.ttf'
 };
 
-// Fallback шрифты для системных (не загружаемых)
-const SYSTEM_FONT_FALLBACKS = {
-    'Arial Black': 'Press Start 2P',
-    'Impact': 'Press Start 2P'
+// Маппинг системных шрифтов на свободные альтернативы
+const FONT_ALIASES = {
+    'Arial Black': 'Oswald',
+    'Impact': 'Bebas Neue',
+    'Comic Sans MS': 'Comic Neue',
+    'Courier New': 'Press Start 2P'
 };
 
 async function ensureFontLoaded(fontFamily = 'Press Start 2P') {
-    // Если это системный шрифт без URL, используем fallback
-    if (FONT_URLS[fontFamily] === null) {
-        console.log(`[LocalGen] Font "${fontFamily}" is system font, using fallback: Press Start 2P`);
+    // Если это алиас системного шрифта - подменяем на альтернативу
+    if (FONT_ALIASES[fontFamily]) {
+        const alternative = FONT_ALIASES[fontFamily];
+        console.log(`[LocalGen] Font "${fontFamily}" → using alternative: "${alternative}"`);
+        fontFamily = alternative;
+    }
+    
+    // Если шрифт не в списке - fallback на Press Start 2P
+    if (!FONT_URLS[fontFamily]) {
+        console.log(`[LocalGen] Font "${fontFamily}" not supported, using Press Start 2P`);
         fontFamily = 'Press Start 2P';
     }
     
