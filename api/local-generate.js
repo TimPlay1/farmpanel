@@ -24,32 +24,66 @@ if (!fs.existsSync(fontsDir)) {
     fs.mkdirSync(fontsDir, { recursive: true });
 }
 
-// Проверяем наличие шрифта
+// Проверяем наличие шрифтов
 const fontPath = path.join(fontsDir, 'PressStart2P-Regular.ttf');
-let fontRegistered = false;
+let fontsRegistered = {};
 
-async function ensureFontLoaded() {
-    if (fontRegistered) return;
+// Карта шрифтов: название -> URL для скачивания
+const FONT_URLS = {
+    'Press Start 2P': 'https://github.com/google/fonts/raw/main/ofl/pressstart2p/PressStart2P-Regular.ttf',
+    'Arial Black': null, // Системный шрифт, не требует скачивания
+    'Impact': null,
+    'Roboto': 'https://github.com/google/fonts/raw/main/ofl/roboto/Roboto%5Bwdth%2Cwght%5D.ttf',
+    'Montserrat': 'https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf'
+};
+
+// Fallback шрифты для системных (не загружаемых)
+const SYSTEM_FONT_FALLBACKS = {
+    'Arial Black': 'Press Start 2P',
+    'Impact': 'Press Start 2P'
+};
+
+async function ensureFontLoaded(fontFamily = 'Press Start 2P') {
+    // Если это системный шрифт без URL, используем fallback
+    if (FONT_URLS[fontFamily] === null) {
+        console.log(`[LocalGen] Font "${fontFamily}" is system font, using fallback: Press Start 2P`);
+        fontFamily = 'Press Start 2P';
+    }
     
-    if (!fs.existsSync(fontPath)) {
-        console.log('[LocalGen] Downloading Press Start 2P font...');
+    // Если уже загружен
+    if (fontsRegistered[fontFamily]) return fontFamily;
+    
+    const safeName = fontFamily.replace(/[^a-zA-Z0-9]/g, '');
+    const fontFilePath = path.join(fontsDir, `${safeName}.ttf`);
+    
+    // Скачиваем если нужно
+    if (!fs.existsSync(fontFilePath) && FONT_URLS[fontFamily]) {
+        console.log(`[LocalGen] Downloading font: ${fontFamily}...`);
         try {
-            const response = await fetch('https://github.com/google/fonts/raw/main/ofl/pressstart2p/PressStart2P-Regular.ttf');
+            const response = await fetch(FONT_URLS[fontFamily]);
             if (response.ok) {
                 const buffer = await response.buffer();
-                fs.writeFileSync(fontPath, buffer);
-                console.log('[LocalGen] Font downloaded successfully');
+                fs.writeFileSync(fontFilePath, buffer);
+                console.log(`[LocalGen] Font ${fontFamily} downloaded successfully`);
             }
         } catch (e) {
-            console.error('[LocalGen] Failed to download font:', e.message);
+            console.error(`[LocalGen] Failed to download font ${fontFamily}:`, e.message);
+            // Fallback на Press Start 2P
+            return ensureFontLoaded('Press Start 2P');
         }
     }
     
-    if (fs.existsSync(fontPath)) {
-        GlobalFonts.registerFromPath(fontPath, 'Press Start 2P');
-        fontRegistered = true;
-        console.log('[LocalGen] Press Start 2P font registered');
+    // Регистрируем шрифт
+    if (fs.existsSync(fontFilePath)) {
+        GlobalFonts.registerFromPath(fontFilePath, fontFamily);
+        fontsRegistered[fontFamily] = true;
+        console.log(`[LocalGen] Font "${fontFamily}" registered`);
+        return fontFamily;
     }
+    
+    // Если ничего не получилось - возвращаем Press Start 2P
+    console.log(`[LocalGen] Font "${fontFamily}" not available, falling back to Press Start 2P`);
+    return ensureFontLoaded('Press Start 2P');
 }
 
 // Размер изображения
@@ -690,8 +724,9 @@ async function generateBrainrotImage(options) {
         fontFamily
     });
     
-    // Загружаем шрифт
-    await ensureFontLoaded();
+    // Загружаем шрифт (с fallback на Press Start 2P для системных шрифтов)
+    const actualFontFamily = await ensureFontLoaded(fontFamily);
+    console.log(`[LocalGen] Using font: "${actualFontFamily}" (requested: "${fontFamily}")`);
     
     // Создаём холст
     const canvas = createCanvas(CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -764,7 +799,7 @@ async function generateBrainrotImage(options) {
             strokeWidth: 5,
             glowColor: titleGlow,
             underline: true,
-            fontFamily: fontFamily
+            fontFamily: actualFontFamily
         });
     }
     
@@ -783,7 +818,7 @@ async function generateBrainrotImage(options) {
         glowColor: '#ffffff',
         maxWidth: maxNameWidth,
         lineHeight: 1.3,
-        fontFamily: fontFamily
+        fontFamily: actualFontFamily
     });
     
     // Мутация (справа вверху внутри рамки, увеличена и смещена)
@@ -792,7 +827,7 @@ async function generateBrainrotImage(options) {
         drawMutationBadge(ctx, mutation, mutationX, nameY, {
             fontSize: 48,
             align: 'right',
-            fontFamily: fontFamily
+            fontFamily: actualFontFamily
         });
     }
     
@@ -800,7 +835,7 @@ async function generateBrainrotImage(options) {
     const incomeY = CANVAS_HEIGHT - 50;
     drawIncomeText(ctx, income, CANVAS_WIDTH / 2, incomeY, {
         incomeColor: incomeColor,
-        fontFamily: fontFamily
+        fontFamily: actualFontFamily
     });
     
     // Конвертируем в buffer
