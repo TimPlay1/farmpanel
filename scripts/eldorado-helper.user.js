@@ -27,7 +27,7 @@
 (function() {
     'use strict';
 
-    const VERSION = '9.12.10';
+    const VERSION = '10.0.12';
     const API_BASE = 'https://ody.farm/api';
     
     // ==================== TALKJS IFRAME HANDLER ====================
@@ -5731,12 +5731,22 @@ ${searchVariations}`;
                 getQueueFromStorage();
             }
             
-            // v9.8.1: If fromQueue but no fullQueue and no local queue, try to fetch from API
-            if (offerData?.fromQueue && offerData?.queueTotal > 0 && queueState.queue.length === 0) {
-                log('Queue mode detected but no local queue, trying to fetch from API...');
+            // v10.0.12: ALWAYS fetch queue from API when fromQueue mode is detected
+            // This ensures we get the FRESH queue, not stale localStorage data
+            if (offerData?.fromQueue && offerData?.queueTotal > 0) {
+                log(`Queue mode: expecting ${offerData.queueTotal} items, current local: ${queueState.queue.length}`);
+                // v10.0.12: Always try API - it has the freshest data
+                log('Fetching queue from API...');
                 const queueLoaded = await tryLoadQueueFromAPI(offerData.farmKey);
                 if (queueLoaded) {
                     getQueueFromStorage();
+                    log(`Queue loaded from API: ${queueState.queue.length} items`);
+                } else {
+                    log('Failed to load queue from API, checking local storage...');
+                    // Fallback: check if local queue matches expected count
+                    if (queueState.queue.length !== offerData.queueTotal) {
+                        log(`Queue mismatch! Local: ${queueState.queue.length}, Expected: ${offerData.queueTotal}`);
+                    }
                 }
             }
             

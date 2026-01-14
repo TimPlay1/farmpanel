@@ -8524,6 +8524,7 @@ async function startMassEldoradoQueue() {
     const offerData = {
         name: firstItem.name,
         income: firstItem.income,
+        incomeText: firstItem.incomeText, // v10.0.12: Pass incomeText for display
         generatedImageUrl: firstItem.imageUrl,
         maxPrice: parseFloat(firstItem.price) || 0,
         minPrice: parseFloat(firstItem.price) || 0,
