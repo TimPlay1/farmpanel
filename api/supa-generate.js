@@ -186,10 +186,14 @@ async function requestRender(brainrotData) {
     };
 
     // v9.12.50: Price - жёлтый цвет для цены
-    if (price) {
+    // v9.12.51: Только если price передан и НЕ пустой - объект может не существовать в шаблоне
+    if (price && price.trim()) {
         objectsOverrides[TEMPLATE_OBJECTS.PRICE] = {
             text: `<substyle color="#FFD700">${price}</substyle>`
         };
+        console.log('Price override added:', price);
+    } else {
+        console.log('No price provided, skipping price override');
     }
 
     console.log('Requesting render with overrides:', JSON.stringify(objectsOverrides, null, 2));

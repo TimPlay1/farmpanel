@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.9
+// @version      10.0.10
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -4397,6 +4397,10 @@ ${searchVariations}`;
         // v9.9.4: Use offerId from panel if available, otherwise generate new one
         const offerId = offerData.offerId || generateOfferId();
         const totalQuantity = quantity || 1;
+        
+        // v10.0.10: Debug income value
+        console.log('[Glitched] Income from offerData:', income, 'type:', typeof income);
+        console.log('[Glitched] incomeText from offerData:', offerData.incomeText);
 
         updateStatus('🔄 Заполняем форму...', 'working');
         log(`Starting auto-fill v5.3... (quantity: ${totalQuantity}, mutation: ${mutation || 'None'}, offerId: ${offerId})`);
@@ -4424,6 +4428,7 @@ ${searchVariations}`;
             console.log('[Glitched] Starting form fill steps...');
 
             const expectedIncomeRange = getIncomeRange(income);
+            console.log('[Glitched] Expected income range:', expectedIncomeRange, 'from income:', income);
             const expectedRarity = rarity || 'Secret';
             // v9.8.27: Используем мутацию из данных или 'None' если не указана
             const expectedMutation = mutation || 'None';
