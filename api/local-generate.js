@@ -654,6 +654,8 @@ function drawIncomeText(ctx, income, x, y, options = {}) {
  * Главная функция генерации изображения
  */
 async function generateBrainrotImage(options) {
+    console.log('[LocalGen] RAW OPTIONS RECEIVED:', JSON.stringify(options, null, 2));
+    
     const {
         name = 'Unknown Brainrot',
         income = '0/s',
@@ -668,6 +670,14 @@ async function generateBrainrotImage(options) {
         incomeColor = COLORS.income,
         fontFamily = 'Press Start 2P'
     } = options;
+    
+    console.log('[LocalGen] DESTRUCTURED VALUES:', { 
+        borderColor,
+        titleColor,
+        titleGlow,
+        incomeColor,
+        fontFamily
+    });
     
     console.log('[LocalGen] Starting generation:', { 
         name, 
