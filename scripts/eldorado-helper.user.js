@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.6
+// @version      10.0.7
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -3919,7 +3919,39 @@
     }
 
     function findNgSelectByAriaLabel(label) {
-        // v10.0.1: FIRST try legacy ng-select (they are still used on Eldorado!)
+        // v10.0.7: NEW - Search in Offer Details form with new structure:
+        // <div><span>M/s</span><span>:</span></div><div><eld-dropdown...></div>
+        // Find spans that contain the label text and look for adjacent eld-dropdown
+        const allSpans = document.querySelectorAll('span');
+        for (const span of allSpans) {
+            const spanText = span.textContent?.trim().toLowerCase().replace(':', '') || '';
+            if (spanText === label.toLowerCase() || spanText.includes(label.toLowerCase())) {
+                // Found matching span, look for eld-dropdown in sibling or parent container
+                const parentDiv = span.closest('div.mb-1') || span.closest('div');
+                if (parentDiv) {
+                    // The dropdown is in the next sibling div
+                    const nextDiv = parentDiv.nextElementSibling;
+                    if (nextDiv) {
+                        const dropdown = nextDiv.querySelector('eld-dropdown, .dropdown');
+                        if (dropdown) {
+                            console.log('[Glitched] Found dropdown by span label:', label);
+                            return dropdown;
+                        }
+                    }
+                    // Also check parent's next sibling (different nesting level)
+                    const parentParent = parentDiv.parentElement;
+                    if (parentParent) {
+                        const dropdown = parentParent.querySelector('eld-dropdown, .dropdown');
+                        if (dropdown) {
+                            console.log('[Glitched] Found dropdown in parent by span label:', label);
+                            return dropdown;
+                        }
+                    }
+                }
+            }
+        }
+        
+        // v10.0.1: Try legacy ng-select (they might still be used)
         const inputs = document.querySelectorAll('.hidden.md\\:block input[aria-label]');
         for (const input of inputs) {
             if (input.getAttribute('aria-label')?.toLowerCase() === label.toLowerCase()) {
@@ -3956,7 +3988,7 @@
         // Look for dropdowns in find-item-group containers with matching labels
         const findItemGroups = document.querySelectorAll('.find-item-group');
         for (const group of findItemGroups) {
-            const labelSpan = group.querySelector('span');
+            const labelSpan = group.querySelector('span, .picker-select-label');
             if (labelSpan && labelSpan.textContent?.toLowerCase().includes(label.toLowerCase())) {
                 // Found a matching label, check for ng-select first, then .dropdown
                 const groupNgSelect = group.querySelector('ng-select');
@@ -3964,7 +3996,7 @@
                     console.log('[Glitched] Found ng-select in group by label:', label);
                     return groupNgSelect;
                 }
-                const dropdown = group.querySelector('.dropdown:not(.ng-select), eld-dropdown');
+                const dropdown = group.querySelector('eld-dropdown, .dropdown:not(.ng-select)');
                 if (dropdown) {
                     console.log('[Glitched] Found dropdown by group label:', label);
                     return dropdown;
@@ -4000,15 +4032,24 @@
         return null;
     }
     
-    // v10.0.0: Find dropdown by index in .find-item-group containers
-    // Useful when label matching fails
+    // v10.0.7: Find dropdown by index - search all eld-dropdown on page
+    // Order: M/s, Mutations, Item type, Rarity, Brainrot
     function findDropdownByIndex(index) {
-        // Get all find-item-groups
+        // v10.0.7: Get ALL eld-dropdown elements on the page in order
+        const allDropdowns = document.querySelectorAll('eld-dropdown');
+        console.log('[Glitched] findDropdownByIndex: found', allDropdowns.length, 'eld-dropdowns');
+        
+        if (index < allDropdowns.length) {
+            console.log('[Glitched] Found dropdown by index:', index);
+            return allDropdowns[index];
+        }
+        
+        // Fallback: Try find-item-group containers
         const groups = document.querySelectorAll('.find-item-group');
         if (index < groups.length) {
             const dropdown = groups[index].querySelector('.dropdown, eld-dropdown');
             if (dropdown) {
-                console.log('[Glitched] Found dropdown by index:', index);
+                console.log('[Glitched] Found dropdown by group index:', index);
                 return dropdown;
             }
         }
