@@ -6898,95 +6898,105 @@ body.theme-light textarea {
     min-width: 250px;
 }
 
+/* Canvas preview - matches local-generate.js layout */
 .gen-preview-canvas {
     position: relative;
     width: 100%;
     aspect-ratio: 1;
-    background: linear-gradient(135deg, #2d1b4e, #1a0a2e);
-    border-radius: 16px;
+    background: linear-gradient(135deg, #1a0a2e, #0d0518);
+    border-radius: 12px;
     overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
+/* Brainrot image - centered, 70% of container */
 .gen-preview-brainrot {
-    max-width: 70%;
-    max-height: 70%;
+    position: absolute;
+    top: 18%;
+    left: 15%;
+    width: 70%;
+    height: 55%;
     object-fit: contain;
     z-index: 1;
 }
 
+/* Neon border frame - matches template */
 .gen-preview-border {
     position: absolute;
-    inset: 0;
-    border: 6px solid #ff0000;
-    border-radius: 16px;
-    box-shadow: inset 0 0 30px rgba(255, 0, 0, 0.2);
+    top: 6%;
+    left: 3%;
+    right: 3%;
+    bottom: 12%;
+    border: 4px solid #ff0000;
+    border-radius: 12px;
+    box-shadow: 
+        0 0 15px rgba(255, 0, 0, 0.5),
+        inset 0 0 15px rgba(255, 0, 0, 0.1);
     pointer-events: none;
     z-index: 10;
 }
 
+/* Mutation badge - top right inside frame */
 .gen-preview-mutation-badge {
     position: absolute;
-    top: 12px;
-    left: 12px;
+    top: 8%;
+    right: 5%;
     font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    padding: 6px 10px;
-    border-radius: 6px;
-    color: #fff;
-    text-shadow: 1px 1px 0 #000;
+    font-size: 8px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    color: #4a3500;
+    text-shadow: none;
     z-index: 20;
-    background: linear-gradient(135deg, #ff0080, #ff8c00, #ffff00, #00ff00, #00ffff, #8000ff);
-    animation: rainbowShift 2s linear infinite;
+    background: linear-gradient(90deg, #FFD700, #FFA500);
 }
 
-@keyframes rainbowShift {
-    0% { filter: hue-rotate(0deg); }
-    100% { filter: hue-rotate(360deg); }
-}
-
+/* Shop name - top center */
 .gen-preview-shop-name {
     position: absolute;
-    top: 50px;
-    left: 50%;
-    transform: translateX(-50%);
-    font-family: 'Press Start 2P', monospace;
-    font-size: 11px;
-    color: #ffff00;
-    text-shadow: 0 0 10px #ff6600, 2px 2px 0 #000;
-    z-index: 20;
-    white-space: nowrap;
-}
-
-.gen-preview-brainrot-name {
-    position: absolute;
-    bottom: 50px;
+    top: 2%;
     left: 50%;
     transform: translateX(-50%);
     font-family: 'Press Start 2P', monospace;
     font-size: 10px;
-    color: #fff;
-    text-shadow: 2px 2px 0 #000, 0 0 10px rgba(0,0,0,0.8);
+    color: #ffff00;
+    text-shadow: 0 0 8px #ff6600, 2px 2px 0 #000;
     z-index: 20;
-    text-align: center;
-    max-width: 90%;
+    white-space: nowrap;
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
+/* Brainrot name - top left inside frame */
+.gen-preview-brainrot-name {
+    position: absolute;
+    top: 8%;
+    left: 5%;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    color: #fff;
+    text-shadow: 2px 2px 0 #000;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    z-index: 20;
+    max-width: 45%;
+}
+
+/* Income text - bottom center */
 .gen-preview-income-text {
     position: absolute;
-    bottom: 16px;
+    bottom: 2%;
     left: 50%;
     transform: translateX(-50%);
     font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
+    font-size: 12px;
     color: #1bff00;
-    text-shadow: 0 0 10px #1bff00, 2px 2px 0 #000;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 6px 12px;
-    border-radius: 6px;
+    text-shadow: 0 0 8px #1bff00, 2px 2px 0 #000;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 6px 14px;
+    border-radius: 4px;
     z-index: 20;
+    text-decoration: underline;
+    text-underline-offset: 4px;
 }
 
 /* Settings Section - Right side controls */

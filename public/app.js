@@ -7579,7 +7579,7 @@ async function generateImage() {
                 accountId,
                 accountName,
                 mutation: currentGeneratorBrainrot?.mutation || null,
-                titleText: collectionState.shopName || 'MY SHOP',
+                titleText: shopNameState.text || 'MY SHOP',
                 // Generator settings
                 borderColor: genSettings.borderColor,
                 titleColor: genSettings.titleColor,
@@ -8309,7 +8309,7 @@ async function doStartMassGeneration() {
                     imageUrl: group.imageUrl,
                     quantity: group.quantity || 1,
                     mutation: group.mutation || null,
-                    titleText: collectionState.shopName || 'MY SHOP',
+                    titleText: shopNameState.text || 'MY SHOP',
                     // Generator settings
                     borderColor: genSettings.borderColor,
                     titleColor: genSettings.titleColor,
@@ -10939,22 +10939,19 @@ function updateGeneratorSettingsPreview() {
     const previewBorder = document.getElementById('genPreviewBorder');
     if (previewBorder) {
         previewBorder.style.borderColor = borderColor;
-        previewBorder.style.boxShadow = `inset 0 0 30px ${borderColor}40`;
+        previewBorder.style.boxShadow = `0 0 15px ${borderColor}80, inset 0 0 15px ${borderColor}20`;
     }
     
-    // Update shop name
+    // Update shop name - text only, no emojis (как в реальном шаблоне)
     const previewShopName = document.getElementById('genPreviewShopName');
     if (previewShopName) {
         previewShopName.style.color = titleColor;
-        previewShopName.style.textShadow = `0 0 10px ${titleGlow}, 2px 2px 0 #000`;
+        previewShopName.style.textShadow = `0 0 8px ${titleGlow}, 2px 2px 0 #000`;
         previewShopName.style.fontFamily = `'${fontFamily}', monospace`;
         
-        // Update title text from shop name config
-        const shopConfig = state.shopNameConfig || {};
-        const leftEmoji = shopConfig.leftEmoji || '👾';
-        const shopName = shopConfig.shopName || 'YOUR SHOP';
-        const rightEmoji = shopConfig.rightEmoji || '👾';
-        previewShopName.textContent = `${leftEmoji}${shopName.toUpperCase()}${rightEmoji}`;
+        // Use shopNameState.text (text only without emojis)
+        const shopName = shopNameState.text || 'YOUR SHOP';
+        previewShopName.textContent = shopName.toUpperCase();
     }
     
     // Update brainrot name
@@ -10967,7 +10964,7 @@ function updateGeneratorSettingsPreview() {
     const previewIncome = document.getElementById('genPreviewIncomeText');
     if (previewIncome) {
         previewIncome.style.color = incomeColor;
-        previewIncome.style.textShadow = `0 0 10px ${incomeColor}, 2px 2px 0 #000`;
+        previewIncome.style.textShadow = `0 0 8px ${incomeColor}, 2px 2px 0 #000`;
         previewIncome.style.fontFamily = `'${fontFamily}', monospace`;
     }
     
