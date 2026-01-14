@@ -19,7 +19,7 @@
     <link rel="preload" href="styles.css?v=15" as="style">
     <!-- Note: app.js not preloaded due to versioned query string causing browser warnings -->
     <!-- Стили -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <link rel="stylesheet" href="styles.css?v=15">
@@ -911,64 +911,71 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body">
+            <div class="modal-body gen-settings-body">
                 <p class="modal-description" data-i18n="generator_settings_desc">Configure your image generator colors, fonts, and style.</p>
                 
-                <div class="gen-settings-grid">
-                    <!-- Border Color -->
-                    <div class="gen-setting-row">
-                        <label data-i18n="border_color">Border Color</label>
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="genBorderColor" value="#ff0000">
-                            <input type="text" id="genBorderColorText" value="#ff0000" maxlength="7">
+                <div class="gen-settings-layout">
+                    <!-- Preview Section -->
+                    <div class="gen-settings-preview-section">
+                        <div class="gen-preview-canvas" id="genSettingsPreviewCanvas">
+                            <img id="genPreviewBrainrotImage" class="gen-preview-brainrot" src="https://ody.farm/brainrots/Tralalero_Tralala.png" alt="Preview Brainrot">
+                            <div class="gen-preview-border" id="genPreviewBorder"></div>
+                            <div class="gen-preview-mutation-badge" id="genPreviewMutation">RAINBOW</div>
+                            <div class="gen-preview-shop-name" id="genPreviewShopName">👾YOUR SHOP👾</div>
+                            <div class="gen-preview-brainrot-name" id="genPreviewBrainrotName">Tralalero Tralala</div>
+                            <div class="gen-preview-income-text" id="genPreviewIncomeText">500K/s</div>
                         </div>
                     </div>
                     
-                    <!-- Title Color -->
-                    <div class="gen-setting-row">
-                        <label data-i18n="title_color">Shop Name Color</label>
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="genTitleColor" value="#ffff00">
-                            <input type="text" id="genTitleColorText" value="#ffff00" maxlength="7">
+                    <!-- Settings Section -->
+                    <div class="gen-settings-controls">
+                        <!-- Border Color -->
+                        <div class="gen-setting-row">
+                            <label data-i18n="border_color">Border Color</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="genBorderColor" value="#ff0000">
+                                <input type="text" id="genBorderColorText" value="#ff0000" maxlength="7">
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Title Glow -->
-                    <div class="gen-setting-row">
-                        <label data-i18n="title_glow">Shop Name Glow</label>
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="genTitleGlow" value="#ff6600">
-                            <input type="text" id="genTitleGlowText" value="#ff6600" maxlength="7">
+                        
+                        <!-- Title Color -->
+                        <div class="gen-setting-row">
+                            <label data-i18n="title_color">Shop Name Color</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="genTitleColor" value="#ffff00">
+                                <input type="text" id="genTitleColorText" value="#ffff00" maxlength="7">
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Income Color -->
-                    <div class="gen-setting-row">
-                        <label data-i18n="income_color">Income Color</label>
-                        <div class="color-picker-wrapper">
-                            <input type="color" id="genIncomeColor" value="#1bff00">
-                            <input type="text" id="genIncomeColorText" value="#1bff00" maxlength="7">
+                        
+                        <!-- Title Glow -->
+                        <div class="gen-setting-row">
+                            <label data-i18n="title_glow">Shop Name Glow</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="genTitleGlow" value="#ff6600">
+                                <input type="text" id="genTitleGlowText" value="#ff6600" maxlength="7">
+                            </div>
                         </div>
-                    </div>
-                    
-                    <!-- Font Family -->
-                    <div class="gen-setting-row">
-                        <label data-i18n="font_family">Font</label>
-                        <select id="genFontFamily">
-                            <option value="Press Start 2P">Press Start 2P (Pixel)</option>
-                            <option value="Arial Black">Arial Black</option>
-                            <option value="Impact">Impact</option>
-                            <option value="Comic Sans MS">Comic Sans MS</option>
-                            <option value="Courier New">Courier New</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <!-- Preview -->
-                <div class="gen-settings-preview">
-                    <div class="gen-preview-box" id="genSettingsPreview">
-                        <div class="gen-preview-title" id="previewTitle">MY SHOP</div>
-                        <div class="gen-preview-income" id="previewIncome">500K/s</div>
+                        
+                        <!-- Income Color -->
+                        <div class="gen-setting-row">
+                            <label data-i18n="income_color">Income Color</label>
+                            <div class="color-picker-wrapper">
+                                <input type="color" id="genIncomeColor" value="#1bff00">
+                                <input type="text" id="genIncomeColorText" value="#1bff00" maxlength="7">
+                            </div>
+                        </div>
+                        
+                        <!-- Font Family -->
+                        <div class="gen-setting-row">
+                            <label data-i18n="font_family">Font</label>
+                            <select id="genFontFamily" class="gen-font-select">
+                                <option value="Press Start 2P" style="font-family: 'Press Start 2P', monospace;">Press Start 2P</option>
+                                <option value="Arial Black" style="font-family: 'Arial Black', sans-serif;">Arial Black</option>
+                                <option value="Impact" style="font-family: Impact, sans-serif;">Impact</option>
+                                <option value="Comic Sans MS" style="font-family: 'Comic Sans MS', cursive;">Comic Sans MS</option>
+                                <option value="Courier New" style="font-family: 'Courier New', monospace;">Courier New</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
                 

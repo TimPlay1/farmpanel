@@ -7322,111 +7322,111 @@ function createImageGeneratorModal() {
     modal.className = 'modal hidden';
     modal.innerHTML = `
         <div class="modal-overlay" onclick="closeImageGeneratorModal()"></div>
-        <div class="modal-content gen-modal-content">
+        <div class="modal-content supa-modal-content">
             <div class="modal-header">
                 <h3><i class="fas fa-wand-magic-sparkles"></i> ${t('image_generator')}</h3>
                 <button class="modal-close" onclick="closeImageGeneratorModal()">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="modal-body gen-modal-body">
-                <div class="gen-preview-section">
-                    <div class="gen-preview-frame">
-                        <div class="gen-preview-placeholder" id="genPreviewPlaceholder">
+            <div class="modal-body supa-modal-body">
+                <div class="supa-preview-section">
+                    <div class="supa-preview-frame">
+                        <div class="supa-preview-placeholder" id="genPreviewPlaceholder">
                             <i class="fas fa-image"></i>
                             <p>${t('preview')}</p>
                         </div>
-                        <img id="genPreviewImage" class="gen-preview-image hidden" src="" alt="Preview">
-                        <img id="genResultImage" class="gen-result-image hidden" src="" alt="Result">
+                        <img id="genPreviewImage" class="supa-preview-image hidden" src="" alt="Preview">
+                        <img id="genResultImage" class="supa-result-image hidden" src="" alt="Result">
                     </div>
-                    <div id="genDownloadSection" class="gen-download-section hidden">
-                        <button id="genDownloadBtn" class="gen-download-btn" onclick="downloadGeneratorImage()">
+                    <div id="genDownloadSection" class="supa-download-section hidden">
+                        <button id="genDownloadBtn" class="supa-download-btn" onclick="downloadGeneratorImage()">
                             <i class="fas fa-download"></i>
                             ${t('gen_download')}
                         </button>
-                        <button id="genPostEldoradoBtn" class="gen-eldorado-btn" onclick="postToEldorado()">
+                        <button id="genPostEldoradoBtn" class="supa-eldorado-btn" onclick="postToEldorado()">
                             <i class="fas fa-store"></i>
                             ${t('gen_post_eldorado')}
                         </button>
                     </div>
                 </div>
-                <div class="gen-form-section">
-                    <div class="gen-form-group gen-account-group">
+                <div class="supa-form-section">
+                    <div class="supa-form-group supa-account-group">
                         <label><i class="fas fa-user"></i> ${t('account_label')}</label>
-                        <div id="genAccountInfo" class="gen-account-info">-</div>
+                        <div id="genAccountInfo" class="supa-account-info">-</div>
                     </div>
-                    <div class="gen-form-group">
+                    <div class="supa-form-group">
                         <label><i class="fas fa-tag"></i> ${t('name_label')}</label>
                         <input type="text" id="genName" placeholder="${t('name_label')}">
                     </div>
-                    <div class="gen-form-group">
+                    <div class="supa-form-group">
                         <label><i class="fas fa-coins"></i> ${t('income_form')}</label>
                         <input type="text" id="genIncome" placeholder="338M/s">
                     </div>
-                    <div class="gen-form-group">
+                    <div class="supa-form-group">
                         <label><i class="fas fa-image"></i> ${t('image_url')}</label>
                         <input type="url" id="genImageUrl" placeholder="https://..." onchange="updateGeneratorImagePreview(this.value)">
                     </div>
                     <!-- v9.11.1: Mutation price selector (hidden if no mutation) -->
-                    <div class="gen-form-group gen-mutation-selector hidden" id="genMutationSelector">
+                    <div class="supa-form-group supa-mutation-selector hidden" id="genMutationSelector">
                         <label><i class="fas fa-dna"></i> ${t('price_variant')}</label>
-                        <div class="gen-variant-options">
-                            <label class="gen-variant-option">
+                        <div class="supa-variant-options">
+                            <label class="supa-variant-option">
                                 <input type="radio" name="genPriceVariant" value="default" checked>
-                                <span class="gen-variant-label default">${t('default')}</span>
+                                <span class="supa-variant-label default">${t('default')}</span>
                             </label>
-                            <label class="gen-variant-option" id="genMutationOption">
+                            <label class="supa-variant-option" id="genMutationOption">
                                 <input type="radio" name="genPriceVariant" value="mutation">
-                                <span class="gen-variant-label mutation" id="genMutationLabel">MUTATION</span>
+                                <span class="supa-variant-label mutation" id="genMutationLabel">MUTATION</span>
                             </label>
                         </div>
                     </div>
-                    <div class="gen-form-group gen-price-selector">
+                    <div class="supa-form-group supa-price-selector">
                         <label><i class="fas fa-dollar-sign"></i> ${t('price_for_eldorado')}</label>
-                        <div class="gen-price-options" id="genPriceOptions">
-                            <label class="gen-price-option">
+                        <div class="supa-price-options" id="genPriceOptions">
+                            <label class="supa-price-option">
                                 <input type="radio" name="genPriceType" value="suggested" checked>
-                                <span class="gen-price-label">
+                                <span class="supa-price-label">
                                     <i class="fas fa-tag"></i>
                                     <span>${t('gen_recommended')}</span>
                                     <strong id="genPriceSuggested">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="gen-price-option median">
+                            <label class="supa-price-option median">
                                 <input type="radio" name="genPriceType" value="median">
-                                <span class="gen-price-label">
+                                <span class="supa-price-label">
                                     <i class="fas fa-chart-bar"></i>
                                     <span>${t('gen_median')}</span>
                                     <strong id="genPriceMedian">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="gen-price-option next-comp">
+                            <label class="supa-price-option next-comp">
                                 <input type="radio" name="genPriceType" value="nextCompetitor">
-                                <span class="gen-price-label">
+                                <span class="supa-price-label">
                                     <i class="fas fa-arrow-up"></i>
                                     <span>${t('gen_next_competitor')}</span>
                                     <strong id="genPriceNext">$0.00</strong>
                                 </span>
                             </label>
-                            <label class="gen-price-option custom">
+                            <label class="supa-price-option custom">
                                 <input type="radio" name="genPriceType" value="custom">
-                                <span class="gen-price-label">
+                                <span class="supa-price-label">
                                     <i class="fas fa-edit"></i>
                                     <span>${t('gen_custom')}</span>
-                                    <input type="number" step="0.01" min="0" id="genCustomPrice" class="gen-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=genPriceType][value=custom]').checked = true;">
+                                    <input type="number" step="0.01" min="0" id="genCustomPrice" class="supa-custom-price-input" placeholder="$0.00" onclick="event.stopPropagation(); document.querySelector('input[name=genPriceType][value=custom]').checked = true;">
                                 </span>
                             </label>
                         </div>
                     </div>
-                    <button id="genGenerateBtn" class="gen-generate-btn" onclick="generateImage()">
+                    <button id="genGenerateBtn" class="supa-generate-btn" onclick="generateImage()">
                         <i class="fas fa-wand-magic-sparkles"></i>
                         ${t('gen_generate')}
                     </button>
-                    <div id="genStatus" class="gen-status hidden">
-                        <div class="gen-spinner"></div>
+                    <div id="genStatus" class="supa-status hidden">
+                        <div class="supa-spinner"></div>
                         <span id="genStatusText">${t('gen_processing')}</span>
                     </div>
-                    <div id="genError" class="gen-error hidden">
+                    <div id="genError" class="supa-error hidden">
                         <i class="fas fa-exclamation-triangle"></i>
                         <span id="genErrorText"></span>
                     </div>
@@ -10935,28 +10935,46 @@ function updateGeneratorSettingsPreview() {
     const incomeColor = document.getElementById('genIncomeColor').value;
     const fontFamily = document.getElementById('genFontFamily').value;
     
-    const previewBox = document.getElementById('genSettingsPreview');
-    const previewTitle = document.getElementById('previewTitle');
-    const previewIncome = document.getElementById('previewIncome');
+    // Update border
+    const previewBorder = document.getElementById('genPreviewBorder');
+    if (previewBorder) {
+        previewBorder.style.borderColor = borderColor;
+        previewBorder.style.boxShadow = `inset 0 0 30px ${borderColor}40`;
+    }
     
-    if (previewBox) {
-        previewBox.style.borderColor = borderColor;
-        previewBox.style.boxShadow = `0 0 20px ${borderColor}50`;
-    }
-    if (previewTitle) {
-        previewTitle.style.color = titleColor;
-        previewTitle.style.textShadow = `0 0 10px ${titleGlow}, 2px 2px 0 #000`;
-        previewTitle.style.fontFamily = `'${fontFamily}', monospace`;
+    // Update shop name
+    const previewShopName = document.getElementById('genPreviewShopName');
+    if (previewShopName) {
+        previewShopName.style.color = titleColor;
+        previewShopName.style.textShadow = `0 0 10px ${titleGlow}, 2px 2px 0 #000`;
+        previewShopName.style.fontFamily = `'${fontFamily}', monospace`;
         
-        // Update title text from shop name
+        // Update title text from shop name config
         const shopConfig = state.shopNameConfig || {};
-        const shopName = shopConfig.shopName || 'MY SHOP';
-        previewTitle.textContent = shopName.toUpperCase();
+        const leftEmoji = shopConfig.leftEmoji || '👾';
+        const shopName = shopConfig.shopName || 'YOUR SHOP';
+        const rightEmoji = shopConfig.rightEmoji || '👾';
+        previewShopName.textContent = `${leftEmoji}${shopName.toUpperCase()}${rightEmoji}`;
     }
+    
+    // Update brainrot name
+    const previewBrainrotName = document.getElementById('genPreviewBrainrotName');
+    if (previewBrainrotName) {
+        previewBrainrotName.style.fontFamily = `'${fontFamily}', monospace`;
+    }
+    
+    // Update income
+    const previewIncome = document.getElementById('genPreviewIncomeText');
     if (previewIncome) {
         previewIncome.style.color = incomeColor;
         previewIncome.style.textShadow = `0 0 10px ${incomeColor}, 2px 2px 0 #000`;
         previewIncome.style.fontFamily = `'${fontFamily}', monospace`;
+    }
+    
+    // Update font select display
+    const fontSelect = document.getElementById('genFontFamily');
+    if (fontSelect) {
+        fontSelect.style.fontFamily = `'${fontFamily}', sans-serif`;
     }
 }
 
