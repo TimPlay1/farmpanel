@@ -9293,7 +9293,7 @@ function renderOffers() {
                             return `<div class="offer-mutation-line"><span class="offer-mutation-badge" style="background: ${mStyles.background}; color: ${mStyles.textColor}; ${textShadow} --glow-color: ${mStyles.glowColor};">${cleanMutationText(offer.mutation)}</span></div>`;
                         })() : '<div class="offer-mutation-line offer-mutation-placeholder"></div>'}
                         <div class="offer-card-id">${offer.offerId}</div>
-                        <div class="offer-card-income">${offer.incomeRaw || formatIncomeSec(offer.income)}</div>
+                        <div class="offer-card-income">${offer.incomeRaw || formatIncomeFromMs(offer.income)}</div>
                     </div>
                 </div>
             </div>
@@ -9720,7 +9720,7 @@ function openOfferPriceModal(offerId) {
             <div class="offer-preview-info">
                 <h4>${offer.brainrotName || 'Unknown'}</h4>
                 ${hasMutation ? `<span class="offer-preview-mutation" style="background: ${getMutationStyles(offer.mutation).background}; color: ${getMutationStyles(offer.mutation).textColor};">${cleanMutationText(offer.mutation)}</span>` : ''}
-                <p>${offer.incomeRaw || formatIncomeSec(offer.income)} • Current: $${(parseFloat(offer.currentPrice) || 0).toFixed(2)}</p>
+                <p>${offer.incomeRaw || formatIncomeFromMs(offer.income)} • Current: $${(parseFloat(offer.currentPrice) || 0).toFixed(2)}</p>
             </div>
         `;
     }
@@ -9847,7 +9847,7 @@ function openBulkPriceModal() {
                 ${offer.imageUrl ? `<img src="${getCachedOfferImage(offer.imageUrl, offer.offerId)}" alt="${offer.brainrotName}">` : '<div class="bulk-offer-placeholder"></div>'}
                 <div class="bulk-offer-info">
                     <div class="bulk-offer-name">${offer.brainrotName || 'Unknown'}</div>
-                    <div class="bulk-offer-income">${offer.income || '0/s'}</div>
+                    <div class="bulk-offer-income">${offer.incomeRaw || formatIncomeFromMs(offer.income)}</div>
                     ${hasMutation ? `
                     <div class="bulk-offer-variant-toggle">
                         <button class="bulk-variant-btn active" data-variant="default" title="Default variant prices">DEF</button>
