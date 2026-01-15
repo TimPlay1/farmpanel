@@ -878,11 +878,20 @@ async function startMassGeneration() {
         try {
             // Generate image
             const borderColor = collectionState.accountColors[brainrot.accountId] || '#4ade80';
-            // v10.4.0: Fixed priceKey - income is already in M/s, use proper rounding logic
-            // getPriceCacheKey from app.js handles proper rounding based on income level
-            const priceKey = typeof getPriceCacheKey === 'function' 
-                ? getPriceCacheKey(brainrot.name, brainrot.income, brainrot.mutation)
-                : `${brainrot.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.round(brainrot.income / 10) * 10}`;
+            // v10.4.1: Fixed priceKey - use getPriceCacheKey from app.js with unified logic
+            // Fallback uses same smart rounding: <25 → round, 25-100 → /5, 100+ → /10
+            let priceKey;
+            if (typeof getPriceCacheKey === 'function') {
+                priceKey = getPriceCacheKey(brainrot.name, brainrot.income, brainrot.mutation);
+            } else {
+                // Fallback with smart rounding (same logic as app.js)
+                const inc = brainrot.income;
+                let roundedIncome;
+                if (inc < 25) roundedIncome = Math.round(inc);
+                else if (inc < 100) roundedIncome = Math.round(inc / 5) * 5;
+                else roundedIncome = Math.round(inc / 10) * 10;
+                priceKey = `${brainrot.name.toLowerCase()}_${roundedIncome}`;
+            }
             const price = state.eldoradoPrices?.[priceKey]?.minPrice || 
                          state.brainrotPrices?.[brainrot.name.toLowerCase()] || 0;
             

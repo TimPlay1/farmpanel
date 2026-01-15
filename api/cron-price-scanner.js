@@ -333,7 +333,24 @@ function cleanMutationForKey(mutation) {
 }
 
 /**
- * Нормализует income к числу M/s
+ * v10.4.1: Smart rounding для ключей кэша - ЕДИНАЯ ЛОГИКА с app.js getPriceCacheKey
+ * Низкий income (< 25 M/s): округление до целого (7.5 -> 8, 2.1 -> 2)
+ * Средний income (25-100): округление до 5 (37.5 -> 40, 46.8 -> 45)
+ * Высокий income (100+): округление до 10 (109 -> 110, 645 -> 650)
+ */
+function smartRoundIncome(valueMs) {
+    if (valueMs < 25) {
+        return Math.round(valueMs);  // До целого
+    } else if (valueMs < 100) {
+        return Math.round(valueMs / 5) * 5;  // До 5
+    } else {
+        return Math.round(valueMs / 10) * 10;  // До 10
+    }
+}
+
+/**
+ * Нормализует income к числу M/s с умным округлением
+ * v10.4.1: FIXED - использует smartRoundIncome вместо Math.floor
  */
 function normalizeIncome(income, incomeText) {
     // v3.0.8: Сначала парсим incomeText если есть - это самый точный источник
@@ -348,7 +365,7 @@ function normalizeIncome(income, incomeText) {
             else if (suffix === 'T') value *= 1000000;
             // M = value as is
             
-            return Math.floor(value / 10) * 10;
+            return smartRoundIncome(value);  // v10.4.1: Smart rounding
         }
     }
     
@@ -359,8 +376,7 @@ function normalizeIncome(income, incomeText) {
         if (income > 10000) {
             valueMs = income / 1000000;
         }
-        // Округляем до ближайших 10
-        return Math.floor(valueMs / 10) * 10;
+        return smartRoundIncome(valueMs);  // v10.4.1: Smart rounding
     }
     
     return 0;

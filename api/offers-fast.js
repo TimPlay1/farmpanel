@@ -65,7 +65,7 @@ module.exports = async (req, res) => {
         
         const priceKeys = offers.map(o => {
             if (!o.brainrotName || !o.income) return null;
-            const name = o.brainrotName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const name = o.brainrotName.toLowerCase();  // v10.4.1: No replace - same as app.js
             let inc = o.income;
             if (typeof inc === 'number' && inc > 10000) inc = inc / 1000000;
             const roundedIncome = getSmartRoundedIncome(parseFloat(inc));
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
         for (const offer of offers) {
             if (!offer.brainrotName || !offer.income) continue;
             
-            const name = offer.brainrotName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+            const name = offer.brainrotName.toLowerCase();  // v10.4.1: No replace - same as app.js
             let inc = offer.income;
             if (typeof inc === 'number' && inc > 10000) inc = inc / 1000000;
             const roundedIncome = getSmartRoundedIncome(parseFloat(inc));  // v10.4.0: Use smart rounding
