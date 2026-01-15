@@ -1163,7 +1163,7 @@ function shouldSkipExpensiveOperation() {
 const PRICE_CACHE_TTL = 10 * 60 * 1000; // 10 минут - для определения stale
 const PRICE_INCREMENTAL_INTERVAL = 60 * 1000; // Синхронизация с cron каждую минуту
 const PRICE_STORAGE_KEY = 'eldoradoPriceCache';
-const PRICE_CACHE_VERSION = 9; // v10.3.46: Force cache clear, fix isInEldoradoList for links
+const PRICE_CACHE_VERSION = 10; // v10.4.3: Force cache clear, sync incomeText from collection
 const PREVIOUS_PRICES_KEY = 'previousPricesCache';
 const AVATAR_STORAGE_KEY = 'avatarCache';
 const BALANCE_HISTORY_KEY = 'balanceHistoryCache';
