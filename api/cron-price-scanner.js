@@ -21,7 +21,7 @@
  * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
  */
 
-const VERSION = '3.0.44';  // v3.0.44: Auto-create offers from pending codes
+const VERSION = '3.0.45';  // v3.0.45: Create offers for ALL codes (not just pending)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -969,16 +969,17 @@ async function scanOffers(db, globalStartTime = null) {
     }
     console.log(`📋 Loaded ${offersByCode.size} existing offers from DB`);
     
-    // v3.0.44: Загружаем pending offer_codes для создания новых офферов
-    const pendingCodes = await codesCollection.find({ status: 'pending' }).toArray();
-    const pendingCodesByFarmKey = new Map();
-    for (const c of pendingCodes) {
-        if (!pendingCodesByFarmKey.has(c.farmKey)) {
-            pendingCodesByFarmKey.set(c.farmKey, new Map());
+    // v3.0.45: Загружаем ВСЕ offer_codes (не только pending) для создания офферов
+    // Если код есть в offer_codes но нет в offers - создаём оффер
+    const allCodes = await codesCollection.find({}).toArray();
+    const codesByFarmKey = new Map();
+    for (const c of allCodes) {
+        if (!codesByFarmKey.has(c.farmKey)) {
+            codesByFarmKey.set(c.farmKey, new Map());
         }
-        pendingCodesByFarmKey.get(c.farmKey).set(c.code.toUpperCase(), c);
+        codesByFarmKey.get(c.farmKey).set(c.code.toUpperCase(), c);
     }
-    console.log(`📋 Loaded ${pendingCodes.length} pending offer_codes from DB`);
+    console.log(`📋 Loaded ${allCodes.length} offer_codes from DB`);
     
     let totalScanned = 0;
     let matchedCount = 0;
@@ -1107,13 +1108,14 @@ async function scanOffers(db, globalStartTime = null) {
                             { $set: { status: 'active', lastSeenAt: now, updatedAt: now } }
                         );
                     }
-                    // v3.0.44: Создаём новый оффер если код в pending offer_codes этого фермера
+                    // v3.0.45: Создаём новый оффер если код есть в offer_codes этого фермера
+                    // но ещё не создан в offers таблице
                     else if (!existingOffer) {
-                        const farmerPendingCodes = pendingCodesByFarmKey.get(farmer.farmKey);
-                        const pendingCode = farmerPendingCodes?.get(code);
+                        const farmerCodes = codesByFarmKey.get(farmer.farmKey);
+                        const offerCode = farmerCodes?.get(code);
                         
-                        if (pendingCode) {
-                            // Код найден в pending - создаём новый оффер!
+                        if (offerCode) {
+                            // Код найден в offer_codes - создаём новый оффер!
                             const price = offer.pricePerUnitInUSD?.amount || 0;
                             const mutation = extractMutationFromAttributes(offer.offerAttributeIdValues);
                             const imageName = offer.mainOfferImage?.originalSizeImage || offer.mainOfferImage?.largeImage;
