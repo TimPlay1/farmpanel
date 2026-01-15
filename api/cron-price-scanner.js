@@ -21,7 +21,7 @@
  * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
  */
 
-const VERSION = '3.0.45';  // v3.0.45: Create offers for ALL codes (not just pending)
+const VERSION = '3.0.46';  // v3.0.46: Faster offer scanning (60s offers, 60s prices, 3min fresh)
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
@@ -183,10 +183,11 @@ function getCurrentDelay(baseDelay) {
 // v3.0.20: Base delays, will be multiplied by backoffMultiplier if rate limited
 // v3.0.24: Increased base delay from 500ms to 1000ms to reduce Cloudflare triggers
 // v3.0.42: Reduced scan times (100s prices + 20s offers = 120s total)
+// v3.0.46: Balanced scan times (60s prices + 60s offers = 120s total)
 const SCAN_BATCH_SIZE = 100;         // Brainrots per cycle
 const BASE_SCAN_DELAY_MS = 1000;     // v3.0.24: 1 req/sec instead of 2 req/sec
-const MAX_SCAN_TIME_MS = 120 * 1000;  // v3.0.42: 120 seconds total (100s prices + 20s offers)
-const MAX_PRICE_SCAN_TIME_MS = 100 * 1000;  // v3.0.42: 100s for price scanning (was 120s)
+const MAX_SCAN_TIME_MS = 120 * 1000;  // v3.0.46: 120 seconds total (60s prices + 60s offers)
+const MAX_PRICE_SCAN_TIME_MS = 60 * 1000;  // v3.0.46: 60s for price scanning (was 100s)
 
 // v3.0.0: Параметры сканирования офферов
 const OFFER_SCAN_PAGES = 10;         // Pages per scan
@@ -898,8 +899,9 @@ async function scanOffers(db, globalStartTime = null) {
     const farmersCollection = db.collection('farmers');
     const now = new Date();
     
-    // v3.0.35: Порог свежести - 10 минут для офферов (дольше чем для цен)
-    const OFFER_FRESH_THRESHOLD_MS = 10 * 60 * 1000;
+    // v3.0.35: Порог свежести - 3 минуты для офферов (быстрее обновляем статусы)
+    // v3.0.46: Reduced from 10 min to 3 min for faster status updates
+    const OFFER_FRESH_THRESHOLD_MS = 3 * 60 * 1000;
     
     // v3.0.18: Загружаем всех фермеров с shopName
     const allFarmersRaw = await farmersCollection.find(
@@ -950,7 +952,7 @@ async function scanOffers(db, globalStartTime = null) {
     // v3.0.35: Формируем очередь: новые → устаревшие (sorted by oldest)
     const allFarmers = [...newFarmers, ...staleFarmers];
     
-    console.log(`📋 Priority: ${newFarmers.length} new, ${staleFarmers.length} stale (>10min), ${freshFarmers.length} fresh (<10min, skipped)`);
+    console.log(`📋 Priority: ${newFarmers.length} new, ${staleFarmers.length} stale (>3min), ${freshFarmers.length} fresh (<3min, skipped)`);
     
     if (allFarmers.length === 0) {
         console.log(`✅ All farmers are fresh, nothing to scan`);
