@@ -1,4 +1,7 @@
-// FarmerPanel App v10.4.5 - Tolerance matching for income sync
+// FarmerPanel App v10.4.6 - Smart incremental card updates
+// - v10.4.6: Smart incremental updates - only update changed cards, no full re-render
+// - v10.4.6: Brainrots hash comparison - prevents image flickering on unchanged data
+// - v10.4.6: Add new cards without removing existing, remove only deleted accounts
 // - v10.4.5: Added 2% tolerance matching for income sync (fixes rounded int vs decimal mismatches)
 // - v10.4.5: Handles cases like offer=109/incomeRaw=null vs collection=$108.9M/s
 // - v10.4.4: Removed pending status - all new offers use paused
@@ -4623,55 +4626,67 @@ function updateAccountCard(cardEl, account) {
         valueStat.remove();
     }
     
-    // Update brainrots section
+    // Update brainrots section - only if changed
     const brainrotsContainer = cardEl.querySelector('.account-brainrots');
     if (account.brainrots && account.brainrots.length > 0) {
-        const brainrotsHtml = account.brainrots.slice(0, 10).map(b => {
-            const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
-            // Mutation badge for mini brainrot with custom tooltip
-            const mutationColor = b.mutation ? getMutationColor(b.mutation) : null;
-            const mutationName = b.mutation ? cleanMutationText(b.mutation) : '';
-            const mutationBadge = mutationColor ? `<div class="brainrot-mini-mutation" style="background: ${mutationColor};" data-mutation="${mutationName}"></div>` : '';
-            return `
-                <div class="brainrot-mini${b.mutation ? ' has-mutation' : ''}" title="${b.name}\n${b.incomeText || ''}">
-                    ${mutationBadge}
-                    <div class="brainrot-mini-img">
-                        ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
-                            : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
-                        }
-                    </div>
-                    <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
-                    <div class="brainrot-mini-income" style="${b.mutation ? 'color: ' + mutationColor : ''}">${b.incomeText || ''}</div>
-                </div>
-            `;
-        }).join('');
+        // Create a hash of current brainrots to detect changes
+        const brainrotsKey = account.brainrots.slice(0, 10).map(b => 
+            `${b.name}:${b.incomeText || ''}:${b.mutation || ''}`
+        ).join('|');
         
-        if (brainrotsContainer) {
-            const scrollEl = brainrotsContainer.querySelector('.brainrots-scroll');
-            if (scrollEl) scrollEl.innerHTML = brainrotsHtml;
-        } else {
-            // Create brainrots section if it doesn't exist
-            const footer = cardEl.querySelector('.account-footer');
-            const newBrainrots = document.createElement('div');
-            newBrainrots.className = 'account-brainrots';
-            newBrainrots.innerHTML = `
-                <div class="brainrots-title">
-                    <i class="fas fa-brain"></i>
-                    ${t('brainrots')}
-                </div>
-                <div class="brainrots-scroll">
-                    ${brainrotsHtml}
-                </div>
-            `;
-            if (footer) {
-                cardEl.insertBefore(newBrainrots, footer);
+        // Check if brainrots actually changed
+        const currentKey = cardEl.dataset.brainrotsKey || '';
+        if (currentKey !== brainrotsKey) {
+            cardEl.dataset.brainrotsKey = brainrotsKey;
+            
+            const brainrotsHtml = account.brainrots.slice(0, 10).map(b => {
+                const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
+                // Mutation badge for mini brainrot with custom tooltip
+                const mutationColor = b.mutation ? getMutationColor(b.mutation) : null;
+                const mutationName = b.mutation ? cleanMutationText(b.mutation) : '';
+                const mutationBadge = mutationColor ? `<div class="brainrot-mini-mutation" style="background: ${mutationColor};" data-mutation="${mutationName}"></div>` : '';
+                return `
+                    <div class="brainrot-mini${b.mutation ? ' has-mutation' : ''}" title="${b.name}\n${b.incomeText || ''}">
+                        ${mutationBadge}
+                        <div class="brainrot-mini-img">
+                            ${imageUrl 
+                                ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                                : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
+                            }
+                        </div>
+                        <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
+                        <div class="brainrot-mini-income" style="${b.mutation ? 'color: ' + mutationColor : ''}">${b.incomeText || ''}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            if (brainrotsContainer) {
+                const scrollEl = brainrotsContainer.querySelector('.brainrots-scroll');
+                if (scrollEl) scrollEl.innerHTML = brainrotsHtml;
             } else {
-                cardEl.appendChild(newBrainrots);
+                // Create brainrots section if it doesn't exist
+                const footer = cardEl.querySelector('.account-footer');
+                const newBrainrots = document.createElement('div');
+                newBrainrots.className = 'account-brainrots';
+                newBrainrots.innerHTML = `
+                    <div class="brainrots-title">
+                        <i class="fas fa-brain"></i>
+                        ${t('brainrots')}
+                    </div>
+                    <div class="brainrots-scroll">
+                        ${brainrotsHtml}
+                    </div>
+                `;
+                if (footer) {
+                    cardEl.insertBefore(newBrainrots, footer);
+                } else {
+                    cardEl.appendChild(newBrainrots);
+                }
             }
         }
     } else if (brainrotsContainer) {
         brainrotsContainer.remove();
+        cardEl.dataset.brainrotsKey = '';
     }
     
     // Update footer time
@@ -5020,102 +5035,119 @@ async function renderAccountsGrid(accounts) {
     });
     
     const newPlayerNames = new Set(accounts.map(a => a.playerName));
-    const sameAccounts = existingPlayerNames.size === newPlayerNames.size && 
-        existingPlayerNames.size > 0 &&
-        [...existingPlayerNames].every(name => newPlayerNames.has(name));
     
-    // Smart update - update existing cards without full DOM rebuild
-    if (sameAccounts) {
-        // Smart update - just update values in existing cards
+    // IMPROVED: Smart incremental update - update existing, add new, remove old
+    // Only do full rebuild if grid is empty
+    if (existingPlayerNames.size > 0) {
+        // Update existing cards
         accounts.forEach(account => {
             const cardId = getAccountCardId(account);
             const cardEl = document.getElementById(cardId);
-            updateAccountCard(cardEl, account);
+            if (cardEl) {
+                // Card exists - update it
+                updateAccountCard(cardEl, account);
+            } else {
+                // Card doesn't exist - add it
+                const cardHtml = createAccountCardHtml(account);
+                accountsGridEl.insertAdjacentHTML('beforeend', cardHtml);
+            }
         });
+        
+        // Remove cards that no longer exist
+        existingCards.forEach(card => {
+            const name = card.dataset.player;
+            if (name && !newPlayerNames.has(name)) {
+                card.remove();
+            }
+        });
+        
         return;
     }
     
-    // Full render (first time or accounts changed)
-    console.log('[Dashboard] Rendering accounts:');
+    // Full render (first time or grid was empty)
+    console.log('[Dashboard] Full render accounts:');
     accounts.forEach(acc => {
         console.log('  ' + acc.playerName + ': brainrots=' + (acc.brainrots ? acc.brainrots.length : 0));
     });
     
-    accountsGridEl.innerHTML = accounts.map(account => {
-        const brainrotsHtml = (account.brainrots || []).slice(0, 10).map(b => {
-            const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
-            return `
-                <div class="brainrot-mini" title="${b.name}\n${b.incomeText || ''}">
-                    <div class="brainrot-mini-img">
-                        ${imageUrl 
-                            ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
-                            : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
-                        }
-                    </div>
-                    <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
-                    <div class="brainrot-mini-income">${b.incomeText || ''}</div>
-                </div>
-            `;
-        }).join('');
-        
-        const isOnline = account._isOnline;
-        const statusClass = isOnline ? 'online' : 'offline';
-        const statusText = isOnline ? t('online_status') : t('offline_status');
-        const actionText = isOnline ? (account.action || account.status || '') : '';
-        
-        const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
-        const accountValue = calculateAccountValue(account);
-        
+    accountsGridEl.innerHTML = accounts.map(account => createAccountCardHtml(account)).join('');
+}
+
+// Create HTML for a single account card
+function createAccountCardHtml(account) {
+    const brainrotsHtml = (account.brainrots || []).slice(0, 10).map(b => {
+        const imageUrl = b.imageUrl || getBrainrotImageUrl(b.name);
         return `
-            <div class="account-card" id="${getAccountCardId(account)}" data-player="${account.playerName}">
-                <button class="account-delete-btn" onclick="deleteFarmer('${account.playerName}')" title="Delete farmer">
-                    <i class="fas fa-times"></i>
-                </button>
-                <div class="account-header">
-                    <div class="account-avatar">
-                        <img src="${avatarSrc}" alt="${account.playerName}" onerror="this.src='${getDefaultAvatar(account.playerName)}'">
-                    </div>
-                    <div class="account-info">
-                        <div class="account-name">${account.playerName || 'Unknown'}</div>
-                        <div class="account-status">
-                            <span class="status-badge ${statusClass}">
-                                <i class="fas fa-circle"></i>
-                                ${statusText}
-                            </span>
-                            ${isOnline && actionText ? `<span class="account-action">${actionText}</span>` : ''}
-                        </div>
-                    </div>
+            <div class="brainrot-mini" title="${b.name}\n${b.incomeText || ''}">
+                <div class="brainrot-mini-img">
+                    ${imageUrl 
+                        ? `<img src="${imageUrl}" alt="${b.name}" loading="lazy" onerror="this.parentElement.innerHTML='<i class=\\'fas fa-brain\\'></i>'">`
+                        : '<i class="fas fa-brain" style="color: var(--text-muted); font-size: 1.5rem;"></i>'
+                    }
                 </div>
-                <div class="account-stats">
-                    <div class="account-stat">
-                        <div class="account-stat-value">${account.totalIncomeFormatted || formatIncome(account.totalIncome || 0)}</div>
-                        <div class="account-stat-label">${t('income_label')}</div>
-                    </div>
-                    <div class="account-stat">
-                        <div class="account-stat-value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
-                        <div class="account-stat-label">${t('brainrots_label')}</div>
-                    </div>
-                    <div class="account-stat account-value">
-                        <div class="account-stat-value">$${(parseFloat(accountValue) || 0).toFixed(2)}</div>
-                        <div class="account-stat-label">${t('value_label')}</div>
-                    </div>
-                </div>
-                <div class="account-brainrots">
-                    <div class="brainrots-title">
-                        <i class="fas fa-brain"></i>
-                        ${t('brainrots')}
-                    </div>
-                    <div class="brainrots-scroll">
-                        ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">' + t('no_brainrots_yet') + '</span>'}
-                    </div>
-                </div>
-                <div class="account-footer">
-                    <i class="fas fa-clock"></i>
-                    ${formatTimeAgo(account.lastUpdate)}
-                </div>
+                <div class="brainrot-mini-name">${truncate(b.name, 8)}</div>
+                <div class="brainrot-mini-income">${b.incomeText || ''}</div>
             </div>
         `;
     }).join('');
+    
+    const isOnline = account._isOnline;
+    const statusClass = isOnline ? 'online' : 'offline';
+    const statusText = isOnline ? t('online_status') : t('offline_status');
+    const actionText = isOnline ? (account.action || account.status || '') : '';
+    
+    const avatarSrc = account.avatarUrl || getDefaultAvatar(account.playerName);
+    const accountValue = calculateAccountValue(account);
+    
+    return `
+        <div class="account-card" id="${getAccountCardId(account)}" data-player="${account.playerName}">
+            <button class="account-delete-btn" onclick="deleteFarmer('${account.playerName}')" title="Delete farmer">
+                <i class="fas fa-times"></i>
+            </button>
+            <div class="account-header">
+                <div class="account-avatar">
+                    <img src="${avatarSrc}" alt="${account.playerName}" onerror="this.src='${getDefaultAvatar(account.playerName)}'">
+                </div>
+                <div class="account-info">
+                    <div class="account-name">${account.playerName || 'Unknown'}</div>
+                    <div class="account-status">
+                        <span class="status-badge ${statusClass}">
+                            <i class="fas fa-circle"></i>
+                            ${statusText}
+                        </span>
+                        ${isOnline && actionText ? `<span class="account-action">${actionText}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div class="account-stats">
+                <div class="account-stat">
+                    <div class="account-stat-value">${account.totalIncomeFormatted || formatIncome(account.totalIncome || 0)}</div>
+                    <div class="account-stat-label">${t('income_label')}</div>
+                </div>
+                <div class="account-stat">
+                    <div class="account-stat-value">${account.totalBrainrots || 0}/${account.maxSlots || 10}</div>
+                    <div class="account-stat-label">${t('brainrots_label')}</div>
+                </div>
+                <div class="account-stat account-value">
+                    <div class="account-stat-value">$${(parseFloat(accountValue) || 0).toFixed(2)}</div>
+                    <div class="account-stat-label">${t('value_label')}</div>
+                </div>
+            </div>
+            <div class="account-brainrots">
+                <div class="brainrots-title">
+                    <i class="fas fa-brain"></i>
+                    ${t('brainrots')}
+                </div>
+                <div class="brainrots-scroll">
+                    ${account.brainrots && account.brainrots.length > 0 ? brainrotsHtml : '<span class="no-brainrots">' + t('no_brainrots_yet') + '</span>'}
+                </div>
+            </div>
+            <div class="account-footer">
+                <i class="fas fa-clock"></i>
+                ${formatTimeAgo(account.lastUpdate)}
+            </div>
+        </div>
+    `;
 }
 
 function renderAccountsList(accounts) {
