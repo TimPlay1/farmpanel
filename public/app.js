@@ -8873,6 +8873,31 @@ async function updateOffersRecommendedPrices() {
             // Use incomeRaw for proper parsing (handles "1.5B/s" etc)
             const normalizedIncome = normalizeIncomeForApi(offer.income, offer.incomeRaw);
             
+            // v10.4.2: Get exact income from collection to fix display issues
+            // Offers may have rounded income, collection has exact values
+            if (collectionState && collectionState.allBrainrots && collectionState.allBrainrots.length > 0) {
+                const exactMatch = findExactBrainrotFromCollection(offer.brainrotName, offer.income, offer.incomeRaw);
+                if (exactMatch) {
+                    // Update incomeRaw with exact value from collection
+                    if (exactMatch.incomeText && !offer.incomeRaw) {
+                        offer.incomeRaw = exactMatch.incomeText;
+                    } else if (exactMatch.incomeText && offer.incomeRaw) {
+                        // If offers has rounded incomeRaw (e.g. "7" vs "$6.7M/s"), prefer collection
+                        const offerIncomeNum = parseFloat(String(offer.incomeRaw).replace(/[^\d.]/g, ''));
+                        const collectionIncomeNum = parseFloat(String(exactMatch.incomeText).replace(/[^\d.]/g, ''));
+                        // If collection has more precision (decimal), use it
+                        if (!isNaN(collectionIncomeNum) && exactMatch.incomeText.includes('.')) {
+                            offer.incomeRaw = exactMatch.incomeText;
+                        }
+                    }
+                    // Also update income to exact value
+                    if (exactMatch.income && exactMatch.income !== offer.income) {
+                        offer._originalIncome = offer.income;
+                        offer.income = exactMatch.income;
+                    }
+                }
+            }
+            
             // v9.12.36: Only use collection fallback if mutation is UNDEFINED
             // mutation = null means "no mutation" from Eldorado API - don't override!
             // mutation = undefined means "unknown" - use collection as fallback
@@ -9079,6 +9104,44 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
  * 4. If found multiple with same mutation - use it
  * v10.3.50: Exact income match (farmers send precise values)
  */
+// v10.4.2: Find exact brainrot from collection to sync income for display
+function findExactBrainrotFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
+    if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
+        return null;
+    }
+    
+    if (!offerBrainrotName) return null;
+    
+    // Normalize offer income using smart rounding (same as cache key)
+    const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
+    
+    // Normalize brainrot name for comparison
+    const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    for (const b of collectionState.allBrainrots) {
+        if (!b.name) continue;
+        const normalizedBrainrotName = b.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+        
+        // Match by name
+        if (normalizedBrainrotName === normalizedOfferName) {
+            // Match by normalized income (smart rounding)
+            const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
+            
+            if (normalizedBrainrotIncome === normalizedOfferIncome) {
+                console.log(`📍 Found exact match for ${offerBrainrotName}: collection income="${b.incomeText}" vs offer="${offerIncomeRaw || offerIncome}"`);
+                return {
+                    name: b.name,
+                    income: b.income,
+                    incomeText: b.incomeText,
+                    mutation: b.mutation
+                };
+            }
+        }
+    }
+    
+    return null;
+}
+
 function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return { mutation: null, source: null, ambiguous: false };
