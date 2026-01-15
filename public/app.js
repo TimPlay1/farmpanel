@@ -1,4 +1,6 @@
-// FarmerPanel App v10.4.4 - Remove pending status, unified with paused
+// FarmerPanel App v10.4.5 - Tolerance matching for income sync
+// - v10.4.5: Added 2% tolerance matching for income sync (fixes rounded int vs decimal mismatches)
+// - v10.4.5: Handles cases like offer=109/incomeRaw=null vs collection=$108.9M/s
 // - v10.4.4: Removed pending status - all new offers use paused
 // - v10.4.4: Merged pending filter with paused filter
 // - v10.4.4: Added detailed income logging in updateOffersRecommendedPrices
@@ -6,8 +8,6 @@
 // - v10.4.3: Improved income matching - prefer exact match over smart rounded match
 // - v10.3.40: Expanded skipWords list (trait, trade, christmas, entrega, etc)
 // - v10.3.40: Increased similarity threshold to 0.88 for stricter matching
-// - v10.3.40: Skip words starting with $ or numbers (prices like "$255m")
-// - v10.3.39: Fuzzy matching to catch typos like "SLEGITO" → "Sleighito"
 // - v10.3.36: Fixes requestAnimationFrame violations when tab in background
 // - v10.3.35: When brainrot not in Eldorado dropdown, use te_v2=Other + searchQuery fallback
 // - v10.3.35: Tested: Los Spooky Combinasionas now works (20/20 brainrots pass, 100% accuracy)
@@ -9148,6 +9148,7 @@ function findExactBrainrotFromCollection(offerBrainrotName, offerIncome, offerIn
     
     let exactMatch = null;      // Exact numeric income match
     let roundedMatch = null;    // Smart rounded income match (fallback)
+    let toleranceMatch = null;  // v10.4.5: Close enough match (within 2% tolerance)
     
     for (const b of collectionState.allBrainrots) {
         if (!b.name) continue;
@@ -9183,13 +9184,29 @@ function findExactBrainrotFromCollection(offerBrainrotName, offerIncome, offerIn
                 // Don't break - continue looking for exact match
             }
         }
+        
+        // v10.4.5: Check tolerance match - within 2% of offer income
+        // This catches cases like offer=109, collection=108.9 (rounded int vs decimal)
+        if (!toleranceMatch && offerIncomeNumeric > 0) {
+            const percentDiff = Math.abs(brainrotIncomeNumeric - offerIncomeNumeric) / offerIncomeNumeric;
+            if (percentDiff < 0.02) { // 2% tolerance
+                toleranceMatch = {
+                    name: b.name,
+                    income: b.income,
+                    incomeText: b.incomeText,
+                    mutation: b.mutation,
+                    _toleranceDiff: percentDiff
+                };
+                // Don't break - continue looking for better match
+            }
+        }
     }
     
-    // Prefer exact match, fallback to rounded match
-    const result = exactMatch || roundedMatch;
+    // Prefer exact match > rounded match > tolerance match
+    const result = exactMatch || roundedMatch || toleranceMatch;
     
     if (result) {
-        const matchType = exactMatch ? 'exact' : 'rounded';
+        const matchType = exactMatch ? 'exact' : (roundedMatch ? 'rounded' : 'tolerance');
         console.log(`📍 Found ${matchType} match for ${offerBrainrotName}: collection="${result.incomeText}" vs offer="${offerIncomeRaw || offerIncome}"`);
     }
     
