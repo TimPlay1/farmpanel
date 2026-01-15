@@ -878,7 +878,11 @@ async function startMassGeneration() {
         try {
             // Generate image
             const borderColor = collectionState.accountColors[brainrot.accountId] || '#4ade80';
-            const priceKey = `${brainrot.name.toLowerCase()}_${Math.floor(brainrot.income / 1000000)}`;
+            // v10.4.0: Fixed priceKey - income is already in M/s, use proper rounding logic
+            // getPriceCacheKey from app.js handles proper rounding based on income level
+            const priceKey = typeof getPriceCacheKey === 'function' 
+                ? getPriceCacheKey(brainrot.name, brainrot.income, brainrot.mutation)
+                : `${brainrot.name.toLowerCase().replace(/[^a-z0-9]/g, '_')}_${Math.round(brainrot.income / 10) * 10}`;
             const price = state.eldoradoPrices?.[priceKey]?.minPrice || 
                          state.brainrotPrices?.[brainrot.name.toLowerCase()] || 0;
             
@@ -907,10 +911,12 @@ async function startMassGeneration() {
             
             // Add to Eldorado queue
             // v9.12.38: Include mutation in queue data
+            // v10.4.0: Fixed - pass income as number and incomeText as text for display
             if (createQueue) {
                 eldoradoQueue.push({
                     name: brainrot.name,
-                    income: brainrot.incomeText || formatIncome(brainrot.income),
+                    income: brainrot.income,  // v10.4.0: Numeric value in M/s for DB and getIncomeRange
+                    incomeText: brainrot.incomeText || formatIncome(brainrot.income),  // v10.4.0: Text for title display
                     imageUrl: result.resultUrl,
                     price: price || 0,
                     accountId: brainrot.accountId,

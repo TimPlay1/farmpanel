@@ -93,12 +93,22 @@ function incomeToMs(income) {
 /**
  * Генерирует ключ кэша цены (как в клиенте)
  * v3.0.4: Унифицируем income в M/s перед округлением
+ * v10.4.0: FIXED - использовать ту же логику округления что и в app.js getPriceCacheKey
  */
 function getPriceCacheKey(name, income) {
     if (!name || income === undefined) return null;
     const incomeMs = incomeToMs(income);
     if (incomeMs === null) return null;
-    const roundedIncome = Math.floor(incomeMs / 10) * 10;
+    
+    // v10.4.0: Smart rounding based on income level (same as app.js)
+    let roundedIncome;
+    if (incomeMs < 25) {
+        roundedIncome = Math.round(incomeMs);  // Round to nearest integer
+    } else if (incomeMs < 100) {
+        roundedIncome = Math.round(incomeMs / 5) * 5;  // Round to 5
+    } else {
+        roundedIncome = Math.round(incomeMs / 10) * 10;  // Round to 10
+    }
     return `${name.toLowerCase()}_${roundedIncome}`;
 }
 

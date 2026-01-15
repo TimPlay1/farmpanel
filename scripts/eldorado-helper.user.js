@@ -3228,10 +3228,17 @@
                                 const data = JSON.parse(response.responseText);
                                 if (data.success && data.queue && data.queue.length > 0) {
                                     log(`Loaded queue from API: ${data.queue.length} items`);
+                                    // v10.4.0: FIXED - preserve current index when refreshing queue from API
+                                    // Only reset index if no queue exists in localStorage yet
+                                    const existingIndex = localStorage.getItem('eldoradoQueueIndex');
+                                    const existingQueue = localStorage.getItem('eldoradoQueue');
+                                    const preserveIndex = existingQueue && existingIndex ? existingIndex : '0';
+                                    
                                     localStorage.setItem('eldoradoQueue', JSON.stringify(data.queue));
-                                    localStorage.setItem('eldoradoQueueIndex', '0');
-                                    localStorage.setItem('eldoradoQueueCompleted', '[]');
+                                    localStorage.setItem('eldoradoQueueIndex', preserveIndex);  // v10.4.0: preserve index
+                                    localStorage.setItem('eldoradoQueueCompleted', localStorage.getItem('eldoradoQueueCompleted') || '[]');
                                     localStorage.setItem('eldoradoQueueTimestamp', Date.now().toString());
+                                    log(`Queue index preserved at: ${preserveIndex}`);
                                     resolve(true);
                                     return;
                                 }

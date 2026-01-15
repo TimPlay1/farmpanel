@@ -55,12 +55,20 @@ module.exports = async (req, res) => {
         
         // Get price cache for recommended prices
         const priceCache = db.collection('price_cache');
+        
+        // v10.4.0: Helper function for smart rounding (same logic as app.js getPriceCacheKey)
+        const getSmartRoundedIncome = (income) => {
+            if (income < 25) return Math.round(income);
+            if (income < 100) return Math.round(income / 5) * 5;
+            return Math.round(income / 10) * 10;
+        };
+        
         const priceKeys = offers.map(o => {
             if (!o.brainrotName || !o.income) return null;
             const name = o.brainrotName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             let inc = o.income;
             if (typeof inc === 'number' && inc > 10000) inc = inc / 1000000;
-            const roundedIncome = Math.round(parseFloat(inc) * 10) / 10;
+            const roundedIncome = getSmartRoundedIncome(parseFloat(inc));
             return `${name}_${roundedIncome}`;
         }).filter(k => k);
         
@@ -76,7 +84,7 @@ module.exports = async (req, res) => {
             const name = offer.brainrotName.toLowerCase().replace(/[^a-z0-9]/g, '_');
             let inc = offer.income;
             if (typeof inc === 'number' && inc > 10000) inc = inc / 1000000;
-            const roundedIncome = Math.round(parseFloat(inc) * 10) / 10;
+            const roundedIncome = getSmartRoundedIncome(parseFloat(inc));  // v10.4.0: Use smart rounding
             const key = `${name}_${roundedIncome}`;
             
             const priceData = pricesMap.get(key);
