@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
                 } catch (e) {}
             }
             
-            // Calculate totalIncome from brainrots
+            // Calculate totalIncome from brainrots (или используем сохранённый если brainrots пустые)
             const brainrots = acc.brainrots || [];
             let totalIncome = 0;
             for (const br of brainrots) {
@@ -93,8 +93,9 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // ЗАЩИТА: Если brainrots пустые но есть сохранённый totalIncome - используем его
-            if (totalIncome === 0 && acc.totalIncome && acc.totalIncome > 0) {
+            // Если brainrots пустые - используем сохранённый totalIncome (для offline аккаунтов)
+            // Но только если аккаунт offline - онлайн аккаунты с 0 brainrots реально имеют 0
+            if (totalIncome === 0 && !isOnline && acc.totalIncome && acc.totalIncome > 0) {
                 totalIncome = acc.totalIncome;
             }
             
@@ -110,13 +111,12 @@ module.exports = async (req, res) => {
                 } else {
                     totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
                 }
-            } else if (acc.totalIncomeFormatted && acc.totalIncomeFormatted !== '0/s') {
-                // Fallback на сохранённый formatted если расчёт дал 0
-                totalIncomeFormatted = acc.totalIncomeFormatted;
             }
             
-            // ЗАЩИТА: Используем сохранённый totalBrainrots если brainrots пустые
-            const totalBrainrots = brainrots.length > 0 ? brainrots.length : (acc.totalBrainrots || 0);
+            // totalBrainrots - реальное количество из массива, или сохранённое для offline
+            const totalBrainrots = brainrots.length > 0 
+                ? brainrots.length 
+                : (!isOnline && acc.totalBrainrots ? acc.totalBrainrots : 0);
             
             return {
                 ...acc,
