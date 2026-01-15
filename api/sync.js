@@ -328,6 +328,7 @@ module.exports = async (req, res) => {
 
             // MERGE accounts: сохраняем всех фермеров в БД, обновляем данные тех кто пришёл в sync
             // Это позволяет всем фермерам оставаться в панели даже когда они offline
+            // ВАЖНО: Делаем ГЛУБОКИЙ merge - не затираем существующие данные пустыми значениями!
             const existingAccounts = farmer.accounts || [];
             const existingByName = {};
             for (const acc of existingAccounts) {
@@ -336,10 +337,38 @@ module.exports = async (req, res) => {
                 }
             }
             
-            // Обновляем/добавляем пришедшие аккаунты
-            for (const acc of accounts) {
-                if (acc.playerName) {
-                    existingByName[acc.playerName] = acc;
+            // Обновляем/добавляем пришедшие аккаунты с ГЛУБОКИМ merge
+            for (const newAcc of accounts) {
+                if (newAcc.playerName) {
+                    const existing = existingByName[newAcc.playerName];
+                    if (existing) {
+                        // ГЛУБОКИЙ MERGE: сохраняем существующие данные если новые пустые
+                        existingByName[newAcc.playerName] = {
+                            ...existing, // Сначала существующие данные
+                            ...newAcc,   // Потом новые (перезаписывают)
+                            // Но восстанавливаем brainrots если новые пустые а старые есть
+                            brainrots: (newAcc.brainrots && newAcc.brainrots.length > 0) 
+                                ? newAcc.brainrots 
+                                : (existing.brainrots || []),
+                            // Сохраняем income если новый = 0 а старый > 0
+                            totalIncome: (newAcc.totalIncome > 0) 
+                                ? newAcc.totalIncome 
+                                : (existing.totalIncome || 0),
+                            totalIncomeFormatted: (newAcc.totalIncome > 0) 
+                                ? newAcc.totalIncomeFormatted 
+                                : (existing.totalIncomeFormatted || '0/s'),
+                            totalBrainrots: (newAcc.brainrots && newAcc.brainrots.length > 0)
+                                ? newAcc.totalBrainrots
+                                : (existing.totalBrainrots || 0),
+                            // Всегда обновляем lastUpdate и status если аккаунт онлайн
+                            lastUpdate: newAcc.lastUpdate || existing.lastUpdate,
+                            status: newAcc.status || existing.status || 'idle',
+                            action: newAcc.action || existing.action || ''
+                        };
+                    } else {
+                        // Новый аккаунт - добавляем как есть
+                        existingByName[newAcc.playerName] = newAcc;
+                    }
                 }
             }
             

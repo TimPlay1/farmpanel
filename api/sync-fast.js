@@ -93,6 +93,11 @@ module.exports = async (req, res) => {
                 }
             }
             
+            // ЗАЩИТА: Если brainrots пустые но есть сохранённый totalIncome - используем его
+            if (totalIncome === 0 && acc.totalIncome && acc.totalIncome > 0) {
+                totalIncome = acc.totalIncome;
+            }
+            
             // Format income
             let totalIncomeFormatted = '0/s';
             if (totalIncome > 0) {
@@ -105,7 +110,13 @@ module.exports = async (req, res) => {
                 } else {
                     totalIncomeFormatted = `$${totalIncome.toFixed(0)}/s`;
                 }
+            } else if (acc.totalIncomeFormatted && acc.totalIncomeFormatted !== '0/s') {
+                // Fallback на сохранённый formatted если расчёт дал 0
+                totalIncomeFormatted = acc.totalIncomeFormatted;
             }
+            
+            // ЗАЩИТА: Используем сохранённый totalBrainrots если brainrots пустые
+            const totalBrainrots = brainrots.length > 0 ? brainrots.length : (acc.totalBrainrots || 0);
             
             return {
                 ...acc,
@@ -114,7 +125,7 @@ module.exports = async (req, res) => {
                 action: acc.action || '',
                 totalIncome: totalIncome,
                 totalIncomeFormatted: totalIncomeFormatted,
-                totalBrainrots: brainrots.length,
+                totalBrainrots: totalBrainrots,
                 maxSlots: acc.maxSlots || 10
             };
         });
