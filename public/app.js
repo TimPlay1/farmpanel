@@ -9105,6 +9105,7 @@ function calculatePriceDiff(currentPrice, recommendedPrice) {
  * v10.3.50: Exact income match (farmers send precise values)
  */
 // v10.4.2: Find exact brainrot from collection to sync income for display
+// v10.4.3: Improved matching - prefer exact income match, fallback to smart rounded
 function findExactBrainrotFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
     if (!collectionState || !collectionState.allBrainrots || collectionState.allBrainrots.length === 0) {
         return null;
@@ -9112,34 +9113,97 @@ function findExactBrainrotFromCollection(offerBrainrotName, offerIncome, offerIn
     
     if (!offerBrainrotName) return null;
     
-    // Normalize offer income using smart rounding (same as cache key)
+    // Parse offer income to raw numeric value for exact comparison
+    const offerIncomeNumeric = parseIncomeToNumeric(offerIncome, offerIncomeRaw);
+    
+    // Normalize offer income using smart rounding (for fallback matching)
     const normalizedOfferIncome = normalizeIncomeForApi(offerIncome, offerIncomeRaw);
     
     // Normalize brainrot name for comparison
     const normalizedOfferName = offerBrainrotName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    let exactMatch = null;      // Exact numeric income match
+    let roundedMatch = null;    // Smart rounded income match (fallback)
     
     for (const b of collectionState.allBrainrots) {
         if (!b.name) continue;
         const normalizedBrainrotName = b.name.toLowerCase().replace(/[^a-z0-9]/g, '');
         
         // Match by name
-        if (normalizedBrainrotName === normalizedOfferName) {
-            // Match by normalized income (smart rounding)
+        if (normalizedBrainrotName !== normalizedOfferName) continue;
+        
+        // Get brainrot income as numeric value
+        const brainrotIncomeNumeric = parseIncomeToNumeric(b.income, b.incomeText);
+        
+        // Try exact match first (within 0.01 tolerance for floating point)
+        if (Math.abs(brainrotIncomeNumeric - offerIncomeNumeric) < 0.01) {
+            exactMatch = {
+                name: b.name,
+                income: b.income,
+                incomeText: b.incomeText,
+                mutation: b.mutation
+            };
+            break; // Exact match found, stop searching
+        }
+        
+        // Check smart rounded match (for fallback)
+        if (!roundedMatch) {
             const normalizedBrainrotIncome = normalizeIncomeForApi(b.income, b.incomeText);
-            
             if (normalizedBrainrotIncome === normalizedOfferIncome) {
-                console.log(`📍 Found exact match for ${offerBrainrotName}: collection income="${b.incomeText}" vs offer="${offerIncomeRaw || offerIncome}"`);
-                return {
+                roundedMatch = {
                     name: b.name,
                     income: b.income,
                     incomeText: b.incomeText,
                     mutation: b.mutation
                 };
+                // Don't break - continue looking for exact match
             }
         }
     }
     
-    return null;
+    // Prefer exact match, fallback to rounded match
+    const result = exactMatch || roundedMatch;
+    
+    if (result) {
+        const matchType = exactMatch ? 'exact' : 'rounded';
+        console.log(`📍 Found ${matchType} match for ${offerBrainrotName}: collection="${result.incomeText}" vs offer="${offerIncomeRaw || offerIncome}"`);
+    }
+    
+    return result;
+}
+
+// v10.4.3: Parse income to numeric M/s value for exact comparison
+function parseIncomeToNumeric(income, incomeText) {
+    // Try incomeText first (e.g., "$6.7M/s", "$1.5B/s")
+    if (incomeText) {
+        const text = String(incomeText).toLowerCase();
+        const numMatch = text.match(/([\d.]+)\s*(b|m|k)?/i);
+        if (numMatch) {
+            let value = parseFloat(numMatch[1]);
+            const suffix = (numMatch[2] || '').toLowerCase();
+            if (suffix === 'b') value *= 1000; // Convert B to M
+            else if (suffix === 'k') value /= 1000; // Convert K to M
+            return value;
+        }
+    }
+    
+    // Try numeric income
+    if (typeof income === 'number') {
+        // If > 10000, assume raw value, convert to M/s
+        if (income > 10000) return income / 1000000;
+        return income;
+    }
+    
+    // Try parsing as string
+    if (income) {
+        const parsed = parseFloat(String(income));
+        if (!isNaN(parsed)) {
+            if (parsed > 10000) return parsed / 1000000;
+            return parsed;
+        }
+    }
+    
+    return 0;
 }
 
 function findMutationFromCollection(offerBrainrotName, offerIncome, offerIncomeRaw) {
