@@ -1,13 +1,13 @@
-// FarmerPanel App v10.3.40 - Reduce fuzzy matching false positives
+// FarmerPanel App v10.4.4 - Remove pending status, unified with paused
+// - v10.4.4: Removed pending status - all new offers use paused
+// - v10.4.4: Merged pending filter with paused filter
+// - v10.4.4: Added detailed income logging in updateOffersRecommendedPrices
+// - v10.4.4: Sync mutation from collection when saving new offers
+// - v10.4.3: Improved income matching - prefer exact match over smart rounded match
 // - v10.3.40: Expanded skipWords list (trait, trade, christmas, entrega, etc)
 // - v10.3.40: Increased similarity threshold to 0.88 for stricter matching
 // - v10.3.40: Skip words starting with $ or numbers (prices like "$255m")
 // - v10.3.39: Fuzzy matching to catch typos like "SLEGITO" → "Sleighito"
-// - v10.3.39: Dynamic lists from Eldorado API, not hardcoded aliases
-// - v10.3.38: Verify title BEFORE trusting envValue tag (sellers can set wrong tags!)
-// - v10.3.37: Don't cache null API responses - keep existing valid prices
-// - v10.3.37: Only log AI price when actually found (no $null spam in console)
-// - v10.3.36: Skip expensive UI operations when tab is hidden (Page Visibility API)
 // - v10.3.36: Fixes requestAnimationFrame violations when tab in background
 // - v10.3.35: When brainrot not in Eldorado dropdown, use te_v2=Other + searchQuery fallback
 // - v10.3.35: Tested: Los Spooky Combinasionas now works (20/20 brainrots pass, 100% accuracy)
@@ -8867,6 +8867,11 @@ async function updateOffersRecommendedPrices() {
     let updated = 0;
     let notFound = 0;
     let mutationsFromCollection = 0;
+    let incomeUpdated = 0;
+    
+    // v10.4.4: Detailed income logging
+    console.group('📊 [INCOME-SYNC] Updating offers with collection data');
+    console.log(`Collection has ${collectionState?.allBrainrots?.length || 0} brainrots`);
     
     for (const offer of offersState.offers) {
         if (offer.brainrotName && offer.income) {
@@ -8879,8 +8884,11 @@ async function updateOffersRecommendedPrices() {
                 const exactMatch = findExactBrainrotFromCollection(offer.brainrotName, offer.income, offer.incomeRaw);
                 if (exactMatch) {
                     // Update incomeRaw with exact value from collection
+                    const oldIncomeRaw = offer.incomeRaw;
                     if (exactMatch.incomeText && !offer.incomeRaw) {
                         offer.incomeRaw = exactMatch.incomeText;
+                        incomeUpdated++;
+                        console.log(`✅ [INCOME] ${offer.brainrotName}: set incomeRaw from collection: "${exactMatch.incomeText}"`);
                     } else if (exactMatch.incomeText && offer.incomeRaw) {
                         // If offers has rounded incomeRaw (e.g. "7" vs "$6.7M/s"), prefer collection
                         const offerIncomeNum = parseFloat(String(offer.incomeRaw).replace(/[^\d.]/g, ''));
@@ -8888,13 +8896,29 @@ async function updateOffersRecommendedPrices() {
                         // If collection has more precision (decimal), use it
                         if (!isNaN(collectionIncomeNum) && exactMatch.incomeText.includes('.')) {
                             offer.incomeRaw = exactMatch.incomeText;
+                            if (oldIncomeRaw !== offer.incomeRaw) {
+                                incomeUpdated++;
+                                console.log(`✅ [INCOME] ${offer.brainrotName}: updated incomeRaw: "${oldIncomeRaw}" → "${offer.incomeRaw}"`);
+                            }
                         }
                     }
                     // Also update income to exact value
                     if (exactMatch.income && exactMatch.income !== offer.income) {
+                        console.log(`✅ [INCOME] ${offer.brainrotName}: updated income: ${offer.income} → ${exactMatch.income}`);
                         offer._originalIncome = offer.income;
                         offer.income = exactMatch.income;
                     }
+                    
+                    // v10.4.4: Also update mutation from collection if not already set
+                    if (!offer.mutation && exactMatch.mutation) {
+                        offer.mutation = exactMatch.mutation;
+                        offer._mutationSource = 'collection-exact';
+                        mutationsFromCollection++;
+                        console.log(`🔮 Set mutation for ${offer.brainrotName} from exact match: ${exactMatch.mutation}`);
+                    }
+                } else {
+                    // v10.4.4: Log when no match found for debugging
+                    console.log(`⚠️ No collection match for offer: ${offer.brainrotName}, income=${offer.income}, incomeRaw=${offer.incomeRaw}, normalized=${normalizedIncome}`);
                 }
             }
             
@@ -8978,9 +9002,10 @@ async function updateOffersRecommendedPrices() {
         }
     }
     
-    if (notFound > 0 || mutationsFromCollection > 0) {
-        console.log(`Offers prices: ${updated} updated, ${notFound} not found in cache${mutationsFromCollection > 0 ? `, ${mutationsFromCollection} mutations matched from collection` : ''}`);
+    if (notFound > 0 || mutationsFromCollection > 0 || incomeUpdated > 0) {
+        console.log(`📊 [INCOME-SYNC] Summary: ${updated} prices updated, ${notFound} not found, ${incomeUpdated} income synced, ${mutationsFromCollection} mutations from collection`);
     }
+    console.groupEnd();
 }
 
 // Filter and render offers
@@ -9008,13 +9033,12 @@ function filterAndRenderOffers() {
     }
     
     // Status filter
+    // v10.4.4: Merged pending into paused - pending no longer used for new offers
     if (offersState.statusFilter === 'active') {
         filtered = filtered.filter(o => o.status === 'active');
-    } else if (offersState.statusFilter === 'pending') {
-        // Pending = registered but not yet found on Eldorado
-        filtered = filtered.filter(o => o.status === 'pending' || !o.eldoradoOfferId);
-    } else if (offersState.statusFilter === 'paused') {
-        filtered = filtered.filter(o => o.status === 'paused');
+    } else if (offersState.statusFilter === 'pending' || offersState.statusFilter === 'paused') {
+        // v10.4.4: Pending and Paused now combined - filter both statuses
+        filtered = filtered.filter(o => o.status === 'paused' || o.status === 'pending' || !o.eldoradoOfferId);
     } else if (offersState.statusFilter === 'needs-update') {
         filtered = filtered.filter(o => {
             const diff = calculatePriceDiff(o.currentPrice, o.recommendedPrice);
@@ -9366,17 +9390,15 @@ function renderOffers() {
         const needsUpdate = hasRecommendedPrice && !isSpike && Math.abs(diff) > 5;
         
         // v9.6: Show paused status
-        const isPaused = offer.status === 'paused';
-        const isPending = offer.status === 'pending' || !offer.eldoradoOfferId;
+        // v10.4.4: Treat pending same as paused (removed pending verification logic)
+        const isPaused = offer.status === 'paused' || offer.status === 'pending' || !offer.eldoradoOfferId;
         
-        // v9.12.28: Removed Unverified status - it's not useful and confusing
-        // Offers are either: Active, Paused, or Pending
+        // v10.4.4: Removed pending status - now using paused for all new offers
         
-        let statusBadgeClass = isPending ? 'pending' : (isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active'));
+        let statusBadgeClass = isPaused ? 'paused' : (needsUpdate ? 'needs-update' : 'active');
         // v9.7: Better status icons using FontAwesome
-        let statusBadgeText = isPending ? '<i class="fas fa-clock"></i> ' + t('pending_status') :
-                              (isPaused ? '<i class="fas fa-pause-circle"></i> ' + t('paused') : 
-                              (needsUpdate ? t('needs_update_status') : t('active_status_offer')));
+        let statusBadgeText = isPaused ? '<i class="fas fa-pause-circle"></i> ' + t('paused') : 
+                              (needsUpdate ? t('needs_update_status') : t('active_status_offer'));
         
         // v9.8.24: Count brainrots in collection with same name AND income - always show badge
         let brainrotsCountBadge = '';
@@ -9413,12 +9435,10 @@ function renderOffers() {
             } else {
                 pausedInfo = `<div class="offer-paused-info urgent">${t('will_be_deleted_soon')}</div>`;
             }
-        } else if (isPending) {
-            pausedInfo = `<div class="offer-paused-info pending-info">${t('add_offer_id_hint').replace('{id}', offer.offerId)}</div>`;
         }
         
         return `
-        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''} ${isPending ? 'pending' : ''} ${offer.mutation ? 'has-mutation' : ''}" data-offer-id="${offer.offerId}" ${offer.mutation ? `style="border-color: ${getMutationColor(offer.mutation)}; box-shadow: 0 0 12px ${getMutationColor(offer.mutation)}40;"` : ''}>
+        <div class="offer-card ${isSelected ? 'selected' : ''} ${isPaused ? 'paused' : ''} ${offer.mutation ? 'has-mutation' : ''}" data-offer-id="${offer.offerId}" ${offer.mutation ? `style="border-color: ${getMutationColor(offer.mutation)}; box-shadow: 0 0 12px ${getMutationColor(offer.mutation)}40;"` : ''}>
             ${brainrotsCountBadge}
             <div class="offer-card-checkbox">
                 <label class="checkbox-wrapper">
@@ -11431,8 +11451,8 @@ async function scanEldoradoOffers() {
         // v9.12.37: Use result.offers.length as fallback when stats not provided
         const total = stats.totalOffers || (result.offers?.length || 0);
         const activeCount = stats.activeOffers || result.offers?.filter(o => o.status === 'active').length || 0;
-        const pausedCount = stats.pausedOffers || result.offers?.filter(o => o.status === 'paused').length || 0;
-        const pendingCount = stats.pendingOffers || result.offers?.filter(o => o.status === 'pending').length || 0;
+        // v10.4.4: Combine pending + paused counts since pending is deprecated
+        const pausedCount = (stats.pausedOffers || 0) + (stats.pendingOffers || 0) || result.offers?.filter(o => o.status === 'paused' || o.status === 'pending').length || 0;
         
         // Build message
         let message = '';
@@ -11444,7 +11464,6 @@ async function scanEldoradoOffers() {
         } else {
             const parts = [];
             if (activeCount > 0) parts.push(`${activeCount} active`);
-            if (pendingCount > 0) parts.push(`${pendingCount} pending`);
             if (pausedCount > 0) parts.push(`${pausedCount} paused`);
             message = `✅ ${parts.join(', ')} (from DB cache)`;
         }

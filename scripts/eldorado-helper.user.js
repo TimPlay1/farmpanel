@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Farmer Panel - Eldorado Helper
 // @namespace    http://tampermonkey.net/
-// @version      10.0.11
+// @version      10.4.4
 // @description  Auto-fill Eldorado.gg offer form + highlight YOUR offers by unique code + price adjustment from Farmer Panel + Queue support + Sleep Mode + Auto-scroll + Universal code tracking + Custom shop name
 // @author       Farmer Panel
 // @match        https://www.eldorado.gg/*
@@ -4769,7 +4769,17 @@ ${searchVariations}`;
                         // v9.12.10: Use GM_xmlhttpRequest to bypass CORS and save to BOTH offers and offer_codes
                         const normalizedCode = offerId.toUpperCase().replace(/^#/, '');
                         
+                        // v10.4.4: Log full income data for debugging
+                        console.log(`[INCOME-LOG] Saving offer ${offerId}:`, {
+                            name: offerData.name,
+                            income: offerData.income,
+                            incomeText: offerData.incomeText,
+                            mutation: offerData.mutation,
+                            source: 'eldorado-helper place offer'
+                        });
+                        
                         // Save to offers table
+                        // v10.4.4: Changed status from 'pending' to 'paused', added mutation
                         const offerPayload = {
                             farmKey, 
                             offerId,
@@ -4778,7 +4788,8 @@ ${searchVariations}`;
                             incomeRaw: offerData.incomeText || String(offerData.income || 0),
                             currentPrice: offerData.maxPrice || offerData.minPrice || 0,
                             imageUrl: offerData.generatedImageUrl || null,
-                            status: 'pending'
+                            mutation: offerData.mutation || null,
+                            status: 'paused'
                         };
                         
                         await new Promise((resolve, reject) => {
