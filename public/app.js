@@ -4138,17 +4138,30 @@ async function fetchStatusOnly() {
             statusData.accounts.forEach(statusAcc => {
                 const existing = existingAccounts.find(a => a.playerName === statusAcc.playerName);
                 if (existing) {
-                    // Only update if status data is fresher or same age
-                    let shouldUpdate = true;
+                    // Only update if status data is fresher (newer lastUpdate)
+                    let shouldUpdate = false;
+                    let lastUpdateChanged = false;
+                    
                     if (existing.lastUpdate && statusAcc.lastUpdate) {
                         try {
                             const existingTime = new Date(existing.lastUpdate).getTime();
                             const statusTime = new Date(statusAcc.lastUpdate).getTime();
-                            // Don't overwrite with older data
-                            if (statusTime < existingTime) {
-                                shouldUpdate = false;
+                            // Only update if new data is fresher
+                            if (statusTime > existingTime) {
+                                shouldUpdate = true;
+                                lastUpdateChanged = true;
+                            } else if (statusTime === existingTime) {
+                                // Same timestamp - check if other data changed
+                                shouldUpdate = (existing.status !== statusAcc.status) || 
+                                              (existing.action !== statusAcc.action);
                             }
-                        } catch (e) {}
+                            // statusTime < existingTime - don't update (older data)
+                        } catch (e) {
+                            shouldUpdate = true; // Parse error - try to update
+                        }
+                    } else if (statusAcc.lastUpdate && !existing.lastUpdate) {
+                        shouldUpdate = true; // No existing timestamp - update
+                        lastUpdateChanged = true;
                     }
                     
                     if (!shouldUpdate) return;
@@ -4163,33 +4176,42 @@ async function fetchStatusOnly() {
                         } catch (e) {}
                     }
                     
+                    // Mark this account as needing UI update
+                    existing._needsUiUpdate = true;
+                    
                     // Update status fields
                     existing.isOnline = calculatedOnline;
                     existing._isOnline = calculatedOnline;
                     existing.lastUpdate = statusAcc.lastUpdate;
-                    // status = действие фермера (idle, searching, walking и т.д.)
-                    // НЕ "offline" - online/offline определяется по isOnline
                     existing.status = statusAcc.status || 'idle';
                     existing.action = statusAcc.action || '';
-                    existing.totalIncome = statusAcc.totalIncome;
-                    existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
-                    existing.totalBrainrots = statusAcc.totalBrainrots;
-                    existing.maxSlots = statusAcc.maxSlots;
-                    // ADDED: Update brainrots array for real-time updates
-                    if (statusAcc.brainrots && Array.isArray(statusAcc.brainrots)) {
-                        existing.brainrots = statusAcc.brainrots;
+                    
+                    // Only update brainrots/income if lastUpdate actually changed
+                    // This prevents overwriting good data with stale data
+                    if (lastUpdateChanged) {
+                        existing.totalIncome = statusAcc.totalIncome;
+                        existing.totalIncomeFormatted = statusAcc.totalIncomeFormatted;
+                        existing.totalBrainrots = statusAcc.totalBrainrots;
+                        existing.maxSlots = statusAcc.maxSlots;
+                        if (statusAcc.brainrots && Array.isArray(statusAcc.brainrots)) {
+                            existing.brainrots = statusAcc.brainrots;
+                        }
                     }
                 }
             });
             
-            // Quick UI update using requestAnimationFrame
+            // Quick UI update - ONLY for accounts that changed
             requestAnimationFrame(() => {
                 const accounts = state.farmersData[state.currentKey].accounts || [];
                 accounts.forEach(account => {
-                    const cardId = getAccountCardId(account);
-                    const cardEl = document.getElementById(cardId);
-                    if (cardEl) {
-                        updateAccountCard(cardEl, account);
+                    // Only update cards that were marked as needing update
+                    if (account._needsUiUpdate) {
+                        const cardId = getAccountCardId(account);
+                        const cardEl = document.getElementById(cardId);
+                        if (cardEl) {
+                            updateAccountCard(cardEl, account);
+                        }
+                        delete account._needsUiUpdate; // Clear flag
                     }
                 });
                 
@@ -4311,9 +4333,11 @@ async function fetchFarmerData() {
             return;
         }
         
-        // SMART MERGE: Don't overwrite fresher data with stale sync data
-        // Compare lastUpdate timestamps for each account
+        // SMART MERGE: Only update accounts whose lastUpdate actually changed
+        // Track which accounts need UI refresh
         const existingData = state.farmersData[requestKey];
+        const accountsNeedingUpdate = new Set();
+        
         if (existingData && existingData.accounts && data.accounts) {
             data.accounts = data.accounts.map(newAcc => {
                 const existing = existingData.accounts.find(a => a.playerName === newAcc.playerName);
@@ -4321,15 +4345,38 @@ async function fetchFarmerData() {
                     try {
                         const existingTime = new Date(existing.lastUpdate).getTime();
                         const newTime = new Date(newAcc.lastUpdate).getTime();
-                        // If existing data is fresher, keep it
-                        if (existingTime > newTime) {
+                        
+                        if (newTime > existingTime) {
+                            // New data is fresher - mark for UI update
+                            accountsNeedingUpdate.add(newAcc.playerName);
+                            return newAcc;
+                        } else if (existingTime > newTime) {
+                            // Existing data is fresher - keep it, no UI update needed
+                            return { ...newAcc, ...existing };
+                        } else {
+                            // Same timestamp - no update needed
                             return { ...newAcc, ...existing };
                         }
-                    } catch (e) {}
+                    } catch (e) {
+                        accountsNeedingUpdate.add(newAcc.playerName);
+                    }
+                } else if (!existing) {
+                    // New account - needs UI update
+                    accountsNeedingUpdate.add(newAcc.playerName);
                 }
                 return newAcc;
             });
+        } else {
+            // No existing data - all accounts need update
+            (data.accounts || []).forEach(acc => {
+                if (acc.playerName) accountsNeedingUpdate.add(acc.playerName);
+            });
         }
+        
+        // Mark accounts that need UI update
+        data.accounts.forEach(acc => {
+            acc._needsUiUpdate = accountsNeedingUpdate.has(acc.playerName);
+        });
         
         state.farmersData[requestKey] = data;
         
@@ -5036,20 +5083,24 @@ async function renderAccountsGrid(accounts) {
     
     const newPlayerNames = new Set(accounts.map(a => a.playerName));
     
-    // IMPROVED: Smart incremental update - update existing, add new, remove old
+    // IMPROVED: Smart incremental update - ONLY update cards that actually changed
     // Only do full rebuild if grid is empty
     if (existingPlayerNames.size > 0) {
-        // Update existing cards
+        // Update ONLY cards that have _needsUiUpdate flag OR are new
         accounts.forEach(account => {
             const cardId = getAccountCardId(account);
             const cardEl = document.getElementById(cardId);
             if (cardEl) {
-                // Card exists - update it
-                updateAccountCard(cardEl, account);
+                // Card exists - only update if flagged as needing update
+                if (account._needsUiUpdate) {
+                    updateAccountCard(cardEl, account);
+                    delete account._needsUiUpdate; // Clear flag after update
+                }
             } else {
-                // Card doesn't exist - add it
+                // Card doesn't exist - add it (new account)
                 const cardHtml = createAccountCardHtml(account);
                 accountsGridEl.insertAdjacentHTML('beforeend', cardHtml);
+                delete account._needsUiUpdate;
             }
         });
         
