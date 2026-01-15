@@ -367,7 +367,6 @@ module.exports = async (req, res) => {
                         // Новый аккаунт - добавляем как есть
                         existingByName[newAcc.playerName] = newAcc;
                     }
-                    }
                 }
             }
             
