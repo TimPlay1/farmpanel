@@ -960,11 +960,17 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
         });
         
         req.on('error', (e) => {
+            // v10.3.48: Rotate proxy on connection error
+            console.log(`[ProxyRotator] Request error, rotating proxy...`);
+            proxyRotator.rotateProxy(false);
             resolve({ error: e.message, results: [] });
         });
         
         req.setTimeout(10000, () => {
             req.destroy();
+            // v10.3.48: Rotate proxy on timeout (10s)
+            console.log(`[ProxyRotator] Timeout (10s), rotating proxy...`);
+            proxyRotator.rotateProxy(false);
             resolve({ error: 'timeout', results: [] });
         });
         

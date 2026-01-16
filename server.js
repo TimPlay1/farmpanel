@@ -1466,13 +1466,17 @@ server.listen(PORT, async () => {
         console.error(`  Eldorado API tables: ${e.message}`);
     }
     
-    // Initialize Telegram Bot
+    // Initialize Telegram Bot - DISABLED (409 Conflict with other instance)
+    // To re-enable: uncomment the block below
+    /*
     try {
         telegramBot.initBot();
         console.log(`  Telegram Bot: Running`);
     } catch (e) {
         console.error(`  Telegram Bot: Failed - ${e.message}`);
     }
+    */
+    console.log(`  Telegram Bot: DISABLED (enable in server.js)`);
     
     // Обновляем списки при старте сервера
     setTimeout(() => runEldoradoUpdate(), 5000);

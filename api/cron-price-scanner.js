@@ -744,9 +744,17 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             });
         });
 
-        req.on('error', (e) => resolve({ error: e.message, results: [] }));
+        req.on('error', (e) => {
+            // v3.0.48: Rotate proxy on connection error
+            console.log(`[ProxyRotator] Request error, rotating proxy...`);
+            proxyRotator.rotateProxy(false);
+            resolve({ error: e.message, results: [] });
+        });
         req.setTimeout(15000, () => {
             req.destroy();
+            // v3.0.48: Rotate proxy on timeout (15s)
+            console.log(`[ProxyRotator] Timeout (15s), rotating proxy...`);
+            proxyRotator.rotateProxy(false);
             resolve({ error: 'timeout', results: [] });
         });
         req.end();
