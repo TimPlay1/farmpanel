@@ -709,10 +709,26 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             }
         }
 
+        // v3.0.50: Hard timeout to prevent hung requests
+        let resolved = false;
+        const hardTimeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                console.log(`[ProxyRotator] HARD TIMEOUT (20s), rotating proxy...`);
+                proxyRotator.rotateProxy(false);
+                try { req.destroy(); } catch(e) {}
+                resolve({ error: 'hard_timeout', results: [] });
+            }
+        }, 20000);
+
         const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
+                if (resolved) return;
+                resolved = true;
+                clearTimeout(hardTimeout);
+                
                 // v3.0.20: Detect Cloudflare rate limit (error 1015)
                 if (res.statusCode === 403 || res.statusCode === 429) {
                     if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
@@ -745,12 +761,18 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
         });
 
         req.on('error', (e) => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(hardTimeout);
             // v3.0.48: Rotate proxy on connection error
             console.log(`[ProxyRotator] Request error, rotating proxy...`);
             proxyRotator.rotateProxy(false);
             resolve({ error: e.message, results: [] });
         });
         req.setTimeout(15000, () => {
+            if (resolved) return;
+            resolved = true;
+            clearTimeout(hardTimeout);
             req.destroy();
             // v3.0.48: Rotate proxy on timeout (15s)
             console.log(`[ProxyRotator] Timeout (15s), rotating proxy...`);
@@ -1757,3 +1779,4 @@ module.exports.collectAllBrainrotsFromDB = collectAllBrainrotsFromDB;
 module.exports.getCachedPrice = getCachedPrice;
 module.exports.savePriceToCache = savePriceToCache;
 module.exports.savePriceToCache = savePriceToCache;
+
