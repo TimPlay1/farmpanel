@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен + офферов
- * Version: 3.0.51 - Fixed hard timeout for proxy requests
+ * Version: 3.0.52 - Added global timeout in server.js
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -19,9 +19,10 @@
  * v3.0.0: Добавлено сканирование офферов (из universal-scan)
  *         Последовательные запросы чтобы избежать Cloudflare 1015
  * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
+ * v3.0.52: Added global 55s timeout in server.js to prevent hangs
  */
 
-const VERSION = '3.0.48';  // v3.0.48: HTTP proxy rotation via proxy-rotator module
+const VERSION = '3.0.52';  // v3.0.52: Global timeout safeguard in server.js
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');

@@ -1349,6 +1349,7 @@ setInterval(runEldoradoUpdate, ELDORADO_UPDATE_INTERVAL);
 // ===== CRON PRICE SCANNER (replaces Vercel Cron) =====
 const cronPriceScanner = require('./api/cron-price-scanner');
 const PRICE_SCAN_INTERVAL = 60 * 1000; // Каждую минуту (как было в Vercel)
+const PRICE_SCAN_TIMEOUT = 55 * 1000;  // v3.0.52: Hard timeout 55s (must complete before next cron)
 let priceScancronRunning = false;
 
 async function runPriceScanCron() {
@@ -1379,14 +1380,26 @@ async function runPriceScanCron() {
             end: function() { return this; }
         };
         
-        await cronPriceScanner(mockReq, mockRes);
+        // v3.0.52: Race with timeout to prevent scanner from hanging forever
+        const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('CRON_TIMEOUT_55S')), PRICE_SCAN_TIMEOUT);
+        });
+        
+        await Promise.race([
+            cronPriceScanner(mockReq, mockRes),
+            timeoutPromise
+        ]);
         
         if (mockRes._data) {
             const data = mockRes._data;
             console.log(`✅ [CRON] Price scan completed: ${data.scanned || 0} prices, ${data.offersScanned || 0} offers`);
         }
     } catch (err) {
-        console.error('❌ [CRON] Price scan failed:', err.message);
+        if (err.message === 'CRON_TIMEOUT_55S') {
+            console.error('⏰ [CRON] Price scan TIMED OUT after 55s - forcing reset');
+        } else {
+            console.error('❌ [CRON] Price scan failed:', err.message);
+        }
     } finally {
         priceScancronRunning = false;
     }
