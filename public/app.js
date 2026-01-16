@@ -3578,6 +3578,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // 6. Название магазина
                 await withTimeout(loadShopName(), 5000).catch(e => console.warn('Shop name:', e.message));
                 
+                // 7. Статус Eldorado API
+                checkApiStatusOnLoad().catch(e => console.warn('API status:', e.message));
+                
                 if (!keyChanged()) {
                     console.log('✅ Background loading complete');
                 }
@@ -11388,6 +11391,327 @@ function setupGeneratorSettingsListeners() {
     }
 }
 
+// ============================================
+// ELDORADO API KEY MODAL
+// ============================================
+
+let eldoradoApiState = {
+    hasApiKey: false,
+    isActive: false,
+    sellerName: null,
+    telegramConnected: false,
+    loading: false
+};
+
+// Open Eldorado API Modal
+async function openEldoradoApiModal() {
+    const modal = document.getElementById('eldoradoApiModal');
+    if (!modal) return;
+    
+    modal.classList.remove('hidden');
+    
+    // Show loading, hide other sections
+    showApiSection('loading');
+    
+    // Check current API key status
+    try {
+        const response = await fetch(`${API_BASE}/eldorado-api/status?farmKey=${currentFarmKey}`);
+        const data = await response.json();
+        
+        eldoradoApiState = {
+            hasApiKey: data.hasApiKey || false,
+            isActive: data.isActive || false,
+            sellerName: data.sellerName || null,
+            telegramConnected: data.telegramConnected || false,
+            telegramUsername: data.telegramUsername || null,
+            loading: false
+        };
+        
+        if (eldoradoApiState.hasApiKey && eldoradoApiState.isActive) {
+            // Show connected state
+            showApiSection('connected');
+            updateApiConnectedUI();
+        } else {
+            // Show input state
+            showApiSection('input');
+        }
+        
+        // Update API button appearance
+        updateApiButtonState();
+        
+    } catch (e) {
+        console.error('Failed to check API status:', e);
+        showApiSection('input');
+    }
+}
+
+// Close Eldorado API Modal
+function closeEldoradoApiModal() {
+    const modal = document.getElementById('eldoradoApiModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+    
+    // Clear input and errors
+    const input = document.getElementById('eldoradoApiKeyInput');
+    if (input) input.value = '';
+    
+    const errorEl = document.getElementById('apiKeyError');
+    if (errorEl) {
+        errorEl.classList.add('hidden');
+        errorEl.textContent = '';
+    }
+    
+    const successEl = document.getElementById('apiKeySuccess');
+    if (successEl) {
+        successEl.classList.add('hidden');
+    }
+}
+
+// Show specific section in API modal
+function showApiSection(section) {
+    const inputSection = document.getElementById('apiKeyInputSection');
+    const connectedSection = document.getElementById('apiKeyConnectedSection');
+    const loadingSection = document.getElementById('apiKeyLoadingSection');
+    
+    if (inputSection) inputSection.classList.toggle('hidden', section !== 'input');
+    if (connectedSection) connectedSection.classList.toggle('hidden', section !== 'connected');
+    if (loadingSection) loadingSection.classList.toggle('hidden', section !== 'loading');
+}
+
+// Update connected UI with seller info
+function updateApiConnectedUI() {
+    const sellerNameEl = document.getElementById('apiSellerName');
+    if (sellerNameEl) {
+        sellerNameEl.textContent = eldoradoApiState.sellerName || 'Seller';
+    }
+    
+    const telegramStatus = document.getElementById('telegramStatus');
+    const telegramStatusText = document.getElementById('telegramStatusText');
+    
+    if (eldoradoApiState.telegramConnected) {
+        if (telegramStatus) telegramStatus.classList.add('connected');
+        if (telegramStatusText) {
+            telegramStatusText.textContent = `Connected: @${eldoradoApiState.telegramUsername || 'user'}`;
+        }
+    } else {
+        if (telegramStatus) telegramStatus.classList.remove('connected');
+        if (telegramStatusText) {
+            telegramStatusText.textContent = t('telegram_not_linked') || 'Telegram not linked';
+        }
+    }
+}
+
+// Update API button appearance based on state
+function updateApiButtonState() {
+    const apiBtn = document.getElementById('eldoradoApiBtn');
+    if (!apiBtn) return;
+    
+    if (eldoradoApiState.hasApiKey && eldoradoApiState.isActive) {
+        apiBtn.classList.add('api-active');
+        apiBtn.title = `API Mode Active (${eldoradoApiState.sellerName || 'Connected'})`;
+    } else {
+        apiBtn.classList.remove('api-active');
+        apiBtn.title = 'Eldorado API Mode';
+    }
+}
+
+// Validate and save API key
+async function validateAndSaveApiKey() {
+    const input = document.getElementById('eldoradoApiKeyInput');
+    const errorEl = document.getElementById('apiKeyError');
+    const successEl = document.getElementById('apiKeySuccess');
+    const loadingText = document.getElementById('apiLoadingText');
+    
+    const apiKey = input?.value?.trim();
+    
+    if (!apiKey) {
+        showApiError('Please enter your API key');
+        return;
+    }
+    
+    // Basic format validation
+    if (apiKey.length < 10 || !apiKey.includes('-')) {
+        showApiError('Invalid API key format. Example: YourStore-Bot-xxXXxxXXxx');
+        return;
+    }
+    
+    // Show loading
+    showApiSection('loading');
+    if (loadingText) loadingText.textContent = 'Validating API key...';
+    
+    try {
+        // First validate the key
+        const validateResponse = await fetch(`${API_BASE}/eldorado-api/validate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ apiKey })
+        });
+        
+        const validateData = await validateResponse.json();
+        
+        if (!validateData.valid) {
+            showApiSection('input');
+            showApiError(validateData.error || 'Invalid API key');
+            return;
+        }
+        
+        // Key is valid, now save it
+        if (loadingText) loadingText.textContent = 'Saving API key...';
+        
+        const saveResponse = await fetch(`${API_BASE}/eldorado-api/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ farmKey: currentFarmKey, apiKey })
+        });
+        
+        const saveData = await saveResponse.json();
+        
+        if (!saveData.success) {
+            showApiSection('input');
+            showApiError(saveData.error || 'Failed to save API key');
+            return;
+        }
+        
+        // Success!
+        eldoradoApiState = {
+            hasApiKey: true,
+            isActive: true,
+            sellerName: saveData.sellerName,
+            telegramConnected: false,
+            loading: false
+        };
+        
+        showApiSection('connected');
+        updateApiConnectedUI();
+        updateApiButtonState();
+        
+        console.log('[EldoradoAPI] API key saved successfully for', saveData.sellerName);
+        
+    } catch (e) {
+        console.error('API key validation error:', e);
+        showApiSection('input');
+        showApiError('Connection error. Please try again.');
+    }
+}
+
+// Reset API key
+async function resetApiKey() {
+    if (!confirm('Are you sure you want to reset your API key? You will need to enter a new one.')) {
+        return;
+    }
+    
+    const loadingText = document.getElementById('apiLoadingText');
+    showApiSection('loading');
+    if (loadingText) loadingText.textContent = 'Removing API key...';
+    
+    try {
+        const response = await fetch(`${API_BASE}/eldorado-api/reset?farmKey=${currentFarmKey}`, {
+            method: 'DELETE'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            eldoradoApiState = {
+                hasApiKey: false,
+                isActive: false,
+                sellerName: null,
+                telegramConnected: false,
+                loading: false
+            };
+            
+            showApiSection('input');
+            updateApiButtonState();
+            
+            // Clear input
+            const input = document.getElementById('eldoradoApiKeyInput');
+            if (input) input.value = '';
+        } else {
+            showApiSection('connected');
+            showApiError(data.error || 'Failed to reset API key');
+        }
+        
+    } catch (e) {
+        console.error('Reset API key error:', e);
+        showApiSection('connected');
+    }
+}
+
+// Show API error message
+function showApiError(message) {
+    const errorEl = document.getElementById('apiKeyError');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.classList.remove('hidden');
+    }
+}
+
+// Setup Eldorado API Modal Listeners
+function setupEldoradoApiModalListeners() {
+    // API button click
+    const apiBtn = document.getElementById('eldoradoApiBtn');
+    if (apiBtn) {
+        apiBtn.addEventListener('click', openEldoradoApiModal);
+    }
+    
+    // Close button
+    const closeBtn = document.getElementById('closeEldoradoApiModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closeEldoradoApiModal);
+    }
+    
+    // Validate button
+    const validateBtn = document.getElementById('validateApiKeyBtn');
+    if (validateBtn) {
+        validateBtn.addEventListener('click', validateAndSaveApiKey);
+    }
+    
+    // Reset button
+    const resetBtn = document.getElementById('resetApiKeyBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetApiKey);
+    }
+    
+    // Modal overlay click
+    const modal = document.getElementById('eldoradoApiModal');
+    if (modal) {
+        modal.querySelector('.modal-overlay')?.addEventListener('click', closeEldoradoApiModal);
+    }
+    
+    // Enter key in input
+    const input = document.getElementById('eldoradoApiKeyInput');
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                validateAndSaveApiKey();
+            }
+        });
+    }
+}
+
+// Check API status on page load (for button state)
+async function checkApiStatusOnLoad() {
+    if (!currentFarmKey) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/eldorado-api/status?farmKey=${currentFarmKey}`);
+        const data = await response.json();
+        
+        eldoradoApiState = {
+            hasApiKey: data.hasApiKey || false,
+            isActive: data.isActive || false,
+            sellerName: data.sellerName || null,
+            telegramConnected: data.telegramConnected || false,
+            loading: false
+        };
+        
+        updateApiButtonState();
+    } catch (e) {
+        // Silent fail
+    }
+}
+
 // Setup offers event listeners
 function setupOffersListeners() {
     // Setup info banner listener
@@ -11745,6 +12069,7 @@ function initOffersView() {
 setupOffersListeners();
 setupShopNameModalListeners();
 setupGeneratorSettingsListeners();
+setupEldoradoApiModalListeners();
 
 // Check for returned data from Tampermonkey after price adjustment
 function checkForPriceAdjustmentResult() {

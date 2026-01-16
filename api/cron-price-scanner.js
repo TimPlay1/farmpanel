@@ -21,10 +21,18 @@
  * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
  */
 
-const VERSION = '3.0.46';  // v3.0.46: Faster offer scanning (60s offers, 60s prices, 3min fresh)
+const VERSION = '3.0.47';  // v3.0.47: Skip cron scanning for users with Eldorado API keys
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
+
+// v3.0.47: Eldorado API integration - skip scanning for users with API keys
+let eldoradoApi = null;
+try {
+    eldoradoApi = require('./eldorado-api');
+} catch (e) {
+    console.warn('⚠️ eldorado-api module not available');
+}
 
 // v3.0.22: SOCKS5 proxy support
 let SocksProxyAgent = null;
@@ -953,6 +961,33 @@ async function scanOffers(db, globalStartTime = null) {
     const allFarmers = [...newFarmers, ...staleFarmers];
     
     console.log(`📋 Priority: ${newFarmers.length} new, ${staleFarmers.length} stale (>3min), ${freshFarmers.length} fresh (<3min, skipped)`);
+    
+    // v3.0.47: Skip farmers with active Eldorado API keys
+    // These users use direct API access, no need for web scraping
+    let apiKeyFarmers = [];
+    try {
+        if (eldoradoApi && typeof eldoradoApi.getFarmsWithApiKeys === 'function') {
+            apiKeyFarmers = await eldoradoApi.getFarmsWithApiKeys();
+            if (apiKeyFarmers.length > 0) {
+                const apiKeySet = new Set(apiKeyFarmers);
+                const beforeCount = allFarmers.length;
+                
+                // Filter out farmers with API keys
+                for (let i = allFarmers.length - 1; i >= 0; i--) {
+                    if (apiKeySet.has(allFarmers[i].farmKey)) {
+                        allFarmers.splice(i, 1);
+                    }
+                }
+                
+                const removedCount = beforeCount - allFarmers.length;
+                if (removedCount > 0) {
+                    console.log(`🔑 Skipped ${removedCount} farmers with API keys (using direct API access)`);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn(`⚠️ Failed to check API key farmers: ${e.message}`);
+    }
     
     if (allFarmers.length === 0) {
         console.log(`✅ All farmers are fresh, nothing to scan`);

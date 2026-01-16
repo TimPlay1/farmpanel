@@ -378,6 +378,8 @@ const localGenerateHandler = require('./api/local-generate');
 const eldoradoListHandler = require('./api/eldorado-list');
 const heartbeatHandler = require('./api/heartbeat');
 const deleteFarmerHandler = require('./api/delete-farmer');
+const eldoradoApiHandler = require('./api/eldorado-api');
+const telegramBot = require('./api/telegram-bot');
 
 // API Routes
 
@@ -532,6 +534,73 @@ app.get('/api/eldorado-price', async (req, res) => {
 // Eldorado brainrots list endpoint - cached list for link generation
 app.get('/api/eldorado-list', async (req, res) => {
     await eldoradoListHandler(req, res);
+});
+
+// Eldorado API key management endpoints
+app.post('/api/eldorado-api/validate', async (req, res) => {
+    await eldoradoApiHandler.handleValidate(req, res);
+});
+
+app.post('/api/eldorado-api/save', async (req, res) => {
+    await eldoradoApiHandler.handleSave(req, res);
+});
+
+app.get('/api/eldorado-api/status', async (req, res) => {
+    await eldoradoApiHandler.handleStatus(req, res);
+});
+
+app.delete('/api/eldorado-api/reset', async (req, res) => {
+    await eldoradoApiHandler.handleReset(req, res);
+});
+
+// Offers API - Direct Eldorado API access for users with API keys
+const offersApiHandler = require('./api/offers-api');
+
+app.get('/api/offers-api/list', async (req, res) => {
+    await offersApiHandler.handleGetOffers(req, res);
+});
+
+app.get('/api/offers-api/orders', async (req, res) => {
+    await offersApiHandler.handleGetOrders(req, res);
+});
+
+app.get('/api/offers-api/new-orders', async (req, res) => {
+    await offersApiHandler.handleCheckNewOrders(req, res);
+});
+
+app.get('/api/offers-api/offer/:offerId', async (req, res) => {
+    await offersApiHandler.handleGetOffer(req, res);
+});
+
+app.post('/api/offers-api/offer', async (req, res) => {
+    await offersApiHandler.handleCreateOffer(req, res);
+});
+
+app.put('/api/offers-api/offer/:offerId/price', async (req, res) => {
+    await offersApiHandler.handleUpdatePrice(req, res);
+});
+
+app.put('/api/offers-api/offer/:offerId/pause', async (req, res) => {
+    await offersApiHandler.handlePauseOffer(req, res);
+});
+
+app.put('/api/offers-api/offer/:offerId/resume', async (req, res) => {
+    await offersApiHandler.handleResumeOffer(req, res);
+});
+
+app.delete('/api/offers-api/offer/:offerId', async (req, res) => {
+    await offersApiHandler.handleDeleteOffer(req, res);
+});
+
+// Auto-create offers API - creates offers for brainrots that don't have offers yet
+const autoCreateHandler = require('./api/auto-create-offers');
+
+app.get('/api/auto-create-offers/available', async (req, res) => {
+    await autoCreateHandler.handleGetAvailable(req, res);
+});
+
+app.post('/api/auto-create-offers', async (req, res) => {
+    await autoCreateHandler.handleAutoCreate(req, res);
 });
 
 // AI price endpoint - AI-first pricing with regex fallback
@@ -1336,6 +1405,14 @@ server.listen(PORT, async () => {
     console.log(`  Eldorado lists auto-update: every 30 min`);
     console.log(`  Price scanner cron: every 1 min`);
     console.log(`========================================\n`);
+    
+    // Initialize Telegram Bot
+    try {
+        telegramBot.initBot();
+        console.log(`  Telegram Bot: Running`);
+    } catch (e) {
+        console.error(`  Telegram Bot: Failed - ${e.message}`);
+    }
     
     // Обновляем списки при старте сервера
     setTimeout(() => runEldoradoUpdate(), 5000);

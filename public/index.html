@@ -470,6 +470,10 @@
                             <button class="btn btn-icon btn-sm" id="generatorSettingsBtn" data-i18n-title="generator_settings">
                                 <i class="fas fa-cog"></i>
                             </button>
+                            <button class="btn btn-api btn-sm" id="eldoradoApiBtn" title="Eldorado API Mode">
+                                <i class="fas fa-brain api-brain-icon"></i>
+                                <span>API</span>
+                            </button>
                         </div>
                         <div class="shop-name-hint" id="shopNameHint">
                             <i class="fas fa-exclamation-triangle"></i>
@@ -1069,6 +1073,112 @@
                             <span class="theme-preview theme-preview-green"></span>
                             <span class="option-label" data-i18n="theme_green">Green</span>
                         </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Eldorado API Key Modal -->
+    <div id="eldoradoApiModal" class="modal hidden">
+        <div class="modal-overlay"></div>
+        <div class="modal-content modal-api-key">
+            <div class="modal-header">
+                <h3><i class="fas fa-brain"></i> <span data-i18n="eldorado_api_mode">Eldorado API Mode</span></h3>
+                <button class="modal-close" id="closeEldoradoApiModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <!-- No API Key State -->
+                <div id="apiKeyInputSection">
+                    <p class="modal-description" data-i18n="api_key_description">
+                        Enter your personal Eldorado API key to enable direct API access. 
+                        This unlocks Telegram bot control and automatic offer management.
+                    </p>
+                    
+                    <div class="api-key-benefits">
+                        <div class="benefit-item">
+                            <i class="fas fa-robot"></i>
+                            <span data-i18n="benefit_telegram">Telegram bot for offer management</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-bolt"></i>
+                            <span data-i18n="benefit_auto_offers">Auto-create offers via API</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-bell"></i>
+                            <span data-i18n="benefit_notifications">Instant sale notifications</span>
+                        </div>
+                        <div class="benefit-item">
+                            <i class="fas fa-sync-alt"></i>
+                            <span data-i18n="benefit_no_scan">No more script scanning needed</span>
+                        </div>
+                    </div>
+                    
+                    <div class="input-group api-key-input-group">
+                        <i class="fas fa-key"></i>
+                        <input type="text" id="eldoradoApiKeyInput" placeholder="YourStore-Bot-xxXXxxXXxx" autocomplete="off" spellcheck="false">
+                    </div>
+                    
+                    <div id="apiKeyError" class="modal-error hidden"></div>
+                    <div id="apiKeySuccess" class="modal-success hidden"></div>
+                    
+                    <div class="api-key-actions">
+                        <button class="btn btn-primary" id="validateApiKeyBtn">
+                            <i class="fas fa-check-circle"></i>
+                            <span data-i18n="validate_and_save">Validate & Save</span>
+                        </button>
+                    </div>
+                    
+                    <div class="api-key-help">
+                        <a href="https://www.eldorado.gg/dashboard/security" target="_blank" rel="noopener noreferrer">
+                            <i class="fas fa-external-link-alt"></i>
+                            <span data-i18n="get_api_key">Get your API key from Eldorado Dashboard</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Has API Key State -->
+                <div id="apiKeyConnectedSection" class="hidden">
+                    <div class="api-connected-status">
+                        <div class="api-status-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="api-status-info">
+                            <span class="api-status-title" data-i18n="api_connected">API Connected</span>
+                            <span class="api-status-seller" id="apiSellerName">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="api-telegram-section">
+                        <div class="telegram-status" id="telegramStatus">
+                            <i class="fab fa-telegram"></i>
+                            <span id="telegramStatusText" data-i18n="telegram_not_linked">Telegram not linked</span>
+                        </div>
+                        <p class="telegram-instructions" data-i18n="telegram_instructions">
+                            Open our Telegram bot and use your API key to authenticate. 
+                            After first login, your Telegram will be remembered.
+                        </p>
+                        <a href="https://t.me/FarmerPanelBot" target="_blank" class="btn btn-telegram">
+                            <i class="fab fa-telegram"></i>
+                            <span data-i18n="open_telegram_bot">Open Telegram Bot</span>
+                        </a>
+                    </div>
+                    
+                    <div class="api-key-actions">
+                        <button class="btn btn-danger" id="resetApiKeyBtn">
+                            <i class="fas fa-undo"></i>
+                            <span data-i18n="reset_api_key">Reset API Key</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="apiKeyLoadingSection" class="hidden">
+                    <div class="api-loading">
+                        <div class="spinner"></div>
+                        <span id="apiLoadingText" data-i18n="validating">Validating...</span>
                     </div>
                 </div>
             </div>
