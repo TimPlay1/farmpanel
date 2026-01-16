@@ -113,7 +113,10 @@ async function checkFarmForNewOrders(farmKey, telegramUserId, sellerName) {
     const response = await fetch(`${ELDORADO_API_BASE}/api/orders/me/seller/orders?page=1&pageSize=5`, {
         headers: {
             'Authorization': `Api-Key ${apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'swagger': 'Swager request',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         }
     });
     

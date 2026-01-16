@@ -361,7 +361,28 @@ const i18n = {
         waiting_for_player: 'Waiting for player...',
         
         // Accounts empty state
-        accounts_will_appear: 'Accounts will appear here when the farm script is running.'
+        accounts_will_appear: 'Accounts will appear here when the farm script is running.',
+        
+        // Eldorado API Modal
+        eldorado_api_mode: 'Eldorado API Mode',
+        api_key_description: 'Enter your personal Eldorado API key to enable direct API access. This unlocks Telegram bot control and automatic offer management.',
+        benefit_telegram: 'Telegram bot for offer management',
+        benefit_auto_offers: 'Auto-create offers via API',
+        benefit_notifications: 'Instant sale notifications',
+        benefit_no_scan: 'No more script scanning needed',
+        validate_and_save: 'Validate & Save',
+        get_api_key: 'Get your API key from Eldorado Dashboard',
+        api_connected: 'API Connected',
+        telegram_not_linked: 'Telegram not linked',
+        telegram_linked: 'Telegram linked',
+        telegram_instructions: 'Open our Telegram bot and use your API key to authenticate. After first login, your Telegram will be remembered.',
+        open_telegram_bot: 'Open Telegram Bot',
+        reset_api_key: 'Reset API Key',
+        validating: 'Validating...',
+        api_key_invalid: 'Invalid API key',
+        api_key_valid: 'API key is valid!',
+        api_key_saved: 'API key saved successfully',
+        confirm_reset_api_key: 'Are you sure you want to reset your API key?'
     },
     ru: {
         // Navigation
@@ -685,7 +706,28 @@ const i18n = {
         
         // Accounts empty state
         accounts_will_appear: 'Аккаунты появятся здесь после запуска скрипта фермы.',
-        start_farm_hint: 'Запустите скрипт фермы, чтобы увидеть аккаунты.'
+        start_farm_hint: 'Запустите скрипт фермы, чтобы увидеть аккаунты.',
+        
+        // Eldorado API Modal
+        eldorado_api_mode: 'Eldorado API Режим',
+        api_key_description: 'Введите ваш личный API ключ Eldorado для прямого доступа к API. Это открывает управление через Telegram бота и автоматическое создание офферов.',
+        benefit_telegram: 'Telegram бот для управления офферами',
+        benefit_auto_offers: 'Автосоздание офферов через API',
+        benefit_notifications: 'Мгновенные уведомления о продажах',
+        benefit_no_scan: 'Больше не нужно сканирование скриптом',
+        validate_and_save: 'Проверить и сохранить',
+        get_api_key: 'Получить API ключ в панели Eldorado',
+        api_connected: 'API подключён',
+        telegram_not_linked: 'Telegram не привязан',
+        telegram_linked: 'Telegram привязан',
+        telegram_instructions: 'Откройте нашего Telegram бота и используйте ваш API ключ для авторизации. После первого входа ваш Telegram будет запомнен.',
+        open_telegram_bot: 'Открыть Telegram бота',
+        reset_api_key: 'Сбросить API ключ',
+        validating: 'Проверка...',
+        api_key_invalid: 'Недействительный API ключ',
+        api_key_valid: 'API ключ действителен!',
+        api_key_saved: 'API ключ успешно сохранён',
+        confirm_reset_api_key: 'Вы уверены, что хотите сбросить API ключ?'
     }
 };
 

@@ -63,15 +63,16 @@ async function validateEldoradoApiKey(apiKey) {
     for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         try {
             // Use seller eligibility endpoint to test API key
+            // Requires 'swagger' header as per Eldorado API docs
             const response = await fetch(`${ELDORADO_API_BASE}/api/orders/me/sellerApiEligibility`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Api-Key ${apiKey}`,
                     'Content-Type': 'application/json',
                     'Accept': 'application/json',
-                    'User-Agent': 'FarmerPanel/1.0'
-                },
-                timeout: 10000
+                    'swagger': 'Swager request',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
             });
             
             // Rate limited - retry
@@ -102,6 +103,7 @@ async function validateEldoradoApiKey(apiKey) {
             
             // Other error
             const errorText = await response.text();
+            console.log(`[EldoradoAPI] Validation response ${response.status}:`, errorText);
             return { valid: false, error: `API error: ${response.status}`, details: errorText, retryable: false };
             
         } catch (e) {
@@ -128,15 +130,15 @@ async function validateEldoradoApiKey(apiKey) {
 async function getSellerInfo(apiKey) {
     try {
         // Try to get seller's offers to extract seller name
-        const response = await fetch(`${ELDORADO_API_BASE}/api/predefinedOffers/me?page=1&pageSize=1`, {
+        const response = await fetch(`${ELDORADO_API_BASE}/api/predefinedOffers/me?pageIndex=1&pageSize=1`, {
             method: 'GET',
             headers: {
                 'Authorization': `Api-Key ${apiKey}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'User-Agent': 'FarmerPanel/1.0'
-            },
-            timeout: 10000
+                'swagger': 'Swager request',
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
         });
         
         if (response.ok) {
@@ -144,8 +146,17 @@ async function getSellerInfo(apiKey) {
             if (data.items && data.items.length > 0) {
                 const offer = data.items[0];
                 return {
-                    sellerName: offer.sellerName || null,
+                    sellerName: offer.sellerName || offer.sellerDisplayName || null,
                     sellerId: offer.sellerId || null
+                };
+            }
+            // No offers but API key is valid - extract name from key format
+            // Format: StoreName-Bot-xxxxx
+            const keyParts = apiKey.split('-');
+            if (keyParts.length >= 2) {
+                return {
+                    sellerName: keyParts[0],
+                    sellerId: null
                 };
             }
         }
@@ -153,6 +164,11 @@ async function getSellerInfo(apiKey) {
         return { sellerName: null, sellerId: null };
     } catch (e) {
         console.error('[EldoradoAPI] Failed to get seller info:', e.message);
+        // Try to extract from API key format
+        const keyParts = apiKey.split('-');
+        if (keyParts.length >= 2) {
+            return { sellerName: keyParts[0], sellerId: null };
+        }
         return { sellerName: null, sellerId: null };
     }
 }
