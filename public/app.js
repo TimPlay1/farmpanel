@@ -1,4 +1,5 @@
-// FarmerPanel App v10.4.6 - Smart incremental card updates
+// FarmerPanel App v10.4.7 - Fix undefined currentFarmKey in Eldorado API functions
+// - v10.4.7: Fixed currentFarmKey is not defined error in openEldoradoApiModal, validateAndSaveApiKey, resetApiKey, checkApiStatusOnLoad
 // - v10.4.6: Smart incremental updates - only update changed cards, no full re-render
 // - v10.4.6: Brainrots hash comparison - prevents image flickering on unchanged data
 // - v10.4.6: Add new cards without removing existing, remove only deleted accounts
@@ -11450,6 +11451,12 @@ async function openEldoradoApiModal() {
     const modal = document.getElementById('eldoradoApiModal');
     if (!modal) return;
     
+    const currentFarmKey = state.currentKey;
+    if (!currentFarmKey) {
+        console.warn('currentFarmKey is not defined');
+        return;
+    }
+    
     modal.classList.remove('hidden');
     
     // Show loading, hide other sections
@@ -11560,6 +11567,7 @@ function updateApiButtonState() {
 
 // Validate and save API key
 async function validateAndSaveApiKey() {
+    const currentFarmKey = state.currentKey;
     const input = document.getElementById('eldoradoApiKeyInput');
     const errorEl = document.getElementById('apiKeyError');
     const successEl = document.getElementById('apiKeySuccess');
@@ -11643,6 +11651,7 @@ async function resetApiKey() {
         return;
     }
     
+    const currentFarmKey = state.currentKey;
     const loadingText = document.getElementById('apiLoadingText');
     showApiSection('loading');
     if (loadingText) loadingText.textContent = 'Removing API key...';
@@ -11734,6 +11743,7 @@ function setupEldoradoApiModalListeners() {
 
 // Check API status on page load (for button state)
 async function checkApiStatusOnLoad() {
+    const currentFarmKey = state.currentKey;
     if (!currentFarmKey) return;
     
     try {
