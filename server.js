@@ -377,6 +377,7 @@ const supaStatusHandler = require('./api/supa-status');
 const localGenerateHandler = require('./api/local-generate');
 const eldoradoListHandler = require('./api/eldorado-list');
 const heartbeatHandler = require('./api/heartbeat');
+const deleteFarmerHandler = require('./api/delete-farmer');
 
 // API Routes
 
@@ -393,6 +394,11 @@ app.get('/api/sync-fast', async (req, res) => {
 // Sync POST endpoint - receives data from panel_sync.lua
 app.post('/api/sync', async (req, res) => {
     await syncHandler(req, res);
+});
+
+// Delete farmer endpoint
+app.delete('/api/delete-farmer', async (req, res) => {
+    await deleteFarmerHandler(req, res);
 });
 
 // Top leaderboards endpoint
