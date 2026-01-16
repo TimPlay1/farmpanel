@@ -1406,6 +1406,66 @@ server.listen(PORT, async () => {
     console.log(`  Price scanner cron: every 1 min`);
     console.log(`========================================\n`);
     
+    // Initialize Eldorado API tables (auto-create if not exist)
+    try {
+        const { getPool } = require('./api/_lib/db');
+        const pool = await getPool();
+        
+        // Create eldorado_api_keys table
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS eldorado_api_keys (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                farm_key VARCHAR(30) NOT NULL UNIQUE,
+                api_key_encrypted TEXT NOT NULL,
+                api_key_hash VARCHAR(64) NOT NULL,
+                seller_name VARCHAR(100),
+                seller_id VARCHAR(50),
+                telegram_user_id BIGINT,
+                telegram_username VARCHAR(100),
+                telegram_verified BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                last_used_at TIMESTAMP NULL,
+                INDEX idx_farm_key (farm_key),
+                INDEX idx_api_key_hash (api_key_hash),
+                INDEX idx_telegram_user_id (telegram_user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        
+        // Create telegram_bot_sessions table
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS telegram_bot_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                telegram_user_id BIGINT NOT NULL UNIQUE,
+                telegram_username VARCHAR(100),
+                farm_key VARCHAR(30),
+                is_authenticated BOOLEAN DEFAULT FALSE,
+                session_state VARCHAR(50) DEFAULT 'idle',
+                session_data JSON,
+                last_activity_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_telegram_user_id (telegram_user_id),
+                INDEX idx_farm_key (farm_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        
+        // Create eldorado_orders_cache table
+        await pool.execute(`
+            CREATE TABLE IF NOT EXISTS eldorado_orders_cache (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                farm_key VARCHAR(30) NOT NULL UNIQUE,
+                last_order_id VARCHAR(50),
+                last_check_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_farm_key (farm_key)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        `);
+        
+        console.log(`  Eldorado API tables: Ready`);
+    } catch (e) {
+        console.error(`  Eldorado API tables: ${e.message}`);
+    }
+    
     // Initialize Telegram Bot
     try {
         telegramBot.initBot();

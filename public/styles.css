@@ -7222,9 +7222,17 @@ body.theme-light textarea {
     margin-bottom: 16px;
 }
 
+.api-key-input-group i {
+    position: absolute;
+    left: 14px;
+    color: var(--text-muted);
+    font-size: 14px;
+    z-index: 1;
+}
+
 .api-key-input-group input {
     flex: 1;
-    padding: 12px 16px;
+    padding: 12px 16px 12px 40px;
     font-size: 14px;
     font-family: monospace;
     letter-spacing: 0.5px;
