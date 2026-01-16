@@ -24,47 +24,50 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Player name required' });
         }
 
-        const { db } = await connectToDatabase();
-        const farmersCollection = db.collection('farmers');
-        const accountsCollection = db.collection('accounts');
+        const { pool } = await connectToDatabase();
 
         // Find farmer by key to validate ownership
-        const farmer = await farmersCollection.findOne({ farmKey: key });
+        const [farmerRows] = await pool.execute(
+            'SELECT id FROM farmers WHERE farm_key = ?',
+            [key]
+        );
         
-        if (!farmer) {
+        if (farmerRows.length === 0) {
             return res.status(401).json({ error: 'Invalid farm key' });
         }
 
-        // Find and delete the account data for this player
-        // Accounts are stored with playerName field
-        const deleteResult = await accountsCollection.deleteMany({ 
-            farmKey: key,
-            playerName: playerName 
-        });
+        const farmerId = farmerRows[0].id;
 
-        // Also try to remove from farmer's accounts array if it exists
-        await farmersCollection.updateOne(
-            { farmKey: key },
-            { 
-                $pull: { 
-                    accounts: { playerName: playerName }
-                }
-            }
+        // Find account by player_name and farmer_id
+        const [accountRows] = await pool.execute(
+            'SELECT id FROM farmer_accounts WHERE farmer_id = ? AND player_name = ?',
+            [farmerId, playerName]
         );
 
-        // Try removing brainrots associated with this player
-        const brainrotsCollection = db.collection('brainrots');
-        await brainrotsCollection.deleteMany({
-            farmKey: key,
-            playerName: playerName
-        });
+        if (accountRows.length === 0) {
+            return res.status(404).json({ error: `Farmer ${playerName} not found` });
+        }
 
-        console.log(`Deleted farmer ${playerName} for key ${key.substring(0, 10)}...`);
+        const accountId = accountRows[0].id;
+
+        // Delete brainrots for this account first (foreign key constraint)
+        await pool.execute(
+            'DELETE FROM farmer_brainrots WHERE account_id = ?',
+            [accountId]
+        );
+
+        // Delete the account
+        const [deleteResult] = await pool.execute(
+            'DELETE FROM farmer_accounts WHERE id = ?',
+            [accountId]
+        );
+
+        console.log(`Deleted farmer ${playerName} (account_id: ${accountId}) for key ${key.substring(0, 10)}...`);
 
         return res.status(200).json({ 
             success: true, 
             message: `Farmer ${playerName} deleted successfully`,
-            deletedAccounts: deleteResult.deletedCount
+            deletedAccounts: deleteResult.affectedRows
         });
 
     } catch (error) {
