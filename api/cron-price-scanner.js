@@ -21,10 +21,13 @@
  * v3.0.44: Auto-create offers when pending offer_codes are found on Eldorado
  */
 
-const VERSION = '3.0.47';  // v3.0.47: Skip cron scanning for users with Eldorado API keys
+const VERSION = '3.0.48';  // v3.0.48: HTTP proxy rotation via proxy-rotator module
 const https = require('https');
 const http = require('http');
 const { connectToDatabase } = require('./_lib/db');
+
+// v3.0.48: HTTP proxy rotation module
+const proxyRotator = require('./proxy-rotator');
 
 // v3.0.47: Eldorado API integration - skip scanning for users with API keys
 let eldoradoApi = null;
@@ -34,14 +37,8 @@ try {
     console.warn('⚠️ eldorado-api module not available');
 }
 
-// v3.0.22: SOCKS5 proxy support
-let SocksProxyAgent = null;
-try {
-    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
-    console.log('✅ SOCKS proxy agent loaded');
-} catch (e) {
-    console.warn('⚠️ socks-proxy-agent not available:', e.message);
-}
+// v3.0.48: HTTP proxy rotation - removed SOCKS5, using proxy-rotator module
+// Proxy rotation happens automatically on rate limit errors (429, 403, Cloudflare 1015)
 
 // ⚠️ AI ПОЛНОСТЬЮ ОТКЛЮЧЁН В CRON!
 // Вся квота Gemini (15K tokens/min) зарезервирована для пользователей
@@ -60,28 +57,20 @@ const USER_AGENTS = [
     'Mozilla/5.0 (iPhone; CPU iPhone OS 17_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1',
 ];
 
-// v3.0.22: SOCKS5 Proxy configuration
-// Set SOCKS5_PROXY_URL environment variable:
-// socks5://username:password@host:port
-// v10.3.30: DataImpulse proxy - activates ONLY on Cloudflare 1015
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
-
-// v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues on Vercel)
+// v3.0.48: HTTP Proxy via proxy-rotator module
+// Create fresh proxy agent for each request
 function createProxyAgent() {
-    if (!SOCKS5_PROXY_URL || !SocksProxyAgent) return null;
     try {
-        return new SocksProxyAgent(SOCKS5_PROXY_URL, {
-            timeout: 15000  // 15 second timeout for proxy connection
-        });
+        return proxyRotator.getProxyAgent();
     } catch (e) {
         console.error('❌ Failed to create proxy agent:', e.message);
         return null;
     }
 }
 
-// v3.0.22: Check if SOCKS5 proxy is configured
+// v3.0.48: Proxy is always configured via proxy-rotator
 function isProxyConfigured() {
-    return !!SOCKS5_PROXY_URL && !!SocksProxyAgent;
+    return proxyRotator.PROXY_LIST.length > 0;
 }
 
 // v3.0.20: Adaptive Rate Limiting System
@@ -96,7 +85,7 @@ const adaptiveRateLimit = {
     backupModeDuration: 10 * 60 * 1000, // v3.0.24: Backup mode на 10 минут (was 30)
     cooldownPeriod: 5 * 60 * 1000,  // 5 минут без ошибок - сбрасываем множитель
     currentUserAgentIndex: 0,       // v3.0.21: Текущий индекс User-Agent
-    useProxy: false,                // v3.0.21: Использовать прокси (активируется при ошибках)
+    useProxy: true,                 // v3.0.48: ALWAYS use HTTP proxy (rotating 50 proxies)
     successStreak: 0,               // v3.0.26: Успешные запросы подряд
 };
 
@@ -124,6 +113,7 @@ function isInBackupMode() {
 }
 
 // Обработка rate limit ошибки
+// v3.0.48: Now rotates HTTP proxy via proxy-rotator
 function handleRateLimitError() {
     adaptiveRateLimit.consecutiveErrors++;
     adaptiveRateLimit.lastErrorTime = Date.now();
@@ -136,12 +126,16 @@ function handleRateLimitError() {
     // v3.0.21: Rotate User-Agent on each error
     rotateUserAgent();
     
-    console.log(`⚠️ Rate limit error #${adaptiveRateLimit.consecutiveErrors}, backoff: ${adaptiveRateLimit.backoffMultiplier}x`);
+    // v3.0.48: Rotate HTTP proxy on rate limit
+    proxyRotator.rotateProxy(true);  // Mark current proxy as rate limited
     
-    // v3.0.26: Включаем прокси СРАЗУ при первой ошибке если настроен
-    if (isProxyConfigured() && !adaptiveRateLimit.useProxy) {
+    console.log(`⚠️ Rate limit error #${adaptiveRateLimit.consecutiveErrors}, backoff: ${adaptiveRateLimit.backoffMultiplier}x`);
+    console.log(`   📡 ${proxyRotator.getProxyInfo()}`);
+    
+    // v3.0.48: Proxy is always enabled via proxy-rotator module
+    if (!adaptiveRateLimit.useProxy) {
         adaptiveRateLimit.useProxy = true;
-        console.log(`🔀 Proxy mode ENABLED (SOCKS5)`);
+        console.log(`🔀 Proxy mode ENABLED (HTTP rotating proxies)`);
     }
     
     // v10.3.47: Sync proxy state to eldorado-price module
@@ -705,13 +699,13 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             }
         };
 
-        // v3.0.22: Add SOCKS5 proxy support if enabled
-        // v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues)
+        // v3.0.48: Add HTTP proxy support via proxy-rotator module
+        // Create fresh proxy agent for each request (avoids socket reuse issues)
         if (adaptiveRateLimit.useProxy && isProxyConfigured()) {
             const agent = createProxyAgent();
             if (agent) {
                 options.agent = agent;
-                console.log('🔀 Using SOCKS5 proxy for this request');
+                console.log(`🔀 Using HTTP proxy: ${proxyRotator.getProxyInfo()}`);
             }
         }
 

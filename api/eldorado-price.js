@@ -1,10 +1,11 @@
 /**
  * Eldorado Price API
- * v10.3.47 - Export proxy control functions for cron-scanner sync
+ * v10.3.48 - HTTP proxy rotation via proxy-rotator module
  * 
  * Problem: Sellers tag offers with wrong brainrot (e.g. "REINITO SLEGITO" tagged as "Dragon Cannelloni")
  * Solution: Check title for OTHER known brainrots FIRST before trusting envValue tag
  * 
+ * v10.3.48: Switched from SOCKS5 to HTTP proxy rotation via proxy-rotator
  * v10.3.47: Export enableProxyMode, isProxyEnabled, disableProxyMode for cron-scanner sync
  * v10.3.44: Skip mutation validation entirely for Other fallback
  * v10.3.43: Add Meowl trait exception
@@ -15,32 +16,20 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-// v10.3.30: SOCKS5 proxy - activated ONLY on Cloudflare 1015 errors
-// v10.3.47: Create fresh agent per request to avoid socket reuse issues on Vercel
-// DataImpulse Datacenter proxy (Rotating, interval 5)
-let SocksProxyAgent = null;
-let useProxyForRequests = false;  // v10.3.30: Flag to enable proxy after 1015
-const SOCKS5_PROXY_URL = process.env.SOCKS5_PROXY_URL || 'socks5://d36230e549169e3261cc:d5be06662f2a8981@gw.dataimpulse.com:824';
+// v10.3.48: HTTP proxy rotation module
+const proxyRotator = require('./proxy-rotator');
 
-// Proxy initialization - check if socks-proxy-agent is available
-let proxyAvailable = false;
-try {
-    SocksProxyAgent = require('socks-proxy-agent').SocksProxyAgent;
-    if (SOCKS5_PROXY_URL) {
-        proxyAvailable = true;
-        console.log('✅ SOCKS5 proxy READY (will activate on 1015):', SOCKS5_PROXY_URL.replace(/:[^:@]+@/, ':***@'));
-    }
-} catch (e) {
-    console.warn('⚠️ SOCKS5 proxy not available:', e.message);
-}
+// v10.3.48: Flag to enable proxy - ALWAYS enabled with rotating proxies
+let useProxyForRequests = true;
 
-// v10.3.47: Create a fresh proxy agent for each request (avoids socket reuse issues)
+// v10.3.48: Proxy is always available via proxy-rotator
+const proxyAvailable = proxyRotator.PROXY_LIST.length > 0;
+console.log(`✅ HTTP proxies READY (${proxyRotator.PROXY_LIST.length} proxies via proxy-rotator)`);
+
+// v10.3.48: Create a fresh proxy agent for each request using proxy-rotator
 function createProxyAgent() {
-    if (!SocksProxyAgent || !SOCKS5_PROXY_URL) return null;
     try {
-        return new SocksProxyAgent(SOCKS5_PROXY_URL, {
-            timeout: 15000  // 15 second timeout for proxy connection
-        });
+        return proxyRotator.getProxyAgent();
     } catch (e) {
         console.warn('⚠️ Failed to create proxy agent:', e.message);
         return null;
@@ -48,11 +37,11 @@ function createProxyAgent() {
 }
 
 // v10.3.30: Enable proxy mode (called when 1015 detected)
-// v10.3.47: Made exportable so cron-price-scanner can sync proxy state
+// v10.3.48: Now also rotates to next proxy
 function enableProxyMode() {
     if (proxyAvailable && !useProxyForRequests) {
         useProxyForRequests = true;
-        console.log('🔀 PROXY MODE ENABLED - switching to SOCKS5 proxy');
+        console.log(`🔀 PROXY MODE ENABLED - using ${proxyRotator.getProxyInfo()}`);
     }
     return useProxyForRequests;
 }
@@ -900,7 +889,7 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
 
     const url = 'https://www.eldorado.gg/api/flexibleOffers?' + params.toString();
     
-    // v9.12.101: Use https.request with socks-proxy-agent for SOCKS5 support
+    // v10.3.48: Use https.request with HTTP proxy via proxy-rotator module
     return new Promise((resolve) => {
         const urlObj = new URL(url);
         
@@ -916,12 +905,13 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
             }
         };
         
-        // v10.3.30: Add proxy agent ONLY if proxy mode is enabled (after 1015)
-        // v10.3.47: Create fresh proxy agent for each request (avoids socket reuse issues)
+        // v10.3.48: Add HTTP proxy agent if proxy mode is enabled
+        // Create fresh proxy agent for each request (avoids socket reuse issues)
         if (useProxyForRequests && proxyAvailable) {
             const freshProxyAgent = createProxyAgent();
             if (freshProxyAgent) {
                 options.agent = freshProxyAgent;
+                console.log(`🔀 Using HTTP proxy: ${proxyRotator.getProxyInfo()}`);
             }
         }
         
@@ -933,7 +923,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
                 if (res.statusCode === 403 || res.statusCode === 429) {
                     if (data.includes('1015') || data.includes('rate limit') || data.includes('Rate limit')) {
                         console.log('🚫 Cloudflare 1015 detected in eldorado-price!');
-                        // v10.3.30: Enable proxy mode for next requests
+                        // v10.3.48: Rotate to next proxy and enable proxy mode
+                        proxyRotator.rotateProxy(true);
                         enableProxyMode();
                         resolve({ error: 'cloudflare_1015', rateLimited: true, results: [] });
                         return;
@@ -957,7 +948,8 @@ async function fetchEldorado(pageIndex = 1, msRangeAttrId = null, brainrotName =
                     // v3.0.20: Parse error might be Cloudflare HTML
                     if (data.includes('1015') || data.includes('Cloudflare')) {
                         console.log('🚫 Cloudflare block detected in eldorado-price!');
-                        // v10.3.30: Enable proxy mode for next requests
+                        // v10.3.48: Rotate to next proxy and enable proxy mode
+                        proxyRotator.rotateProxy(true);
                         enableProxyMode();
                         resolve({ error: 'cloudflare_block', rateLimited: true, results: [] });
                         return;
