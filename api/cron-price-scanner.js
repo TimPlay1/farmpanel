@@ -1,6 +1,6 @@
 /**
  * Vercel Cron Job - Централизованный сканер цен + офферов
- * Version: 3.0.44 - Auto-create offers from pending offer_codes
+ * Version: 3.0.51 - Fixed hard timeout for proxy requests
  * 
  * Запускается каждую минуту через Vercel Cron
  * Сканирует ВСЕ брейнроты со ВСЕХ панелей пользователей
@@ -709,25 +709,17 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             }
         }
 
-        // v3.0.50: Hard timeout to prevent hung requests
+        // v3.0.51: Hard timeout with proper request reference
         let resolved = false;
-        const hardTimeout = setTimeout(() => {
-            if (!resolved) {
-                resolved = true;
-                console.log(`[ProxyRotator] HARD TIMEOUT (20s), rotating proxy...`);
-                proxyRotator.rotateProxy(false);
-                try { req.destroy(); } catch(e) {}
-                resolve({ error: 'hard_timeout', results: [] });
-            }
-        }, 20000);
-
+        let hardTimeout = null;
+        
         const req = https.request(options, (res) => {
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => {
                 if (resolved) return;
                 resolved = true;
-                clearTimeout(hardTimeout);
+                if (hardTimeout) clearTimeout(hardTimeout);
                 
                 // v3.0.20: Detect Cloudflare rate limit (error 1015)
                 if (res.statusCode === 403 || res.statusCode === 429) {
@@ -763,7 +755,7 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
         req.on('error', (e) => {
             if (resolved) return;
             resolved = true;
-            clearTimeout(hardTimeout);
+            if (hardTimeout) clearTimeout(hardTimeout);
             // v3.0.48: Rotate proxy on connection error
             console.log(`[ProxyRotator] Request error, rotating proxy...`);
             proxyRotator.rotateProxy(false);
@@ -772,7 +764,7 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
         req.setTimeout(15000, () => {
             if (resolved) return;
             resolved = true;
-            clearTimeout(hardTimeout);
+            if (hardTimeout) clearTimeout(hardTimeout);
             req.destroy();
             // v3.0.48: Rotate proxy on timeout (15s)
             console.log(`[ProxyRotator] Timeout (15s), rotating proxy...`);
@@ -780,6 +772,17 @@ function fetchEldoradoOffers(pageIndex = 1, pageSize = 50, searchText = null) {
             resolve({ error: 'timeout', results: [] });
         });
         req.end();
+        
+        // v3.0.51: Hard timeout AFTER req created to prevent hung connections
+        hardTimeout = setTimeout(() => {
+            if (!resolved) {
+                resolved = true;
+                console.log(`[ProxyRotator] HARD TIMEOUT (20s), rotating proxy...`);
+                proxyRotator.rotateProxy(false);
+                req.destroy();
+                resolve({ error: 'hard_timeout', results: [] });
+            }
+        }, 20000);
     });
 }
 
@@ -1779,4 +1782,5 @@ module.exports.collectAllBrainrotsFromDB = collectAllBrainrotsFromDB;
 module.exports.getCachedPrice = getCachedPrice;
 module.exports.savePriceToCache = savePriceToCache;
 module.exports.savePriceToCache = savePriceToCache;
+
 
