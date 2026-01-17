@@ -344,9 +344,17 @@ module.exports = async (req, res) => {
                 if (newAcc.playerName) {
                     const existing = existingByName[newAcc.playerName];
                     
+                    // v9.13.0: ЗАЩИТА от перезаписи хороших данных пустыми
                     // Аккаунт считается "активно синхронизирующим" если isOnline = true
-                    // В этом случае полностью доверяем его данным (даже 0 brainrots - он мог продать всё)
+                    // НО! Не доверяем пустым данным если у нас есть хорошие данные
                     const isActiveSync = newAcc.isOnline === true;
+                    const newBrainrots = newAcc.brainrots || [];
+                    const newHasData = newBrainrots.length > 0 || (newAcc.totalIncome && newAcc.totalIncome > 0);
+                    const existingBrainrots = existing?.brainrots || [];
+                    const existingHasData = existingBrainrots.length > 0 || (existing?.totalIncome && existing.totalIncome > 0);
+                    
+                    // DEBUG лог для отладки
+                    console.log(`[SYNC-MERGE] ${newAcc.playerName}: isOnline=${isActiveSync}, newBrainrots=${newBrainrots.length}, existingBrainrots=${existingBrainrots.length}, newHasData=${newHasData}, existingHasData=${existingHasData}`);
                     
                     if (existing && !isActiveSync) {
                         // Аккаунт НЕ онлайн - сохраняем старые данные, обновляем только метаданные
@@ -357,8 +365,22 @@ module.exports = async (req, res) => {
                             action: newAcc.action || existing.action || '',
                             // НЕ обновляем brainrots, income и т.д. - они могут быть stale
                         };
+                    } else if (existing && isActiveSync && !newHasData && existingHasData) {
+                        // v9.13.0: КРИТИЧЕСКАЯ ЗАЩИТА!
+                        // Аккаунт ОНЛАЙН но присылает ПУСТЫЕ данные, а у нас есть ХОРОШИЕ данные
+                        // НЕ перезаписываем! Это может быть ранний sync до первого сканирования
+                        console.log(`[SYNC-MERGE] ⚠️ PROTECTED ${newAcc.playerName}: refusing to overwrite ${existingBrainrots.length} brainrots with empty data`);
+                        existingByName[newAcc.playerName] = {
+                            ...existing,
+                            // Обновляем lastUpdate и status чтобы показывать что онлайн
+                            lastUpdate: newAcc.lastUpdate || existing.lastUpdate,
+                            status: newAcc.status || existing.status || 'idle',
+                            action: newAcc.action || existing.action || '',
+                            isOnline: true, // Отмечаем как онлайн
+                            // НО сохраняем старые brainrots и income!
+                        };
                     } else if (existing && isActiveSync) {
-                        // Аккаунт ОНЛАЙН - полностью доверяем его данным
+                        // Аккаунт ОНЛАЙН с валидными данными - полностью доверяем
                         existingByName[newAcc.playerName] = {
                             ...existing, // Сохраняем базовые поля (avatarUrl и т.д.)
                             ...newAcc,   // Полностью перезаписываем данными от активного sync
