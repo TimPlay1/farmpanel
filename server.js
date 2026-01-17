@@ -73,6 +73,21 @@ app.use('/brainrot-images', express.static(BRAINROT_IMAGES_PATH));
 // Serve locally generated images
 app.use('/generated', express.static(GENERATED_IMAGES_PATH));
 
+// Serve userscripts from scripts folder (for Tampermonkey updates via scripts.ody.farm)
+const SCRIPTS_PATH = path.join(__dirname, 'scripts');
+app.use('/userscripts', express.static(SCRIPTS_PATH, {
+    setHeaders: (res, filePath) => {
+        // Set proper content type for .user.js files
+        if (filePath.endsWith('.user.js') || filePath.endsWith('.js')) {
+            res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+        }
+        // Disable caching for scripts to ensure updates are always fetched
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
+    }
+}));
+
 // Store connected clients
 const clients = new Map();
 
